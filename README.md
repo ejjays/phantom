@@ -1,9 +1,10 @@
 <p align="center">
-  <img src="mobile/assets/panther-attack.png" alt="Panther" width="160" />
+  <img src="mobile/assets/panther-attack.png" alt="Panther" width="180" />
+  <br/>
+  <img src="mobile/assets/cyan-panther-title.svg" alt="Cyan Panther" width="350" />
+  <br/>
+  <em>Media Orchestration Engine</em>
 </p>
-
-<h1 align="center"><img src="mobile/assets/cyan-panther-title.svg" alt="Cyan Panther" width="350" /></h1>
-<h3 align="center"><em>Media Orchestration Engine</em></h3>
 
 <p align="center">
   <a href="https://dl.circleci.com/status-badge/redirect/circleci/9BjBRRbsXUjJueU2cq7uGg/YU36DWYQs3RevrR3a2o1CN/tree/main"><img src="https://dl.circleci.com/status-badge/img/circleci/9BjBRRbsXUjJueU2cq7uGg/YU36DWYQs3RevrR3a2o1CN/tree/main.svg?style=shield" alt="CircleCI" /></a>
@@ -19,11 +20,11 @@ Panther downloads 4K+ video and audio, and breaks songs into stems + chords for 
 
 **Three deployment targets, one codebase:**
 
-| Target          | What runs where                                                        | Repo path |
-| --------------- | ---------------------------------------------------------------------- | --------- |
-| **Web app**     | Extraction/mux on server (Node), optional browser mux via `mediabunny` | `web/`    |
-| **Android app** | Full pipeline on-device (Expo RN, Hermes, ffmpeg-kit)                  | `mobile/` |
-| **Remix Lab**   | ML stem/chord/beat/key analysis on free Kaggle/Colab GPUs              | `remix/`  |
+| Target | What runs where | Repo path |
+|--------|-----------------|-----------|
+| **Web app** | Extraction/mux on server (Node), optional browser mux via `mediabunny` | `web/` |
+| **Android app** | Full pipeline on-device (Expo RN, Hermes, ffmpeg-kit) | `mobile/` |
+| **Remix Lab** | ML stem/chord/beat/key analysis on free Kaggle/Colab GPUs | `remix/` |
 
 The web and mobile apps are **architecturally separate** — they share extractor logic via `@panther/extractors` but have independent backends.
 
@@ -49,7 +50,6 @@ npm run ui    # frontend dev server
 ```
 
 **Production-style:**
-
 ```bash
 npm run build:api
 npm run build:ui
@@ -57,7 +57,6 @@ cd web/backend && npm start
 ```
 
 **Docker (backend only):**
-
 ```bash
 docker build -f web/backend/Dockerfile -t panther .
 docker run -p 8000:8000 --env-file web/backend/.env panther
@@ -101,6 +100,14 @@ Prebuilt APKs: GitHub Releases (built via EAS). Android only — iOS untested/un
 
 ---
 
+## Remix Lab Preview
+
+<p align="center">
+  <img src="remix/assets/demo.gif" width="600" alt="Remix Lab Demo" />
+</p>
+
+---
+
 ## Architecture overview
 
 ```
@@ -131,34 +138,26 @@ nexstream/
 
 ---
 
-## Remix Lab Preview
-
-<p align="center">
-  <video src="remix/assets/demo.mp4" width="600" autoplay loop muted playsinline></video>
-</p>
-
----
-
 ## Documentation
 
-| Doc                                                          | What it covers                                                         |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| [`docs/run-an-instance.md`](docs/run-an-instance.md)         | Prerequisites, Termux, Docker, tunnels, dev/prod commands              |
-| [`docs/env-variables.md`](docs/env-variables.md)             | Every env var, defaults, where to get API keys                         |
+| Doc | What it covers |
+|-----|----------------|
+| [`docs/run-an-instance.md`](docs/run-an-instance.md) | Prerequisites, Termux, Docker, tunnels, dev/prod commands |
+| [`docs/env-variables.md`](docs/env-variables.md) | Every env var, defaults, where to get API keys |
 | [`docs/protect-an-instance.md`](docs/protect-an-instance.md) | Hardening a public deployment (API key, URL signing, rate limits, TLS) |
-| [`docs/api.md`](docs/api.md)                                 | Endpoint contracts, request/response shapes, SSE events                |
-| [`docs/mobile-app.md`](docs/mobile-app.md)                   | Android app architecture, extractors, download pipeline, EAS build     |
-| [`docs/remix-lab.md`](docs/remix-lab.md)                     | ML pipeline, models, Kaggle/Colab setup, local run, API                |
-| [`docs/phone-worker-setup.md`](docs/phone-worker-setup.md)   | Legacy: using a spare phone as yt-dlp/media relay for web backend      |
+| [`docs/api.md`](docs/api.md) | Endpoint contracts, request/response shapes, SSE events |
+| [`docs/mobile-app.md`](docs/mobile-app.md) | Android app architecture, extractors, download pipeline, EAS build |
+| [`docs/remix-lab.md`](docs/remix-lab.md) | ML pipeline, models, Kaggle/Colab setup, local run, API |
+| [`docs/phone-worker-setup.md`](docs/phone-worker-setup.md) | Legacy: using a spare phone as yt-dlp/media relay for web backend |
 
 ---
 
 ## Packages (standalone, MIT licensed)
 
-| Package               | Purpose                                                            | Install                     |
-| --------------------- | ------------------------------------------------------------------ | --------------------------- |
+| Package | Purpose | Install |
+|---------|---------|---------|
 | `@panther/extractors` | Pure-JS metadata/stream extractors for 13+ platforms. BYO `fetch`. | `npm i @panther/extractors` |
-| `@panther/web-mux`    | Browser demux+remux via WebCodecs + OPFS. Worker-based, no server. | `npm i @panther/web-mux`    |
+| `@panther/web-mux` | Browser demux+remux via WebCodecs + OPFS. Worker-based, no server. | `npm i @panther/web-mux` |
 
 Both publish from `packages/` with their own `package.json`, `tsconfig`, and `LICENSE`.
 
