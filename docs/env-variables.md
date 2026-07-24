@@ -1,78 +1,102 @@
-# Environment variables
+# Environment Variables
 
-Panther boots without most of these — they enable optional features and degrade gracefully when unset. backend vars go in `web/backend/.env`, frontend vars in `web/frontend/.env`.
+Panther boots without most of these — they enable optional features and degrade gracefully when unset. Backend vars go in `web/backend/.env`, frontend vars in `web/frontend/.env`, mobile vars in `mobile/.env` (or `eas.json` for builds).
 
-## Where to get keys
+## Where to Get Keys
 
-most of the API-keyed vars require an account with the provider:
+| Provider    | Link                                                                                                             |
+| ----------- | ---------------------------------------------------------------------------------------------------------------- |
+| Spotify     | [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) → create app, copy client id + secret |
+| Gemini      | [aistudio.google.com/api-keys](https://aistudio.google.com/api-keys) — free tier generous                        |
+| Groq        | [console.groq.com/keys](https://console.groq.com/keys) — free tier generous                                      |
+| Redis       | Local (`pkg install redis` on Termux) or free hosted [Aiven](https://aiven.io)                                   |
+| Turso       | [app.turso.tech](https://app.turso.tech) → create DB, copy URL + auth token. CLI: `turso db tokens create <db>`  |
+| Soundcharts | [soundcharts.com/api](https://soundcharts.com/api) — commercial, sandbox keys on request                         |
+| AcoustID    | [acoustid.org/new-application](https://acoustid.org/new-application) → register app, copy API key (free)         |
+| Kaggle      | [kaggle.com/settings](https://www.kaggle.com/settings) → "Create New API Token" (downloads `kaggle.json`)        |
+| Sentry      | Project settings → Client Keys (DSN)                                                                             |
 
-- **Spotify** — [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) → create an app, copy client id and secret.
-- **Gemini** — [aistudio.google.com/api-keys](https://aistudio.google.com/api-keys). free tier is generous.
-- **Groq** — [console.groq.com/keys](https://console.groq.com/keys). free tier is generous.
-- **Redis** — local install (`pkg install redis` on Termux or a free hosted instance from [Aiven](https://aiven.io).
-- **Turso** — [app.turso.tech](https://app.turso.tech) → create a database, then copy its URL and an auth token from the dashboard. CLI alternative: `turso db tokens create <db>` via the [Turso CLI](https://docs.turso.tech/cli/installation).
-- **Soundcharts** — [soundcharts.com/api](https://soundcharts.com/api). commercial — sandbox keys on request.
-- **AcoustID** — [acoustid.org/new-application](https://acoustid.org/new-application) → register an application, copy the API key (free).
-- **Kaggle** — [kaggle.com/settings](https://www.kaggle.com/settings) → "Create New API Token" (downloads `kaggle.json` with username + key).
-- **Sentry** — project settings → Client Keys (DSN).
+---
 
 ## Backend (`web/backend/.env`)
 
 ### Core
 
-| Variable    | Default | Purpose                                                          |
-| ----------- | ------- | ---------------------------------------------------------------- |
-| `PORT`      | `5000`  | port the server listens on.                                      |
-| `API_ONLY`  | `false` | set `true` to serve only the API (skip the bundled frontend).    |
-| `LOG_LEVEL` | `info`  | log level.                                                       |
-| `NODE_ENV`  | —       | `production` tightens logging; `test` is set by the test runner. |
+| Variable    | Default | Purpose                                                  |
+| ----------- | ------- | -------------------------------------------------------- |
+| `PORT`      | `5000`  | Port the server listens on                               |
+| `API_ONLY`  | `false` | Set `true` to serve only API (skip bundled frontend)     |
+| `LOG_LEVEL` | `info`  | Log level                                                |
+| `NODE_ENV`  | —       | `production` tightens logging; `test` set by test runner |
 
-### Data and cache
+### Data & Cache
 
-| Variable           | Default                  | Purpose                                                                                                                                           |
-| ------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `REDIS_URL`        | `redis://127.0.0.1:6379` | Redis for the metadata cache and job queue.                                                                                                       |
-| `TURSO_URL`        | —                        | libSQL/Turso URL for the persistent edge registry. falls back to an in-memory mock if unset (and on Termux, where the native lib is unavailable). |
-| `TURSO_AUTH_TOKEN` | —                        | auth token for Turso.                                                                                                                             |
+| Variable           | Default                  | Purpose                                                                                                                           |
+| ------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `REDIS_URL`        | `redis://127.0.0.1:6379` | Redis for metadata cache + job queue                                                                                              |
+| `TURSO_URL`        | —                        | libSQL/Turso URL for persistent edge registry. Falls back to in-memory mock if unset (and on Termux where native lib unavailable) |
+| `TURSO_AUTH_TOKEN` | —                        | Auth token for Turso                                                                                                              |
 
 ### Extraction
 
-| Variable             | Default | Purpose                                                                                                                                                                            |
-| -------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `COOKIES_URL`        | —       | URL to fetch a Netscape `cookies.txt` on startup — improves YouTube reliability.                                                                                                   |
-| `YTDLP_COOKIES_FILE` | —       | path to a local cookies file (overrides the default location).                                                                                                                     |
-| `BILIBILI_COOKIE`    | —       | header-format cookie string (e.g. `SESSDATA=…; bili_jct=…`) from a logged-in bilibili.tv session — unlocks 1080p+ on the pure-JS Bilibili extractor. unauthenticated caps at 720p. |
-| `ENABLE_POT_PLUGIN`  | `0`     | set `1` to auto-spawn the bgutil PO-token server. off by default (bgutil's BotGuard step is currently flaky).                                                                      |
+| Variable             | Default | Purpose                                                                                                                                                                      |
+| -------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `COOKIES_URL`        | —       | URL to fetch Netscape `cookies.txt` on startup — improves YouTube reliability                                                                                                |
+| `YTDLP_COOKIES_FILE` | —       | Path to local cookies file (overrides default location)                                                                                                                      |
+| `BILIBILI_COOKIE`    | —       | Header-format cookie string (e.g. `SESSDATA=…; bili_jct=…`) from logged-in bilibili.tv session — unlocks 1080p+ on pure-JS Bilibili extractor. Unauthenticated caps at 720p. |
+| `ENABLE_POT_PLUGIN`  | `0`     | Set `1` to auto-spawn bgutil PO-token server. Off by default (bgutil's BotGuard step currently flaky)                                                                        |
 
-### Metadata and AI (music resolution)
+### Metadata & AI (Music Resolution)
 
 | Variable                                     | Default | Purpose                                                                                                 |
 | -------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | —       | Spotify Web API credentials for track metadata.                                                         |
-| `SOUNDCHARTS_APP_ID`, `SOUNDCHARTS_API_KEY`  | —       | Soundcharts (ISRC-verified metadata).                                                                   |
-| `ACOUSTID_API_KEY`                           | —       | AcoustID audio-fingerprint lookup (clip → MusicBrainz recording → ISRC). degrades to Shazam when unset. |
-| `GEMINI_API_KEY` (or `VERTEX_API_KEY`)       | —       | Gemini, used to synthesize a search query when strict matches fail.                                     |
-| `GROQ_API_KEY`                               | —       | Groq/Llama, same fallback role.                                                                         |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | —       | Spotify Web API credentials for track metadata                                                          |
+| `SOUNDCHARTS_APP_ID`, `SOUNDCHARTS_API_KEY`  | —       | Soundcharts (ISRC-verified metadata)                                                                    |
+| `ACOUSTID_API_KEY`                           | —       | AcoustID audio-fingerprint lookup (clip → MusicBrainz recording → ISRC). Degrades to Shazam when unset. |
+| `GEMINI_API_KEY` (or `VERTEX_API_KEY`)       | —       | Gemini, used to synthesize search query when strict matches fail                                        |
+| `GROQ_API_KEY`                               | —       | Groq/Llama, same fallback role                                                                          |
 
-### Security (set these for a public instance)
+### Security (Set These for Public Instance)
 
-| Variable                | Default         | Purpose                                                                                                                                                                                                                                                                                                                                                    |
-| ----------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AUTH_MODE`             | inferred        | `open` (no auth), `apikey` (require a key), or `deny` (block public). unset → `apikey` if `API_KEY` is set, else `deny` in production / `open` in dev. localhost is always allowed.                                                                                                                                                                        |
-| `API_KEY`               | —               | if set, required on `/info`, `/stream-urls`, `/convert`, `/proxy`, `/api/*`. `127.0.0.1` is exempt.                                                                                                                                                                                                                                                        |
-| `PROXY_SIGNING_SECRET`  | random per boot | HMAC secret for signed proxy/stream URLs (stops `/proxy` open-relay abuse). pin a fixed value (`openssl rand -hex 32`) so links survive restarts. **In a hybrid / multi-backend setup (e.g. phone + Koyeb failover) every backend must use the _identical_ value** — otherwise a link signed by one box 403s on another and EME downloads fail mid-stream. |
-| `PROXY_URL_TTL_SECONDS` | `21600` (6h)    | lifetime of a signed proxy/stream URL.                                                                                                                                                                                                                                                                                                                     |
+| Variable                | Default         | Purpose                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `AUTH_MODE`             | inferred        | `open` (no auth), `apikey` (require key), or `deny` (block public). Unset → `apikey` if `API_KEY` set, else `deny` in production / `open` in dev. Localhost always allowed.                                                                                                                                                                            |
+| `API_KEY`               | —               | If set, required on `/info`, `/stream-urls`, `/convert`, `/proxy`, `/api/*`. `127.0.0.1` exempt.                                                                                                                                                                                                                                                       |
+| `PROXY_SIGNING_SECRET`  | random per boot | HMAC secret for signed proxy/stream URLs (stops `/proxy` open-relay abuse). Pin a fixed value (`openssl rand -hex 32`) so links survive restarts. **In hybrid/multi-backend setup (e.g. phone + Koyeb failover) every backend must use the _identical_ value** — otherwise a link signed by one box 403s on another and EME downloads fail mid-stream. |
+| `PROXY_URL_TTL_SECONDS` | `21600` (6h)    | Lifetime of a signed proxy/stream URL                                                                                                                                                                                                                                                                                                                  |
 
-### Remix Lab and monitoring
+### Remix Lab & Monitoring
 
-| Variable                        | Default | Purpose                                           |
-| ------------------------------- | ------- | ------------------------------------------------- |
-| `KAGGLE_USERNAME`, `KAGGLE_KEY` | —       | Kaggle credentials for the Remix Lab engine sync. |
-| `SENTRY_DSN`                    | —       | Sentry error/performance monitoring.              |
+| Variable                        | Default | Purpose                                      |
+| ------------------------------- | ------- | -------------------------------------------- |
+| `KAGGLE_USERNAME`, `KAGGLE_KEY` | —       | Kaggle credentials for Remix Lab engine sync |
+| `SENTRY_DSN`                    | —       | Sentry error/performance monitoring          |
+
+---
 
 ## Frontend (`web/frontend/.env`)
 
-| Variable          | Default | Purpose                                                                                   |
-| ----------------- | ------- | ----------------------------------------------------------------------------------------- |
-| `VITE_API_URL`    | —       | backend base URL (e.g. your tunnel URL). required for the frontend to reach a remote API. |
-| `VITE_SENTRY_DSN` | —       | Sentry DSN for the frontend.                                                              |
+| Variable          | Default | Purpose                                                                             |
+| ----------------- | ------- | ----------------------------------------------------------------------------------- |
+| `VITE_API_URL`    | —       | Backend base URL (e.g. your tunnel URL). Required for frontend to reach remote API. |
+| `VITE_SENTRY_DSN` | —       | Sentry DSN for the frontend                                                         |
+
+---
+
+## Mobile (`mobile/.env` / `eas.json` env)
+
+All mobile env vars are `EXPO_PUBLIC_*` — bundled into the app, so treat as **public**. Never put true secrets in `EXPO_PUBLIC_*` vars.
+
+| Variable                                                             | Purpose                                                                           |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `EXPO_PUBLIC_SUPABASE_URL`                                           | Updates tab                                                                       |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY`                                      | Updates tab                                                                       |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`                                   | Native Google sign-in (Web OAuth client ID)                                       |
+| `EXPO_PUBLIC_SPOTIFY_CLIENT_ID`, `EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET` | Spotify extraction                                                                |
+| `EXPO_PUBLIC_YT_COOKIE`                                              | Personal YouTube cookie — **leave blank in public builds** (extractable from APK) |
+| `EXPO_PUBLIC_BILIBILI_COOKIE`                                        | Personal Bilibili cookie — **leave blank in public builds**                       |
+| `EXPO_PUBLIC_TURSO_URL`, `EXPO_PUBLIC_TURSO_READ_TOKEN`              | Read-only edge registry (Spotify→YouTube mappings) — **must be read-only token**  |
+| `EXPO_PUBLIC_SENTRY_DSN`                                             | Error tracking                                                                    |
+| `EXPO_PUBLIC_DISABLE_FAST_RESOLVE`                                   | Skip in-memory resolve cache                                                      |
+
+Local `.env` is gitignored. Preview/production builds need vars in `eas.json` `env`; dev client reads local `.env` through Metro.

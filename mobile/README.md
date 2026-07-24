@@ -1,130 +1,139 @@
-# NexStream — Android
+# Panther Android
 
-native Android app, built with Expo (React Native 0.85, Hermes, new architecture). it does the whole download flow on the phone — resolve, download, mux, save — and talks to no backend at all. theres also a small **Updates tab** (Supabase-backed) for app news, reactions, and comments.
+Standalone Expo/React Native app (SDK 56, RN 0.85, Hermes, New Architecture). Runs the full pipeline on-device: resolve → download → mux → save. No backend. Includes a small Updates tab (Supabase) for app news, reactions, comments.
 
-## Why built this
+## Why on-device
 
-honestly, this started because the web version kept hitting walls on free hosting. the backend runs on free tier Koyeb box (cant afford purchasing one yet), and two things kept breaking it: YouTube bot blocks datacenter IPs, so extraction from Koyeb gets walled (PO-token trick helps, but cant fake home IP — datacenter still gets flagged); and free tier has so little memory that `yt-dlp` & `ffmpeg` OOMs it constantly, not good for production.
+The web backend hits two walls on free hosting:
 
-my workaround was a hybrid setup — my phone on home wifi acts like a residential worker the backend calls out to for `yt-dlp` and media relay (see [`phone-worker-setup.md`](../../docs/phone-worker-setup.md)). it works, but two things killed it. it's **slow**: Koyeb's free tier only runs in Frankfurt, and im in the PH, so every request takes a long round trip — user → EU server → my phone in PH → back to the EU server → back to user. the media bytes cross half the planet twice before anyone sees them. and its **fragile**: I wouldn't trust it in production — the worker phone can drop wifi, turned off, or just get killed by phantom killer, and I don't have dedicated spare device to keep it alive 24/7. tried free residential proxies — they'd fix the IP problem, but they're expensive and very limited.
+1. **Datacenter IPs get bot-blocked** by YouTube. PO tokens help but can't fake a residential IP.
+2. **`yt-dlp` + `ffmpeg` OOM** the tiny free-tier containers.
 
-so instead, I moved the whole thing into the phone by creating this mobile app. each users device is its own residential IP and does its own extraction, download, and mux — right where the user is, so no transcontinental round trip, nothing to OOM, no proxy bill, and no single worker phone or slow free tier server to babysit.
+A phone solves both: residential IP (no bot-block) + local compute (nothing to OOM, no server bill). Each user's device is its own worker.
 
-## How it works
+## Architecture
 
-every source resolves to a common `VideoInfo` shape (`src/extractors/types.ts`), then the picker hands the chosen format to the download pipeline. the app is three tabs (home / settings / updates) wired up in `App.tsx`; downloads run through the `useDownload` hook into `src/lib/download/downloadPipeline.ts`.
-
-**resolution** — `resolve()` in `src/extractors/index.ts` routes a URL by hostname to a platform extractor. before the network even gets touched it checks an in-memory cache (`src/lib/cache.ts`; skip with `EXPO_PUBLIC_DISABLE_FAST_RESOLVE=1`). YouTube, Spotify, and SoundCloud stream a **partial** `VideoInfo` back over an `onPartial` callback, so the UI hydrates from the first metadata it finds while the rest is still resolving. a known Spotify→YouTube mapping can also come straight from the shared read-only edge registry (`src/lib/social/registry.ts`, Turso) and skip the work entirely.
-
-**pure-JS extractors** — most platforms fetch the page/API directly and parse the stream URLs out of the embedded JSON (with a regex fallback), **no `yt-dlp` or Python anywhere**. the full list of supported platforms is just the contents of [`src/extractors/`](src/extractors/) — that folder *is* the source of truth. this means: **instant startup** (no binary to spawn), **tiny memory footprint**, **runs entirely in Hermes** on your phone. extractor fetches go through `gatedFetch` (`src/lib/net.ts`), which does per-host concurrency limiting + 429 backoff so the app doesn't get itself bot-blocked. each extractor throws a typed `ExtractorError` (`src/extractors/errors.ts`) on failure, carrying a `retryable` flag the UI uses for its retry button.
-
-**YouTube** is the hard one, so it runs inside a hidden `react-native-webview`:
-
-- the WebView loads a tiny HTML page with `baseUrl: https://www.youtube.com/`, so InnerTube calls are same-origin and dodge CORS.
-- it pulls `youtubei.js` + `bgutils-js` from a CDN and, on the device's residential IP, generates a **PO token** (BotGuard) and **deciphers** the signature / `n` parameter.
-- a WebView is required because Hermes can't `eval` (BotGuard and the cipher both need it) and has no DOM.
-- resolved stream URLs are posted back to RN over a small `postMessage` bridge (`src/extractors/youtube/bridge.ts`).
-
-**downloading** uses ranged chunks. a plain full-file GET of a `googlevideo` URL is throttled to ~playback speed; pulling it in **4 MB ranges, 4 in parallel** (`CONCURRENCY = 4` in `download.ts`) — each a fresh request, written to disk in order, with per-chunk retry — restores full bandwidth. the pipeline picks the path per source: ranged chunks for progressive/DASH (YouTube included — the extractor deliberately uses the clients that hand back direct URLs), and HLS for `m3u8`, where segments are fetched **8–16 at a time** then remuxed (`hls.ts`). media-byte downloads run on their own parallel/retry path and are deliberately **not** gated (gating would throttle throughput). every temp file is tracked and cleaned up in a `finally`, even on cancel. (`youtubeSabr.ts` is a parked experiment for googlevideo's SABR protocol — currently off, `SABR_TEST = false`.)
-
-**muxing** — YouTube's HD rungs are adaptive (separate video + audio), so the two streams are combined on-device with `ffmpeg-kit` (`-c copy`, no re-encode) in `src/lib/download/mux.ts`, and mp4 output gets **`+faststart`** so playback can start before the file's fully written. already-muxed low-res formats skip the mux; mp3 requests transcode (`libmp3lame -q:a 2`) for container compatibility, not quality. audio downloads also get **ID3 tags + embedded cover art** (`tagAudio`). HLS sources fetch segments in parallel (8–16 concurrent), then do a single `-c copy` remux instead of letting ffmpeg pull segments serially.
-
-**saving** goes straight to the gallery through `expo-media-library` (`src/lib/download/save.ts`) — no folder picker, just a one-time permission — then fires a notification (`src/lib/notify.ts` + a `dataSync` foreground service in `fgservice.ts`) you can tap to open the file.
-
-## Updates tab
-
-a lightweight social surface backed by **Supabase**, separate from the download flow. it shows app updates (via `@tanstack/react-query`) and lets people react and comment. reacting, commenting, and liking require a **native Google sign-in** (`react-native-nitro-google-signin` → `supabase.auth.signInWithIdToken`, in `src/lib/social/googleAuth.ts`); signed-out users can read the feed but get a "Sign in with Google" button in place of the comment box. there's no anonymous path — tables + row-level security live in [`supabase/schema.sql`](supabase/schema.sql), and the RLS insert policies reject anonymous sessions. leave the Supabase env blank and the tab just shows a "not configured" state.
-
-push notifications (comment replies, @mentions, likes, new-update broadcasts) + the in-app inbox are a separate FCM pipeline — setup, secrets, webhooks, and architecture in [`push-notifications.md`](../../docs/push-notifications.md). comment image uploads (on-device webp compress → R2 → served via a Pages Function) are in [`image-uploads.md`](../../docs/image-uploads.md).
-
-## Stack
-
-- **Expo ~56** / **React Native 0.85** — new architecture (required), Hermes
-- **extraction:** `react-native-webview` (the YouTube sandbox) · `youtubei.js` + `bgutils-js` (loaded from CDN inside the WebView, not bundled) · `googlevideo` (SABR)
-- **media:** `@nikhil-cephei/ffmpeg-kit-react-native` (on-device mux, `full-gpl`; see notes) · `expo-file-system` (chunked download + `File` API) · `react-native-blob-util`
-- **save + notify:** `expo-media-library` (gallery) · `react-native-notify-kit` (notifications + foreground service)
-- **ui / motion:** `twrnc` (styling) · `react-native-reanimated` 4 + `react-native-worklets` · `react-native-gesture-handler` · `@shopify/react-native-skia` · `lottie-react-native` · `react-native-svg` + `lucide-react-native` · `react-native-safe-area-context` · `react-native-screens` · `react-native-keyboard-controller`
-- **data / auth:** `@supabase/supabase-js` · `@tanstack/react-query` · `react-native-nitro-google-signin` (+ `react-native-nitro-modules`) · `@react-native-async-storage/async-storage` · `expo-crypto`
-- **observability:** `@sentry/react-native`
-
-## Run it
-
-```bash
-npm install
-cp .env.example .env      # fill in what you need — see Env below
-npm start                 # Metro + dev client (bumps inotify watches on Termux)
+```
+resolve(url) → dispatch(host) → extractor.getInfo() → VideoInfo/Format[]
+                                  ↓
+                          YouTube: WebView (youtubei.js + PO token)
+                                  ↓
+PickerModal → useDownload → downloadPipeline.ts
+                                  ↓
+              ranged chunks (4 MB, 4× parallel) → ffmpeg-kit -c copy → gallery
+                                  ↓
+                          notify + foreground service
 ```
 
-JS changes — extractors, UI, download/mux logic — hot-reload over Metro. anything **native** (new modules, plugin/permission changes) needs a dev-client rebuild:
+**Three tabs** (`App.tsx`): Home (resolve/download), Settings, Updates (Supabase feed).
 
-```bash
-eas build --profile development --platform android
-```
+### Resolution (`src/extractors/index.ts`)
 
-EAS profiles live in `eas.json`: `development` (dev client, internal apk), `preview` and `production` (internal/store apk, `arm64-v8a`). on-phone (Termux) builds skip the slow fingerprint step via `EAS_SKIP_AUTO_FINGERPRINT=1`. OTA JS updates ship through `expo-updates` (`runtimeVersion` follows `appVersion`) — but any **native** change needs a fresh build, not an OTA, so bump the version when you add a native module.
+- In-memory cache (`lib/cache.ts`, skip via `EXPO_PUBLIC_DISABLE_FAST_RESOLVE=1`)
+- `dispatch()` routes by hostname to platform extractor
+- YouTube/Spotify/SoundCloud stream **partial** `VideoInfo` via `onPartial` for early UI hydration
+- Spotify→YouTube mappings from read-only Turso edge registry (`lib/social/registry.ts`)
 
-## Env
+### Extractors (`src/extractors/`)
 
-**every var is optional** — the app builds and downloads with an empty `.env`; each one just unlocks a feature. all vars are `EXPO_PUBLIC_*`, so they're **bundled into the app (public)**. full list with notes in [`.env.example`](.env.example). the ones that matter:
+| Platform                                                                                           | Implementation                                                                                                                                 |
+| -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| YouTube                                                                                            | Hidden WebView (`YouTubeExtractorWebView`), same-origin `youtubei.js`, BotGuard PO token + sig/`n` decipher on device IP, `postMessage` bridge |
+| Spotify                                                                                            | Client-credentials API (`spotify/api.ts`), track/album/playlist → search YouTube                                                               |
+| Bilibili, TikTok, Instagram, X, Threads, Facebook, Bluesky, Reddit, SoundCloud, Vimeo, Dailymotion | Pure JS: fetch page/API → parse embedded JSON (regex fallback) via `gatedFetch`                                                                |
 
-- `SUPABASE_URL` / `SUPABASE_ANON_KEY` — the Updates tab (blank = "not configured")
-- `GOOGLE_WEB_CLIENT_ID` — native Google sign-in (the **web** OAuth client id; add the same id in Supabase → auth → providers → google)
-- `TURSO_URL` / `TURSO_READ_TOKEN` — shared edge registry; the token **must be read-only** (it ships in the app)
-- `SENTRY_DSN` — crash reporting · `DISABLE_FAST_RESOLVE=1` — bypass the resolve cache
-- `YT_COOKIE` / `BILIBILI_COOKIE` — your logged-in session for authenticated extraction / 1080p+ → **personal builds only** (blank = anonymous / lower res)
+All extractors return common `VideoInfo` / `Format[]` (`types.ts`). Pure-JS extractors use `gatedFetch` (`lib/net.ts`) — per-host concurrency + 429 backoff to avoid bot-blocks.
 
-**Spotify** isn't an app var — its credentials live server-side in the `spotify-token` Supabase Edge Function, so the secret never ships in the APK. Needs a Premium Spotify dev account (2026); deploy with `supabase secrets set SPOTIFY_CLIENT_ID=… SPOTIFY_CLIENT_SECRET=…` then `supabase functions deploy spotify-token`. Not deployed = Spotify resolves via the other sources (still works).
+**Errors:** Extractors throw typed `ExtractorError` (`errors.ts`, carries `retryable` flag). UI surfaces message + retry.
 
-> security: the first four are public by design (DSN, anon key, OAuth client id, read-only token). `YT_COOKIE` and `BILIBILI_COOKIE` are real personal credentials — fine in a build you keep to yourself, but **leave them blank in a public release** or anyone can pull them from the APK.
+### Download pipeline (`lib/download/downloadPipeline.ts`)
 
-## Testing
+1. **Chunked ranged download** (`download.ts`) — 4 MB ranges, 4× parallel for YouTube/Spotify `googlevideo`; HLS segments 8–16× parallel (`hls.ts`)
+2. **Mux** (`mux.ts`) — `ffmpeg-kit -c copy` (no re-encode), or transcode to MP3, or assemble HLS
+3. **Tag & save** (`save.ts`/`gallery.ts`) — `expo-media-library` → gallery
+4. **Notify** (`notify.ts` + `fgservice.ts`) — download progress + foreground service
 
-`npm test` runs Vitest (`mobile/tests/*.test.ts`, node env, network mocked via `vi.mock('../src/lib/net')`). on Termux run only the files you touched — the phantom killer will reap the whole suite. extractors **throw** typed `ExtractorError`, so tests assert `await expect(getInfo(...)).rejects.toThrow(/.../iu)` rather than checking for null. also `npm run typecheck` (`tsc --noEmit`) and `npm run lint:all` (`eslint .`). CI (`.circleci/config.yml`, `test-mobile`, node 22) runs typecheck → lint → vitest, only when `mobile/` changes.
+**Memory discipline:** Never buffer full media in RAM. Stream/chunk to disk. Temp files tracked & deleted in `finally` (mirror `downloadPipeline.ts`'s `track()`).
 
-## Layout
+**Thread discipline:** Heavy work (mux, hashing) runs native (ffmpeg-kit) or in worklets. Long ops report progress, cancelable via `AbortSignal`.
 
-```bash
-mobile/
-├── App.tsx                       # root: tabs (home/settings/updates) + resolve/download orchestration
-├── app.json · eas.json           # expo config (plugins) + EAS build profiles
-├── plugins/                      # withLargeHeap · withNotificationIcon (config plugins)
-├── supabase/schema.sql           # updates-tab tables + RLS
-└── src/
-    ├── screens/                  # HomeScreen · SettingsScreen · UpdatesScreen
-    ├── extractors/
-    │   ├── index.ts              # host -> extractor dispatch + resolve cache
-    │   ├── types.ts · errors.ts  # VideoInfo/Format · typed ExtractorError
-    │   ├── social.ts             # title / artist normalization
-    │   ├── youtube/              # index (format ladder) · bridge (RN<->webview) · webviewSource (youtubei.js + potoken)
-    │   ├── spotify/              # index · api (client-credentials)
-    │   ├── facebook/ · threads/  # fetcher · parser · normalizer · json-extractor
-    │   └── tiktok · x · instagram · bilibili · reddit · bluesky · soundcloud · vimeo · dailymotion
-    ├── lib/
-    │   ├── download/             # downloadPipeline (orchestrator) · download (4 MB ranged) · mux (ffmpeg-kit -c copy) · hls · youtubeSabr · save/gallery
-    │   ├── social/               # supabase · googleAuth · updates(.logic) · registry (read-only turso)
-    │   ├── net.ts                # gatedFetch — per-host concurrency + 429 backoff
-    │   ├── notify.ts · fgservice.ts   # download notifications + foreground service
-    │   ├── cache.ts · diskcache.ts · settings.ts
-    │   └── format.ts · haptics.ts · crash.ts · retry.ts · tw.ts
-    ├── hooks/                    # useDownload (download state machine) · useKeyboard · useScreenSize
-    ├── components/               # PickerModal · SpotifyPickerModal · BottomNav · Avatar · icons
-    │   ├── webviews/              # hidden JS-sandbox WebViews: YouTubeExtractorWebView · InstagramExtractorWebView · PreviewAudioWebView
-    │   ├── sheets/               # BottomSheet · ErrorSheet · DownloadSuccessSheet · UpdateDetailSheet · ImageSheet · NotificationPermissionSheet
-    │   ├── backgrounds/          # DotPattern · ShootingStars · TwinkleStars · GridBackground · DotBackground · GlowBlob · VinylGrooves
-    │   ├── social/               # CommentsPanel · ReactionBar · ReactionEmoji · AnimatedCount · NotificationsPanel · GifPicker
-    │   └── picker/               # PickerParts · PickerFooter
-    └── types/                    # ambient .d.ts shims
-```
+**Network discipline:**
 
-## Notes
+- Extractor/API calls → `gatedFetch` (per-host limit + 429 backoff)
+- Media byte downloads → dedicated parallel paths with own retry, **NOT gated** (gating kills throughput)
+- All fetches take `AbortSignal`, honor cancel
 
-- **Android only, for now** — the `ffmpeg-kit` fork and `youtubei.js` both ship iOS code, but iOS is untested and unsupported here (no Apple developer account yet). `app.json` has no iOS config; `eas.json` builds APKs only.
+---
 
-- **styling is `twrnc`, not NativeWind** — NativeWind uses `lightningcss`, which has no prebuilt binary for Termux/aarch64 and won't build there, so this uses `twrnc` (runtime Tailwind) instead.
+## Stack highlights
 
-- **ffmpeg-kit** — the original `ffmpeg-kit-react-native` was retired in 2025; this uses a community fork that re-hosts the prebuilt binaries. it's the `full-gpl` build, so the app is effectively **GPL-3.0** (compatible with the repo's AGPL-3.0). the binaries are 4 KB-page aligned — fine for current devices, but a Play Store / 16 KB-page build would need a rebuilt `.aar`.
+| Area       | Choice                                                                          | Why                                                        |
+| ---------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Styling    | `twrnc` (runtime Tailwind)                                                      | NativeWind's `lightningcss` has no Termux/aarch64 prebuild |
+| UI/Motion  | Reanimated 4, Gesture Handler, Skia, Lottie, SVG                                | New Arch required                                          |
+| Media      | `ffmpeg-kit-react-native` (community fork, `full-gpl`)                          | On-device mux, GPL-3.0 → app is effectively GPL-3.0        |
+| Extraction | `react-native-webview` (YouTube), `youtubei.js` + `bgutils-js` (CDN in WebView) | Hermes has no `eval`/DOM; BotGuard + cipher need both      |
+| Auth       | Supabase: native Google (nitro) + anonymous fallback                            | Dual path; anon backs signed-out reactions/comments        |
+| State      | React local + TanStack Query                                                    | No Zustand (unlike web)                                    |
 
-- **nitro Google sign-in** needs an `iosUrlScheme` value in `app.json` even though the app is Android-only — leave it out and prebuild throws. the value itself is a placeholder.
+---
 
-- **debugging YouTube** — flip `DEBUG = true` in `src/extractors/youtube/webviewSource.ts` to stream extraction steps to the Metro console. errors always log.
-- this app borrows the web build's resolution ideas but shares no code with `backend/` — it's deliberately standalone so it can run with zero server.
+## Auth (Updates tab only)
+
+Two coexisting paths in `lib/social/googleAuth.ts` + `lib/social/updates.ts`:
+
+1. **Native Google** — `react-native-nitro-google-signin` → `supabase.auth.signInWithIdToken({ provider: 'google', token, nonce })`
+2. **Anonymous** — `auth.signInAnonymously()` auto-creates session for reactions/comments when not Google-signed-in
+
+**Nonce:** SHA-256 hex (via `expo-crypto`) to Google `configure({ nonce })`; **raw** nonce to `signInWithIdToken`. Supabase "skip nonce check" = **OFF**.
+
+**Cascade:** `signIn()` (silent, returning users) → fallback `presentExplicitSignIn()` (full chooser). `profiles.username` required; RLS in `supabase/schema.sql`. Supabase Google provider must list **Web** OAuth client ID (token audience).
+
+---
+
+## Build & Deploy (EAS — Android only)
+
+- **Managed / CNG** — no `android/`/`ios/` committed; EAS generates native at build. Package `com.nexstream.app`.
+- `app.json`: no iOS config; `eas.json` builds APKs only.
+- Profiles: `development` (dev client, internal, `EAS_SKIP_AUTO_FINGERPRINT=1`), `preview` (internal, arm64-v8a), `production` (apk, arm64-v8a). `appVersionSource: remote`.
+- Config plugins: notify-kit (fg service `dataSync`), ffmpeg-kit (`full-gpl`), media-library, splash, font/image/sharing/status-bar, `react-native-nitro-google-signin` (needs `iosUrlScheme` placeholder or prebuild throws), `./plugins/withLargeHeap`, `./plugins/withNotificationIcon`.
+- **OTA:** `expo-updates` (`runtimeVersion: appVersion`) ships JS only. **Any native change = new EAS build** — bump version when adding native modules.
+
+---
+
+## Testing & CI
+
+- **Vitest** (`npm test` = `vitest run`); tests in `mobile/tests/*.test.ts` (node env).
+- **Mock network:** `vi.mock('../src/lib/net')` (`gatedFetch`); inline HTML/JSON fixtures.
+- **Extractor convention:** extractors **throw** typed `ExtractorError` on failure. Tests assert `await expect(getInfo(...)).rejects.toThrow(/.../iu)` — NOT `toBeNull()`. `null` = unsupported host.
+- **Resource discipline:** run only relevant test files — never full suite (Termux phantom killer).
+- Scripts: `typecheck` (`tsc --noEmit`), `test`, `lint` (changed), `lint:all` (`eslint .`).
+- **CI** (`.circleci/config.yml`, `test-mobile`, `cimg/node:22.12`): `npm ci` → `tsc --noEmit` → `npm run lint:all` → `npx vitest run`. Runs only when `mobile/` changes (`halt-unless-changed`).
+
+---
+
+## Env vars (`EXPO_PUBLIC_*` — bundled, treat as public)
+
+| Var                                          | Purpose                                                                    |
+| -------------------------------------------- | -------------------------------------------------------------------------- |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`          | Updates tab                                                                |
+| `GOOGLE_WEB_CLIENT_ID`                       | Native Google sign-in (Web OAuth client ID)                                |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | Spotify extraction                                                         |
+| `YT_COOKIE`, `BILIBILI_COOKIE`               | Personal cookies — **leave blank in public builds** (extractable from APK) |
+| `TURSO_URL`, `TURSO_READ_TOKEN`              | Read-only edge registry (Spotify→YouTube mappings)                         |
+| `SENTRY_DSN`                                 | Error tracking                                                             |
+| `DISABLE_FAST_RESOLVE`                       | Skip in-memory resolve cache                                               |
+
+Local `.env` is gitignored. Preview/prod builds need vars in `eas.json` `env`; dev client reads local `.env` via Metro.
+
+---
+
+## Gotchas
+
+- **JS hot-reloads via Metro; native code does not** — new native module = EAS rebuild, not OTA.
+- **New Architecture required** (nitro, reanimated 4, worklets).
+- **YouTube must run in WebView** — Hermes lacks `eval`/DOM; BotGuard + cipher need both. `DEBUG` flag in `extractors/youtube/webviewSource.ts` logs steps to Metro.
+- **`googlevideo` full-file GET throttled** to ~playback speed → 4 MB ranged chunks restore full bandwidth.
+- **ffmpeg-kit is community fork** (`full-gpl`) → app is effectively **GPL-3.0**; binaries 4 KB-page aligned (Play Store 16 KB-page needs rebuilt `.aar`).
+- **Android only** — iOS code in deps but untested/unsupported (no Apple account).
+- **Nitro Google One-Tap:** silent `signIn()` → `presentExplicitSignIn()` fallback on `isNoSavedCredentialFoundResponse`, `null` on cancel. Avoid `createAccount()` — can **hang** on first sign-in.
