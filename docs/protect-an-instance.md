@@ -1,6 +1,6 @@
 # Protecting an instance
 
-a localhost or personal instance needs no extra setup — auth is off by default. if you expose NexStream to the public internet, harden it as below. none of this requires paid infrastructure.
+a localhost or personal instance needs no extra setup — auth is off by default. if you expose Panther to the public internet, harden it as below. none of this requires paid infrastructure.
 
 ## 1. Require an API key
 

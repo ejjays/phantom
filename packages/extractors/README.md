@@ -1,4 +1,4 @@
-# @nexstream/extractors (prototype)
+# @panther/extractors (prototype)
 
 pulls the JS extractors out of `web/backend` into a standalone, dependency-free
 package. it's the sibling to [`../web-mux`](../web-mux/README.md) — this
@@ -13,7 +13,10 @@ project internals (`secureFetch`, `getProxiedStream`, redis, express, etc.):
 ```ts
 export interface ExtractorEnv {
   fetch: typeof fetch;
-  streamUrl(url: string, headers: Record<string, string>): Promise<ReadableStream>;
+  streamUrl(
+    url: string,
+    headers: Record<string, string>
+  ): Promise<ReadableStream>;
 }
 ```
 
@@ -30,7 +33,7 @@ extractor by host and calls `getInfo` in one step; `getExtractor(url)` gives
 you the extractor instance directly (for when you also need `getStream`):
 
 ```ts
-import { resolve, getExtractor } from '@nexstream/extractors';
+import { resolve, getExtractor } from '@panther/extractors';
 
 const info = await resolve('https://vimeo.com/76979871');
 
@@ -74,7 +77,7 @@ two checks, both real (not mocks):
    against the built output, using the same fixture as
    `web/backend/tests/extractors/x_extractor.test.ts`.
 2. **tarball install** — `npm pack`, install the `.tgz` into a scratch
-   project, run a script that imports `@nexstream/extractors` from
+   project, run a script that imports `@panther/extractors` from
    `node_modules`. catches "works in the repo, missing from what gets
    published" bugs that `demo:mock` alone can't.
 

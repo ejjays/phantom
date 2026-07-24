@@ -1,18 +1,18 @@
 <p align="center">
-  <img src="web/frontend/public/logo.webp" alt="NexStream" width="160" />
+  <img src="mobile/assets/panther-attack.png" alt="Panther" width="160" />
 </p>
 
-<h1 align="center">NexStream — Media Orchestration Engine</h1>
+<h1 align="center">Panther — Media Orchestration Engine</h1>
 
 <p align="center">
   <strong>Built for musicians, creators, and power users who need professional-grade tools without the premium price tag.</strong>
 </p>
 
 <p align="center">
-  <a href="https://nex-stream.pages.dev"><strong>🌐 Visit NexStream →</strong></a>
+  <a href="https://panther-downloader.pages.dev"><strong>🌐 Visit Panther →</strong></a>
 </p>
 
-NexStream downloads 4K+ video and audio, and breaks a song down into stems and chords for practice. It pushes the heavy media work onto your device instead of a slow server, and uses AI for the music analysis — so it stays free and ad-free, no bandwidth caps or paywalls.
+Panther downloads 4K+ video and audio, and breaks a song down into stems and chords for practice. It pushes the heavy media work onto your device instead of a slow server, and uses AI for the music analysis — so it stays free and ad-free, no bandwidth caps or paywalls.
 
 <p align="center">
   <a href="https://dl.circleci.com/status-badge/redirect/circleci/9BjBRRbsXUjJueU2cq7uGg/YU36DWYQs3RevrR3a2o1CN/tree/main"><img src="https://dl.circleci.com/status-badge/img/circleci/9BjBRRbsXUjJueU2cq7uGg/YU36DWYQs3RevrR3a2o1CN/tree/main.svg?style=shield" alt="CircleCI" /></a>
@@ -22,18 +22,18 @@ NexStream downloads 4K+ video and audio, and breaks a song down into stems and c
 <p align="center">
   <a href="https://react.dev"><img src="https://img.shields.io/badge/Frontend-REACT%2019-blue?style=flat" alt="Frontend" /></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Backend-Node%2022-green?style=flat" alt="Backend" /></a>
-  <a href="https://pagespeed.web.dev/analysis/https-nex-stream-pages-dev/1gip28m9kv?form_factor=desktop"><img src="https://img.shields.io/badge/SEO-100%2F100-emerald?style=flat" alt="SEO" /></a>
-  <a href="https://pagespeed.web.dev/analysis/https-nex-stream-pages-dev/1gip28m9kv?form_factor=desktop"><img src="https://img.shields.io/badge/Performance-99%2F100-cyan?style=flat" alt="Performance" /></a>
+  <a href="https://pagespeed.web.dev/analysis/https-panther-downloader.pages.dev/1gip28m9kv?form_factor=desktop"><img src="https://img.shields.io/badge/SEO-100%2F100-emerald?style=flat" alt="SEO" /></a>
+  <a href="https://pagespeed.web.dev/analysis/https-panther-downloader.pages.dev/1gip28m9kv?form_factor=desktop"><img src="https://img.shields.io/badge/Performance-99%2F100-cyan?style=flat" alt="Performance" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue?style=flat" alt="License: AGPL v3" /></a>
 </p>
 
 ---
 
-## ⚡ Why NexStream?
+## ⚡ Why Panther?
 
 Most tools that pull down 4K video or clean audio want a subscription, or a server beefy enough to handle the muxing. That server is the real cost: free tiers get their datacenter IP bot-blocked by YouTube, and `yt-dlp` and `ffmpeg` are heavy enough to OOM them.
 
-NexStream skips the server. Resolving, downloading, and muxing all run on the device you're already using — your browser, or your phone — so there's no box to rent and nothing to OOM. That's what keeps it free, ad-free, and runnable even on a $0 Termux box.
+Panther skips the server. Resolving, downloading, and muxing all run on the device you're already using — your browser, or your phone — so there's no box to rent and nothing to OOM. That's what keeps it free, ad-free, and runnable even on a $0 Termux box.
 
 ---
 
@@ -41,7 +41,7 @@ NexStream skips the server. Resolving, downloading, and muxing all run on the de
 
 - **Native extractors**: ~a dozen platforms (YouTube, TikTok, Instagram, X, Threads, and more) resolve through dedicated pure-JS extractors inside the Node server — no `yt-dlp` subprocess per request. `yt-dlp` stays as the fallback for anything without one.
 
-- **Built to feel fast**: the instant the first source returns the basics — title, artist, cover — they paint into the UI, so there's no blank spinner while the slower, more precise matching keeps racing behind it. 
+- **Built to feel fast**: the instant the first source returns the basics — title, artist, cover — they paint into the UI, so there's no blank spinner while the slower, more precise matching keeps racing behind it.
 
 - **Browser-side muxing**: 4K can assemble in the browser instead of on the server — a Web Worker remuxes straight to disk via OPFS (`mediabunny`), so the UI never freezes and nothing buffers in memory.
 
@@ -61,7 +61,7 @@ NexStream skips the server. Resolving, downloading, and muxing all run on the de
 
 ## 🧠 Resolving the Right Recording: The "Parallel Race"
 
-Resolving a song to the _right_ recording is the hard part, so NexStream races several sources in parallel and prefers verified matches over a best-guess search.
+Resolving a song to the _right_ recording is the hard part, so Panther races several sources in parallel and prefers verified matches over a best-guess search.
 
 ### 1. Staggered resolution + early hydration
 
@@ -163,7 +163,7 @@ The Remix Lab is a standalone research engine for **Music Information Retrieval 
 
 ### Native Android (Termux)
 
-_NexStream is built to run directly on your phone._
+_Panther is built to run directly on your phone._
 
 ```bash
 # Automated Provisioning (System Update + Dependencies + Build)
@@ -173,7 +173,7 @@ curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/scripts/setup/t
 ### Standard Deployment
 
 ```bash
-git clone https://github.com/ejjays/nexstream.git
+git clone https://github.com/ejjays/panther.git
 cd nexstream
 
 npm install          # root tooling (husky, prettier)
@@ -247,13 +247,13 @@ nexstream/
 
 ## ⚖️ Disclaimer
 
-NexStream is for educational and research purposes. Please use it responsibly and only for content you have the legal right to process. No piracy—keep it fair.
+Panther is for educational and research purposes. Please use it responsibly and only for content you have the legal right to process. No piracy—keep it fair.
 
 ---
 
 ### Support the Journey
 
-I built NexStream entirely on my phone because I don't have a computer yet. My goal is to keep high-quality tools like this free and ad-free for everyone. If this project helped you out, you can support my work here — it'd mean the world to me:
+I built Panther entirely on my phone because I don't have a computer yet. My goal is to keep high-quality tools like this free and ad-free for everyone. If this project helped you out, you can support my work here — it'd mean the world to me:
 
 <p align="left">
   <a href="https://www.buymeacoffee.com/ejjays">
@@ -265,6 +265,6 @@ I built NexStream entirely on my phone because I don't have a computer yet. My g
 
 ## License
 
-NexStream is free software under the [GNU AGPL-3.0-or-later](LICENSE). Use it, self-host it, modify it — but run a _modified_ version as a public service and §13 asks you to offer that version's source to its users. Hosting notes: [`docs/protect-an-instance.md`](docs/protect-an-instance.md).
+Panther is free software under the [GNU AGPL-3.0-or-later](LICENSE). Use it, self-host it, modify it — but run a _modified_ version as a public service and §13 asks you to offer that version's source to its users. Hosting notes: [`docs/protect-an-instance.md`](docs/protect-an-instance.md).
 
-The standalone packages in [`packages/`](packages/) (`@nexstream/extractors`, `@nexstream/web-mux`) are licensed under **MIT** — each carries its own LICENSE file, so you can use them freely in any project, closed-source included.
+The standalone packages in [`packages/`](packages/) (`@panther/extractors`, `@panther/web-mux`) are licensed under **MIT** — each carries its own LICENSE file, so you can use them freely in any project, closed-source included.

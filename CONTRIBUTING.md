@@ -5,7 +5,7 @@ as a solo developer its been a challenge and working with amazing devs like you 
 
 if anything here is unclear, don't worry about getting it perfect — open an issue, say hi, and we'll figure it out together.
 
-NexStream is a monorepo:
+Panther is a monorepo:
 
 - `web/backend/` — Express + TypeScript (the media engine)
 - `web/frontend/` — React 19 + Vite

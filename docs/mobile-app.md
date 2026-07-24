@@ -1,12 +1,12 @@
 # Mobile App (Android)
 
-NexStream has a standalone **Android app** (`mobile/`) — a native React Native / Expo build that runs the **entire pipeline on the phone**: resolve → download → mux → save. it talks to no backend and deliberately shares no code with `backend/`.
+Panther has a standalone **Android app** (`mobile/`) — a native React Native / Expo build that runs the **entire pipeline on the phone**: resolve → download → mux → save. it talks to no backend and deliberately shares no code with `backend/`.
 
 ## Why on-device
 
 the web build can offload muxing to the browser, but it still leans on a server for extraction, and that server is the weak point: free-tier hosting gets its datacenter IP bot-blocked by YouTube, and `yt-dlp` + `ffmpeg` are heavy enough to OOM it. a phone sidesteps both — it has a **residential IP** (no bot-block) and does its own compute (nothing to OOM, no server bill). each user's device is its own worker.
 
-none of this means the server build is bad. with a capable host — enough RAM, plus a residential IP or proxies to keep YouTube happy — it runs great, and self-hosting it is a first-class path ([run an instance](run-an-instance.md)). on-device is simply the answer when you *don't* have that: free/cheap hosting, a flagged datacenter IP, or no server at all.
+none of this means the server build is bad. with a capable host — enough RAM, plus a residential IP or proxies to keep YouTube happy — it runs great, and self-hosting it is a first-class path ([run an instance](run-an-instance.md)). on-device is simply the answer when you _don't_ have that: free/cheap hosting, a flagged datacenter IP, or no server at all.
 
 ## What it does
 

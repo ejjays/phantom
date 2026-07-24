@@ -29,11 +29,11 @@ on the device, foreground messages render through `src/lib/social/push.ts`, back
 
 the function is three files, split so the logic stays testable off the Deno runtime:
 
-| File | Role |
-| ---- | ---- |
-| `index.ts` | the handler — checks the secret, routes by table, runs the lookups and dispatch |
-| `logic.ts` | pure logic (recipients, mutes, titles, preview) — unit-tested under vitest |
-| `fcm.ts` | FCM v1 transport — signs a service-account JWT, exchanges it for an OAuth token, sends |
+| File       | Role                                                                                   |
+| ---------- | -------------------------------------------------------------------------------------- |
+| `index.ts` | the handler — checks the secret, routes by table, runs the lookups and dispatch        |
+| `logic.ts` | pure logic (recipients, mutes, titles, preview) — unit-tested under vitest             |
+| `fcm.ts`   | FCM v1 transport — signs a service-account JWT, exchanges it for an OAuth token, sends |
 
 the tables live in [`../mobile/supabase/schema.sql`](../mobile/supabase/schema.sql):
 
@@ -45,14 +45,14 @@ the tables live in [`../mobile/supabase/schema.sql`](../mobile/supabase/schema.s
 
 ### Firebase
 
-the project is `nexstream-87d1b`. from **Project settings → Service accounts → Generate new private key** you get a JSON with `project_id`, `client_email`, and `private_key` — those three feed the secrets below. `google-services.json` at the app root is the client config (not a secret).
+the project is `panther-87d1b`. from **Project settings → Service accounts → Generate new private key** you get a JSON with `project_id`, `client_email`, and `private_key` — those three feed the secrets below. `google-services.json` at the app root is the client config (not a secret).
 
 ### secrets
 
 set these in Supabase → Edge Functions → `send-push` → Secrets:
 
 ```text
-FCM_PROJECT_ID       nexstream-87d1b
+FCM_PROJECT_ID       panther-87d1b
 FCM_CLIENT_EMAIL     <service account client_email>
 FCM_PRIVATE_KEY      <service account private_key, pasted verbatim — literal \n is handled>
 PUSH_WEBHOOK_SECRET  <any long random string, shared with the webhooks below>
@@ -72,11 +72,11 @@ supabase functions deploy send-push --no-verify-jwt
 
 create three in Supabase → Database → Webhooks. all three are **INSERT**, method `POST`, pointed at the function URL, with the header `x-webhook-secret: <PUSH_WEBHOOK_SECRET>`:
 
-| Name | Table |
-| ---- | ----- |
-| `push-comments` | `public.comments` |
+| Name                 | Table                  |
+| -------------------- | ---------------------- |
+| `push-comments`      | `public.comments`      |
 | `push-comment-likes` | `public.comment_likes` |
-| `push-updates` | `public.updates` |
+| `push-updates`       | `public.updates`       |
 
 the URL is `https://<project-ref>.supabase.co/functions/v1/send-push`.
 

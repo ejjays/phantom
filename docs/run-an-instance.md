@@ -1,6 +1,6 @@
 # Running an instance
 
-NexStream runs on Node.js 22+. it shells out to `yt-dlp` and `ffmpeg`, uses Redis for caching/queueing, and optionally Turso (libSQL) for the persistent registry. it's built to self-host cheaply — including directly on android via termux.
+Panther runs on Node.js 22+. it shells out to `yt-dlp` and `ffmpeg`, uses Redis for caching/queueing, and optionally Turso (libSQL) for the persistent registry. it's built to self-host cheaply — including directly on android via termux.
 
 ## Prerequisites
 
@@ -14,14 +14,14 @@ NexStream runs on Node.js 22+. it shells out to `yt-dlp` and `ffmpeg`, uses Redi
 automated provisioning (system update + dependencies + build):
 
 ```bash
-curl -sL https://raw.githubusercontent.com/ejjays/nexstream/main/scripts/setup/termux-install.sh | bash
+curl -sL https://raw.githubusercontent.com/ejjays/panther/main/scripts/setup/termux-install.sh | bash
 ```
 
 ## Manual setup
 
 ```bash
-git clone https://github.com/ejjays/nexstream.git
-cd nexstream
+git clone https://github.com/ejjays/panther.git
+cd panther
 
 npm install          # root tooling (husky, prettier)
 npm run install:web  # installs frontend, backend & shared in one go
@@ -51,7 +51,7 @@ cd web/backend && npm start
 the build context is the repo root; the image bundles `yt-dlp` + `ffmpeg` and listens on `8000`:
 
 ```bash
-docker build -f web/backend/Dockerfile -t nexstream .
+docker build -f web/backend/Dockerfile -t panther .
 docker run -p 8000:8000 --env-file web/backend/.env nexstream
 ```
 

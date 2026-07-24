@@ -4,7 +4,7 @@
 
 please report security issues **privately** — don't open a public issue for them.
 
-use GitHub's [private vulnerability reporting](https://github.com/ejjays/nexstream/security/advisories/new) (the repo's **Security → Report a vulnerability** tab). if it isn't enabled yet, turn it on under _Settings → Code security → Private vulnerability reporting_.
+use GitHub's [private vulnerability reporting](https://github.com/ejjays/panther/security/advisories/new) (the repo's **Security → Report a vulnerability** tab). if it isn't enabled yet, turn it on under _Settings → Code security → Private vulnerability reporting_.
 
 include the affected endpoint/component, steps to reproduce, and the impact. a suggested fix is welcome but not required. this is a solo-maintained project, so reports are triaged as fast as is realistically possible — expect an initial reply within a few days.
 
@@ -14,7 +14,7 @@ security fixes land on `main`. if you self-host, track `main` or pin a tagged re
 
 ## What the backend already does
 
-NexStream is built to be safe to self-host:
+Panther is built to be safe to self-host:
 
 - **SSRF protection** — every outbound media/proxy fetch resolves the target host and rejects private, loopback, and link-local IP ranges. raw `fetch` / `child_process.spawn` are blocked at lint time by custom rules (`no-raw-fetch`, `no-raw-spawn`), so new code has to go through the vetted helpers.
 - **signed media URLs** — `/proxy` and stream links are HMAC-signed with an expiry; forged or expired links get a `403`.
@@ -33,4 +33,4 @@ authentication is **opt-in and off by default** (so a localhost dev setup needs 
 
 ## Scope
 
-NexStream only downloads free, publicly accessible content and caches _resolution metadata_, never media files. please use it for content you have the right to process.
+Panther only downloads free, publicly accessible content and caches _resolution metadata_, never media files. please use it for content you have the right to process.

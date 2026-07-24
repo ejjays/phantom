@@ -1,4 +1,4 @@
-# @nexstream/web-mux (prototype)
+# @panther/web-mux (prototype)
 
 the browser-side muxing half of the app, pulled out of `web/frontend/src/lib` (`mux-core.ts`, `muxer.ts`, `mux.worker.ts`, `mux-codecs.ts`) into something standalone. it's the sibling to [`../extractors`](../extractors/README.md) — extractors resolve a URL into separate video/audio format URLs, this takes those two URLs and combines them into one mp4, entirely in the browser, no server transcode.
 
@@ -7,11 +7,12 @@ the browser-side muxing half of the app, pulled out of `web/frontend/src/lib` (`
 hand it a `videoUrl` and an `audioUrl`, it hands back an mp4 `Blob` — video and audio remuxed (not re-encoded) into one file. this is what makes DASH-style sources (separate video/audio streams, e.g. youtube) downloadable as one file without your backend ever touching the bytes.
 
 ```ts
-import { muxToMp4 } from '@nexstream/web-mux';
+import { muxToMp4 } from '@panther/web-mux';
 
 const blob = await muxToMp4({
-  videoUrl, audioUrl,
-  workerUrl: new URL('@nexstream/web-mux/worker', import.meta.url),
+  videoUrl,
+  audioUrl,
+  workerUrl: new URL('@panther/web-mux/worker', import.meta.url),
   onProgress: (pct, detail) => console.log(pct, detail),
 });
 ```
@@ -25,17 +26,17 @@ const blob = await muxToMp4({
 
 ## The pieces
 
-| File | Role |
-| ---- | ---- |
-| `core.ts` | `copyMuxTracks` — the actual remux: reads packets from both inputs, writes a fragmented mp4 |
-| `codecs.ts` | copy-safety check (`shouldVetoCopyMux`) — zero deps, easy to unit test alone |
-| `resumableFetch.ts` | range-resume fetch-to-sink, used by the worker path |
-| `worker.ts` | the off-main-thread job runner — download-to-OPFS + mux-to-OPFS, `postMessage` protocol |
-| `muxer.ts` | public entry (`muxToMp4`) — picks worker-vs-main-thread, OPFS bookkeeping |
+| File                | Role                                                                                        |
+| ------------------- | ------------------------------------------------------------------------------------------- |
+| `core.ts`           | `copyMuxTracks` — the actual remux: reads packets from both inputs, writes a fragmented mp4 |
+| `codecs.ts`         | copy-safety check (`shouldVetoCopyMux`) — zero deps, easy to unit test alone                |
+| `resumableFetch.ts` | range-resume fetch-to-sink, used by the worker path                                         |
+| `worker.ts`         | the off-main-thread job runner — download-to-OPFS + mux-to-OPFS, `postMessage` protocol     |
+| `muxer.ts`          | public entry (`muxToMp4`) — picks worker-vs-main-thread, OPFS bookkeeping                   |
 
 ## What changed from the original
 
-- the `?via=eme` query-tag and `nexstream-mux-` OPFS filename prefix were nexstream-specific (analytics tagging, app branding) — dropped the tag, made the prefix a `filePrefix` option instead.
+- the `?via=eme` query-tag and `panther-mux-` OPFS filename prefix were panther-specific (analytics tagging, app branding) — dropped the tag, made the prefix a `filePrefix` option instead.
 - the worker is no longer hardcoded to `./mux.worker.ts` next to the caller — a package can't assume where it'll be bundled from, so `workerUrl` is now an explicit option (see the `"./worker"` export in `package.json`).
 - everything else — the copy-mux logic, the resumable fetch, the codec veto — ported as-is. it was already app-agnostic (no store/telemetry/Sentry imports), so this was mostly a lift, not a rewrite.
 

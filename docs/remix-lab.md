@@ -1,6 +1,6 @@
 # Remix Lab (Beta)
 
-the Remix Lab is NexStream's music-analysis engine. hand it a track and it pulls the song apart — separating **stems**, tracking **beats and tempo**, detecting the **key**, and transcribing **time-stamped chords** — using state-of-the-art (SOTA) models.
+the Remix Lab is Panther's music-analysis engine. hand it a track and it pulls the song apart — separating **stems**, tracking **beats and tempo**, detecting the **key**, and transcribing **time-stamped chords** — using state-of-the-art (SOTA) models.
 
 > **beta.** the Lab runs end-to-end, but it's still maturing — chord & key detection is solid but not flawless, and the Kaggle/Colab runtime is hands-on (account verification, pasting the bundle, first-run model downloads). treat the output as a strong starting point, not ground truth.
 
@@ -14,7 +14,7 @@ from a single audio file:
 - **chords** — beat-synchronous `{ time, chord }` pairs (e.g. `Cm7`, `G/B`), saved to `chords.json`.
 - **beats + tempo** — beat timestamps and an estimated BPM.
 - **key** — the detected key, used to spell the chords correctly.
-- **a results zip** — `NexStream_Remix_Results.zip` bundling `chords.json` and a readable `reasoning.txt`.
+- **a results zip** — `Panther_Remix_Results.zip` bundling `chords.json` and a readable `reasoning.txt`.
 
 ## The models
 
@@ -58,7 +58,7 @@ then, in a new notebook, open **Settings** (right-hand panel) and set:
 
 now paste the **entire contents of the generated `scripts/kaggle/kaggle_bundle.txt`** into a cell and run it — it unpacks the engine, installs the stack, downloads the models, and launches, then prints a shareable Gradio URL.
 
-to wire a Kaggle run back into your own instance, set `NEXSTREAM_BACKEND_URL` and `NEXSTREAM_SESSION_ID` before launch — the engine then registers itself with your backend (`POST /api/remix/register-engine`) on startup. maintainers can push the kernel with [`scripts/kaggle/sync_kaggle.sh`](../scripts/kaggle/sync_kaggle.sh) (needs `KAGGLE_USERNAME` / `KAGGLE_KEY` — see [`env-variables.md`](env-variables.md)).
+to wire a Kaggle run back into your own instance, set `PANTHER_BACKEND_URL` and `PANTHER_SESSION_ID` before launch — the engine then registers itself with your backend (`POST /api/remix/register-engine`) on startup. maintainers can push the kernel with [`scripts/kaggle/sync_kaggle.sh`](../scripts/kaggle/sync_kaggle.sh) (needs `KAGGLE_USERNAME` / `KAGGLE_KEY` — see [`env-variables.md`](env-variables.md)).
 
 ## Running it locally
 
@@ -77,7 +77,7 @@ the engine exposes a small async job API (also mounted on the Kaggle Gradio inst
 
 | Method | Path                | Purpose                                                                     |
 | ------ | ------------------- | --------------------------------------------------------------------------- |
-| `POST` | `/process`          | upload `file` + `remix` + `stems` → `{ task_id }`                          |
+| `POST` | `/process`          | upload `file` + `remix` + `stems` → `{ task_id }`                           |
 | `GET`  | `/status/{task_id}` | poll the job; on success returns stems, chords, beats, and the package path |
 | `GET`  | `/download?path=…`  | fetch the results zip                                                       |
 
