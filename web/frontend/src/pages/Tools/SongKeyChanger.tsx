@@ -601,7 +601,7 @@ const SongKeyChanger = () => {
         schema={{
           '@context': 'https://schema.org',
           '@type': 'SoftwareApplication',
-          name: 'NexStream Song Key Changer',
+          name: 'Panther Song Key Changer',
           operatingSystem: 'All',
           applicationCategory: 'MultimediaApplication',
           offers: {

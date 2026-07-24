@@ -90,8 +90,8 @@ const FormatGuide = () => {
           🚀 Two Engines, One App
         </h2>
         <p className="text-gray-300 leading-relaxed text-lg">
-          <span className="text-white font-bold">NexStream</span>features a
-          Hybrid Engine. Use our{' '}
+          <span className="text-white font-bold">Panther</span>features a Hybrid
+          Engine. Use our{' '}
           <span className="text-emerald-400 font-bold underline decoration-emerald-500/30 underline-offset-4">
             Lightning Engine
           </span>{' '}
@@ -199,7 +199,7 @@ const FormatGuide = () => {
             </p>
           </div>
           <p className="text-sm text-cyan-400 font-black uppercase tracking-widest pt-4 border-t border-white/5">
-            God bless & thank you for using NexStream.
+            God bless & thank you for using Panther.
           </p>
         </div>
         <div className="flex items-center justify-center gap-4">

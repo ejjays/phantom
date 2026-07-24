@@ -14,7 +14,7 @@ self.onmessage = async e => {
     if (storageName && navigator.storage?.getDirectory) {
       const root = await navigator.storage.getDirectory();
       const processingDir = await root.getDirectoryHandle(
-        'nexstream-processing',
+        'panther-processing',
         { create: true }
       );
       filename = `${Date.now()}-${Math.random()

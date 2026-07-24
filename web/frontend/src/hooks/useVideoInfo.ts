@@ -125,7 +125,7 @@ export const useVideoInfo = () => {
       setSubStatus('Initializing Engine...');
       setPendingSubStatuses([]);
       setSessionStartTime(Date.now());
-      setDesktopLogs(['[0:00] Initializing NexStream Core Engine...']);
+      setDesktopLogs(['[0:00] Initializing Panther Core Engine...']);
 
       try {
         const response = await fetch(

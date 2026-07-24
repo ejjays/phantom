@@ -25,7 +25,7 @@ export function assertOutcome(actual: VideoInfo | null, expected: Expected) {
   if (expected.mustHaveIsrc) {
     expect(
       actual?.isrc,
-      'ISRC matching failed - unique Nexstream intelligence not found'
+      'ISRC matching failed - unique Panther intelligence not found'
     ).toBeTruthy();
     expect(typeof actual?.isrc).toBe('string');
   }

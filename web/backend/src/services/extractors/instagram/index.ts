@@ -45,7 +45,7 @@ async function resolveParsed(
       const parsed = await resolve();
       if (parsed && parsed.media.length > 0) return parsed;
     } catch (error: unknown) {
-      // IG rate-limiting — stop cascade rather than hammering every path // eslint-disable-line nexstream/nexstream-comments
+      // IG rate-limiting — stop cascade rather than hammering every path // eslint-disable-line panther/panther-comments
       if ((error as { retryable?: boolean })?.retryable) throw error;
       console.debug(`[JS-IG] path failed: ${(error as Error).message}`);
     }

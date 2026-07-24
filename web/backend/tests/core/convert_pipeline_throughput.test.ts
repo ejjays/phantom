@@ -12,7 +12,7 @@ const MB = 1024 * 1024;
 const FIXTURE_SIZE_MB = 16;
 const FIXTURE_PATH = path.join(
   os.tmpdir(),
-  `nexstream_throughput_${process.pid}.bin`
+  `panther_throughput_${process.pid}.bin`
 );
 
 beforeAll(() => {

@@ -10,7 +10,7 @@ interface EmeStats {
   lastReason?: string;
 }
 
-const STORAGE_KEY = 'nexstream:eme-stats';
+const STORAGE_KEY = 'panther:eme-stats';
 
 const emptyStats = (): EmeStats => ({
   attempts: 0,

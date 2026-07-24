@@ -33,7 +33,7 @@ const Layout = ({ children }: LayoutProps) => {
             Instagram and More
           </h2>
           <p>
-            NexStream is a free, ad-free online tool to download high-quality
+            Panther is a free, ad-free online tool to download high-quality
             video and audio from YouTube, Spotify, TikTok, Instagram, Facebook,
             and SoundCloud. Convert YouTube videos to 4K MP4 or 320kbps MP3,
             download Spotify playlists, and save TikTok videos without

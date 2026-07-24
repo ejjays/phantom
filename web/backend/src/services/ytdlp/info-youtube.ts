@@ -126,7 +126,7 @@ export async function handleYoutubeTiktokInfo(
       };
       await setCachedInfo(cacheKey, fullInfo);
 
-      // JS already returned HD; only enhance via yt-dlp when opted in // eslint-disable-line nexstream/nexstream-comments
+      // JS already returned HD; only enhance via yt-dlp when opted in // eslint-disable-line panther/panther-comments
       if (!isTikTok && process.env.YT_DLP_ENHANCE === '1')
         void runYtdlpEnhancement(
           cacheKey,

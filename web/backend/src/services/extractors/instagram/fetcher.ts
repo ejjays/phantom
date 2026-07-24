@@ -106,7 +106,7 @@ export function shortcodeToMediaId(shortcode: string): string {
   return pk.toString();
 }
 
-// Set-Cookie -> replayable header (anonymous csrftoken/mid, NOT login cookie) // eslint-disable-line nexstream/nexstream-comments
+// Set-Cookie -> replayable header (anonymous csrftoken/mid, NOT login cookie) // eslint-disable-line panther/panther-comments
 function jarFromResponse(
   response: globalThis.Response
 ): Record<string, string> {
@@ -184,7 +184,7 @@ async function getSession(
 }
 
 // logged-out post resolve: reuse cached page tokens, then /api/graphql.
-// IG gates old shortcode query behind auth, but this media_id query is // eslint-disable-line nexstream/nexstream-comments
+// IG gates old shortcode query behind auth, but this media_id query is // eslint-disable-line panther/panther-comments
 // served logged-out — sec-fetch headers keep IG returning JSON not html shell
 export async function fetchLoggedOutMedia(
   shortcode: string,

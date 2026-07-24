@@ -23,7 +23,7 @@ const VideoGuide = () => {
     {
       icon: <Monitor className="text-cyan-400" />,
       title: '8K & 4K Ultra-Resolution',
-      text: 'NexStream scales beyond standard HD, resolving 4320p (8K) and 2160p (4K) master manifests for high-fidelity preservation.',
+      text: 'Panther scales beyond standard HD, resolving 4320p (8K) and 2160p (4K) master manifests for high-fidelity preservation.',
     },
     {
       icon: <PlayCircle className="text-purple-400" />,
@@ -83,7 +83,7 @@ const VideoGuide = () => {
           </h2>
           <div className="space-y-4 text-gray-300 leading-relaxed">
             <p>
-              NexStream utilizes an intelligent orchestration model to balance
+              Panther utilizes an intelligent orchestration model to balance
               speed and device stability. For files up to{' '}
               <span className="text-cyan-400 font-bold">400 MB</span>, we deploy
               our Edge Muxing Engine (EME) which performs high-speed stream
@@ -269,7 +269,7 @@ const VideoGuide = () => {
           <div className="grid md:grid-cols-2 gap-10 items-center">
             <div className="space-y-6 text-gray-300 leading-relaxed text-base">
               <p>
-                NexStream identifies the exact{' '}
+                Panther identifies the exact{' '}
                 <span className="text-white font-bold">VP9</span> or{' '}
                 <span className="text-white font-bold">AV1</span> master
                 streams. We use an optimized{' '}

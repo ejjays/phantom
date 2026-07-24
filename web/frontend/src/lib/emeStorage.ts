@@ -4,7 +4,7 @@
  * navigator.storage.estimate() over-reports on some android browsers.
  * we record where actual writes fail to bypass doomed downloads.
  */
-const CEILING_KEY = 'nexstream:emeOpfsCeiling';
+const CEILING_KEY = 'panther:emeOpfsCeiling';
 
 // track failure point for routing
 export function recordOpfsCeiling(bytes: number): void {

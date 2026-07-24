@@ -1,6 +1,6 @@
 {
-  "name": "NexStream",
-  "short_name": "NexStream",
+  "name": "Panther",
+  "short_name": "Panther",
   "description": "Download and convert videos from YouTube, Spotify, and more.",
   "start_url": "/",
   "display": "standalone",

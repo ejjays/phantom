@@ -35,7 +35,7 @@ export function isClientMuxSupported(): boolean {
 }
 
 const muxFileName = (session: string, suffix: string) =>
-  `nexstream-mux-${session}-${suffix}`;
+  `panther-mux-${session}-${suffix}`;
 
 const STALE_MUX_FILE_MS = 5 * 60 * 1000;
 
@@ -52,7 +52,7 @@ async function sweepStaleMuxFiles(): Promise<void> {
     if (typeof iterable.keys !== 'function') return;
     const now = Date.now();
     for await (const name of iterable.keys()) {
-      const match = /^nexstream-mux-(\d+)-/.exec(name);
+      const match = /^panther-mux-(\d+)-/.exec(name);
       if (!match) continue;
       const stamp = Number(match[1]);
       if (Number.isFinite(stamp) && now - stamp < STALE_MUX_FILE_MS) continue;

@@ -44,7 +44,7 @@ const SecurityPrivacy = () => {
     <div className="w-full flex flex-col gap-12">
       <SEO
         title="Security & Privacy — How We Protect Your Data"
-        description="How NexStream handles privacy: no registration, no tracking, ad-free, signed proxy URLs, and in-memory streaming with no disk storage."
+        description="How Panther handles privacy: no registration, no tracking, ad-free, signed proxy URLs, and in-memory streaming with no disk storage."
         canonicalUrl="/resources/security"
       />
       <header className="text-center space-y-4">
@@ -92,7 +92,7 @@ const SecurityPrivacy = () => {
               Most online converters are riddled with dangerous pop-ups,
               malware, and intrusive trackers.{' '}
               <span className="text-white font-bold">
-                NexStream is different.
+                Panther is different.
               </span>{' '}
               We strictly prohibit advertisements to ensure a clean, safe, and
               fast environment.
@@ -118,7 +118,7 @@ const SecurityPrivacy = () => {
           <div className="space-y-6 text-gray-300 leading-relaxed max-w-3xl">
             <p>
               We believe you should never have to guess what a tool is doing to
-              your data. That&apos;s why NexStream features a{' '}
+              your data. That&apos;s why Panther features a{' '}
               <span className="text-white font-bold underline decoration-cyan-500/30 underline-offset-4">
                 Real-Time Technical Logging
               </span>{' '}

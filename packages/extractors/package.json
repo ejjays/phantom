@@ -1,19 +1,26 @@
 {
-  "name": "@nexstream/extractors",
+  "name": "@panther/extractors",
   "version": "0.0.1",
   "description": "Pure-JS metadata/stream extractors for social + video platforms. Bring your own fetch.",
   "license": "MIT",
   "author": "ejjays <christsonalloso021@gmail.com>",
-  "homepage": "https://github.com/ejjays/nexstream/tree/main/packages/extractors#readme",
+  "homepage": "https://github.com/ejjays/panther/tree/main/packages/extractors#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ejjays/nexstream.git",
+    "url": "git+https://github.com/ejjays/panther.git",
     "directory": "packages/extractors"
   },
   "bugs": {
-    "url": "https://github.com/ejjays/nexstream/issues"
+    "url": "https://github.com/ejjays/panther/issues"
   },
-  "keywords": ["extractor", "video-metadata", "bluesky", "vimeo", "x-twitter", "downloader"],
+  "keywords": [
+    "extractor",
+    "video-metadata",
+    "bluesky",
+    "vimeo",
+    "x-twitter",
+    "downloader"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

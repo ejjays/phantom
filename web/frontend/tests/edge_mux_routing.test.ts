@@ -115,13 +115,13 @@ describe('resolveEdgeMuxEligibility — learned OPFS ceiling', () => {
   it('skips on-device past the learned ceiling despite a fake-huge quota', async () => {
     // estimate lies about free space
     setStorage(opfs(10 * GB));
-    localStorage.setItem('nexstream:emeOpfsCeiling', String(200 * MB));
+    localStorage.setItem('panther:emeOpfsCeiling', String(200 * MB));
     expect(await resolveEdgeMuxEligibility('mp4', 300 * MB)).toBe(false);
   });
 
   it('still allows a small mux under the learned ceiling', async () => {
     setStorage(opfs(10 * GB));
-    localStorage.setItem('nexstream:emeOpfsCeiling', String(484 * MB));
+    localStorage.setItem('panther:emeOpfsCeiling', String(484 * MB));
     expect(await resolveEdgeMuxEligibility('mp4', 100 * MB)).toBe(true);
   });
 });

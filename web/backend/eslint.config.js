@@ -7,10 +7,13 @@ import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const pluginPath = join(dirname(fileURLToPath(import.meta.url)), '../../scripts/eslint-plugin-nexstream.js');
+const pluginPath = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../scripts/eslint-plugin-panther.js'
+);
 const hasPlugin = existsSync(pluginPath);
-const nexstreamPlugin = hasPlugin
-  ? (await import('../../scripts/eslint-plugin-nexstream.js')).default
+const pantherPlugin = hasPlugin
+  ? (await import('../../scripts/eslint-plugin-panther.js')).default
   : null;
 
 export default tseslint.config(
@@ -23,7 +26,7 @@ export default tseslint.config(
   prettierConfig,
   {
     plugins: {
-      ...(nexstreamPlugin ? { nexstream: nexstreamPlugin } : {}),
+      ...(pantherPlugin ? { panther: pantherPlugin } : {}),
     },
     languageOptions: {
       ecmaVersion: 2022,
@@ -33,11 +36,11 @@ export default tseslint.config(
       },
     },
     rules: {
-      ...(nexstreamPlugin
+      ...(pantherPlugin
         ? {
-            'nexstream/nexstream-comments': 'error',
-            'nexstream/no-raw-fetch': 'error',
-            'nexstream/no-raw-spawn': 'error',
+            'panther/panther-comments': 'error',
+            'panther/no-raw-fetch': 'error',
+            'panther/no-raw-spawn': 'error',
           }
         : {}),
       complexity: ['error', 30],
@@ -140,11 +143,11 @@ export default tseslint.config(
       'sonarjs/no-all-duplicated-branches': 'off',
       'sonarjs/unused-import': 'off',
       '@typescript-eslint/no-explicit-any': 'error',
-      ...(nexstreamPlugin
+      ...(pantherPlugin
         ? {
-            'nexstream/nexstream-comments': 'error',
-            'nexstream/no-raw-fetch': 'error',
-            'nexstream/no-raw-spawn': 'error',
+            'panther/panther-comments': 'error',
+            'panther/no-raw-fetch': 'error',
+            'panther/no-raw-spawn': 'error',
           }
         : {}),
     },

@@ -6,7 +6,7 @@ interface Metadata {
 }
 
 const SITE_CONFIG = {
-  name: 'NexStream',
+  name: 'Panther',
   defaultDescription:
     'A simple tool for high-quality YouTube and Spotify media extraction. Supports 4K video and MP3 downloads from various social platforms.',
   defaultImage: '/og-image.webp',
@@ -24,24 +24,24 @@ const PAGE_METADATA: Record<string, Metadata> = {
       'Tools for isolating vocals, drums, and instruments from any track using AI-assisted processing.',
   },
   '/resources/story': {
-    title: 'Our Story | The NexStream Mission',
+    title: 'Our Story | The Panther Mission',
     description:
-      'The background of NexStream and our goal to provide clean, accessible media tools for everyone.',
+      'The background of Panther and our goal to provide clean, accessible media tools for everyone.',
   },
   '/resources/architecture': {
     title: 'Technical Architecture | Media Orchestration Core',
     description:
-      'A look into how NexStream handles media processing and high-fidelity extraction.',
+      'A look into how Panther handles media processing and high-fidelity extraction.',
   },
   '/resources/stack': {
     title: 'Tech Stack | The Tools Behind the Magic',
     description:
-      'A list of the technologies we use to build and maintain NexStream.',
+      'A list of the technologies we use to build and maintain Panther.',
   },
   '/resources/audio-guide': {
     title: 'Audio Guide | Mastering MP3 Extraction',
     description:
-      'Tips on getting the best audio results when downloading music through NexStream.',
+      'Tips on getting the best audio results when downloading music through Panther.',
   },
   '/resources/video-guide': {
     title: 'Video Guide | 4K & HDR Downloads',

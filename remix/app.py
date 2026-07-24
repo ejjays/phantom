@@ -37,7 +37,7 @@ async def cleanup_tasks():
 def create_ui():
     import gradio as gr
     with gr.Blocks(theme=gr.themes.Monochrome()) as interface:
-        gr.Markdown("# NexStream Nitro Lab")
+        gr.Markdown("# Panther Nitro Lab")
         with gr.Row():
             audio_in = gr.Audio(type="filepath", label="Input")
             with gr.Column():
@@ -141,8 +141,8 @@ def _launch_kaggle(ui):
     # register worker
     def register_worker():
         time.sleep(15) # wait for tunnel
-        backend_url = os.environ.get("NEXSTREAM_BACKEND_URL")
-        session_id = os.environ.get("NEXSTREAM_SESSION_ID")
+        backend_url = os.environ.get("PANTHER_BACKEND_URL")
+        session_id = os.environ.get("PANTHER_SESSION_ID")
         
         if public_url and backend_url and session_id:
             logger.info("Registering session %s at %s", session_id, backend_url)
@@ -179,7 +179,7 @@ def _launch_local(ui):
     import uvicorn
     import gradio as gr
 
-    app = FastAPI(title="NexStream Nitro Engine")
+    app = FastAPI(title="Panther Nitro Engine")
     cleanup_task = []
 
     @app.on_event("startup")

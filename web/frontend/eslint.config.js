@@ -8,10 +8,13 @@ import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const pluginPath = join(dirname(fileURLToPath(import.meta.url)), '../../scripts/eslint-plugin-nexstream.js');
+const pluginPath = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../scripts/eslint-plugin-panther.js'
+);
 const hasPlugin = existsSync(pluginPath);
-const nexstreamPlugin = hasPlugin
-  ? (await import('../../scripts/eslint-plugin-nexstream.js')).default
+const pantherPlugin = hasPlugin
+  ? (await import('../../scripts/eslint-plugin-panther.js')).default
   : null;
 
 export default tseslint.config(
@@ -26,7 +29,7 @@ export default tseslint.config(
   prettierConfig,
   {
     plugins: {
-      ...(nexstreamPlugin ? { nexstream: nexstreamPlugin } : {}),
+      ...(pantherPlugin ? { panther: pantherPlugin } : {}),
     },
     languageOptions: {
       ecmaVersion: 2022,
@@ -41,10 +44,10 @@ export default tseslint.config(
       },
     },
     rules: {
-      ...(nexstreamPlugin
+      ...(pantherPlugin
         ? {
-            'nexstream/nexstream-comments': 'error',
-            'nexstream/no-inline-svg': 'warn',
+            'panther/panther-comments': 'error',
+            'panther/no-inline-svg': 'warn',
           }
         : {}),
       // deepsource alignment
@@ -156,7 +159,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': 'off',
       'sonarjs/unused-import': 'off',
       'require-await': 'off',
-      ...(nexstreamPlugin ? { 'nexstream/nexstream-comments': 'off' } : {}),
+      ...(pantherPlugin ? { 'panther/panther-comments': 'off' } : {}),
       'spaced-comment': 'off',
       'react/jsx-max-depth': ['error', { max: 5 }],
     },

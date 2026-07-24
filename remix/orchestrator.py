@@ -98,7 +98,7 @@ def remix_audio_dual_gpu(audio_path, engine_choice, stems_mode):
         for c in chord_data: sheet_text += f"[{c['time']}s] {c['chord']}\n"
         
         # package results
-        zip_p = str(BASE_DIR / "NexStream_Remix_Results.zip")
+        zip_p = str(BASE_DIR / "Panther_Remix_Results.zip")
         with zipfile.ZipFile(zip_p, 'w') as z:
             with open(stem_dir/"chords.json", "w") as f: json.dump(chord_data, f, indent=2)
             z.write(stem_dir/"chords.json", arcname="chords.json")

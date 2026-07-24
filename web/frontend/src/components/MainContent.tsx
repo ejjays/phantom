@@ -31,7 +31,7 @@ const HeroSection = ({ isVisible }: { isVisible: boolean }) => (
             : 'w-52 h-52 sm:w-52 sm:h-52 md:w-56 md:h-56'
         }`}
         src={meowCool}
-        alt="NexStream Mascot - A cool cat"
+        alt="Panther Mascot - A cool cat"
         width={208}
         height={208}
         loading="eager"
@@ -44,7 +44,7 @@ const HeroSection = ({ isVisible }: { isVisible: boolean }) => (
     </div>
 
     <div className="sr-only">
-      <h1>NexStream | 4K Media Converter</h1>
+      <h1>Panther | 4K Media Converter</h1>
       <p>Ultimate Youtube & Spotify Downloader</p>
     </div>
   </div>
@@ -290,7 +290,7 @@ const MainContent = () => {
         schema={{
           '@context': 'https://schema.org',
           '@type': 'SoftwareApplication',
-          name: 'NexStream',
+          name: 'Panther',
           operatingSystem: 'All',
           applicationCategory: 'MultimediaApplication',
           offers: {
