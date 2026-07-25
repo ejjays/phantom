@@ -22,12 +22,9 @@ Panther downloads 4K+ video and audio, and breaks songs into stems + chords for 
 
 | Target | What runs where | Repo path |
 |--------|-----------------|-----------|
-| **Web app** | Extraction/mux on server (Node), optional browser mux via `mediabunny` | `web/` |
+| **Web app** | Extraction/mux on server (Node), browser mux via `mediabunny`, server fallback | `web/` |
 | **Android app** | Full pipeline on-device (Expo RN, Hermes, ffmpeg-kit) | `mobile/` |
 | **Remix Lab** | ML stem/chord/beat/key analysis on free Kaggle/Colab GPUs | `remix/` |
-
-The web and mobile apps are **architecturally separate** — they share extractor logic via `@panther/extractors` but have independent backends.
-
 ---
 
 ## Quick start (web)
@@ -121,8 +118,8 @@ nexstream/
 │   ├── src/lib/        # download pipeline, social, net, notify
 │   └── src/components/ # UI, sheets, backgrounds, webviews
 ├── packages/
-│   ├── extractors/     # @panther/extractors (MIT) — pure-JS, BYO fetch
-│   └── web-mux/        # @panther/web-mux (MIT) — WebCodecs + OPFS muxer
+│   ├── extractors/     # @panther/extractors (prototype, WIP)
+│   └── web-mux/        # @panther/web-mux (prototype, WIP)
 ├── remix/              # Python ML engine (Demucs, BTC, madmom, nnAudio)
 ├── scripts/            # termux install, tunnels, kaggle bundler
 └── docs/               # self-host, env, hardening, API, mobile, remix
@@ -131,8 +128,7 @@ nexstream/
 **Key architectural decisions:**
 
 - **No server for mobile** — each phone is its own residential IP + compute. Avoids datacenter bot-blocks and OOM kills on free tiers.
-- **Extractor packages are shared** — `@panther/extractors` (pure JS, no deps) used by web backend, mobile, and standalone. `mobile/src/extractors/` contains platform-specific adapters (YouTube WebView, Spotify auth).
-- **Browser muxing is optional** — `mediabunny` (pure-JS muxer) runs in a Web Worker, streams to OPFS. Server still muxes via `ffmpeg -c copy` for non-supported browsers or when client mux is unavailable.
+- **Client-side muxing is primary** — `mediabunny` (pure-JS muxer) runs in a Web Worker, streams to OPFS. Server fallback via `ffmpeg -c copy` only when client mux fails or browser unsupported.
 - **Googlevideo throttle bypass** — backend uses 8 MB ranged chunks, mobile uses 4 MB. Both parallel with per-chunk retry.
 - **Remix Lab is offline-first** — dual-GPU Kaggle notebook (2×T4), Gradio UI, async job API. Results zip downloaded to your machine.
 
@@ -152,18 +148,6 @@ nexstream/
 
 ---
 
-## Packages (standalone, MIT licensed)
-
-| Package | Purpose | Install |
-|---------|---------|---------|
-| `@panther/extractors` | Pure-JS metadata/stream extractors for 13+ platforms. BYO `fetch`. | `npm i @panther/extractors` |
-| `@panther/web-mux` | Browser demux+remux via WebCodecs + OPFS. Worker-based, no server. | `npm i @panther/web-mux` |
-
-Both publish from `packages/` with their own `package.json`, `tsconfig`, and `LICENSE`.
-
----
-
-## License
 
 **AGPL-3.0-or-later** for the main apps (`web/`, `mobile/`, `remix/`).
 
@@ -175,4 +159,4 @@ See [`LICENSE`](LICENSE) and [`packages/*/LICENSE`](packages/extractors/LICENSE)
 
 ## Disclaimer
 
-Panther is for educational/research use. Download only content you have the right to process. No piracy — keep it fair.
+Use responsibly. Download only content you have rights to. No piracy.

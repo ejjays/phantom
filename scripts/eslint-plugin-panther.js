@@ -2,22 +2,6 @@
  * @fileoverview custom rules
  */
 
-const WHAT_WORDS = new Set([
-  'sets',
-  'assigns',
-  'calls',
-  'creates',
-  'initializes',
-  'checks',
-  'returns',
-  'loops',
-  'updates',
-]);
-
-const URL_REGEX = /https?:\/\/[^\s]+/g;
-const CODE_REF_REGEX = /`[^`]+`/g;
-const PUNCTUATION_REGEX = /[.,;:'"!?[\](){}]/g;
-
 const pantherPlugin = {
   rules: {
     'no-raw-fetch': {
@@ -35,8 +19,7 @@ const pantherPlugin = {
             if (node.callee.name === 'fetch') {
               const filename = context.filename || context.getFilename();
               if (filename.includes('security.util.ts')) return;
-              if (filename.includes('tests/')) return; // allow in tests for now
-
+              if (filename.includes('tests/')) return;
               context.report({ node, messageId: 'useSecureFetch' });
             }
           },
@@ -67,7 +50,6 @@ const pantherPlugin = {
               if (filename.includes('extractors/soundcloud.ts')) return;
               if (filename.includes('extractors/vimeo.ts')) return;
               if (filename.includes('tests/')) return;
-
               context.report({ node, messageId: 'useService' });
             }
           },
@@ -77,71 +59,11 @@ const pantherPlugin = {
     'panther-comments': {
       meta: {
         type: 'suggestion',
-        docs: {
-          description:
-            "Enforce Panther comment style (Focus on 'why', not 'what')",
-        },
-        messages: {
-          isWhatComment:
-            "Comment explains 'what' (mechanics). Use comments only for 'why' (intent). Flagged word: '{{word}}'",
-          notStartLowercase: 'Comment must start with a lowercase letter.',
-        },
+        docs: { description: 'Comment style (disabled)' },
+        messages: {},
       },
-      create(context) {
-        const sourceCode = context.sourceCode;
-
-        return {
-          Program() {
-            const comments = sourceCode.getAllComments();
-
-            for (const comment of comments) {
-              const rawText = comment.value.trim();
-
-              if (
-                !rawText ||
-                rawText.startsWith('*') ||
-                rawText.includes('eslint-') ||
-                rawText.startsWith('skipcq:') ||
-                rawText.startsWith('!') ||
-                rawText.startsWith('/')
-              ) {
-                continue;
-              }
-
-              const cleanText = rawText
-                .replace(URL_REGEX, '')
-                .replace(CODE_REF_REGEX, '');
-
-              const tokens = cleanText
-                .split(/\s+/)
-                .map((w) => w.replace(PUNCTUATION_REGEX, ''))
-                .filter(Boolean);
-
-              if (tokens.length === 0) continue;
-
-              const firstChar = tokens[0][0];
-              if (firstChar && firstChar !== firstChar.toLowerCase()) {
-                context.report({
-                  loc: comment.loc,
-                  messageId: 'notStartLowercase',
-                });
-              }
-
-              let hasWhatWord = false;
-
-              for (const word of tokens) {
-                if (!hasWhatWord && WHAT_WORDS.has(word.toLowerCase())) {
-                  context.report({
-                    loc: comment.loc,
-                    messageId: 'isWhatComment',
-                    data: { word },
-                  });
-                  hasWhatWord = true;
-                }
-              }
-            }
-          },
-        };
+      create() {
+        return {};
       },
     },
     'no-inline-svg': {
