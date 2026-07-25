@@ -2,7 +2,7 @@ import React from 'react';
 import Header from './Header';
 import SocialMedia from './SocialMedia';
 import SupportButton from './ui/SupportButton';
-import DotPattern from './ui/DotPattern';
+import TwinkleStars from './ui/TwinkleStars';
 import ShootingStars from './ui/ShootingStars';
 import ErudaLoader from './utils/ErudaLoader';
 
@@ -14,7 +14,7 @@ const Layout = ({ children }: LayoutProps) => {
   return (
     <div className="flex flex-col min-h-dvh w-full relative overflow-hidden">
       <ErudaLoader />
-      <DotPattern />
+      <TwinkleStars />
       <ShootingStars />
 
       <Header />

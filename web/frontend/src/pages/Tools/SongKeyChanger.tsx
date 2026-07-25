@@ -15,7 +15,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import DotPattern from '../../components/ui/DotPattern';
+import TwinkleStars from '../../components/ui/TwinkleStars';
 import ShootingStars from '../../components/ui/ShootingStars';
 
 const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -447,7 +447,7 @@ const ReadyState = ({
 
 const BackgroundEffects = () => (
   <>
-    <DotPattern />
+    <TwinkleStars />
     <ShootingStars starColor="#22d3ee" />
 
     <div className="fixed rounded-full blur-[120px] -z-10 opacity-20 animate-float w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-purple-900 -top-12 -left-12 sm:-top-24 sm:-left-24 pointer-events-none"></div>

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link as LinkIcon } from 'lucide-react';
 import MusicIcon from '../assets/icons/MusicIcon';
@@ -19,25 +19,18 @@ import SEO from './utils/SEO';
 import { PlayerData } from '../types/remix';
 
 const MusicPlayerCard = lazy(() => import('./MusicPlayerCard'));
-const meowCool = '/meow.webp';
+import PantherHero from './PantherHero';
 
-const HeroSection = ({ isVisible }: { isVisible: boolean }) => (
+type HeroProps = {
+  isVisible: boolean;
+  trigger: number;
+  status: string;
+};
+
+const HeroSection = ({ isVisible, trigger, status }: HeroProps) => (
   <div className="relative flex flex-col items-center justify-center gap-4">
     <div className="relative">
-      <img
-        className={`transition-all duration-700 ease-in-out object-contain ${
-          isVisible
-            ? 'w-40 h-40 sm:w-44 sm:h-44 md:w-52 md:h-52'
-            : 'w-52 h-52 sm:w-52 sm:h-52 md:w-56 md:h-56'
-        }`}
-        src={meowCool}
-        alt="Panther Mascot - A cool cat"
-        width={208}
-        height={208}
-        loading="eager"
-        fetchPriority="high"
-        decoding="async"
-      />
+      <PantherHero isVisible={isVisible} trigger={trigger} status={status} />
       <div className="absolute -right-4 -top-2 sm:-right-6 sm:-top-4 md:-right-14 md:-top-2 z-20">
         <DocsButton />
       </div>
@@ -219,6 +212,9 @@ const MainContent = () => {
     requestClipboard,
   } = useMediaConverter();
 
+  const [pantherTrigger, setPantherTrigger] = useState(0);
+  const triggerPanther = () => setPantherTrigger((count) => count + 1);
+
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       // global Ctrl/Cmd+V to paste
@@ -247,6 +243,7 @@ const MainContent = () => {
 
       if (e.key === 'Enter' && !loading && url) {
         e.preventDefault();
+        triggerPanther();
         handleDownloadTrigger();
       }
     };
@@ -271,6 +268,7 @@ const MainContent = () => {
           window.location.pathname
         );
         setTimeout(() => {
+          triggerPanther();
           handleDownloadTrigger(finalUrl);
         }, 100);
       }
@@ -317,7 +315,11 @@ const MainContent = () => {
             : 'translate-y-0'
         }`}
       >
-        <HeroSection isVisible={isVisible} />
+        <HeroSection
+          isVisible={isVisible}
+          trigger={pantherTrigger}
+          status={status}
+        />
         <SearchInput url={url} setUrl={setUrl} />
         <FormatPicker
           url={url}
@@ -338,7 +340,10 @@ const MainContent = () => {
         <div className="pt-2">
           <GlowButton
             text={loading ? 'Processing...' : 'Convert & Download'}
-            onClick={() => handleDownloadTrigger()}
+            onClick={() => {
+              triggerPanther();
+              handleDownloadTrigger();
+            }}
             disabled={loading}
           />
         </div>
