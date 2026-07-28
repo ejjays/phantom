@@ -33,7 +33,7 @@ const Layout = ({ children }: LayoutProps) => {
       <footer className="px-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] shrink-0 relative flex flex-col items-center justify-center gap-4">
         {isHome && (
           <p className="hidden md:block text-xs text-white/90 text-center max-w-md leading-relaxed">
-            use responsibly
+            use responsibly · respect copyright
           </p>
         )}
         <div className="sr-only">

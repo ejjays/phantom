@@ -42,7 +42,7 @@ export default function PantherHero({
   };
 
   useEffect(() => {
-    if (!trigger) return;
+    if (!trigger) return () => {};
 
     setGlitchRun((count) => count + 1);
     setIsGlitching(true);
@@ -60,9 +60,8 @@ export default function PantherHero({
       clearTimeout(glitchEndTimer);
     };
   }, [trigger]);
-
   useEffect(() => {
-    if (!showAttack || (status !== 'completed' && status !== 'idle')) return;
+    if (!showAttack || (status !== 'completed' && status !== 'idle')) return () => {};
 
     const timer = setTimeout(() => {
       setShowAttack(false);

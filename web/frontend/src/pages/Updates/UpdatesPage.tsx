@@ -236,6 +236,63 @@ function PostCard({
   const catStyle = CATEGORY_STYLES[update.category] ?? CATEGORY_STYLES.feature;
   const isLong = update.body.length > 280;
 
+  const contentHeader = (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span
+          className="rounded-full px-2.5 py-1 text-xs font-semibold"
+          style={{ backgroundColor: catStyle.bg, color: CYAN }}
+        >
+          {catStyle.label}
+        </span>
+        {update.version ? (
+          <span className="text-xs text-white/30">v{update.version}</span>
+        ) : null}
+      </div>
+      <span className="text-xs text-slate-500">
+        {relativeTime(update.publishedAt)}
+      </span>
+    </div>
+  );
+
+  const contentBody = (
+    <>
+      <h3 className="mt-1.5 font-bold text-xl leading-7 text-white">
+        {update.title}
+      </h3>
+      <div className="mt-2 text-sm leading-relaxed text-white/60">
+        {isLong && !expanded ? (
+          <>
+            {update.body.slice(0, 280)}
+            <span className="text-white/30">... </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded(true);
+              }}
+              className="text-cyan-400 hover:text-cyan-300 text-xs"
+            >
+              See more
+            </button>
+          </>
+        ) : (
+          update.body
+        )}
+        {expanded && isLong && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(false);
+            }}
+            className="text-cyan-400 hover:text-cyan-300 block mt-1 text-xs"
+          >
+            show less
+          </button>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div className="mb-9">
       {update.imageUrl ? (
@@ -252,55 +309,8 @@ function PostCard({
 
       <div style={update.imageUrl ? { marginTop: 16 } : undefined}>
         <button onClick={onOpen} className="w-full text-left">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span
-                className="rounded-full px-2.5 py-1 text-xs font-semibold"
-                style={{ backgroundColor: catStyle.bg, color: CYAN }}
-              >
-                {catStyle.label}
-              </span>
-              {update.version ? (
-                <span className="text-xs text-white/30">v{update.version}</span>
-              ) : null}
-            </div>
-            <span className="text-xs text-slate-500">
-              {relativeTime(update.publishedAt)}
-            </span>
-          </div>
-          <h3 className="mt-1.5 font-bold text-xl leading-7 text-white">
-            {update.title}
-          </h3>
-          <div className="mt-2 text-sm leading-relaxed text-white/60">
-            {isLong && !expanded ? (
-              <>
-                {update.body.slice(0, 280)}
-                <span className="text-white/30">... </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setExpanded(true);
-                  }}
-                  className="text-cyan-400 hover:text-cyan-300 text-xs"
-                >
-                  See more
-                </button>
-              </>
-            ) : (
-              update.body
-            )}
-            {expanded && isLong && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setExpanded(false);
-                }}
-                className="text-cyan-400 hover:text-cyan-300 block mt-1 text-xs"
-              >
-                show less
-              </button>
-            )}
-          </div>
+          {contentHeader}
+          {contentBody}
         </button>
 
         <div className="mt-4 flex items-center gap-2.5">
@@ -328,7 +338,7 @@ export default function UpdatesPage() {
     if (!isSupabaseConfigured) {
       setError(null);
       setLoading(false);
-      return;
+      return () => {};
     }
     let cancelled = false;
     async function load() {
@@ -359,7 +369,7 @@ export default function UpdatesPage() {
     };
   }, []);
 
-  const renderBody = () => {
+  function renderBody() {
     if (!isSupabaseConfigured) {
       return (
         <Notice
@@ -408,6 +418,19 @@ export default function UpdatesPage() {
     ));
   };
 
+  const heading = (
+    <div className="mb-4 ml-1 mr-1 flex items-center justify-between">
+      <h1 className="font-bold text-[30px] tracking-tight text-white">
+        Updates
+      </h1>
+      {isSupabaseConfigured ? (
+        <button className="relative p-1">
+          <Bell size={24} color="#cbd5e1" strokeWidth={2} />
+        </button>
+      ) : null}
+    </div>
+  );
+
   return (
     <>
       <SEO
@@ -422,16 +445,7 @@ export default function UpdatesPage() {
           className="mx-auto px-4 pb-36 pt-[calc(env(safe-area-inset-top)+14px)]"
           style={{ maxWidth: 768 }}
         >
-          <div className="mb-4 ml-1 mr-1 flex items-center justify-between">
-            <h1 className="font-bold text-[30px] tracking-tight text-white">
-              Updates
-            </h1>
-            {isSupabaseConfigured ? (
-              <button className="relative p-1">
-                <Bell size={24} color="#cbd5e1" strokeWidth={2} />
-              </button>
-            ) : null}
-          </div>
+          {heading}
 
           {isSupabaseConfigured && updates.length > 0 ? (
             <div className="mb-6 -mx-4">
