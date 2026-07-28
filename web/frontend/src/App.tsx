@@ -28,6 +28,7 @@ const ArchitectureDeepDive = lazy(
 );
 const TechStack = lazy(() => import('./pages/Guide/TechStack'));
 const RemixLabGuide = lazy(() => import('./pages/Guide/RemixLabGuide'));
+const UpdatesPage = lazy(() => import('./pages/Updates/UpdatesPage'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const ScrollToTop = () => {
@@ -220,6 +221,14 @@ const App = () => {
             element={
               <Layout>
                 <MainContent />
+              </Layout>
+            }
+          />
+          <Route
+            path="/updates"
+            element={
+              <Layout>
+                <UpdatesPage />
               </Layout>
             }
           />

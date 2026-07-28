@@ -90,10 +90,10 @@ function ogTag(html: string, prop: string): string | undefined {
 
 function decodeEntities(text: string): string {
   return text
-    .replace(/&amp;/giu, '&')
-    .replace(/&lt;/giu, '<')
-    .replace(/&gt;/giu, '>')
-    .replace(/&quot;/giu, '"')
+    .replace(/&/giu, '&')
+    .replace(/</giu, '<')
+    .replace(/>/giu, '>')
+    .replace(/"/giu, '"')
     .replace(/&#0?39;|&apos;/giu, "'")
     .replace(/&#x2F;/giu, '/');
 }
@@ -115,7 +115,7 @@ async function fetchPageMeta(url: string): Promise<PageMeta> {
     // drop the site-name suffix
     const title = rawTitle
       ? decodeEntities(rawTitle)
-          .replace(/\s*[|\-–]\s*bili\s*bili\s*$/iu, '')
+          .replace(/[|\-–]\s*bilibili$/iu, '')
           .trim()
       : undefined;
     const description = ogTag(html, 'og:description');

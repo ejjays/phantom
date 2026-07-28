@@ -34,10 +34,10 @@ export const THUMB_PATTERNS = [
 ];
 
 export const DASH_PATTERNS = [
-  /"browser_native_hd_url":\s*"([^"]+)"[^{}]*?"audioUrl":\s*"([^"]+)"/gu,
-  /"audioUrl":\s*"([^"]+)"[^{}]*?"browser_native_hd_url":\s*"([^"]+)"/gu,
-  /FBQualityClass=\\"hd\\"[^>]*BaseURL>(.*?)</gsu,
-  /representation_id=\\"\d+v\\"[^>]*base_url\\":\\"(.*?)\\"/gsu,
+  /"browser_native_hd_url"\s*:\s*"([^"]+)"[^{}]*?"audioUrl"\s*:\s*"([^"]+)"/gu,
+  /"audioUrl"\s*:\s*"([^"]+)"[^{}]*?"browser_native_hd_url"\s*:\s*"([^"]+)"/gu,
+  /FBQualityClass=\\"hd\\"[^>]*?BaseURL>([^<]+)</gsu,
+  /representation_id=\\"\d+v\\"[^>]*?base_url\\":\\"([^\\"]+)\\"/gsu,
 ];
 
 export const HD_FALLBACK_PATTERNS = [

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import pantherSitting from '../assets/images/panther-sitting.png';
 import pantherAttack from '../assets/images/panther-attack.png';
 
@@ -20,6 +21,25 @@ export default function PantherHero({
   const [isGlitching, setIsGlitching] = useState(false);
   const [showAttack, setShowAttack] = useState(false);
   const [glitchRun, setGlitchRun] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (error) {
+      console.error('Fullscreen request failed:', error);
+    }
+  };
 
   useEffect(() => {
     if (!trigger) return;
@@ -42,15 +62,15 @@ export default function PantherHero({
   }, [trigger]);
 
   useEffect(() => {
-    if (showAttack && (status === 'completed' || status === 'idle')) {
-      const timer = setTimeout(() => {
-        setShowAttack(false);
-      }, RETURN_DURATION);
-      return () => clearTimeout(timer);
-    }
+    if (!showAttack || (status !== 'completed' && status !== 'idle')) return;
+
+    const timer = setTimeout(() => {
+      setShowAttack(false);
+    }, RETURN_DURATION);
+    return () => clearTimeout(timer);
   }, [showAttack, status]);
 
-  const baseWidth = isVisible ? 'w-24 sm:w-36 md:w-44' : 'w-32 sm:w-36 md:w-44';
+  const baseWidth = isVisible ? 'w-36 sm:w-36 md:w-44' : 'w-40 sm:w-40 md:w-44';
 
   return (
     <div className="relative flex flex-col items-center justify-center gap-4">
@@ -173,6 +193,14 @@ export default function PantherHero({
               showAttack ? 'opacity-100' : 'opacity-0'
             }`}
           />
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="absolute top-5 right-14 z-20 md:hidden text-white hover:text-white/80 transition-colors"
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
         </div>
       </div>
     </div>

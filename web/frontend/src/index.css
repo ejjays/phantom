@@ -17,6 +17,15 @@ html.kbd-focus *:focus-visible {
   outline-offset: 2px;
 }
 
+@keyframes skelPulse {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 0.8;
+  }
+}
+
 img {
   -webkit-touch-callout: none;
   -webkit-user-select: none;

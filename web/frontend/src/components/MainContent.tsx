@@ -12,9 +12,6 @@ import { useMediaConverter } from '../hooks/useMediaConverter';
 import { useRemixStore } from '../store/useRemixStore';
 import StandardQualityPicker from './modals/StandardQualityPicker';
 import MobileSpotifyPicker from './modals/MobileSpotifyPicker';
-import DocsButton from './ui/DocsButton';
-import FloatingMenu from './ui/FloatingMenu';
-
 import SEO from './utils/SEO';
 import { PlayerData } from '../types/remix';
 
@@ -31,9 +28,9 @@ const HeroSection = ({ isVisible, trigger, status }: HeroProps) => (
   <div className="relative flex flex-col items-center justify-center gap-4">
     <div className="relative">
       <PantherHero isVisible={isVisible} trigger={trigger} status={status} />
-      <div className="absolute -right-4 -top-2 sm:-right-6 sm:-top-4 md:-right-14 md:-top-2 z-20">
+      {/* <div className="absolute -right-4 -top-2 sm:-right-6 sm:-top-4 md:-right-14 md:-top-2 z-20">
         <DocsButton />
-      </div>
+      </div> */}
     </div>
 
     <div className="sr-only">
@@ -309,11 +306,7 @@ const MainContent = () => {
           `Download progress: ${Math.round(progress)}%`}
       </div>
       <div
-        className={`flex flex-col justify-center items-center w-full gap-3 px-4 transition-transform duration-500 ease-in-out ${
-          isVisible && isMobile
-            ? '-translate-y-6 sm:-translate-y-8'
-            : 'translate-y-0'
-        }`}
+        className={`flex flex-col justify-center items-center w-full gap-3 px-4 transition-transform duration-500 ease-in-out`}
       >
         <HeroSection
           isVisible={isVisible}
@@ -416,7 +409,7 @@ const MainContent = () => {
           onCancel={cancelDownload}
         />
       </div>
-      <FloatingMenu />
+      {/* <FloatingMenu /> */}
     </>
   );
 };
