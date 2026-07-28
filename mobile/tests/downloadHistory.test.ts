@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const store = new Map<string, string>();
+const store = vi.hoisted(() => new Map<string, string>());
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
     getItem: (k: string) => Promise.resolve(store.get(k) ?? null),

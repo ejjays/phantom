@@ -84,6 +84,8 @@ const pantherPlugin = {
           'components/icons.tsx',
           'FormatIcons.tsx',
           'DotBackground.tsx',
+          'GlowBlob.tsx',
+          'VinylGrooves.tsx',
           'assets/icons/',
           'tests/',
         ];
