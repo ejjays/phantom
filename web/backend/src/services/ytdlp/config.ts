@@ -91,7 +91,8 @@ export async function bootstrapCookies(): Promise<void> {
   const url = process.env.COOKIES_URL;
   if (!url) return;
   try {
-    const cleanUrl = url.replace(/\/+$/, '');
+    let cleanUrl = url;
+    while (cleanUrl.endsWith('/')) cleanUrl = cleanUrl.slice(0, -1);
     let res = await secureFetch(`${cleanUrl}/youtube_cookies.txt`);
     if (!res.ok) res = await secureFetch(cleanUrl);
     if (!res.ok) return;

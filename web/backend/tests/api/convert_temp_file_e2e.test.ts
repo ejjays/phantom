@@ -122,7 +122,7 @@ describe('/convert E2E — temp file flow (Phase 1.5.7)', () => {
 
     // body matches what yt-dlp wrote
     const body = res.body as Buffer;
-    expect(body.length).toBe(VIDEO_PAYLOAD.length);
+    expect(body).toHaveLength(VIDEO_PAYLOAD.length);
     expect(body.equals(VIDEO_PAYLOAD)).toBe(true);
   }, 30_000);
 });

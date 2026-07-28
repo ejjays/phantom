@@ -28,7 +28,9 @@ async function pingHealth(): Promise<void> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
     try {
-      const res = await secureFetch(`${url.replace(/\/+$/u, '')}/health`, {
+      let stripped = url;
+      while (stripped.endsWith('/')) stripped = stripped.slice(0, -1);
+      const res = await secureFetch(`${stripped}/health`, {
         signal: controller.signal,
       });
       healthy = res.ok;
@@ -89,7 +91,8 @@ export function buildPhoneMediaUrl(
   const isDub = Boolean(ytUrl) && dubLangFromUrl(rawUrl) !== null;
   const payload = isDub ? `${rawUrl}\n${exp}\n${ytUrl}` : `${rawUrl}\n${exp}`;
   const sig = createHmac('sha256', SECRET).update(payload).digest('base64url');
-  const base = tunnelUrl.replace(/\/+$/u, '');
+  let base = tunnelUrl;
+  while (base.endsWith('/')) base = base.slice(0, -1);
   const url = `${base}/media?u=${encodeURIComponent(rawUrl)}&e=${exp}&s=${sig}`;
   return isDub ? `${url}&yt=${encodeURIComponent(ytUrl as string)}` : url;
 }

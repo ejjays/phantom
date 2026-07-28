@@ -108,7 +108,7 @@ export async function getInfo(
 
     // drop trailing media t.co link
     const caption = (tweet.text || tweet.full_text || 'X Video')
-      .replace(/\s*https:\/\/t\.co\/\S+\s*$/u, '')
+      .replace(/https:\/\/t\.co\/\S{1,500}$/u, '')
       .trim();
 
     const info: VideoInfo = {

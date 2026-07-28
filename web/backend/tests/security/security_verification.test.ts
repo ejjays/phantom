@@ -110,8 +110,8 @@ describe('Security Protections Verification', () => {
     expect(guardFired).toBe(true);
   });
 
-  it('Stability: light requests (/ping) should NOT be subject to concurrency guard', async () => {
-    if (!isServerUp) return;
+  it('Stability: light requests (/ping) should NOT be subject to concurrency guard', async function () {
+    if (!isServerUp) return this.skip();
 
     const heavyUrl = `${BASE_URL}/convert`;
     const body = JSON.stringify({

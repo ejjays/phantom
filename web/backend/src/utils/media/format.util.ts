@@ -78,7 +78,7 @@ export function resolveAudioTrack(format: RawFormat): AudioTrackInfo {
   if (!languageName && format.format_note) {
     const cleaned = String(format.format_note)
       .replace(/,\s*(ultralow|low|medium|high).*$/iu, '')
-      .replace(/\s*\((default|original)\)/giu, '')
+      .replace(/\((default|original)\)/giu, '')
       .trim();
     languageName = cleaned || undefined;
   }
@@ -121,7 +121,7 @@ function resolveResolution(format: RawFormat): {
     format.resolution || format.quality_label || format.quality || ''
   );
 
-  const dimMatch = resolution.match(/(\d+)x(\d+)/u);
+  const dimMatch = resolution.match(/(\d{1,5})x(\d{1,5})/u);
   if (dimMatch) {
     const width = parseInt(dimMatch[1], 10);
     const hValue = parseInt(dimMatch[2], 10);

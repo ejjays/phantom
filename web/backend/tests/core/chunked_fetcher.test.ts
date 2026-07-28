@@ -381,7 +381,7 @@ describe('chunked-fetcher: cobalt parity', () => {
     expect(size).toBe(totalSize);
 
     const collected = await consume(stream);
-    expect(collected.length).toBe(Number(totalSize));
+    expect(collected).toHaveLength(Number(totalSize));
   });
 
   it('10. debounce counter resets after transplant fires', async () => {
@@ -462,7 +462,7 @@ describe('chunked-fetcher: cobalt parity', () => {
     });
     expect(size).toBe(totalSize);
     const collected = await consume(stream);
-    expect(collected.length).toBe(Number(totalSize));
+    expect(collected).toHaveLength(Number(totalSize));
   });
 });
 

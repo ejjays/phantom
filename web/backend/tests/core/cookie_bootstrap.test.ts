@@ -104,7 +104,7 @@ describe('Cookie bootstrap (Phase 1.5.1)', () => {
 
     await bootstrapCookies();
 
-    expect(calls.length).toBe(2);
+    expect(calls).toHaveLength(2);
     expect(calls[0]).toContain('/youtube_cookies.txt');
     expect(calls[1]).not.toContain('/youtube_cookies.txt');
     expect(fs.existsSync(COOKIES_PATH)).toBe(true);

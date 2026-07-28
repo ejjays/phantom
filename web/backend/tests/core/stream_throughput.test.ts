@@ -107,7 +107,7 @@ describe('setupStreamListeners — throughput regression', () => {
     await new Promise<void>((resolve) => sink.on('end', () => resolve()));
 
     const received = Buffer.concat(chunks);
-    expect(received.length).toBe(totalBytes);
+    expect(received).toHaveLength(totalBytes);
     // verify byte pattern preserved
     for (let offset = 0; offset < received.length; offset += sentinel.length) {
       expect(

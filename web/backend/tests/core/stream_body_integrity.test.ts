@@ -46,7 +46,7 @@ describe('stream.util: response body integrity', () => {
     // proxy idle past old heartbeat threshold
     vi.advanceTimersByTime(60_000);
 
-    expect(collected.length).toBe(0);
+    expect(collected).toHaveLength(0);
   });
 
   it('uses tcp socket keep-alive surface, never the body', () => {
@@ -57,7 +57,7 @@ describe('stream.util: response body integrity', () => {
     vi.advanceTimersByTime(30_000);
 
     // body untouched
-    expect(collected.length).toBe(0);
+    expect(collected).toHaveLength(0);
     // setKeepAlive available for the implementation
     expect(typeof setKeepAlive).toBe('function');
   });

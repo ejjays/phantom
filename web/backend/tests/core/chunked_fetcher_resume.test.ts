@@ -83,7 +83,7 @@ describe('chunked-fetcher: resume from a start offset', () => {
     expect(size).toBe(BigInt(TOTAL_SIZE));
 
     const collected = await consume(stream);
-    expect(collected.length).toBe(TOTAL_SIZE - Number(start));
+    expect(collected).toHaveLength(TOTAL_SIZE - Number(start));
     // verify data matches original file tail
     expect(collected.equals(TEST_DATA.subarray(Number(start)))).toBe(true);
   });
@@ -95,7 +95,7 @@ describe('chunked-fetcher: resume from a start offset', () => {
     });
     expect(size).toBe(BigInt(TOTAL_SIZE));
     const collected = await consume(stream);
-    expect(collected.length).toBe(TOTAL_SIZE);
+    expect(collected).toHaveLength(TOTAL_SIZE);
     expect(collected.equals(TEST_DATA)).toBe(true);
   });
 

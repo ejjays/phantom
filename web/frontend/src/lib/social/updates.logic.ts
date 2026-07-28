@@ -125,5 +125,7 @@ export function messageOf(category: UpdateCategory): string {
       return 'Optimization';
     case 'fix':
       return 'Bug fix';
+    default:
+      return category;
   }
 }

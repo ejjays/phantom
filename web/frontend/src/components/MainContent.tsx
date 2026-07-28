@@ -305,9 +305,7 @@ const MainContent = () => {
           progress < 100 &&
           `Download progress: ${Math.round(progress)}%`}
       </div>
-      <div
-        className={`flex flex-col justify-center items-center w-full gap-3 px-4 transition-transform duration-500 ease-in-out`}
-      >
+      <div className="flex flex-col justify-center items-center w-full gap-3 px-4 transition-transform duration-500 ease-in-out">
         <HeroSection
           isVisible={isVisible}
           trigger={pantherTrigger}

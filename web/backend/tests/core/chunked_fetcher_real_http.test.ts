@@ -113,7 +113,7 @@ describe('chunked-fetcher: real HTTP integration', () => {
     expect(contentType).toBe('video/mp4');
 
     const collected = await consume(stream);
-    expect(collected.length).toBe(TOTAL_SIZE);
+    expect(collected).toHaveLength(TOTAL_SIZE);
     expect(collected.equals(TEST_DATA)).toBe(true);
   });
 
@@ -157,7 +157,7 @@ describe('chunked-fetcher: real HTTP integration', () => {
     expect(size).toBe(BigInt(TOTAL_SIZE));
 
     const collected = await consume(stream);
-    expect(collected.length).toBe(TOTAL_SIZE);
+    expect(collected).toHaveLength(TOTAL_SIZE);
     expect(collected.equals(TEST_DATA)).toBe(true);
     expect(transplant).toHaveBeenCalledTimes(1);
   });

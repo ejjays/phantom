@@ -90,7 +90,9 @@ export async function runYtdlpRemote(
   const url = await resolveRemoteUrl();
   if (!url) return null;
 
-  const endpoint = `${url.replace(/\/+$/u, '')}/ytdlp`;
+  let stripped = url;
+  while (stripped.endsWith('/')) stripped = stripped.slice(0, -1);
+  const endpoint = `${stripped}/ytdlp`;
   const res = await secureFetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-ytdlp-secret': SECRET },

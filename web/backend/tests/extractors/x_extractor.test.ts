@@ -59,7 +59,7 @@ describe('X (Twitter) extractor', () => {
     const info = await getInfo(TWEET_URL);
     expect(info).not.toBeNull();
     if (!info) return;
-    expect(info.formats.length).toBe(2); // m3u8 dropped
+    expect(info.formats).toHaveLength(2); // m3u8 dropped
     for (const format of info.formats) {
       expect(format.extension).toBe('mp4');
       expect(format.isMuxed).toBe(true);

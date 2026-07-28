@@ -25,7 +25,7 @@ describe('TLS Cipher Randomization', () => {
   it('preserves total cipher count', () => {
     const originalCount = originalCiphers.split(':').length;
     randomizeCiphers();
-    expect(tls.DEFAULT_CIPHERS.split(':').length).toBe(originalCount);
+    expect(tls.DEFAULT_CIPHERS.split(':')).toHaveLength(originalCount);
   });
 
   it('only shuffles top 8 ciphers', () => {

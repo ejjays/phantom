@@ -56,7 +56,18 @@ export async function fetchIsrcFromDeezer(
     let searchData = await searchDeezer(`artist:"${artist}" track:"${title}"`);
     if (!searchData.data?.length)
       searchData = await searchDeezer(`${title} ${artist}`);
-    const cleanTitle = title.replace(/\s*[[()].*?[)\]]/gu, '').trim();
+    const cleanTitle = (() => {
+      let out = '',
+        depth = 0;
+      for (const ch of title) {
+        if (ch === '(' || ch === '[') depth++;
+        if (depth === 0) out += ch;
+        if (ch === ')' || ch === ']') depth--;
+      }
+      out = out.trim();
+      while (out.includes('  ')) out = out.replace('  ', ' ');
+      return out;
+    })();
 
     if (!searchData.data?.length && cleanTitle !== title)
       searchData = await searchDeezer(`${cleanTitle} ${artist}`);

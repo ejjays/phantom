@@ -114,7 +114,9 @@ function parseOgDescription(html: string): string {
   const text = decodeHtmlEntities(match[1]).trim();
   if (isAltText(text)) return '';
   if (text.length <= 120) return text;
-  return text.slice(0, 120).replace(/\s+\S*$/u, '');
+  const truncated = text.slice(0, 120);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated;
 }
 
 export function parseHtml(html: string, url: string): FbParsed {

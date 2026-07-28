@@ -45,7 +45,7 @@ describe('metrics module', () => {
       recordFailure(`reason-${idx}`);
     }
     const { failures } = getMetrics();
-    expect(Object.keys(failures).length).toBe(201);
+    expect(Object.keys(failures)).toHaveLength(201);
     expect(failures.other).toBe(50);
   });
 

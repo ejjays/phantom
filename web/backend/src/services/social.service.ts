@@ -87,11 +87,17 @@ function purgeSocialMetadata(
   }
 
   // strip system prefix
-  text = text.replace(/^(?:Reel|Video)\s+by\s+.*?\s*[|·•:-]\s*/iu, '');
+  // strip system prefix
+  const prefixMatch = text.match(/^(?:Reel|Video)\s+by\s+/iu);
+  if (prefixMatch) {
+    const afterPrefix = text.slice(prefixMatch[0].length);
+    const sepIdx = afterPrefix.search(/[|·•:-]/u);
+    if (sepIdx !== -1) text = afterPrefix.slice(sepIdx + 1);
+  }
 
   // strip social metrics
   text = text.replace(
-    /\d+(?:\.\d+)?[KkM]?\s*(?:na\s+)?(?:views?|reactions?|shares?|likes?|comments?|view|reaksyon|likes|heart|shares)\b/giu,
+    /\d{1,20}(?:\.\d{1,20})?[KkM]?(?:\s+na\s+)?(?:views?|reactions?|shares?|likes?|comments?|reaksyon|heart)\b/giu,
     ''
   );
 

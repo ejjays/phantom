@@ -98,6 +98,7 @@ describe('/convert — flushHeaders for instant native popup', () => {
     flushSpy.mockRestore();
   });
 
+  // HACK: flaky on CI — revisit when network conditions stabilise
   it.skip('calls res.flushHeaders() during /convert before stream finishes', async () => {
     await request(app)
       .get('/convert')

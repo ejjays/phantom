@@ -389,7 +389,7 @@ async function buildCleanArtistCandidate(
 }
 
 // clean names to improve search hits
-const ARTIST_SUFFIX_REGEX = /\s+(?:Music|Band|Official|Topic|TV)\s*$/iu;
+const ARTIST_SUFFIX_REGEX = /\s{1,20}(?:Music|Band|Official|Topic|TV)$/iu;
 const RACE_TIMEOUT_MS = 45000;
 
 export async function runPriorityRace(

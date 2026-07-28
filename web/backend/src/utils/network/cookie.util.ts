@@ -27,7 +27,9 @@ export async function downloadCookies(type: string): Promise<string | null> {
 
     const response = await secureFetch(`${cookiesUrl}/${type}_cookies.txt`);
     if (!response.ok) {
-      const fallback = await secureFetch(cookiesUrl.replace(/\/+$/, ''));
+      let stripped = cookiesUrl;
+      while (stripped.endsWith('/')) stripped = stripped.slice(0, -1);
+      const fallback = await secureFetch(stripped);
       if (!fallback.ok) return null;
       let text = await fallback.text();
       if (!text.startsWith('# Netscape HTTP Cookie File')) {

@@ -26,7 +26,7 @@ function parseOgAuthor(html: string): string | undefined {
   if (!title) return undefined;
   const handle = title.match(/\(@([A-Za-z0-9_.]+)\)/u);
   if (handle) return handle[1];
-  return title.replace(/\s+on Threads.*$/iu, '').trim() || undefined;
+  return title.replace(/ on Threads/iu, '').trim() || undefined;
 }
 
 export function parseHtml(html: string, url: string): ThreadsParsed {

@@ -61,7 +61,9 @@ function shouldPeerResolve(url: string): boolean {
 // short liveness probe
 async function peerHealthy(base: string): Promise<boolean> {
   try {
-    const res = await secureFetch(`${base.replace(/\/+$/u, '')}/health`, {
+    let cleaned = base;
+    while (cleaned.endsWith('/')) cleaned = cleaned.slice(0, -1);
+    const res = await secureFetch(`${cleaned}/health`, {
       signal: AbortSignal.timeout(2500),
     });
     return res.ok;
@@ -119,10 +121,18 @@ async function tryPeerResolve(
   url: string,
   clientId: string | null
 ): Promise<VideoInfo | null> {
+  const stripSlash = (str: string): string => {
+    let res = str;
+    while (res.endsWith('/')) {
+      res = res.slice(0, -1);
+    }
+    return res;
+  };
+
   if (!shouldPeerResolve(url)) return null;
-  const primary = (await resolvePeerBase()).replace(/\/+$/u, '');
+  const primary = stripSlash(await resolvePeerBase());
   if (!primary) return null;
-  const koyeb = PEER_RESOLVER_URL.replace(/\/+$/u, '');
+  const koyeb = stripSlash(PEER_RESOLVER_URL);
   const isPhone = primary !== koyeb;
   const hit = await peerFetch(
     primary,
@@ -143,7 +153,8 @@ async function tryPeerResolve(
 // keep peer warm to avoid cold-start
 export function startPeerKeepWarm(): void {
   if (!PEER_RESOLVER_URL || process.env.NODE_ENV === 'test') return;
-  const base = PEER_RESOLVER_URL.replace(/\/+$/u, '');
+  let base = PEER_RESOLVER_URL;
+  while (base.endsWith('/')) base = base.slice(0, -1);
   const ping = (): void => {
     secureFetch(`${base}/health`, {
       signal: AbortSignal.timeout(10000),
