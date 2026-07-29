@@ -65,7 +65,7 @@ export default function HomeScreen({
   const glitchX = useSharedValue(0);
   const glitchRotate = useSharedValue(0);
   const [showSpinner, setShowSpinner] = useState(false);
-  
+
   const debris1Opacity = useSharedValue(0);
   const debris1X = useSharedValue(0);
   const debris2Opacity = useSharedValue(0);
@@ -97,7 +97,7 @@ export default function HomeScreen({
 
   const sittingStyle = useAnimatedStyle(() => {
     const progress = Math.min(1, kb.value / 400);
-    const size = baseIconSize - (progress * baseIconSize * 0.1);
+    const size = baseIconSize - progress * baseIconSize * 0.1;
     return {
       width: size,
       height: size,
@@ -112,14 +112,12 @@ export default function HomeScreen({
 
   const attackStyle = useAnimatedStyle(() => {
     const progress = Math.min(1, kb.value / 400);
-    const size = baseIconSize - (progress * baseIconSize * 0.1);
+    const size = baseIconSize - progress * baseIconSize * 0.1;
     return {
       width: size,
       height: size,
       opacity: isAttacking.value,
-      transform: [
-        { scale: 1 + (isAttacking.value * 0.08) },
-      ],
+      transform: [{ scale: 1 + isAttacking.value * 0.08 }],
     };
   });
 
@@ -127,9 +125,7 @@ export default function HomeScreen({
     width: baseIconSize,
     height: baseIconSize,
     opacity: debris1Opacity.value * (1 - isAttacking.value),
-    transform: [
-      { translateX: debris1X.value - 6 },
-    ],
+    transform: [{ translateX: debris1X.value - 6 }],
     tintColor: '#ff00ff',
   }));
 
@@ -137,9 +133,7 @@ export default function HomeScreen({
     width: baseIconSize,
     height: baseIconSize,
     opacity: debris2Opacity.value * (1 - isAttacking.value),
-    transform: [
-      { translateX: debris2X.value + 6 },
-    ],
+    transform: [{ translateX: debris2X.value + 6 }],
     tintColor: '#00ffff',
   }));
 
@@ -147,9 +141,7 @@ export default function HomeScreen({
     width: baseIconSize,
     height: baseIconSize * 0.25,
     opacity: debris3Opacity.value * (1 - isAttacking.value),
-    transform: [
-      { translateY: debris3Y.value },
-    ],
+    transform: [{ translateY: debris3Y.value }],
   }));
 
   const triggerGlitch = () => {
@@ -209,14 +201,17 @@ export default function HomeScreen({
     );
 
     debris2Opacity.value = withSequence(
-      withDelay(10, withSequence(
-        withTiming(0.4, { duration: 25 }),
-        withTiming(0.2, { duration: 20 }),
-        withTiming(0.35, { duration: 18 }),
-        withTiming(0.1, { duration: 15 }),
-        withTiming(0.25, { duration: 15 }),
-        withTiming(0, { duration: 35 })
-      ))
+      withDelay(
+        10,
+        withSequence(
+          withTiming(0.4, { duration: 25 }),
+          withTiming(0.2, { duration: 20 }),
+          withTiming(0.35, { duration: 18 }),
+          withTiming(0.1, { duration: 15 }),
+          withTiming(0.25, { duration: 15 }),
+          withTiming(0, { duration: 35 })
+        )
+      )
     );
     debris2X.value = withSequence(
       withTiming(10, { duration: 25 }),
@@ -227,13 +222,16 @@ export default function HomeScreen({
     );
 
     debris3Opacity.value = withSequence(
-      withDelay(20, withSequence(
-        withTiming(0.5, { duration: 20 }),
-        withTiming(0.3, { duration: 18 }),
-        withTiming(0.45, { duration: 15 }),
-        withTiming(0.2, { duration: 15 }),
-        withTiming(0, { duration: 30 })
-      ))
+      withDelay(
+        20,
+        withSequence(
+          withTiming(0.5, { duration: 20 }),
+          withTiming(0.3, { duration: 18 }),
+          withTiming(0.45, { duration: 15 }),
+          withTiming(0.2, { duration: 15 }),
+          withTiming(0, { duration: 30 })
+        )
+      )
     );
     debris3Y.value = withSequence(
       withTiming(-20, { duration: 20 }),
@@ -292,7 +290,9 @@ export default function HomeScreen({
       }
     >
       <Header />
-      <Animated.View style={[tw`flex-1 items-center justify-center`, liftStyle]}>
+      <Animated.View
+        style={[tw`flex-1 items-center justify-center`, liftStyle]}
+      >
         <View style={tw`w-full max-w-md`}>
           <View style={tw`items-center mb-2`}>
             {/* debris layer 1 - magenta offset */}
@@ -350,7 +350,14 @@ export default function HomeScreen({
 
           <FormatBar mode={mode} setMode={setMode} onPaste={onPaste} />
 
-          <Button3D label="Download" loading={showSpinner} onPress={triggerGlitch} />
+          <Button3D
+            label="Download"
+            loading={showSpinner}
+            onPress={() => {
+              onResolve();
+              triggerGlitch();
+            }}
+          />
         </View>
       </Animated.View>
     </ScrollView>

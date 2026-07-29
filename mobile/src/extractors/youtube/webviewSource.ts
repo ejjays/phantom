@@ -13,7 +13,6 @@
  * LOGIN_REQUIRED instead of hammering the IP. flip DEBUG here or YT_DEBUG in
  * bridge.ts to dump requests.
  */
-
 /* runs inside webview; youtube.com origin dodges cors */
 const RAW_HTML = `<!doctype html>
 <html>
@@ -38,7 +37,6 @@ const RAW_HTML = `<!doctype html>
 <script>
   const post = window.__post;
   const DEBUG = false;
-  // flip true to force-test the sabr download path (logs bytes)
   const SABR_TEST = false;
   const log = (stage, detail) => {
     if (DEBUG) post({ log: true, stage, detail: String(detail) });
@@ -46,14 +44,9 @@ const RAW_HTML = `<!doctype html>
   const warn = (stage, detail) => post({ log: true, stage, detail: String(detail) });
   warn('wv', 'script start');
   const REQUEST_KEY = 'O43z0dpjhgX20SCx4KAo';
-  // see file header: android_vr+ios only
   const CLIENTS = ['ANDROID_VR', 'IOS'];
-  // arm once, reuse for hours
   const DEFAULT_TTL_MS = 6 * 60 * 60 * 1000;
   const REFRESH_MARGIN_MS = 5 * 60 * 1000;
-  // detached window.fetch throws illegal invocation
-  // innertube api -> RN native fetch (no browser fingerprint, dodges bot wall);
-  // static assets (player base.js) stay in-browser
   const rnFetches = {};
   window.__rnFetchResponse = (reqId, payload) => {
     const waiter = rnFetches[reqId];
@@ -95,14 +88,12 @@ const RAW_HTML = `<!doctype html>
       });
     });
   };
-
   let Innertube;
   let BG;
   let armed = null;
   let arming = null;
   let searchClient = null;
   let searchClientP = null;
-
   function importWithTimeout(url, ms) {
     return Promise.race([
       import(url),
@@ -111,8 +102,6 @@ const RAW_HTML = `<!doctype html>
       ),
     ]);
   }
-
-  // cdn imports flaky; try mirrors, long timeout
   async function importFirst(urls, label) {
     let lastErr;
     for (const url of urls) {
@@ -125,7 +114,6 @@ const RAW_HTML = `<!doctype html>
     }
     throw lastErr || new Error(label + ' failed');
   }
-
   async function boot() {
     warn('import', 'youtubei start');
     const ytMod = await importFirst(
@@ -139,8 +127,6 @@ const RAW_HTML = `<!doctype html>
     Innertube = ytMod.Innertube;
     warn('import', 'youtubei ok');
   }
-
-  // bgutils only needed for extraction
   async function ensureBG() {
     if (BG) return BG;
     try {
@@ -158,7 +144,6 @@ const RAW_HTML = `<!doctype html>
     }
     return BG;
   }
-
   async function makePoToken(visitorData) {
     const bgConfig = {
       fetch: (...a) => fetch(...a),
@@ -180,7 +165,6 @@ const RAW_HTML = `<!doctype html>
       out.integrityTokenData && out.integrityTokenData.estimatedTtlSecs;
     return { poToken: out.poToken, ttlMs: ttlSecs ? ttlSecs * 1000 : 0 };
   }
-
   function extractUrl(value) {
     if (typeof value === 'string') return value;
     if (value && typeof value === 'object') {
@@ -219,7 +203,6 @@ const RAW_HTML = `<!doctype html>
       isOriginal: f.is_original,
     };
   }
-
   async function armClient() {
     log('arm', 'boot innertube');
     const boot0 = await Innertube.create({
@@ -230,7 +213,6 @@ const RAW_HTML = `<!doctype html>
     log('arm', 'visitorData ' + (visitorData ? 'ok' : 'missing'));
     let poToken;
     let ttlMs = 0;
-    // no cookie; a login gates music audio
     const bg = await ensureBG();
     if (bg) {
       try {
@@ -242,7 +224,6 @@ const RAW_HTML = `<!doctype html>
         warn('potoken', e && e.message);
       }
     }
-
     const yt = await Innertube.create({
       po_token: poToken,
       visitor_data: visitorData,
@@ -260,8 +241,6 @@ const RAW_HTML = `<!doctype html>
       expiresAt: Date.now() + Math.max(lifeMs - REFRESH_MARGIN_MS, 60000),
     };
   }
-
-  // cached client; refresh on expiry
   function getArmedClient() {
     if (armed && Date.now() < armed.expiresAt) return Promise.resolve(armed);
     if (arming) return arming;
@@ -275,8 +254,6 @@ const RAW_HTML = `<!doctype html>
       });
     return arming;
   }
-
-  // reused lightweight search session
   function getSearchClient() {
     if (searchClient) return Promise.resolve(searchClient);
     if (searchClientP) return searchClientP;
@@ -293,8 +270,6 @@ const RAW_HTML = `<!doctype html>
       });
     return searchClientP;
   }
-
-  // walled/sabr -> probe web client for the sabr config
   async function resolveSabrConfig(yt, videoId) {
     const info = await yt.getBasicInfo(videoId, 'WEB');
     if ((info.playability_status || {}).status !== 'OK') return null;
@@ -337,7 +312,6 @@ const RAW_HTML = `<!doctype html>
       },
     };
   }
-
   async function extractWith(videoId, reqId, bundle, meta) {
     const yt = bundle.yt;
     const player = bundle.player;
@@ -395,10 +369,8 @@ const RAW_HTML = `<!doctype html>
         if (ps.status === 'LOGIN_REQUIRED') {
           loginRequired = true;
           lastError = ps.reason || 'Sign in to confirm you are not a bot';
-          // per-ip wall; stop trying clients
           break;
         } else {
-          // keep first real block reason
           if (
             ps.status &&
             ps.status !== 'OK' &&
@@ -414,7 +386,6 @@ const RAW_HTML = `<!doctype html>
         warn('getInfo', lastError);
       }
     }
-    // primary clients gave no urls -> probe web+sabr (modern path)
     try {
       const sabr = await resolveSabrConfig(yt, videoId);
       if (sabr && sabr.serverAbrStreamingUrl) {
@@ -431,7 +402,6 @@ const RAW_HTML = `<!doctype html>
     } catch (e) {
       warn('sabr', 'probe fail ' + (e && e.message));
     }
-    // web client knows the real reason
     if (!playabilityReason && !loginRequired) {
       try {
         const web = await yt.getBasicInfo(videoId, 'WEB');
@@ -440,7 +410,6 @@ const RAW_HTML = `<!doctype html>
           playabilityReason = wps.reason;
         }
       } catch (e) {
-        // best effort
       }
     }
     const err = new Error(
@@ -452,7 +421,6 @@ const RAW_HTML = `<!doctype html>
     err.permanent = Boolean(playabilityReason);
     throw err;
   }
-
   async function extract(videoId, reqId) {
     const meta = { posted: false };
     const bundle = await getArmedClient();
@@ -482,7 +450,6 @@ const RAW_HTML = `<!doctype html>
     try {
       return await extractWith(videoId, reqId, bundle, meta);
     } catch (e) {
-      // stale client: re-arm once (skip permanent blocks)
       if (!e.loginRequired && !e.permanent && armed === bundle) {
         warn('extract', 're-arm after: ' + (e && e.message));
         armed = null;
@@ -492,7 +459,6 @@ const RAW_HTML = `<!doctype html>
       throw e;
     }
   }
-
   async function postEarlyMeta(reqId, videoId) {
     try {
       const target = encodeURIComponent(
@@ -515,7 +481,6 @@ const RAW_HTML = `<!doctype html>
       log('oembed', 'fail: ' + (e && e.message));
     }
   }
-
   window.__search = async (reqId, query) => {
     try {
       const yt = await getSearchClient();
@@ -536,7 +501,6 @@ const RAW_HTML = `<!doctype html>
       post({ reqId, search: true, ok: false, error: String((e && e.message) || e) });
     }
   };
-
   window.__extract = async (reqId, videoId) => {
     postEarlyMeta(reqId, videoId);
     try {
@@ -546,31 +510,109 @@ const RAW_HTML = `<!doctype html>
       post({ reqId, ok: false, error: String((e && e.message) || e) });
     }
   };
-
+  function normalizeEntry(v) {
+    if (!v) return null;
+    const pickThumb = (thumbs) =>
+      thumbs && thumbs.length ? thumbs[0].url : undefined;
+    if (v.id && (v.title || v.duration)) {
+      return {
+        id: v.id,
+        title: (v.title && (v.title.text || (v.title.toString && v.title.toString()))) || undefined,
+        channel: (v.author && (v.author.name || v.author)) || undefined,
+        durationSec: (v.duration && v.duration.seconds) || undefined,
+        thumb: pickThumb(v.thumbnails),
+      };
+    }
+    const id = v.content_id;
+    if (!id) return null;
+    let title, channel;
+    const meta = v.metadata;
+    if (meta) {
+      const tm = meta.title;
+      title = tm && (tm.text || (tm.toString && tm.toString()));
+      const am = meta.menu || meta.secondary_metadata;
+      channel = am && (am.name || (am.toString && am.toString()));
+    }
+    const ci = v.content_image;
+    const thumb = ci ? pickThumb(ci.image || ci.thumbnails) : undefined;
+    return { id, title, channel, durationSec: undefined, thumb };
+  }
+  window.__playlist = async (reqId, listId) => {
+    try {
+      const yt = await getSearchClient();
+      let playlistRes = await yt.getPlaylist(listId);
+      const maxPages = 30;
+      const allEntries = [];
+      let playlistMeta;
+      for (let page = 0; page < maxPages && playlistRes; page++) {
+        var items = playlistRes.items || [];
+        for (var i = 0; i < items.length; i++) {
+          var entry = normalizeEntry(items[i]);
+          if (entry) allEntries.push(entry);
+        }
+        if (!playlistMeta) {
+          try {
+            var pi = playlistRes.info;
+            var pa = pi && pi.author;
+            playlistMeta = {
+              id: listId,
+              title: pi && (pi.title && (pi.title.text || pi.title.toString())) || 'Playlist',
+              author: pa && (typeof pa.name === 'string' ? pa.name : (pa.name && (typeof pa.name.text === 'string' ? pa.name.text : pa.name.toString ? pa.name.toString() : undefined))),
+              authorAvatar: pa && pa.thumbnails && pa.thumbnails[0] && pa.thumbnails[0].url,
+            };
+          } catch (e) {
+            warn('playlist-meta', 'info err: ' + (e && e.message));
+          }
+        }
+        if (playlistRes.has_continuation) {
+          playlistRes = await playlistRes.getContinuation();
+        } else {
+          break;
+        }
+      }
+      if (allEntries.length === 0) {
+        post({ reqId, playlist: true, ok: false, data: null });
+        return;
+      }
+      var fallbackAuthor = playlistMeta && playlistMeta.author;
+      if (!fallbackAuthor) {
+        var fe = allEntries[0];
+        if (fe && fe.channel) fallbackAuthor = typeof fe.channel === 'string' ? fe.channel : undefined;
+      }
+      post({
+        reqId,
+        playlist: true,
+        ok: true,
+        data: {
+          id: listId,
+          title: (playlistMeta && playlistMeta.title) || 'Playlist',
+          author: fallbackAuthor,
+          authorAvatar: playlistMeta && playlistMeta.authorAvatar,
+          entries: allEntries,
+        },
+      });
+    } catch (e) {
+      post({ reqId, playlist: true, ok: false, error: String((e && e.message) || e) });
+    }
+  };
   boot()
     .then(() => {
       post({ ready: true });
-      // warm search; skip the first-search wait
       getSearchClient().catch((e) => warn('warm', e && e.message));
     })
     .catch((e) => warn('boot', 'fail: ' + (e && e.message ? e.message : e)));
 </script>
 </body>
 </html>`;
-
-// android ignores inline scripts; inject on load
 const SCRIPTS = [...RAW_HTML.matchAll(/<script>([\s\S]*?)<\/script>/gu)]
   .map((match) => match[1])
   .join('\n');
-
 export const YT_BOOTSTRAP_JS = `(function () {
   if (window.__nexBooted) return;
   window.__nexBooted = true;
 ${SCRIPTS}
 })();
 true;`;
-
-// page is empty; bootstrap injected after load
 export const YT_EXTRACTOR_HTML = `<!doctype html>
 <html>
 <head><meta charset="utf-8" /></head>

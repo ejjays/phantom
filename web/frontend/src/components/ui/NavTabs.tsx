@@ -24,13 +24,13 @@ const StyledWrapper = styled.div`
   z-index: 80;
   display: flex;
   justify-content: center;
-  background: rgba(11, 21, 38, 0.95);
+  background: linear-gradient(135deg, rgba(30, 10, 50, 0.95), rgba(20, 30, 60, 0.95));
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 32px;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 9999px;
   padding: 8px 16px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.25), 0 4px 24px rgba(0, 0, 0, 0.4);
   @media (min-width: 768px) {
     bottom: auto;
     left: auto;
@@ -40,12 +40,12 @@ const StyledWrapper = styled.div`
     flex-direction: column;
     gap: 12px;
     padding: 16px 8px;
-    background: rgba(11, 21, 38, 0.95);
+    background: hsl(196.1,100%,46.1%));
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 32px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    border-radius: 9999px;
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.25), 0 4px 24px rgba(0, 0, 0, 0.4);
   }
   @media (max-width: 767px) {
     flex-direction: row;
@@ -94,8 +94,6 @@ const StyledWrapper = styled.div`
       @media (max-width: 767px) {
         width: 40px;
         height: 40px;
-        background: transparent !important;
-        box-shadow: none !important;
         outline: none;
       }
       @media (min-width: 768px) {
@@ -116,14 +114,17 @@ const StyledWrapper = styled.div`
     pointer-events: none;
     white-space: nowrap;
     top: -32px;
+    @media (min-width: 768px) {
+      top: 50%;
+      right: calc(100% + 12px);
+      transform: translateY(-50%);
+    }
     &.visible {
       opacity: 1;
     }
   }
   .label {
-    font-size: 10px;
-    margin-top: 4px;
-    transition: color 0.3s;
+    display: none;
   }
 `;
 

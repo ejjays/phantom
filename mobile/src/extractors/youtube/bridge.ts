@@ -55,6 +55,22 @@ export interface YtSearchResult {
   durationSec?: number;
 }
 
+export interface RawYtPlaylistEntry {
+  id: string;
+  title?: string;
+  channel?: string;
+  durationSec?: number;
+  thumb?: string;
+}
+
+export interface RawYtPlaylist {
+  id: string;
+  title: string;
+  author?: string;
+  authorAvatar?: string;
+  entries: RawYtPlaylistEntry[];
+}
+
 type Injector = (js: string) => void;
 type Resolver = (value: RawYtResult | null) => void;
 type PartialHandler = (meta: RawYtMeta) => void;
@@ -64,7 +80,6 @@ let inject: Injector | null = null;
 let ready = false;
 const queue: string[] = [];
 
-// gate ops until the slow webview boots
 const BOOT_TIMEOUT_MS = 60000;
 let resolveReady: () => void = () => {};
 let readyPromise = new Promise<void>((resolve) => {
@@ -81,7 +96,6 @@ function waitReady(timeoutMs: number): Promise<boolean> {
   ]);
 }
 
-// android may kill the webview; reset it
 export function resetReady(): void {
   ready = false;
   readyPromise = new Promise<void>((resolve) => {
@@ -101,6 +115,13 @@ const pendingSearch = new Map<
   string,
   { resolve: SearchResolver; timer: ReturnType<typeof setTimeout> }
 >();
+const pendingPlaylist = new Map<
+  string,
+  {
+    resolve: (value: RawYtPlaylist | null) => void;
+    timer: ReturnType<typeof setTimeout>;
+  }
+>();
 
 export function attachWebView(injectFn: Injector): void {
   inject = injectFn;
@@ -113,10 +134,8 @@ function flush(): void {
   }
 }
 
-// flip to dump the youtubei player request
 const YT_DEBUG = false;
 
-// desktop ua; webview strips youtubei's own
 const YT_API_UA = YT_INTERNAL_UA;
 const YT_API_ORIGIN = 'https://www.youtube.com';
 
@@ -128,8 +147,6 @@ type RnFetchRequest = {
   body?: string;
 };
 
-// native fetch carries no browser fingerprint
-// omit cookies; a stored login gates music
 function handleRnFetch(req: RnFetchRequest): void {
   if (YT_DEBUG && req.url.includes('/youtubei/v1/player')) {
     const finalHeaders = {
@@ -182,7 +199,6 @@ function handleRnFetch(req: RnFetchRequest): void {
     });
 }
 
-// map youtubei's failure reason to a typed error
 export function mapYtError(reason?: string): ExtractorError {
   const text = (reason ?? '').toLowerCase();
   if (/this video is private|private video/u.test(text)) {
@@ -229,7 +245,6 @@ export function onWebViewMessage(raw: string): void {
     return;
   }
   if (msg.sabrConfig) {
-    // lazy import keeps googlevideo + polyfills out of startup
     const cfg = msg.sabrConfig as unknown as SabrConfig;
     void import('../../lib/download/youtubeSabr').then(({ sabrSelfTest }) =>
       sabrSelfTest(cfg)
@@ -246,6 +261,19 @@ export function onWebViewMessage(raw: string): void {
     clearTimeout(searchEntry.timer);
     pendingSearch.delete(reqId);
     searchEntry.resolve(msg.ok ? (msg.results as YtSearchResult[]) : null);
+    return;
+  }
+
+  if (msg.playlist) {
+    const pEntry = pendingPlaylist.get(reqId);
+    if (!pEntry) return;
+    clearTimeout(pEntry.timer);
+    pendingPlaylist.delete(reqId);
+    if (msg.ok && msg.data) {
+      pEntry.resolve(msg.data as RawYtPlaylist);
+    } else {
+      pEntry.resolve(null);
+    }
     return;
   }
 
@@ -290,8 +318,6 @@ function searchOnce(query: string): Promise<YtSearchResult[] | null> {
   });
 }
 
-// gate on ready before the search timeout
-// null retries; an array is the answer
 export async function searchViaWebView(
   query: string
 ): Promise<YtSearchResult[] | null> {
@@ -327,6 +353,29 @@ export async function extractViaWebView(
     pending.set(reqId, { resolve, reject, onPartial, timer });
     injectFn(
       `window.__extract(${JSON.stringify(reqId)}, ${JSON.stringify(videoId)}); true;`
+    );
+  });
+}
+
+export async function playlistViaWebView(
+  listId: string
+): Promise<RawYtPlaylist | null> {
+  const injectFn = inject;
+  if (!injectFn) return null;
+  if (!(await waitReady(BOOT_TIMEOUT_MS))) {
+    logWarn('bridge', '[JS-YT/wv] webview not ready for playlist');
+    return null;
+  }
+  return new Promise((resolve) => {
+    const reqId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const timer = setTimeout(() => {
+      pendingPlaylist.delete(reqId);
+      logWarn('bridge', '[JS-YT/wv] playlist timed out');
+      resolve(null);
+    }, 120000);
+    pendingPlaylist.set(reqId, { resolve, timer });
+    injectFn(
+      `window.__playlist(${JSON.stringify(reqId)}, ${JSON.stringify(listId)}); true;`
     );
   });
 }

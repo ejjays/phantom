@@ -8,7 +8,6 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import tw from './src/lib/tw';
-
 import TwinkleStars from './src/components/backgrounds/TwinkleStars';
 import ShootingStars from './src/components/backgrounds/ShootingStars';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -18,6 +17,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import UpdatesScreen from './src/screens/UpdatesScreen';
 import DownloadsScreen from './src/screens/DownloadsScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import PlaylistScreen from './src/screens/PlaylistScreen';
 import { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
 import { prewarmClientId } from './src/extractors/soundcloud';
@@ -56,17 +56,12 @@ import RubikRegular from './assets/fonts/Rubik-Regular.ttf';
 import RubikMedium from './assets/fonts/Rubik-Medium.ttf';
 import RubikSemiBold from './assets/fonts/Rubik-SemiBold.ttf';
 import RubikBold from './assets/fonts/Rubik-Bold.ttf';
-
 const queryClient = new QueryClient();
-
 void SplashScreen.preventAutoHideAsync();
-
 const SUCCESS_HANDOFF_MS = 280;
-
 function cleanUrl(raw: string): string {
   return raw.trim().replace(/^['"\s]+|['"\s]+$/gu, '');
 }
-
 function AppRoot() {
   const [fontsLoaded, fontError] = useFonts({
     IBMPlexMono: IBMPlexMonoRegular,
@@ -78,7 +73,6 @@ function AppRoot() {
     'Rubik-SemiBold': RubikSemiBold,
     'Rubik-Bold': RubikBold,
   });
-
   const [tab, setTab] = useState<'home' | 'downloads' | 'settings' | 'updates'>(
     'home'
   );
@@ -99,6 +93,8 @@ function AppRoot() {
     canRetry: boolean;
   } | null>(null);
   const [info, setInfo] = useState<VideoInfo | null>(null);
+  const [playlistInfo, setPlaylistInfo] = useState<VideoInfo | null>(null);
+  const [playlistOpen, setPlaylistOpen] = useState(false);
   const { downloads, startDownload, clearDownloads } = useDownload(info);
   const [mode, setMode] = useState<DownloadMode>('mp4');
   const dismissedRef = useRef(false);
@@ -111,15 +107,11 @@ function AppRoot() {
   const successRef = useRef<{ isAudio: boolean; uri?: string }>({
     isAudio: false,
   });
-
   const { paste, readClipboard } = useClipboardPaste(setLink);
   const notifPriming = useNotificationPriming(onboarded === true);
-
   useEffect(() => {
     void getOnboarded().then(setOnboardedState);
   }, []);
-
-  // auto-paste clipboard on app foreground (if enabled & input empty)
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
@@ -133,7 +125,6 @@ function AppRoot() {
     });
     return () => sub.remove();
   }, [tab, link, readClipboard]);
-
   const onRefresh = async () => {
     setRefreshing(true);
     setError(null);
@@ -146,7 +137,6 @@ function AppRoot() {
     });
     setRefreshing(false);
   };
-
   useEffect(() => {
     registerDownloadService();
     loadHaptics();
@@ -165,14 +155,12 @@ function AppRoot() {
       unsubscribeSocial();
     };
   }, []);
-
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() =>
       setBgReady(true)
     );
     return () => task.cancel();
   }, []);
-
   const handleResolve = async () => {
     if (!link.trim() || loading) return;
     tapImpact();
@@ -197,6 +185,11 @@ function AppRoot() {
         }
         return;
       }
+      if (result.playlist) {
+        setPlaylistInfo(result);
+        setPlaylistOpen(true);
+        return;
+      }
       if (!dismissedRef.current) setInfo(result);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Something went wrong.';
@@ -210,12 +203,14 @@ function AppRoot() {
       setLoading(false);
     }
   };
-
+  const handlePlaylistClose = useCallback(() => {
+    setPlaylistOpen(false);
+    setPlaylistInfo(null);
+  }, []);
   const closePicker = () => {
     dismissedRef.current = true;
     setInfo(null);
   };
-
   const onDownload = async (format: Format, meta?: DownloadMeta) => {
     setError(null);
     const result = await startDownload(format, meta);
@@ -243,28 +238,24 @@ function AppRoot() {
       setTimeout(() => setSuccessOpen(true), SUCCESS_HANDOFF_MS);
     }
   };
-
   const goTab = (next: 'home' | 'downloads' | 'settings' | 'updates') => {
     setTab(next);
     if (next === 'downloads' || next === 'settings' || next === 'updates') {
       setVisited((v) => (v[next] ? v : { ...v, [next]: true }));
     }
   };
-
   const onLayoutRoot = useCallback(() => {
-    if (fontsLoaded || fontError) { void SplashScreen.hideAsync(); }
+    if (fontsLoaded || fontError) {
+      void SplashScreen.hideAsync();
+    }
   }, [fontsLoaded, fontError]);
-
   if (!fontsLoaded && !fontError) {
     return null;
   }
-
   if (!fontsLoaded && !fontError) {
     return null;
   }
-
   return (
-    // skipcq: JS-0415
     <QueryClientProvider client={queryClient}>
       {showVideoSplash && (
         <VideoSplashScreen onFinish={() => setShowVideoSplash(false)} />
@@ -283,10 +274,7 @@ function AppRoot() {
                   pointerEvents="none"
                   style={tw`absolute inset-0`}
                 >
-                  {tab === 'home' && (
-                    <TwinkleStars
-                    />
-                  )}
+                  {tab === 'home' && <TwinkleStars />}
                   {tab === 'home' && <ShootingStars />}
                 </Animated.View>
               )}
@@ -302,8 +290,7 @@ function AppRoot() {
                   setMode={setMode}
                   onResolve={handleResolve}
                   onPaste={paste}
-                  onInputFocus={() => {
-                  }}
+                  onInputFocus={() => {}}
                   refreshing={refreshing}
                   onRefresh={onRefresh}
                 />
@@ -325,7 +312,14 @@ function AppRoot() {
                   onDeepLinkHandled={() => setDeepLink(null)}
                 />
               )}
-              <BottomNav onChange={goTab} hidden={navHidden} />
+              <BottomNav onChange={goTab} hidden={navHidden || playlistOpen} />
+              {playlistOpen && playlistInfo ? (
+                <PlaylistScreen
+                  info={playlistInfo}
+                  visible={playlistOpen}
+                  onClose={handlePlaylistClose}
+                />
+              ) : null}
               {info?.extractorKey === 'spotify' ? (
                 <SpotifyPickerModal
                   info={info}
@@ -388,7 +382,6 @@ function AppRoot() {
     </QueryClientProvider>
   );
 }
-
 export default function App() {
   return (
     <ErrorBoundary>

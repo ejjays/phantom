@@ -19,9 +19,15 @@ export interface Format {
   hlsAudioUrl?: string;
   hlsKeepAlive?: boolean;
   noTranscode?: boolean;
-  // synthetic audio option: source url is a muxed video whose audio track is
-  // demuxed out (-vn -c:a copy) rather than downloaded as-is.
   audioDemux?: boolean;
+}
+
+export interface PlaylistEntry {
+  id: string;
+  title?: string;
+  channel?: string;
+  durationSec?: number;
+  thumb?: string;
 }
 
 export interface VideoInfo {
@@ -42,8 +48,14 @@ export interface VideoInfo {
   isFullData: boolean;
   metascraper?: { title?: string };
   downloadHeaders?: Record<string, string>;
-  // 30s clip url for on-device preview playback (spotify tracks)
   previewUrl?: string;
+  playlist?: {
+    id: string;
+    title: string;
+    author?: string;
+    authorAvatar?: string;
+    entries: PlaylistEntry[];
+  };
 }
 
 export interface ExtractorOptions {
@@ -51,8 +63,6 @@ export interface ExtractorOptions {
   cookie?: string;
 }
 
-// retryable=false for permanent fails (restricted/geo/private)
-// expected=true: benign content-state fail, skip crash report
 export class ExtractorError extends Error {
   readonly retryable: boolean;
   readonly expected: boolean;

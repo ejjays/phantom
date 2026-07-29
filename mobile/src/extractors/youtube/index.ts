@@ -1,13 +1,19 @@
 import { VideoInfo, Format } from '../types';
-import { extractViaWebView, RawYtFormat, RawYtResult } from './bridge';
+import {
+  extractViaWebView,
+  playlistViaWebView,
+  type RawYtFormat,
+  type RawYtResult,
+  type RawYtPlaylist,
+} from './bridge';
 import { noVideo, temporaryError, classifyThrown } from '../errors';
 import { DESKTOP_UA } from '../../lib/userAgents';
 import { buildVideoInfo } from '../videoInfo';
 
 const YT_ID =
   /(?:v=|\/v\/|youtu\.be\/|shorts\/|live\/|embed\/)([0-9A-Za-z_-]{11})/u;
+const YT_PLAYLIST_ID = /[&?]list=([0-9A-Za-z_-]+)/u;
 
-// prefer hw-decodable codecs; av1 last
 const CODEC_RANK: Record<string, number> = { h264: 0, vp9: 1, av1: 2 };
 
 function videoCodecOf(raw: RawYtFormat): string {
@@ -124,10 +130,54 @@ export function buildFormats(raw: RawYtResult): Format[] {
   return [...videoLadder, ...audioFormats];
 }
 
+function rawToPlaylist(raw: RawYtPlaylist): VideoInfo {
+  const firstEntry = raw.entries[0];
+  return {
+    type: 'video',
+    id: raw.id,
+    title: raw.title,
+    uploader: raw.author || firstEntry?.channel || 'YouTube',
+    webpageUrl: `https://www.youtube.com/playlist?list=${raw.id}`,
+    thumbnail: firstEntry
+      ? `https://i.ytimg.com/vi/${firstEntry.id}/hqdefault.jpg`
+      : undefined,
+    formats: [],
+    extractorKey: 'youtube',
+    isJsInfo: true,
+    fromBrain: false,
+    isPartial: false,
+    isIsrcMatch: false,
+    isFullData: false,
+    playlist: {
+      id: raw.id,
+      title: raw.title,
+      author: raw.author || firstEntry?.channel,
+      authorAvatar: raw.authorAvatar,
+      entries: raw.entries.map((e) => ({
+        id: e.id,
+        title: e.title,
+        channel: e.channel,
+        durationSec: e.durationSec,
+        thumb: e.thumb,
+      })),
+    },
+  };
+}
+
 export async function getInfo(
   url: string,
   onPartial?: (info: VideoInfo) => void
 ): Promise<VideoInfo | null> {
+  const listMatch = url.match(YT_PLAYLIST_ID);
+  const isBarePlaylist = listMatch && !url.match(YT_ID);
+
+  if (isBarePlaylist) {
+    const raw = await playlistViaWebView(listMatch[1]);
+    if (!raw) throw noVideo('YouTube');
+    if (raw.entries.length === 0) throw noVideo('YouTube');
+    return rawToPlaylist(raw);
+  }
+
   const match = url.match(YT_ID);
   const videoId = match ? match[1] : null;
   if (!videoId) return null;
