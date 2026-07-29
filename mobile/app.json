@@ -44,6 +44,7 @@
       "@react-native-firebase/app",
       "./plugins/withNotificationIcon",
       "./plugins/withLargeHeap",
+      "./plugins/withNavigationBarColor",
       [
         "expo-splash-screen",
         {
@@ -92,7 +93,14 @@
           "iosUrlScheme": "com.googleusercontent.apps.placeholder-android-only"
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false,
+          "style": "light"
+        }
+      ]
     ],
     "extra": {
       "eas": {

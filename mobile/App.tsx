@@ -161,6 +161,13 @@ function AppRoot() {
     );
     return () => task.cancel();
   }, []);
+  // prewarm lazy tabs idle/invisible so first tap animates instantly (heavy work stays gated behind `visible`)
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() =>
+      setVisited({ downloads: true, settings: true, updates: true })
+    );
+    return () => task.cancel();
+  }, []);
   const handleResolve = async () => {
     if (!link.trim() || loading) return;
     tapImpact();

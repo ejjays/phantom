@@ -1,18 +1,28 @@
 import { useState, useEffect, memo, type ComponentType } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  useFrameCallback,
+  useAnimatedProps,
   withTiming,
   withSpring,
   withSequence,
-  interpolate,
   Easing,
-  runOnJS,
 } from 'react-native-reanimated';
+import Svg, {
+  Path,
+  Defs,
+  LinearGradient as SvgGradient,
+  Stop,
+} from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../lib/tw';
 import {
   HomeIcon,
@@ -31,77 +41,74 @@ const TABS: { id: Tab; label: string; Icon: ComponentType<IconProps> }[] = [
   { id: 'settings', label: 'Settings', Icon: SettingsIcon },
 ];
 
-const TAB_W = 74;
-const TAB_H = 58;
-const PAD = 6;
-const RADIUS = (TAB_H + PAD * 2) / 2;
-const GLOW_W = 26;
-const GLOW_LEFT = PAD + (TAB_W - GLOW_W) / 2;
-const BAR_W = TAB_W * 4 + PAD * 2;
-const BAR_H = TAB_H + PAD * 2;
-const MAX_INDEX = TABS.length - 1;
+const BAR_H = 62;
+const OVERHANG = 36;
+const CANOPY_H = BAR_H + OVERHANG;
+const Y_TOP = OVERHANG;
+const NOTCH_HALF = 54;
+const NOTCH_DEPTH = 30;
+const BUBBLE_R = 27;
+const BUBBLE_D = BUBBLE_R * 2;
+const BUBBLE_TOP = Y_TOP - 4 - BUBBLE_R;
+const ACCENT = '#22d3ee';
+const INACTIVE = '#cbd5e1';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+function buildPath(cx: number, width: number, height: number): string {
+  'worklet';
+  const t = Y_TOP;
+  const d = t + NOTCH_DEPTH;
+  const lh = cx - NOTCH_HALF;
+  const rh = cx + NOTCH_HALF;
+  return `M0,${t} L${lh},${t} C${lh + 18},${t} ${cx - 22},${d} ${cx},${d} C${cx + 22},${d} ${rh - 18},${t} ${rh},${t} L${width},${t} L${width},${height} L0,${height} Z`;
+}
 
 const styles = StyleSheet.create({
   wrap: {
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  bg: {
-    width: BAR_W,
-    height: BAR_H,
-    borderRadius: RADIUS,
-    borderWidth: 1,
-    borderColor: 'rgb(69,69,69)',
-    backgroundColor: '#040c24',
-    opacity: 0.7,
-    overflow: 'hidden',
-  },
-  gloss: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
-    height: BAR_H * 0.5,
+    bottom: 0,
+  },
+  canvas: {
+    width: '100%',
+  },
+  svg: {
+    ...StyleSheet.absoluteFill,
   },
   row: {
-    flexDirection: 'row',
-    padding: PAD,
-  },
-  bubble: {
     position: 'absolute',
-    top: PAD,
-    left: PAD,
-    width: TAB_W,
-    height: TAB_H,
-  },
-  bubbleFace: {
-    flex: 1,
-    borderRadius: TAB_H / 2,
-    borderWidth: 1,
-    borderColor: '#3b466b',
+    left: 0,
+    right: 0,
+    top: Y_TOP,
+    height: BAR_H,
+    flexDirection: 'row',
   },
   tab: {
-    width: TAB_W,
-    height: TAB_H,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glow: {
+  label: {
+    marginTop: 3,
+  },
+  bubble: {
     position: 'absolute',
-    left: GLOW_LEFT,
-    bottom: -7,
-    width: GLOW_W,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: '#22d3ee',
-    shadowColor: '#22d3ee',
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
+    top: BUBBLE_TOP,
+    left: 0,
+    width: BUBBLE_D,
+    height: BUBBLE_D,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bubbleFace: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: BUBBLE_R,
+    borderWidth: 1,
+    borderColor: '#3b466b',
   },
 });
-
 function BottomNav({
   onChange,
   hidden = false,
@@ -109,196 +116,128 @@ function BottomNav({
   onChange?: (tab: Tab) => void;
   hidden?: boolean;
 }) {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const totalH = CANOPY_H + insets.bottom;
+  const tabW = width / TABS.length;
+  const centerOf = (i: number) => tabW * (i + 0.5);
+
   const [active, setActive] = useState(0);
-  const pos = useSharedValue(0);
+  const cx = useSharedValue(centerOf(0));
+  const lift = useSharedValue(1);
   const hide = useSharedValue(0);
+
+  useEffect(() => {
+    cx.value = centerOf(active);
+  }, [width]);
+
   useEffect(() => {
     hide.value = withTiming(hidden ? 1 : 0, {
       duration: 220,
       easing: Easing.out(Easing.cubic),
     });
   }, [hidden, hide]);
-  const hideStyle = useAnimatedStyle(() => ({
-    opacity: 1 - hide.value,
-    transform: [{ translateY: hide.value * 130 }],
-  }));
-
-  const commit = (index: number) => {
-    setActive(index);
-    onChange?.(TABS[index].id);
-  };
-  const startPos = useSharedValue(0);
-  const wobble = useSharedValue(1);
-  const pressed = useSharedValue(1);
-  const insideBar = useSharedValue(true);
-  const stretch = useSharedValue(0);
-  const prevPos = useSharedValue(0);
-  const dragging = useSharedValue(false);
-  const dragTarget = useSharedValue(0);
-
-  useFrameCallback(() => {
-    const target = dragging.value
-      ? Math.min(Math.abs(dragTarget.value - pos.value) * 3, 1)
-      : Math.min(Math.abs(pos.value - prevPos.value) * 16, 1);
-    prevPos.value = pos.value;
-    const next = stretch.value + (target - stretch.value) * 0.5;
-    stretch.value = next < 0.0015 && target < 0.0015 ? 0 : next;
-  });
-
-  const pan = Gesture.Pan()
-    .enabled(!hidden)
-    .activeOffsetX([-8, 8])
-    .onBegin(() => {
-      startPos.value = pos.value;
-      dragTarget.value = pos.value;
-      dragging.value = true;
-      insideBar.value = true;
-      pressed.value = withSpring(0.9, { damping: 15, stiffness: 250 });
-    })
-    .onUpdate((e) => {
-      const inside = e.x >= 0 && e.x <= BAR_W && e.y >= 0 && e.y <= BAR_H;
-      if (inside !== insideBar.value) {
-        insideBar.value = inside;
-        pressed.value = withSpring(inside ? 0.9 : 1, {
-          damping: 15,
-          stiffness: 250,
-        });
-      }
-      const next = startPos.value + e.translationX / TAB_W;
-      const clamped = Math.max(0, Math.min(MAX_INDEX, next));
-      dragTarget.value = clamped;
-      pos.value = withSpring(clamped, {
-        damping: 18,
-        stiffness: 90,
-        mass: 0.6,
-      });
-    })
-    .onEnd((e) => {
-      const projected = pos.value + (e.velocityX / TAB_W) * 0.12;
-      const target = Math.max(0, Math.min(MAX_INDEX, Math.round(projected)));
-      pos.value = withTiming(target, {
-        duration: 400,
-        easing: Easing.out(Easing.cubic),
-      });
-      const inside = e.x >= 0 && e.x <= BAR_W && e.y >= 0 && e.y <= BAR_H;
-      if (inside) {
-        wobble.value = withSequence(
-          withTiming(0.9, { duration: 80 }),
-          withSpring(1, { damping: 13, stiffness: 230 })
-        );
-      }
-      runOnJS(commit)(target);
-    })
-    .onFinalize(() => {
-      dragging.value = false;
-      pressed.value = withSpring(1, { damping: 14, stiffness: 200 });
-    });
 
   const select = (index: number) => {
     if (index === active) return;
-    pos.value = withTiming(index, {
-      duration: 340,
-      easing: Easing.out(Easing.cubic),
+    setActive(index);
+    onChange?.(TABS[index].id);
+    cx.value = withSpring(centerOf(index), {
+      damping: 20,
+      stiffness: 260,
+      mass: 0.6,
     });
-    wobble.value = withSequence(
-      withTiming(0.88, { duration: 90 }),
-      withSpring(1, { damping: 13, stiffness: 230 })
+    lift.value = withSequence(
+      withTiming(0.86, { duration: 90, easing: Easing.out(Easing.cubic) }),
+      withSpring(1, { damping: 14, stiffness: 300 })
     );
-    commit(index);
   };
 
-  const bubbleStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: pos.value * TAB_W },
-        { scale: wobble.value * pressed.value },
-        { scaleX: interpolate(stretch.value, [0, 1], [1, 1.22]) },
-        { scaleY: interpolate(stretch.value, [0, 1], [1, 0.9]) },
-      ],
-    };
-  });
-
-  const glowStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: pos.value * TAB_W }],
+  const pathProps = useAnimatedProps(() => ({
+    d: buildPath(cx.value, width, totalH),
   }));
 
-  const barContent = (
-    <>
-      <Animated.View style={[styles.bubble, bubbleStyle]}>
-        <LinearGradient
-          colors={['rgba(150,180,255,0.22)', 'rgba(150,180,255,0.05)'] as const}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.bubbleFace}
-        />
-      </Animated.View>
+  const bubbleStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: cx.value - BUBBLE_R },
+      { translateY: (1 - lift.value) * 18 },
+      { scale: lift.value },
+    ],
+  }));
 
-      {TABS.map(({ id, label, Icon }, index) => {
-        const isActive = index === active;
-        const color = isActive ? '#22d3ee' : '#cbd5e1';
-        return (
-          <Pressable
-            key={id}
-            onPress={() => select(index)}
-            style={styles.tab}
-            accessibilityRole="tab"
-            accessibilityLabel={label}
-            accessibilityState={{ selected: isActive }}
-          >
-            <Icon size={24} color={color} />
-            <Text style={[tw`mt-1 text-[10px] font-mono-semibold`, { color }]}>
-              {label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </>
-  );
+  const hideStyle = useAnimatedStyle(() => ({
+    opacity: 1 - hide.value,
+    transform: [{ translateY: hide.value * (totalH + 20) }],
+  }));
+
+  const ActiveIcon = TABS[active].Icon;
 
   return (
-    <GestureDetector gesture={pan}>
-      <Animated.View
-        pointerEvents={hidden ? 'none' : 'auto'}
-        style={[styles.wrap, hideStyle]}
+    <Animated.View
+      pointerEvents={hidden ? 'none' : 'box-none'}
+      style={[styles.wrap, hideStyle]}
+    >
+      <View
+        style={[styles.canvas, { height: totalH }]}
+        pointerEvents="box-none"
       >
-        <View style={styles.bg}>
-          <LinearGradient
-            colors={['rgba(44,52,165,0.32)', 'rgba(20,28,52,0.42)'] as const}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <LinearGradient
-            colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0)'] as const}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.gloss}
-          />
-          <LinearGradient
-            colors={
-              [
-                'rgba(255,255,255,0.03)',
-                'rgba(255,255,255,0.02)',
-                'rgba(255,255,255,0.03)',
-              ] as const
-            }
-            locations={[0.1, 0.5, 0.9]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-        </View>
-
-        <View
-          pointerEvents="box-none"
-          style={[StyleSheet.absoluteFill, styles.row]}
+        {/* eslint-disable-next-line panther/no-inline-svg */}
+          <Svg
+          height={totalH}
+          style={styles.svg}
+          pointerEvents="none"
         >
-          {barContent}
-        </View>
+          <Defs>
+            <SvgGradient id="barFill" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#111c40" />
+              <Stop offset="1" stopColor="#080f28" />
+            </SvgGradient>
+          </Defs>
+          <AnimatedPath animatedProps={pathProps} fill="url(#barFill)" />
+        </Svg>
 
-        <Animated.View pointerEvents="none" style={[styles.glow, glowStyle]} />
-      </Animated.View>
-    </GestureDetector>
+        <Animated.View
+          style={[styles.bubble, bubbleStyle]}
+          pointerEvents="none"
+        >
+          <LinearGradient
+            colors={['#1b2a5e', '#0d1738'] as const}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.bubbleFace}
+          />
+          <ActiveIcon size={24} color={ACCENT} />
+        </Animated.View>
+
+        <View style={styles.row} pointerEvents="box-none">
+          {TABS.map(({ id, label, Icon }, index) => {
+            const isActive = index === active;
+            return (
+              <Pressable
+                key={id}
+                onPress={() => select(index)}
+                style={styles.tab}
+                accessibilityRole="tab"
+                accessibilityLabel={label}
+                accessibilityState={{ selected: isActive }}
+              >
+                {!isActive && <Icon size={22} color={INACTIVE} />}
+                <Text
+                  style={[
+                    tw`text-[10px] font-mono-semibold`,
+                    styles.label,
+                    { color: isActive ? ACCENT : INACTIVE },
+                    isActive && { marginTop: BUBBLE_R },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </Animated.View>
   );
 }
 
