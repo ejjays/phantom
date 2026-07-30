@@ -1,6 +1,6 @@
 import { Pressable, Text } from 'react-native';
 import tw from '../../lib/tw';
-import ImageSheet from './ImageSheet';
+import VisualSheet from './VisualSheet';
 import success from '../../../assets/success.webp';
 import { tapImpact, tapSelection } from '../../lib/haptics';
 
@@ -28,14 +28,14 @@ export default function DownloadSuccessSheet({
   const dest = isAudio ? 'Music/Panther' : 'Movies/Panther';
   const actionLabel = isAudio ? 'Open music' : 'Open gallery';
   return (
-    <ImageSheet
+    <VisualSheet
       visible={open}
       onClose={onClose}
       image={success}
       heightRatio={0.6}
       overlayContent={false}
       imageScale={0.52}
-      gridBackground
+      stars
     >
       <Text
         style={tw`text-center text-[28px] leading-9 font-sans-bold text-white`}
@@ -83,6 +83,6 @@ export default function DownloadSuccessSheet({
       >
         <Text style={tw`text-[16px] font-sans-medium text-white/70`}>Done</Text>
       </Pressable>
-    </ImageSheet>
+    </VisualSheet>
   );
 }

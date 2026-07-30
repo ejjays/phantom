@@ -1060,7 +1060,6 @@ function SettingsScreen({
       <BottomSheet
         open={signOutOpen}
         onClose={() => setSignOutOpen(false)}
-        showGrid={false}
         border="subtle"
       >
         <View style={tw`items-center px-2 pt-2`}>

@@ -561,7 +561,6 @@ function CreatorBadge({ size = BADGE }: { size?: number }) {
         open={info}
         onClose={() => setInfo(false)}
         restRatio={0.3}
-        gridOpacity={0.5}
         border="cyanTop"
       >
         <View style={tw`items-center px-6 pb-4 pt-2`}>
@@ -1845,7 +1844,6 @@ export default function CommentsPanel({
         open={!!options}
         onClose={() => setOptions(null)}
         restRatio={0.32}
-        showGrid={false}
         border="subtle"
       >
         {options ? (
@@ -1882,8 +1880,7 @@ export default function CommentsPanel({
         open={attachOpen}
         onClose={() => setAttachOpen(false)}
         restRatio={0.3}
-        background="stars"
-        bgColor="#0b1024"
+        stars
         border="subtle"
       >
         <View style={[tw`flex-row pt-1`, { gap: 10 }]}>

@@ -108,6 +108,11 @@ function ReactionTray({
           paddingHorizontal: TRAY_PAD,
           backgroundColor: '#16203a',
           boxShadow: '0px 0px 16px 1px rgba(34, 211, 238, 0.35)',
+          shadowColor: '#06b6d3',
+          shadowOpacity: 0.3,
+          shadowRadius: 28,
+          shadowOffset: { width: 0, height: -6 },
+          elevation: 20,
         },
         style,
       ]}
@@ -591,6 +596,11 @@ export default function UpdateDetailSheet({
                 height: fullTotalH,
                 backgroundColor: SHEET_BG,
                 boxShadow: '0px 0px 16px 1px rgba(34, 211, 238, 0.35)',
+                shadowColor: '#06b6d3',
+                shadowOpacity: 0.3,
+                shadowRadius: 28,
+                shadowOffset: { width: 0, height: -6 },
+                elevation: 20,
               },
               sheetStyle,
             ]}

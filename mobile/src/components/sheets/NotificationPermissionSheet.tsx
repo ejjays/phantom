@@ -1,7 +1,7 @@
 import { Pressable, Text } from 'react-native';
 import LottieView from 'lottie-react-native';
 import tw from '../../lib/tw';
-import ImageSheet from './ImageSheet';
+import VisualSheet from './VisualSheet';
 import notification from '../../../assets/notification.json';
 import { tapImpact, tapSelection } from '../../lib/haptics';
 
@@ -25,13 +25,12 @@ export default function NotificationPermissionSheet({
   onDismiss,
 }: Props) {
   return (
-    <ImageSheet
+    <VisualSheet
       visible={visible}
       onClose={onDismiss}
       overlayContent={false}
-      heightRatio={0.76}
-      imageScale={0.62}
-      starsBackground
+      imageScale={0.45}
+      stars
       visual={
         <LottieView
           source={notification}
@@ -60,7 +59,7 @@ export default function NotificationPermissionSheet({
         accessibilityRole="button"
         accessibilityLabel="Allow notifications"
         style={({ pressed }) => [
-          tw`mt-8 w-full items-center justify-center rounded-full border border-primary/40 py-4`,
+          tw`mt-5 w-full items-center justify-center rounded-full border border-primary/40 py-4`,
           { backgroundColor: '#22d3ee40' },
           buttonGlow,
           pressed && tw`opacity-90`,
@@ -89,6 +88,6 @@ export default function NotificationPermissionSheet({
           Not now
         </Text>
       </Pressable>
-    </ImageSheet>
+    </VisualSheet>
   );
 }

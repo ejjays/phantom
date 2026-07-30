@@ -39,6 +39,7 @@ type Props = {
   onInputFocus: () => void;
   refreshing: boolean;
   onRefresh: () => void;
+  resetSignal: number;
 };
 
 export default function HomeScreen({
@@ -52,6 +53,7 @@ export default function HomeScreen({
   onInputFocus,
   refreshing,
   onRefresh,
+  resetSignal,
 }: Props) {
   const linkInputRef = useRef<TextInput>(null);
   useBlurOnKeyboardHide(linkInputRef);
@@ -265,6 +267,19 @@ export default function HomeScreen({
     }
   }, [loading]);
 
+  useEffect(() => {
+    if (resetSignal === 0) return;
+    isAttacking.value = 0;
+    glitchOpacity.value = 1;
+    glitchScale.value = 1;
+    glitchX.value = 0;
+    glitchRotate.value = 0;
+    debris1Opacity.value = 0;
+    debris2Opacity.value = 0;
+    debris3Opacity.value = 0;
+    setShowSpinner(false);
+  }, [resetSignal]);
+
   const handleFocus = () => {
     onInputFocus();
     linkInputRef.current?.measureInWindow((_left, top, _width, height) => {
@@ -354,6 +369,7 @@ export default function HomeScreen({
             label="Download"
             loading={showSpinner}
             onPress={() => {
+              if (!link.trim()) return;
               onResolve();
               triggerGlitch();
             }}

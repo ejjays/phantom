@@ -99,6 +99,7 @@ function AppRoot() {
   const [mode, setMode] = useState<DownloadMode>('mp4');
   const dismissedRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [resetSignal, setResetSignal] = useState(0);
   const [successOpen, setSuccessOpen] = useState(false);
   const [successInfo, setSuccessInfo] = useState<{
     isAudio: boolean;
@@ -130,8 +131,10 @@ function AppRoot() {
     setError(null);
     setInfo(null);
     setLink('');
+    setLoading(false);
     clearDownloads();
     dismissedRef.current = false;
+    setResetSignal((prev) => prev + 1);
     await new Promise((resolve) => {
       setTimeout(resolve, 500);
     });
@@ -300,6 +303,7 @@ function AppRoot() {
                   onInputFocus={() => {}}
                   refreshing={refreshing}
                   onRefresh={onRefresh}
+                  resetSignal={resetSignal}
                 />
               </View>
               {visited.settings && (

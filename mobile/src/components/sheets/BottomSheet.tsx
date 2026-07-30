@@ -23,24 +23,16 @@ import Animated, {
 import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../../lib/tw';
-import GridBackground from '../backgrounds/GridBackground';
 import TwinkleStars from '../backgrounds/TwinkleStars';
 
 const OPEN_SPRING = { damping: 24, stiffness: 210, mass: 0.9 };
 const BOUNCE_SPRING = { damping: 15, stiffness: 220, mass: 0.6 };
 const CLOSE_DURATION = 300;
 const BACKDROP = 0.62;
-const TAIL = 140;
+const TAIL = 60;
 const OVERMAX = 100;
 const FULL_RATIO = 0.88;
 const REST_RATIO = 0.5;
-const glowShadow = {
-  shadowColor: '#06b6d4',
-  shadowOpacity: 0.3,
-  shadowRadius: 28,
-  shadowOffset: { width: 0, height: -6 },
-  elevation: 20,
-};
 
 export default function BottomSheet({
   open,
@@ -49,11 +41,8 @@ export default function BottomSheet({
   footer,
   keyboardMode = 'lift',
   restRatio = REST_RATIO,
-  showGrid = true,
-  gridOpacity = 1,
-  background = 'grid',
-  bgColor = '#0a1224',
-  border = 'cyan',
+  stars = false,
+  border = 'cyanTop',
 }: {
   open: boolean;
   onClose: () => void;
@@ -61,16 +50,12 @@ export default function BottomSheet({
   footer?: ReactNode;
   keyboardMode?: 'lift' | 'expand';
   restRatio?: number;
-  showGrid?: boolean;
-  gridOpacity?: number;
-  background?: 'grid' | 'stars';
-  bgColor?: string;
+  stars?: boolean;
   border?: 'cyan' | 'subtle' | 'cyanTop';
 }) {
   const insets = useSafeAreaInsets();
   const { height: screenH, width: screenW } = useWindowDimensions();
   const [mounted, setMounted] = useState(open);
-  const [gridHeight, setGridHeight] = useState(0);
   const [ready, setReady] = useState(false);
 
   const progress = useSharedValue(0);
@@ -135,7 +120,6 @@ export default function BottomSheet({
     const height = e.nativeEvent.layout.height;
     if (height > 0) {
       sheetH.value = height;
-      setGridHeight(height);
       setReady(true);
     }
   };
@@ -218,19 +202,28 @@ export default function BottomSheet({
             <Animated.View
               onLayout={onSheetLayout}
               style={[
-                tw`w-full self-center overflow-hidden rounded-t-[28px] px-4 pt-3`,
+                tw`overflow-hidden rounded-t-[28px] px-4 pt-3`,
+                {
+                  alignSelf: 'center',
+                  width: screenW + 4,
+                  marginHorizontal: -2,
+                },
                 border === 'subtle'
                   ? tw`border border-white/10`
                   : border === 'cyanTop'
                     ? {
-                        borderTopWidth: 1,
+                        borderWidth: 1,
                         borderColor: 'rgba(34,211,238,0.4)',
-                        boxShadow: '0px 0px 16px 1px rgba(34, 211, 238, 0.35)',
+                        boxShadow: '0px 0px 16px 1px rgba(34,211,238,0.35)',
+                        shadowColor: '#06b6d4',
+                        shadowOpacity: 0.3,
+                        shadowRadius: 28,
+                        shadowOffset: { width: 0, height: -6 },
+                        elevation: 20,
                       }
                     : tw`border border-primary/40`,
-                border === 'cyanTop' ? null : glowShadow,
                 {
-                  backgroundColor: bgColor,
+                  backgroundColor: '#0b1526',
                   paddingBottom: insets.bottom + 20 + TAIL,
                   maxHeight: screenH * 0.92 + TAIL,
                   maxWidth: 560,
@@ -239,26 +232,15 @@ export default function BottomSheet({
                 sheetStyle,
               ]}
             >
-              {background === 'stars' ? (
-                <TwinkleStars
-                  width={Math.min(screenW, 560)}
-                  height={gridHeight || screenH}
-                />
-              ) : showGrid ? (
-                <GridBackground
-                  width={Math.min(screenW, 560)}
-                  height={gridHeight || screenH}
-                  opacity={gridOpacity}
-                />
+              {stars ? (
+                <TwinkleStars width={Math.min(screenW, 560)} height={screenH} />
               ) : null}
               <View
                 style={tw`mb-5 h-1.5 w-10 self-center rounded-full bg-white/20`}
               />
               {children}
               {footer ? (
-                <Animated.View
-                  style={[{ backgroundColor: bgColor }, tw`pt-2`, footerStyle]}
-                >
+                <Animated.View style={[tw`bg-[#0b1526] pt-2`, footerStyle]}>
                   {footer}
                 </Animated.View>
               ) : null}

@@ -1,7 +1,7 @@
 import { Pressable, Text } from 'react-native';
 import LottieView from 'lottie-react-native';
 import tw from '../../lib/tw';
-import ImageSheet from './ImageSheet';
+import VisualSheet from './VisualSheet';
 import cat404 from '../../../assets/cat404.json';
 import { tapImpact, tapSelection } from '../../lib/haptics';
 
@@ -36,7 +36,7 @@ export default function ErrorSheet({
     ? { label: 'Dismiss', onPress: onClose }
     : { label: 'Try again', onPress: onRetry };
   return (
-    <ImageSheet
+    <VisualSheet
       visible={open}
       onClose={onClose}
       visual={
@@ -45,7 +45,7 @@ export default function ErrorSheet({
       heightRatio={0.6}
       overlayContent={false}
       imageScale={0.62}
-      gridBackground
+      stars
     >
       <Text
         style={tw`text-center text-[28px] leading-9 font-sans-bold text-white`}
@@ -96,6 +96,6 @@ export default function ErrorSheet({
           {secondary.label}
         </Text>
       </Pressable>
-    </ImageSheet>
+    </VisualSheet>
   );
 }
