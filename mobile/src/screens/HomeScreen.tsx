@@ -291,7 +291,7 @@ export default function HomeScreen({
     >
       <Header />
       <Animated.View
-        style={[tw`flex-1 items-center justify-center`, liftStyle]}
+        style={[tw`flex-1 items-center justify-center -mt-6`, liftStyle]}
       >
         <View style={tw`w-full max-w-md`}>
           <View style={tw`items-center mb-2`}>

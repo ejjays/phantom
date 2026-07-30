@@ -45,11 +45,13 @@ const BAR_H = 62;
 const OVERHANG = 36;
 const CANOPY_H = BAR_H + OVERHANG;
 const Y_TOP = OVERHANG;
-const NOTCH_HALF = 54;
-const NOTCH_DEPTH = 30;
-const BUBBLE_R = 27;
+const BUBBLE_R = 28;
+const NOTCH_HALF = BUBBLE_R * 2;
+const NOTCH_DEPTH = 34;
 const BUBBLE_D = BUBBLE_R * 2;
-const BUBBLE_TOP = Y_TOP - 4 - BUBBLE_R;
+const BUBBLE_TOP = Y_TOP - 1 - BUBBLE_R;
+const NOTCH_CP_OFF = Math.round(BUBBLE_R * 0.67);
+const NOTCH_CTR_OFF = Math.round(BUBBLE_R * 0.81);
 const ACCENT = '#22d3ee';
 const INACTIVE = '#cbd5e1';
 
@@ -61,7 +63,7 @@ function buildPath(cx: number, width: number, height: number): string {
   const d = t + NOTCH_DEPTH;
   const lh = cx - NOTCH_HALF;
   const rh = cx + NOTCH_HALF;
-  return `M0,${t} L${lh},${t} C${lh + 18},${t} ${cx - 22},${d} ${cx},${d} C${cx + 22},${d} ${rh - 18},${t} ${rh},${t} L${width},${t} L${width},${height} L0,${height} Z`;
+  return `M0,${t} L${lh},${t} C${lh + NOTCH_CP_OFF},${t} ${cx - NOTCH_CTR_OFF},${d} ${cx},${d} C${cx + NOTCH_CTR_OFF},${d} ${rh - NOTCH_CP_OFF},${t} ${rh},${t} L${width},${t} L${width},${height} L0,${height} Z`;
 }
 
 const styles = StyleSheet.create({
@@ -140,6 +142,7 @@ function BottomNav({
 
   const select = (index: number) => {
     if (index === active) return;
+    const dist = Math.abs(index - active);
     setActive(index);
     onChange?.(TABS[index].id);
     cx.value = withSpring(centerOf(index), {
@@ -147,8 +150,13 @@ function BottomNav({
       stiffness: 260,
       mass: 0.6,
     });
+    const squashTarget = Math.max(0.9, 1.0 - dist * 0.04);
+    const squashDur = 60 + dist * 10;
     lift.value = withSequence(
-      withTiming(0.86, { duration: 90, easing: Easing.out(Easing.cubic) }),
+      withTiming(squashTarget, {
+        duration: squashDur,
+        easing: Easing.out(Easing.cubic),
+      }),
       withSpring(1, { damping: 14, stiffness: 300 })
     );
   };
@@ -182,11 +190,7 @@ function BottomNav({
         pointerEvents="box-none"
       >
         {/* eslint-disable-next-line panther/no-inline-svg */}
-          <Svg
-          height={totalH}
-          style={styles.svg}
-          pointerEvents="none"
-        >
+        <Svg height={totalH} style={styles.svg} pointerEvents="none">
           <Defs>
             <SvgGradient id="barFill" x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0" stopColor="#111c40" />
@@ -206,7 +210,7 @@ function BottomNav({
             end={{ x: 0, y: 1 }}
             style={styles.bubbleFace}
           />
-          <ActiveIcon size={24} color={ACCENT} />
+          <ActiveIcon size={25} color={ACCENT} />
         </Animated.View>
 
         <View style={styles.row} pointerEvents="box-none">
@@ -221,17 +225,20 @@ function BottomNav({
                 accessibilityLabel={label}
                 accessibilityState={{ selected: isActive }}
               >
-                {!isActive && <Icon size={22} color={INACTIVE} />}
-                <Text
-                  style={[
-                    tw`text-[10px] font-mono-semibold`,
-                    styles.label,
-                    { color: isActive ? ACCENT : INACTIVE },
-                    isActive && { marginTop: BUBBLE_R },
-                  ]}
-                >
-                  {label}
-                </Text>
+                {!isActive && (
+                  <>
+                    <Icon size={22} color={INACTIVE} />
+                    <Text
+                      style={[
+                        tw`text-[10px] font-mono-semibold`,
+                        styles.label,
+                        { color: INACTIVE },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </>
+                )}
               </Pressable>
             );
           })}
