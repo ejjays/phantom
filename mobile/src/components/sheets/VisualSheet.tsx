@@ -69,7 +69,7 @@ export default function VisualSheet({
         </View>
       ) : (
         <>
-          <View style={tw`items-center justify-center pt-2`}>
+          <View style={tw`items-center justify-center`}>
             {visual ? (
               <View style={{ width: stackedSize, height: stackedSize }}>
                 {visual}

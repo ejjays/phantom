@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, useWindowDimensions } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
   withDelay,
   Easing,
+  runOnJS,
   type SharedValue,
 } from 'react-native-reanimated';
 import Carousel, {
@@ -68,15 +69,17 @@ function SupportCardContent({
   onSupport,
   onGithub,
   onSocial,
+  onInteraction,
 }: {
   id: CarouselCardId;
   cardW: number;
   cardHeight?: number;
   starActive: boolean;
+  onInteraction: () => void;
 } & CardHandlers) {
   if (id === 'support') {
     return (
-      <Pressable onPress={onSupport}>
+      <Pressable onPress={onSupport} onPressIn={onInteraction}>
         <HeroLottieCard source={supportBg} minHeight={cardHeight}>
           <Text
             style={[
@@ -110,7 +113,7 @@ function SupportCardContent({
     );
   }
   return (
-    <Pressable onPress={onGithub}>
+    <Pressable onPress={onGithub} onPressIn={onInteraction}>
       <HeroLottieCard
         source={githubBg}
         bgColor="#241654"
@@ -118,14 +121,18 @@ function SupportCardContent({
         glowColor="#673AB7"
         minHeight={cardHeight}
         rightSlot={
-          <LottieView
-            key={starActive ? 'star-active' : 'star-idle'}
-            source={star}
-            autoPlay
-            loop
-            renderMode="HARDWARE"
-            style={{ width: 94, height: 94 }}
-          />
+          starActive ? (
+            <LottieView
+              key="star-active"
+              source={star}
+              autoPlay
+              loop
+              renderMode="HARDWARE"
+              style={{ width: 94, height: 94 }}
+            />
+          ) : (
+            <View style={{ width: 94, height: 94 }} />
+          )
         }
         bottomLeft={
           <Text style={[tw`font-sans text-[10px] text-white/50`, textOutline]}>
@@ -165,13 +172,13 @@ function CarouselCardItem({
   onSupport,
   onGithub,
   onSocial,
-  onTouchStart,
+  onInteraction,
 }: {
   id: CarouselCardId;
   width: number;
   animationValue: SharedValue<number>;
   starActive: boolean;
-  onTouchStart: () => void;
+  onInteraction: () => void;
 } & CardHandlers) {
   const cardW = width - 18;
   const fadeStyle = useAnimatedStyle(() => ({
@@ -188,7 +195,6 @@ function CarouselCardItem({
         { flex: 1, alignItems: 'center', justifyContent: 'center' },
         fadeStyle,
       ]}
-      onTouchStart={onTouchStart}
     >
       <View style={{ width: cardW }}>
         <SupportCardContent
@@ -198,6 +204,7 @@ function CarouselCardItem({
           onSupport={onSupport}
           onGithub={onGithub}
           onSocial={onSocial}
+          onInteraction={onInteraction}
         />
       </View>
     </Animated.View>
@@ -243,12 +250,14 @@ function StackCard({
   onSupport,
   onGithub,
   onSocial,
+  onInteraction,
 }: {
   id: CarouselCardId;
   index: number;
   cardW: number;
   cardHeight: number;
   visible: boolean;
+  onInteraction: () => void;
 } & CardHandlers) {
   const startX = index === 1 ? 40 : -40;
   const progress = useSharedValue(0);
@@ -274,6 +283,7 @@ function StackCard({
         onSupport={onSupport}
         onGithub={onGithub}
         onSocial={onSocial}
+        onInteraction={onInteraction}
       />
     </Animated.View>
   );
@@ -301,10 +311,25 @@ export default function SupportCarousel({
   const progress = useSharedValue(0);
   const [activeCard, setActiveCard] = useState(0);
   const [autoPlay, setAutoPlay] = useState(true);
+  const stopAutoplay = useCallback(() => setAutoPlay(false), []);
 
-  // permanent one-way switch — any user interaction ends autoplay for this
-  // mount so it doesn't fight the user after they've engaged with the card.
-  const stopAutoplay = () => setAutoPlay(false);
+  const handleOpenSupport = useCallback(() => {
+    stopAutoplay();
+    onOpenSupport();
+  }, [onOpenSupport, stopAutoplay]);
+
+  const handleOpenSource = useCallback(() => {
+    stopAutoplay();
+    onOpenSource();
+  }, [onOpenSource, stopAutoplay]);
+
+  const handleOpenSocial = useCallback(
+    (url: string) => {
+      stopAutoplay();
+      onOpenSocial(url);
+    },
+    [onOpenSocial, stopAutoplay]
+  );
 
   const onDotPress = (index: number) => {
     tapSelection();
@@ -326,9 +351,10 @@ export default function SupportCarousel({
             cardW={contentW}
             cardHeight={224}
             visible={visible}
-            onSupport={onOpenSupport}
-            onGithub={onOpenSource}
-            onSocial={onOpenSocial}
+            onSupport={handleOpenSupport}
+            onGithub={handleOpenSource}
+            onSocial={handleOpenSocial}
+            onInteraction={stopAutoplay}
           />
         ))}
       </View>
@@ -337,7 +363,13 @@ export default function SupportCarousel({
 
   return (
     <View>
-      <View onTouchStart={stopAutoplay} onTouchMove={stopAutoplay}>
+      <View
+        onStartShouldSetResponder={() => {
+          stopAutoplay();
+          return false;
+        }}
+        onResponderTerminationRequest={() => false}
+      >
         <Carousel
           ref={carouselRef}
           data={CAROUSEL_DATA}
@@ -353,6 +385,12 @@ export default function SupportCarousel({
             parallaxScrollingOffset: 48,
             parallaxAdjacentItemScale: 0.82,
           }}
+          onConfigurePanGesture={(gesture) => {
+            gesture.onBegin(() => {
+              'worklet';
+              runOnJS(stopAutoplay)();
+            });
+          }}
           onProgressChange={(_, absoluteProgress) => {
             progress.value = absoluteProgress;
           }}
@@ -363,10 +401,10 @@ export default function SupportCarousel({
               width={contentW}
               animationValue={animationValue}
               starActive={activeCard === 2}
-              onSupport={onOpenSupport}
-              onGithub={onOpenSource}
-              onSocial={onOpenSocial}
-              onTouchStart={stopAutoplay}
+              onSupport={handleOpenSupport}
+              onGithub={handleOpenSource}
+              onSocial={handleOpenSocial}
+              onInteraction={stopAutoplay}
             />
           )}
         />

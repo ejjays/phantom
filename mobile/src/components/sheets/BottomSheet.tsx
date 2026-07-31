@@ -202,7 +202,7 @@ export default function BottomSheet({
             <Animated.View
               onLayout={onSheetLayout}
               style={[
-                tw`overflow-hidden rounded-t-[28px] px-4 pt-3`,
+                tw`overflow-hidden rounded-t-[28px] px-4 pt-2`,
                 {
                   alignSelf: 'center',
                   width: screenW + 4,
@@ -236,7 +236,7 @@ export default function BottomSheet({
                 <TwinkleStars width={Math.min(screenW, 560)} height={screenH} />
               ) : null}
               <View
-                style={tw`mb-5 h-1.5 w-10 self-center rounded-full bg-white/20`}
+                style={tw`mb-3 h-1.5 w-10 self-center rounded-full bg-white/20`}
               />
               {children}
               {footer ? (

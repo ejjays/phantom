@@ -1,7 +1,8 @@
 import { Pressable, Text } from 'react-native';
+import LottieView from 'lottie-react-native';
 import tw from '../../lib/tw';
 import VisualSheet from './VisualSheet';
-import success from '../../../assets/success.webp';
+import success from '../../../assets/success.json';
 import { tapImpact, tapSelection } from '../../lib/haptics';
 
 const buttonGlow = {
@@ -31,11 +32,18 @@ export default function DownloadSuccessSheet({
     <VisualSheet
       visible={open}
       onClose={onClose}
-      image={success}
       heightRatio={0.6}
       overlayContent={false}
       imageScale={0.52}
       stars
+      visual={
+        <LottieView
+          source={success}
+          style={{ width: '100%', height: '100%' }}
+          autoPlay
+          loop={false}
+        />
+      }
     >
       <Text
         style={tw`text-center text-[28px] leading-9 font-sans-bold text-white`}

@@ -48,6 +48,9 @@ export default function ErrorSheet({
       stars
     >
       <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.5}
         style={tw`text-center text-[28px] leading-9 font-sans-bold text-white`}
       >
         Something went wrong

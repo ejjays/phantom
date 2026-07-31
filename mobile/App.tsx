@@ -27,6 +27,7 @@ import SpotifyPickerModal from './src/components/SpotifyPickerModal';
 import NotificationPermissionSheet from './src/components/sheets/NotificationPermissionSheet';
 import DownloadSuccessSheet from './src/components/sheets/DownloadSuccessSheet';
 import ErrorSheet from './src/components/sheets/ErrorSheet';
+import { AppDialogProvider } from './src/components/AppDialog';
 import YouTubeExtractorWebView from './src/components/webviews/YouTubeExtractorWebView';
 import InstagramExtractorWebView from './src/components/webviews/InstagramExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -109,7 +110,9 @@ function AppRoot() {
     isAudio: false,
   });
   const { paste, readClipboard } = useClipboardPaste(setLink);
-  const notifPriming = useNotificationPriming(onboarded === true);
+  const notifPriming = useNotificationPriming(
+    onboarded === true && !showVideoSplash
+  );
   useEffect(() => {
     void getOnboarded().then(setOnboardedState);
   }, []);
@@ -396,7 +399,9 @@ function AppRoot() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <AppRoot />
+      <AppDialogProvider>
+        <AppRoot />
+      </AppDialogProvider>
     </ErrorBoundary>
   );
 }

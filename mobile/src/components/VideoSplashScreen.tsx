@@ -14,7 +14,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const VIDEO_WIDTH = 944;
 const VIDEO_HEIGHT = 992;
 const VIDEO_ASPECT = VIDEO_WIDTH / VIDEO_HEIGHT;
-const SCREEN_ASPECT = SCREEN_WIDTH / VIDEO_HEIGHT;
+const SCREEN_ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT;
 
 const videoStyle = (() => {
   if (SCREEN_ASPECT > VIDEO_ASPECT) {
@@ -45,7 +45,8 @@ const styles = StyleSheet.create({
 });
 
 const HOLD_LAST_FRAME_MS = 500;
-const SPLASH_VIDEO_URL = 'https://fiiaupihpiujgorgagzp.supabase.co/storage/v1/object/public/assets/splash.mp4';
+const SPLASH_VIDEO_URL =
+  'https://fiiaupihpiujgorgagzp.supabase.co/storage/v1/object/public/assets/splash.mp4';
 
 export function VideoSplashScreen({ onFinish }: Props) {
   const [visible, setVisible] = useState(true);
@@ -71,39 +72,9 @@ export function VideoSplashScreen({ onFinish }: Props) {
     (async () => {
       try {
         const cacheFile = new File(Paths.cache, 'splash.mp4');
-        
-        if (cacheFile.exists) {
-          setVideoUri(cacheFile.uri);
-          void SplashScreen.hideAsync();
-          return;
-        }
-
-        const response = await fetch(SPLASH_VIDEO_URL);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        
-        const reader = response.body?.getReader();
-        if (!reader) {
-          throw new Error('No reader');
-        }
-
-        const chunks: Uint8Array[] = [];
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (value) chunks.push(value);
-        }
-
-        const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-        const combined = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const chunk of chunks) {
-          combined.set(chunk, offset);
-          offset += chunk.length;
-        }
-
-        await cacheFile.write(combined);
+        await File.downloadFileAsync(SPLASH_VIDEO_URL, cacheFile, {
+          idempotent: true,
+        });
         setVideoUri(cacheFile.uri);
         void SplashScreen.hideAsync();
       } catch (err) {
@@ -123,8 +94,13 @@ export function VideoSplashScreen({ onFinish }: Props) {
   };
 
   const handleError = () => {
-    console.error("Video playback error");
+    console.error('Video playback error');
     setError(true);
+    try {
+      new File(Paths.cache, 'splash.mp4').delete();
+    } catch {
+      /* ignore */
+    }
     doFinish();
   };
 

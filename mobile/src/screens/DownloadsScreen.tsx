@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,8 +21,8 @@ import {
 } from '../lib/downloadHistory';
 import { openSavedTarget } from '../lib/download/gallery';
 import { tapSelection, tapImpact } from '../lib/haptics';
+import { useAppDialog } from '../components/AppDialog';
 import { PlatformLogo, type PlatformName } from '../components/logos';
-import ClearHistoryDialog from '../components/ClearHistoryDialog';
 import TwinkleStars from '../components/backgrounds/TwinkleStars';
 import ShootingStars from '../components/backgrounds/ShootingStars';
 
@@ -132,7 +132,7 @@ function Row({
 
 function DownloadsScreenInner({ visible }: Props) {
   const { items, loading, refresh } = useDownloadHistory();
-  const [confirming, setConfirming] = useState(false);
+  const { showDialog } = useAppDialog();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const titleSize = Math.min(30, Math.max(22, width * 0.062));
@@ -144,13 +144,16 @@ function DownloadsScreenInner({ visible }: Props) {
 
   const clearAll = useCallback(() => {
     if (items.length === 0) return;
-    setConfirming(true);
-  }, [items.length]);
-
-  const confirmClear = useCallback(() => {
-    setConfirming(false);
-    void clearHistory().then(refresh);
-  }, [refresh]);
+    showDialog({
+      title: 'Clear history?',
+      message: `Remove ${items.length} ${items.length === 1 ? 'item' : 'items'} from the list. Your saved files stay in the gallery.`,
+      cancelLabel: 'Cancel',
+      confirmLabel: `Clear ${items.length === 1 ? 'item' : 'all'}`,
+      onConfirm: () => {
+        void clearHistory().then(refresh);
+      },
+    });
+  }, [items.length, showDialog, refresh]);
 
   return (
     <View
@@ -183,7 +186,6 @@ function DownloadsScreenInner({ visible }: Props) {
           <Pressable
             onPress={clearAll}
             style={tw`flex-row items-center gap-1 rounded-lg px-2 py-1.5`}
-            disabled={confirming}
           >
             <FolderOpen size={14} color="#64748b" />
             <Text style={tw`font-mono text-[11px] text-slate-400`}>Clear</Text>
@@ -228,13 +230,6 @@ function DownloadsScreenInner({ visible }: Props) {
           ))
         )}
       </ScrollView>
-
-      <ClearHistoryDialog
-        open={confirming}
-        count={items.length}
-        onClose={() => setConfirming(false)}
-        onConfirm={confirmClear}
-      />
     </View>
   );
 }
