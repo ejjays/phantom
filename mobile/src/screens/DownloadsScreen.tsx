@@ -12,7 +12,7 @@ import { Image } from 'expo-image';
 import { Trash2, Play, FolderOpen } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import tw from '../lib/tw';
-import spacecat from '../../assets/spacecat.json';
+import ufo from '../../assets/UFO.json';
 import {
   useDownloadHistory,
   removeHistory,
@@ -208,18 +208,18 @@ function DownloadsScreenInner({ visible }: Props) {
         {items.length === 0 ? (
           <View style={tw`flex-1 items-center justify-center px-8`}>
             <LottieView
-              source={spacecat}
+              source={ufo}
               autoPlay
               loop
               style={{ width: catSize, height: catSize }}
             />
             <Text
-              style={tw`mt-4 text-center font-mono-medium text-sm text-slate-500`}
+              style={tw`mt-4 text-center font-mono-medium text-sm text-cyan-400`}
             >
               Nothing saved yet.
             </Text>
             <Text
-              style={tw`mt-1 text-center font-mono text-[12px] text-slate-600`}
+              style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}
             >
               Your saved media shows up here.
             </Text>

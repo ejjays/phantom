@@ -158,6 +158,8 @@ describe('relativeTime', () => {
     ['2026-06-21T09:00:00Z', '3h ago'],
     ['2026-06-19T12:00:00Z', '2d ago'],
     ['2026-06-07T12:00:00Z', '2w ago'],
+    ['2026-05-10T12:00:00Z', 'May 10, 2026'],
+    ['2025-12-01T12:00:00Z', 'Dec 1, 2025'],
   ])('formats %s as %s', (iso, expected) => {
     expect(relativeTime(iso, now)).toBe(expected);
   });

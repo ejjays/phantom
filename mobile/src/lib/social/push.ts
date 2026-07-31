@@ -37,11 +37,18 @@ async function upsertToken(userId: string): Promise<void> {
   // device_tokens.user_id → profiles FK; a stale guest session can lack the
   // row (auth event fires before the profile upsert), so heal it first
   await ensureGuestReady(userId);
+  const { data } = await supabase.auth.getSession();
+  const session = data.session;
+  if (!session) return;
+  if (!session.expires_at || session.expires_at * 1000 < Date.now() + 60_000) {
+    const refreshed = await supabase.auth.refreshSession();
+    if (!refreshed.data.session) return;
+  }
   const token = await currentToken();
   if (!token) return;
   const { error } = await supabase
     .from('device_tokens')
-    .upsert(deviceTokenRow(userId, token), { onConflict: 'token' });
+    .upsert(deviceTokenRow(userId, token), { onConflict: 'user_id' });
   if (error) warn('push', 'token upsert failed', error.message);
 }
 

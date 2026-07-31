@@ -189,11 +189,13 @@ export default function SocialCard({
   height,
   links,
   onOpen,
+  onInteraction,
 }: {
   width: number;
   height: number;
   links: readonly SocialLink[];
   onOpen: (url: string) => void;
+  onInteraction?: () => void;
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -263,6 +265,7 @@ export default function SocialCard({
   return (
     <Pressable
       onPress={dismiss}
+      onPressIn={onInteraction}
       style={[
         tw`overflow-hidden rounded-3xl border border-white/10`,
         { width, height, backgroundColor: '#171717' },

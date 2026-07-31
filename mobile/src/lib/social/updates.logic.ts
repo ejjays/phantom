@@ -159,7 +159,12 @@ export function relativeTime(
   if (days < 7) return `${days}d ago`;
   const weeks = Math.round(days / 7);
   if (weeks < 5) return `${weeks}w ago`;
-  return new Date(iso).toLocaleDateString();
+  const date = new Date(iso);
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export function messageOf(err: unknown): string {

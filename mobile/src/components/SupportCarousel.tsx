@@ -109,6 +109,7 @@ function SupportCardContent({
         height={cardHeight}
         links={SOCIAL_LINKS}
         onOpen={onSocial}
+        onInteraction={onInteraction}
       />
     );
   }

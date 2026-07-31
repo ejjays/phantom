@@ -65,6 +65,13 @@ export async function signInWithGoogle(): Promise<string | null> {
   const { data, error } = isGuest
     ? await supabase.auth.linkIdentity(credentials)
     : await supabase.auth.signInWithIdToken(credentials);
+  if (error && isGuest && error.code === 'identity_already_exists') {
+    dbg('identity already exists -> signing in as existing account');
+    await supabase.auth.signOut();
+    const retry = await supabase.auth.signInWithIdToken(credentials);
+    if (retry.error) throw retry.error;
+    return retry.data.user?.id ?? null;
+  }
   if (error) {
     dbg('supabase auth error:', error.message);
     throw error;

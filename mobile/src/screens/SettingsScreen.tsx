@@ -769,6 +769,9 @@ function SettingsScreen({
         setNameError(null);
         accountScreen.setOpen(true);
       } else {
+        setNameValue(acc?.username ?? '');
+        setNameError(null);
+        accountScreen.setOpen(false);
         tapSuccess();
       }
     } catch (err) {

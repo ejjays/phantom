@@ -7,7 +7,7 @@ import Animated, {
   withRepeat,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronLeft, Lock, Pencil } from 'lucide-react-native';
+import { ChevronLeft, Lock, Pencil, TriangleAlert } from 'lucide-react-native';
 import tw from '../lib/tw';
 import Card from './Card';
 import Avatar from './Avatar';
@@ -225,12 +225,15 @@ export default function AccountPanel({
         ) : null}
 
         {account?.isGuest ? (
-          <Text
-            style={tw`mt-4 text-center font-sans text-[12px] leading-4 text-slate-500`}
-          >
-            To prevent abuse, anonymous accounts can&apos;t be signed back into
-            — link Google to keep your comments and reactions.
-          </Text>
+          <View style={tw`mt-4 flex-row items-start justify-center px-3`}>
+            <TriangleAlert size={14} color="#f59e0b" style={tw`mt-0.5 -mr-1`} />
+            <Text
+              style={tw`flex-1 text-center font-sans text-[12px] leading-4 text-slate-500`}
+            >
+              To prevent abuse, anonymous accounts can&apos;t be signed back
+              into — link Google to keep your comments and reactions.
+            </Text>
+          </View>
         ) : (
           <Pressable
             onPress={onSignOut}
