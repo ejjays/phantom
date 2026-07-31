@@ -39,6 +39,56 @@ export function useAppDialog(): DialogContextValue {
   return ctx;
 }
 
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingBottom: 40,
+  },
+  dialog: {
+    width: '85%',
+    backgroundColor: '#2a2a2a',
+    borderRadius: 24,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    alignItems: 'flex-start',
+    borderWidth: 1,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'left',
+  },
+  message: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'left',
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignSelf: 'stretch',
+  },
+  button: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 24,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#22d3ee',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+});
+
 export function AppDialogProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<DialogConfig | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -148,53 +198,3 @@ export function AppDialogProvider({ children }: { children: React.ReactNode }) {
     </DialogContext.Provider>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 40,
-  },
-  dialog: {
-    width: '85%',
-    backgroundColor: '#2a2a2a',
-    borderRadius: 24,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    alignItems: 'flex-start',
-    borderWidth: 1,
-  },
-  title: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'left',
-  },
-  message: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'left',
-    lineHeight: 22,
-    marginBottom: 18,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignSelf: 'stretch',
-  },
-  button: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 24,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#22d3ee',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-});

@@ -7,8 +7,8 @@
     "start:userland": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" npx expo start --dev-client --offline",
     "android": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" expo start --android",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:live": "VITEST_INCLUDE_LIVE=1 vitest run tests/live",
+    "test": "node node_modules/vitest/vitest.mjs run",
+    "test:live": "VITEST_INCLUDE_LIVE=1 node node_modules/vitest/vitest.mjs run tests/live",
     "lint": "bash ../scripts/lint-changed.sh",
     "lint:all": "eslint ."
   },
