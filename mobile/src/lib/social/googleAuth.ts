@@ -1,4 +1,5 @@
 import * as Crypto from 'expo-crypto';
+import type { SignInWithIdTokenCredentials } from '@supabase/supabase-js';
 import {
   GoogleOneTapSignIn,
   isCancelledResponse,
@@ -52,13 +53,20 @@ export async function signInWithGoogle(): Promise<string | null> {
   if (!credential) throw new Error('Google sign-in returned no credential');
   dbg('got idToken, length=', credential.idToken?.length);
 
-  const { data, error } = await supabase.auth.signInWithIdToken({
+  // guest session running → link the google identity so reactions/comments
+  // carry over; no session → fresh account (old one-tap path).
+  const { data: existing } = await supabase.auth.getSession();
+  const isGuest = existing.session?.user?.is_anonymous ?? false;
+  const credentials: SignInWithIdTokenCredentials = {
     provider: 'google',
     token: credential.idToken,
     nonce: rawNonce,
-  });
+  };
+  const { data, error } = isGuest
+    ? await supabase.auth.linkIdentity(credentials)
+    : await supabase.auth.signInWithIdToken(credentials);
   if (error) {
-    dbg('supabase signInWithIdToken error:', error.message);
+    dbg('supabase auth error:', error.message);
     throw error;
   }
 

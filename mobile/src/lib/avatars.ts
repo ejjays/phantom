@@ -32,7 +32,7 @@ import tate from '../../assets/avatars/tate.webp';
 import mingMing from '../../assets/avatars/ming-ming.webp';
 import ollie from '../../assets/avatars/ollie.webp';
 import zuri from '../../assets/avatars/zuri.webp';
-import { presetIdOf } from './avatars.logic';
+import { presetIdOf, presetMarker } from './avatars.logic';
 
 export {
   PRESET_PREFIX,
@@ -126,4 +126,9 @@ export function presetSource(value: string | null | undefined): number | null {
   const id = presetIdOf(value);
   if (id == null) return null;
   return ALL_PRESETS.find((preset) => preset.id === id)?.source ?? null;
+}
+
+export function randomPresetMarker(): string {
+  const preset = ALL_PRESETS[Math.floor(Math.random() * ALL_PRESETS.length)];
+  return presetMarker(preset.id);
 }

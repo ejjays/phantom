@@ -19,7 +19,7 @@ import Animated, {
   withRepeat,
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
-import { Inbox, CloudOff, AlertCircle, Bell } from 'lucide-react-native';
+import { Inbox, CloudOff, AlertCircle, Bell, Ghost } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import tw from '../lib/tw';
 import { tapSelection, tapSuccess } from '../lib/haptics';
@@ -28,7 +28,7 @@ import UpdateDetailSheet from '../components/sheets/UpdateDetailSheet';
 import PostDetailScreen from './PostDetailScreen';
 import NotificationsPanel from '../components/social/NotificationsPanel';
 import Avatar from '../components/Avatar';
-import { CommentIcon } from '../components/icons';
+import { GoogleIcon, CommentIcon } from '../components/icons';
 import AnimatedCount from '../components/social/AnimatedCount';
 import ReactionBar from '../components/social/ReactionBar';
 import {
@@ -40,6 +40,7 @@ import {
   fetchUsername,
   fetchProfile,
   setUsername,
+  signInAsGuest,
   getAccount,
   getMyAvatarUrl,
   syncProfileAvatar,
@@ -400,6 +401,65 @@ function UsernameSheet({
   );
 }
 
+function AuthChoiceSheet({
+  open,
+  busy,
+  onGoogle,
+  onGuest,
+  onClose,
+}: {
+  open: boolean;
+  busy: boolean;
+  onGoogle: () => void;
+  onGuest: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose}>
+      <View style={tw`items-center`}>
+        <Avatar name="?" size={76} />
+        <Text
+          style={tw`mt-4 font-sans-bold text-[22px] tracking-tight text-white`}
+        >
+          Join the conversation
+        </Text>
+        <Text
+          style={tw`mt-1.5 text-center font-sans text-[13px] leading-5 text-slate-400`}
+        >
+          React and comment as a guest, or sign in with Google for a named
+          account.
+        </Text>
+      </View>
+      <Pressable
+        onPress={onGoogle}
+        disabled={busy}
+        style={[
+          tw`mt-5 flex-row items-center justify-center rounded-2xl bg-white py-3.5`,
+          busy ? tw`opacity-60` : null,
+        ]}
+      >
+        <GoogleIcon size={18} />
+        <Text style={tw`ml-3 font-sans-semibold text-[15px] text-[#1f1f1f]`}>
+          Continue with Google
+        </Text>
+      </Pressable>
+      <Pressable
+        onPress={onGuest}
+        disabled={busy}
+        style={[
+          tw`mt-2.5 flex-row items-center justify-center rounded-2xl border border-white/15 bg-white/5 py-3.5`,
+          busy ? tw`opacity-60` : null,
+        ]}
+      >
+        <Ghost size={18} color="#cbd5e1" strokeWidth={2} />
+        <Text style={tw`ml-3 font-sans-semibold text-[15px] text-slate-100`}>
+          Continue as Anonymous
+        </Text>
+      </Pressable>
+    </BottomSheet>
+  );
+}
+
 function SkeletonLine({ twClass = 'h-3 rounded-full' }: { twClass?: string }) {
   const pulse = useSharedValue(0.4);
   useEffect(() => {
@@ -663,17 +723,41 @@ function UpdatesScreen({
     return unsub;
   }, [queryClient]);
 
-  const ensureUsername = async (): Promise<boolean> => {
-    if (myName) return true;
+  const [authChoiceOpen, setAuthChoiceOpen] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
+  const authChoiceResolver = useRef<((ok: boolean) => void) | null>(null);
+
+  // 'auto' → already signed in? proceed : offer choice sheet. 'guest'/'google'
+  // run their flow directly (used by the inline prompt buttons too).
+  const ensureIdentity = async (
+    mode: 'google' | 'guest' | 'auto' = 'auto'
+  ): Promise<boolean> => {
+    if (mode === 'auto') {
+      const existing =
+        queryClient.getQueryData<FeedData>(['updatesFeed'])?.userId ?? null;
+      if (existing) return true;
+      setError(null);
+      return new Promise<boolean>((resolve) => {
+        authChoiceResolver.current = resolve;
+        setAuthChoiceOpen(true);
+      });
+    }
     setError(null);
+    if (mode === 'guest') {
+      try {
+        await signInAsGuest();
+        void queryClient.invalidateQueries({ queryKey: ['updatesFeed'] });
+        return true;
+      } catch (err) {
+        setError(messageOf(err));
+        return false;
+      }
+    }
     try {
       const uid = await signInWithGoogle();
       if (!uid) return false;
-      /*
-       * sync the profile row's avatar before invalidating, so the refetch
-       * pulls the fresh one (else composer keeps the null/generic fallback
-       * until the next unrelated invalidation)
-       */
+      // sync profile avatar before invalidating, else the composer keeps the
+      // generic fallback until the next unrelated refetch
       await syncProfileAvatar();
       const existing = await fetchUsername(uid);
       if (existing) {
@@ -693,6 +777,26 @@ function UpdatesScreen({
       setError(messageOf(err));
       return false;
     }
+  };
+
+  const onAuthChoicePick = (mode: 'google' | 'guest') => {
+    const resolve = authChoiceResolver.current;
+    authChoiceResolver.current = null;
+    setAuthChoiceOpen(false);
+    // prompt-only opens (first-run gate) have no caller awaiting — still run
+    // the chosen flow, just don't resolve anything
+    setAuthBusy(true);
+    void ensureIdentity(mode)
+      .then((ok) => resolve?.(ok))
+      .finally(() => {
+        setAuthBusy(false);
+      });
+  };
+
+  const onAuthChoiceClose = () => {
+    setAuthChoiceOpen(false);
+    authChoiceResolver.current?.(false);
+    authChoiceResolver.current = null;
   };
 
   const onUsernameSaved = (username: string, savedId: string) => {
@@ -739,7 +843,7 @@ function UpdatesScreen({
   };
 
   const onReact = async (update: Update, emoji: string) => {
-    if (!(await ensureUsername())) return;
+    if (!(await ensureIdentity())) return;
     const uid =
       queryClient.getQueryData<FeedData>(['updatesFeed'])?.userId ?? null;
     if (uid) doReact(update.id, emoji, uid);
@@ -938,7 +1042,7 @@ function UpdatesScreen({
           tallies={summarizeReactions(reactionRows, postUpdate.id, userId)}
           myName={myName}
           myAvatar={myAvatar}
-          ensureUsername={ensureUsername}
+          ensureIdentity={ensureIdentity}
           focusCommentId={focusComment}
           onReact={(emoji) => void onReact(postUpdate, emoji)}
           onClose={closePost}
@@ -996,6 +1100,13 @@ function UpdatesScreen({
         suggestion={nameSuggestion}
         onClose={onUsernameClose}
         onSaved={onUsernameSaved}
+      />
+      <AuthChoiceSheet
+        open={authChoiceOpen}
+        busy={authBusy}
+        onGoogle={() => onAuthChoicePick('google')}
+        onGuest={() => onAuthChoicePick('guest')}
+        onClose={onAuthChoiceClose}
       />
     </Animated.View>
   );

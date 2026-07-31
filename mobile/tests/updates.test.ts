@@ -6,9 +6,49 @@ import {
   summarizeReactions,
   planReactionToggle,
   relativeTime,
+  generateGuestName,
+  isGuestName,
+  displayName,
   REACTION_EMOJIS,
   type ReactionRow,
 } from '../src/lib/social/updates.logic';
+
+describe('guest name helpers', () => {
+  it('generates word-safe handles of 3-20 chars', () => {
+    const name = generateGuestName();
+    expect(name).toMatch(/^anonymous\d{5}$/u);
+    expect(name.length).toBeGreaterThanOrEqual(3);
+    expect(name.length).toBeLessThanOrEqual(20);
+  });
+
+  it('generates distinct names across calls', () => {
+    const seen = new Set(
+      Array.from({ length: 100 }, () => generateGuestName())
+    );
+    expect(seen.size).toBe(100);
+  });
+
+  it.each([
+    ['anonymous30584', true],
+    ['anonymous99999', true],
+    ['anonymous1234', false],
+    ['anonymous123456', false],
+    ['bob', false],
+    [null, false],
+    [undefined, false],
+  ])('isGuestName(%s) -> %s', (input, expected) => {
+    expect(isGuestName(input)).toBe(expected);
+  });
+
+  it('prettifies guest handles for display', () => {
+    expect(displayName('anonymous30584')).toBe('Anonymous 30584');
+  });
+
+  it('leaves regular handles untouched', () => {
+    expect(displayName('alice')).toBe('alice');
+    expect(displayName(null)).toBe('Guest');
+  });
+});
 
 describe('validateUsername', () => {
   it.each([

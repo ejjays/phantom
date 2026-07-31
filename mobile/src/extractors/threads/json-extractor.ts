@@ -3,7 +3,6 @@ import { ThreadsRawFormat, ThreadsParsed } from './types';
 
 type Obj = Record<string, unknown>;
 
-// no id here; parser adds it
 type ThreadsJsonResult = Omit<ThreadsParsed, 'id'>;
 
 const str = (value: unknown): string | undefined =>
@@ -12,7 +11,6 @@ const str = (value: unknown): string | undefined =>
 const num = (value: unknown): number | undefined =>
   typeof value === 'number' ? value : undefined;
 
-// walk every object node in parsed json
 function walk(node: unknown, visit: (obj: Obj) => void): void {
   if (!node || typeof node !== 'object') return;
   if (Array.isArray(node)) {
@@ -23,7 +21,6 @@ function walk(node: unknown, visit: (obj: Obj) => void): void {
   for (const value of Object.values(node)) walk(value, visit);
 }
 
-// highest-resolution entry from a versions array
 function bestVideo(
   versions: unknown
 ): { url: string; width?: number; height?: number } | null {
@@ -61,7 +58,6 @@ function captionText(value: unknown): string | undefined {
   return str(value);
 }
 
-// pull uri from {image:{uri}} or {uri} node
 function nestedUri(value: unknown): string | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const node = value as Obj;
@@ -109,11 +105,9 @@ export function extractFromJson(html: string): ThreadsJsonResult | null {
       continue;
     }
     walk(data, (obj) => {
-      // ig/threads adaptive media
       const video = bestVideo(obj.video_versions);
       if (video) addVideo(video.url, 'hd', video.width, video.height);
 
-      // fb-style direct urls; dims co-located on node
       const dimW = num(obj.original_width);
       const dimH = num(obj.original_height);
       addVideo(
@@ -143,7 +137,6 @@ export function extractFromJson(html: string): ThreadsJsonResult | null {
         if (!thumbnail) thumbnail = image;
         if (!photos.includes(image)) photos.push(image);
       }
-      // fb-style poster for video posts
       if (!thumbnail) {
         thumbnail =
           nestedUri(obj.preferred_thumbnail) ??

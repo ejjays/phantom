@@ -74,6 +74,27 @@ export function suggestUsernameFrom(name: string | null): string {
   return base.length >= USERNAME_MIN ? base : '';
 }
 
+// guests get an auto handle `anonymous` + 5 digits: unique, \w-safe for
+// mentions, and prettifiable to "Anonymous 30584" for display only.
+const GUEST_PATTERN = /^anonymous\d{5}$/u;
+
+export function generateGuestName(): string {
+  return `anonymous${Math.floor(10000 + Math.random() * 90000)}`;
+}
+
+export function isGuestName(
+  username: string | null | undefined
+): username is string {
+  return typeof username === 'string' && GUEST_PATTERN.test(username);
+}
+
+export function displayName(username: string | null | undefined): string {
+  if (isGuestName(username)) {
+    return `Anonymous ${username.slice('anonymous'.length)}`;
+  }
+  return username ?? 'Guest';
+}
+
 export function validateComment(
   raw: string,
   hasAttachment = false

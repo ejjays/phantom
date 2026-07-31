@@ -25,7 +25,7 @@ import Animated, {
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
-import { ChevronRight, Check } from 'lucide-react-native';
+import { ChevronRight, Check, Ghost } from 'lucide-react-native';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
@@ -91,6 +91,8 @@ import {
   setPresetAvatar,
   getSocialNotify,
   setSocialNotify,
+  signInAsGuest,
+  displayName,
   messageOf,
   type Account,
 } from '../lib/social/updates';
@@ -373,6 +375,122 @@ function LinkRow(props: {
   );
 }
 
+function AccountCard({
+  account,
+  onPress,
+}: {
+  account: Account;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Manage account"
+      android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
+    >
+      <Card>
+        <View style={tw`flex-row items-center p-4`}>
+          <View>
+            <Avatar
+              name={displayName(account.username ?? account.name ?? 'G')}
+              uri={account.avatarUrl}
+              size={52}
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: -4,
+                left: -4,
+                right: -4,
+                bottom: -4,
+                borderRadius: 999,
+                borderWidth: 2,
+                borderColor: CYAN,
+              }}
+            />
+          </View>
+          <View style={tw`ml-3.5 flex-1`}>
+            <Text
+              numberOfLines={1}
+              style={tw`font-sans-semibold text-[16px] text-white`}
+            >
+              {account.isGuest
+                ? displayName(account.username)
+                : account.username
+                  ? `@${account.username}`
+                  : 'Finish setup'}
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={tw`mt-0.5 font-sans text-[12px] text-slate-500`}
+            >
+              {account.isGuest
+                ? 'Guest — link Google to keep your reactions'
+                : (account.email ?? 'Tap to manage your account')}
+            </Text>
+          </View>
+          <ChevronRight size={20} color="#475569" />
+        </View>
+      </Card>
+    </Pressable>
+  );
+}
+
+function SignInCard({
+  signingIn,
+  onGoogle,
+  onGuest,
+}: {
+  signingIn: boolean;
+  onGoogle: () => void;
+  onGuest: () => void;
+}) {
+  return (
+    <View>
+      <Pressable
+        onPress={onGuest}
+        disabled={signingIn}
+        accessibilityRole="button"
+        accessibilityLabel="Continue as Anonymous"
+        style={({ pressed }) => [
+          tw`flex-row items-center justify-center rounded-full border border-white/15 bg-white/5 py-3.5`,
+          pressed ? { transform: [{ scale: 0.98 }] } : null,
+        ]}
+      >
+        {signingIn ? (
+          <ActivityIndicator color={CYAN} />
+        ) : (
+          <Ghost size={18} color="#cbd5e1" strokeWidth={2} />
+        )}
+        <Text style={tw`ml-3 font-sans-semibold text-[15px] text-slate-100`}>
+          Continue as Anonymous
+        </Text>
+      </Pressable>
+      <Pressable
+        onPress={onGoogle}
+        disabled={signingIn}
+        accessibilityRole="button"
+        accessibilityLabel="Sign in with Google"
+        style={({ pressed }) => [
+          tw`mt-2 flex-row items-center justify-center rounded-full bg-white py-3.5`,
+          pressed ? { transform: [{ scale: 0.98 }] } : null,
+        ]}
+      >
+        {signingIn ? (
+          <ActivityIndicator color={CYAN} />
+        ) : (
+          <GoogleIcon size={18} />
+        )}
+        <Text style={tw`ml-3 font-sans-semibold text-[15px] text-[#1f1f1f]`}>
+          Sign in with Google
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function SettingsScreen({
   visible,
   onFullScreen,
@@ -508,6 +626,16 @@ function SettingsScreen({
       unsub();
     };
   }, []);
+
+  const wasVisible = useRef(visible);
+  useEffect(() => {
+    if (visible && !wasVisible.current && isSupabaseConfigured) {
+      getAccount()
+        .then((acc) => setAccount(acc))
+        .catch(() => undefined);
+    }
+    wasVisible.current = visible;
+  }, [visible]);
 
   useEffect(() => {
     if (account?.username) {
@@ -650,6 +778,22 @@ function SettingsScreen({
     }
   };
 
+  const handleGuestSignIn = async () => {
+    tapSelection();
+    setAuthError(null);
+    setSigningIn(true);
+    try {
+      await signInAsGuest();
+      const acc = await getAccount();
+      setAccount(acc);
+      tapSuccess();
+    } catch (err) {
+      setAuthError(messageOf(err));
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
   const saveName = async () => {
     const check = validateUsername(nameValue);
     if (!check.ok) {
@@ -714,92 +858,34 @@ function SettingsScreen({
               {!authReady ? (
                 <AccountSkeleton />
               ) : account ? (
-                <Pressable
+                <AccountCard
+                  account={account}
                   onPress={() => {
                     tapSelection();
                     setNameValue(account?.username ?? '');
                     setNameError(null);
                     accountScreen.setOpen(true);
                   }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Manage account"
-                  android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
-                >
-                  <Card>
-                    <View style={tw`flex-row items-center p-4`}>
-                      <View>
-                        <Avatar
-                          name={account.username ?? account.name ?? 'G'}
-                          uri={account.avatarUrl}
-                          size={52}
-                        />
-                        <View
-                          pointerEvents="none"
-                          style={{
-                            position: 'absolute',
-                            top: -4,
-                            left: -4,
-                            right: -4,
-                            bottom: -4,
-                            borderRadius: 999,
-                            borderWidth: 2,
-                            borderColor: CYAN,
-                          }}
-                        />
-                      </View>
-                      <View style={tw`ml-3.5 flex-1`}>
-                        <Text
-                          numberOfLines={1}
-                          style={tw`font-sans-semibold text-[16px] text-white`}
-                        >
-                          {account.username
-                            ? `@${account.username}`
-                            : 'Finish setup'}
-                        </Text>
-                        <Text
-                          numberOfLines={1}
-                          style={tw`mt-0.5 font-sans text-[12px] text-slate-500`}
-                        >
-                          {account.email ?? 'Tap to manage your account'}
-                        </Text>
-                      </View>
-                      <ChevronRight size={20} color="#475569" />
-                    </View>
-                  </Card>
-                </Pressable>
+                />
               ) : (
-                <Card>
-                  <Pressable
-                    onPress={() => void handleSignIn()}
-                    disabled={signingIn}
-                    accessibilityRole="button"
-                    accessibilityLabel="Sign in with Google"
-                    android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
-                  >
-                    <RowShell
-                      Icon={GoogleIcon}
-                      label="Sign in with Google"
-                      hint={
-                        signingIn
-                          ? 'Signing in…'
-                          : 'React and comment on updates'
-                      }
-                      last
-                      tile={false}
-                      iconSize={22}
-                    >
-                      {signingIn ? (
-                        <ActivityIndicator color={CYAN} />
-                      ) : (
-                        <ChevronRight size={18} color="#475569" />
-                      )}
-                    </RowShell>
-                  </Pressable>
-                </Card>
+                <SignInCard
+                  signingIn={signingIn}
+                  onGoogle={() => void handleSignIn()}
+                  onGuest={() => void handleGuestSignIn()}
+                />
               )}
               {authError ? (
                 <Text style={tw`ml-1 mt-2 font-sans text-[12px] text-red-400`}>
                   {authError}
+                </Text>
+              ) : null}
+              {!account ? (
+                <Text
+                  style={tw`ml-1 mt-2 font-sans text-[12px] leading-5 text-slate-500`}
+                >
+                  <Text style={tw`font-sans-bold text-cyan-400`}>Note: </Text>
+                  Sign-in is only for reactions and comments in Updates tab —
+                  it&apos;s not used in the actual downloads.
                 </Text>
               ) : null}
             </>
@@ -934,6 +1020,7 @@ function SettingsScreen({
             }}
             onSignOut={() => setSignOutOpen(true)}
             onEditAvatar={openAvatarPicker}
+            onLinkGoogle={() => void handleSignIn()}
           />
         )}
       </Animated.View>

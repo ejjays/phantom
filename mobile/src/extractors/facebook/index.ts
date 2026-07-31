@@ -22,10 +22,8 @@ export async function getInfo(
     let videoInfo = normalizeVideoInfo(targetUrl, parsedData);
     if (!videoInfo) throw noVideo('Facebook');
 
-    // paint picker skeleton now; formats + sizes land on the full pass
     onPartial?.(buildVideoInfo({ ...videoInfo, formats: [], isPartial: true }));
 
-    // recover title if still generic
     for (
       let attempt = 0;
       attempt < 1 && videoInfo.title === videoInfo.uploader;

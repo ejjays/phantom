@@ -3,8 +3,6 @@ import { getInfo as youtubeGetInfo } from './index';
 import { searchViaWebView, type YtSearchResult } from './bridge';
 import { buildVideoInfo } from '../videoInfo';
 
-// a platform-agnostic track identity, enough to find the same recording
-// on youtube and re-label the extracted audio with the source metadata.
 export interface IsrcMatchMeta {
   id: string;
   title: string;
@@ -16,7 +14,6 @@ export interface IsrcMatchMeta {
   previewUrl?: string;
 }
 
-// auto-generated youtube music uploads; their audio 403s on some networks
 export function isTopicChannel(author?: string): boolean {
   return (author ?? '').toLowerCase().trim().endsWith('- topic');
 }
@@ -46,7 +43,6 @@ export function pickBest(
       };
     })
     .sort((lhs, rhs) => {
-      // prefer downloadable regular uploads over topic art tracks
       if (lhs.topic !== rhs.topic) return lhs.topic ? 1 : -1;
       if (lhs.artistMatch !== rhs.artistMatch) return lhs.artistMatch ? -1 : 1;
       return lhs.durDiff - rhs.durDiff;
@@ -56,9 +52,9 @@ export function pickBest(
 }
 
 /**
- * find the matching youtube video for a track. `preferUrl` short-circuits
+ * Find the matching youtube video for a track. `preferUrl` short-circuits
  * with a known-good mapping (e.g. odesli). otherwise search by
- * "artist title", and only reach for the isrc when the title search turned
+ * "artist title", & only reach for the isrc when the title search turned
  * up no regular (non-topic) upload — isrc nails the exact recording but is
  * usually a "- topic" art track whose audio 403s on some networks.
  */
@@ -82,7 +78,6 @@ export async function resolveViaYoutube(
   return best ? `https://www.youtube.com/watch?v=${best.id}` : null;
 }
 
-// the partial paint for the picker: source metadata, formats pending
 export function partialFromMeta(
   meta: IsrcMatchMeta,
   webpageUrl: string,

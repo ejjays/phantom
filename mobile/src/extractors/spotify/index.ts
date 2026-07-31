@@ -1,7 +1,7 @@
 import { VideoInfo, ExtractorError } from '../types';
 import { resolveViaYoutube, buildFromYoutube } from '../youtube/isrcMatch';
 
-// re-exported for callers/tests that predate the shared isrcMatch module
+// reexported for callers/tests that predate the shared isrcMatch module
 export { pickBest, isTopicChannel } from '../youtube/isrcMatch';
 import {
   parseTrackId,
@@ -107,7 +107,6 @@ async function firstPaintMeta(
   }
 }
 
-// prefer odesli's known-good mapping, else match on youtube by title/isrc
 function resolveVideoUrl(
   odesliYoutube: string | undefined,
   meta: Meta
@@ -126,7 +125,6 @@ function buildResult(
   return buildFromYoutube(meta, url, videoUrl, 'spotify', fromBrain);
 }
 
-// first non-empty value from a source list; keeps mergeMeta's complexity in check
 const firstOf = <T>(...values: (T | undefined | null)[]): T | undefined =>
   values.find((value): value is T => Boolean(value));
 
@@ -173,7 +171,6 @@ async function resolveFromRegistry(
   try {
     return await buildResult(meta, url, cached.youtubeUrl, true);
   } catch {
-    // stale/blocked mapping -> fall through to fresh resolve
     return null;
   }
 }
@@ -187,7 +184,6 @@ export async function getInfo(
   const cleanUrl = url.split('?')[0];
 
   try {
-    // registry-first: a known mapping skips the resolution race
     const fromRegistry = await resolveFromRegistry(
       trackId,
       url,
@@ -200,7 +196,6 @@ export async function getInfo(
     const spotifyP = fetchSpotifyTrack(trackId);
     const odesliP = fetchOdesli(trackId);
 
-    // paint the picker from whichever source lands first
     let painted = false;
     if (onPartial) {
       void firstPaintMeta(trackId, embedP, spotifyP, odesliP).then((early) => {

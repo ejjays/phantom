@@ -52,6 +52,7 @@ import {
   Pause,
   X,
   Plus,
+  Ghost,
 } from 'lucide-react-native';
 import {
   HeartIcon,
@@ -99,6 +100,8 @@ import {
   validateComment,
   relativeTime,
   messageOf,
+  displayName,
+  isGuestName,
   type UpdateComment,
 } from '../../lib/social/updates';
 
@@ -603,6 +606,10 @@ const CommentRow = memo(function CommentRow({
   const handle = comment.username.startsWith('@')
     ? comment.username
     : `@${comment.username}`;
+  // guests display "Anonymous 30584"; their raw handle stays for mentions
+  const label = isGuestName(comment.username)
+    ? displayName(comment.username)
+    : handle;
   const rowRef = useRef<View>(null);
   const ringStyle = useAnimatedStyle(() => ({
     opacity: withTiming(expanded ? 1 : 0, { duration: 220 }),
@@ -611,7 +618,11 @@ const CommentRow = memo(function CommentRow({
     <View ref={rowRef} style={tw`flex-row`}>
       <View style={tw`items-center`}>
         <View>
-          <Avatar name={comment.username} size={42} uri={comment.avatarUrl} />
+          <Avatar
+            name={displayName(comment.username)}
+            size={42}
+            uri={comment.avatarUrl}
+          />
           {expanded ? (
             <Animated.View
               pointerEvents="none"
@@ -643,7 +654,7 @@ const CommentRow = memo(function CommentRow({
       <View style={tw`ml-3 flex-1`}>
         <View style={tw`flex-row items-center`}>
           <Text style={tw`font-sans-semibold text-[15px] text-white`}>
-            {handle}
+            {label}
           </Text>
           {comment.creator ? <CreatorBadge /> : null}
           <Text style={tw`ml-2 font-sans text-[13px] text-slate-500`}>
@@ -721,6 +732,9 @@ const ReplyRow = memo(function ReplyRow({
   const handle = comment.username.startsWith('@')
     ? comment.username
     : `@${comment.username}`;
+  const label = isGuestName(comment.username)
+    ? displayName(comment.username)
+    : handle;
   const lineGrow = useSharedValue(highlighted ? 0 : 1);
   useEffect(() => {
     if (!highlighted) return;
@@ -751,11 +765,15 @@ const ReplyRow = memo(function ReplyRow({
         <ThreadCurve top={24} style={curveStyle} />
       </View>
       <View style={tw`flex-1 flex-row pt-6`}>
-        <Avatar name={comment.username} size={30} uri={comment.avatarUrl} />
+        <Avatar
+          name={displayName(comment.username)}
+          size={30}
+          uri={comment.avatarUrl}
+        />
         <View style={tw`ml-2.5 flex-1`}>
           <View style={tw`flex-row items-center`}>
             <Text style={tw`font-sans-semibold text-[14px] text-white`}>
-              {handle}
+              {label}
             </Text>
             {comment.creator ? <CreatorBadge /> : null}
             <Text style={tw`ml-2 font-sans text-[12px] text-slate-500`}>
@@ -818,7 +836,7 @@ export default function CommentsPanel({
   visible,
   myName,
   myAvatar,
-  ensureUsername,
+  ensureIdentity,
   onBack,
   focusCommentId,
   header,
@@ -831,7 +849,7 @@ export default function CommentsPanel({
   visible: boolean;
   myName: string | null;
   myAvatar: string | null;
-  ensureUsername: () => Promise<boolean>;
+  ensureIdentity: (mode?: 'google' | 'guest' | 'auto') => Promise<boolean>;
   onBack: () => void;
   focusCommentId?: string | null;
   header?: ReactNode;
@@ -1078,7 +1096,7 @@ export default function CommentsPanel({
       setError(check.error);
       return;
     }
-    if (!(await ensureUsername())) return;
+    if (!(await ensureIdentity())) return;
     setError(null);
     tapSuccess();
     Keyboard.dismiss();
@@ -1183,7 +1201,7 @@ export default function CommentsPanel({
 
   const toggleLike = useCallback(
     async (comment: UpdateComment) => {
-      if (!(await ensureUsername())) return;
+      if (!(await ensureIdentity())) return;
       tapSelection();
       const next = !comment.liked;
       setComments((prev) =>
@@ -1208,7 +1226,7 @@ export default function CommentsPanel({
         setError(messageOf(err));
       });
     },
-    [ensureUsername]
+    [ensureIdentity]
   );
 
   const toggleReplies = useCallback((rootId: string) => {
@@ -1751,7 +1769,7 @@ export default function CommentsPanel({
                   },
                 ]}
               >
-                <Avatar name={myName} size={34} uri={myAvatar} />
+                <Avatar name={displayName(myName)} size={34} uri={myAvatar} />
                 <View style={tw`mx-3 flex-1`}>
                   <TextInput
                     ref={inputRef}
@@ -1817,24 +1835,47 @@ export default function CommentsPanel({
           ) : (
             <View style={tw`mb-1`}>
               <Text
-                style={tw`mb-2.5 text-center font-sans text-[13px] text-slate-400`}
+                style={tw`mb-3 text-center font-sans text-[13px] text-slate-400`}
               >
-                Sign in to join the conversation
+                Choose option to join conversation
               </Text>
               <Pressable
-                onPress={() => void ensureUsername()}
+                onPress={() => void ensureIdentity('guest')}
                 style={({ pressed }) => [
-                  tw`flex-row items-center justify-center rounded-full bg-white py-3.5`,
+                  tw`flex-row items-center justify-center rounded-full border border-white/15 bg-white/5 py-4`,
                   pressed ? { transform: [{ scale: 0.98 }] } : null,
                 ]}
               >
-                <GoogleIcon size={18} />
+                <Ghost size={16} color="#cbd5e1" strokeWidth={2} />
                 <Text
-                  style={tw`ml-3 font-sans-semibold text-[15px] text-[#1f1f1f]`}
+                  numberOfLines={1}
+                  style={tw`ml-2 font-sans-semibold text-[13px] text-slate-100`}
+                >
+                  Continue as Anonymous
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void ensureIdentity('google')}
+                style={({ pressed }) => [
+                  tw`mt-2 flex-row items-center justify-center rounded-full bg-white py-4`,
+                  pressed ? { transform: [{ scale: 0.98 }] } : null,
+                ]}
+              >
+                <GoogleIcon size={16} />
+                <Text
+                  numberOfLines={1}
+                  style={tw`ml-2 font-sans-bold text-[13px] text-[#1f1f1f]`}
                 >
                   Sign in with Google
                 </Text>
               </Pressable>
+              <Text
+                style={tw`mt-3 text-center font-sans text-[11px] leading-4 text-slate-500`}
+              >
+                <Text style={tw`font-sans-bold text-cyan-400`}>Note: </Text>
+                Sign-in is only for reactions and comments here — it&apos;s not
+                used in the actual downloads.
+              </Text>
             </View>
           )}
         </View>

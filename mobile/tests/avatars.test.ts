@@ -5,6 +5,7 @@ import {
   isPresetMarker,
   presetIdOf,
 } from '../src/lib/avatars.logic';
+import { randomPresetMarker, AVATAR_CATEGORIES } from '../src/lib/avatars';
 
 describe('avatar preset markers', () => {
   it('round-trips an id through marker and back', () => {
@@ -28,5 +29,19 @@ describe('avatar preset markers', () => {
 
   it('exposes the marker prefix', () => {
     expect(PRESET_PREFIX).toBe('preset:');
+  });
+});
+
+describe('randomPresetMarker', () => {
+  const ids = AVATAR_CATEGORIES.flatMap((cat) =>
+    cat.avatars.map((avatar) => avatar.id)
+  );
+
+  it('returns a marker for a real preset id', () => {
+    for (let i = 0; i < 50; i++) {
+      const marker = randomPresetMarker();
+      expect(marker.startsWith('preset:')).toBe(true);
+      expect(ids).toContain(presetIdOf(marker));
+    }
   });
 });

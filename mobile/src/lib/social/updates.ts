@@ -1,8 +1,10 @@
 import type { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { isPresetMarker, presetMarker } from '../avatars.logic';
+import { randomPresetMarker } from '../avatars';
 import {
   planReactionToggle,
+  generateGuestName,
   type Update,
   type UpdateCategory,
   type UpdateComment,
@@ -16,6 +18,9 @@ export {
   validateUsername,
   validateComment,
   suggestUsernameFrom,
+  generateGuestName,
+  isGuestName,
+  displayName,
   relativeTime,
   messageOf,
   type Update,
@@ -80,12 +85,56 @@ export async function getExistingUserId(): Promise<string | null> {
   return data.session?.user.id ?? null;
 }
 
-// no anonymous fallback — writes gate behind google sign-in upstream, so a session exists here
+// guest = anonymous session + auto profile row (generated unique username),
+// so reactions/comments/device_tokens FKs never trip a write. stale sessions
+// (created before the profile upsert finished, or a failed first setup) get
+// repaired on any write.
 export async function ensureSession(): Promise<string> {
   const { data } = await client().auth.getSession();
   const user = data.session?.user;
-  if (!user || user.is_anonymous) throw new Error('Not signed in');
+  if (!user) return signInAsGuest();
+  if (user.is_anonymous) await ensureGuestProfile(user.id);
   return user.id;
+}
+
+export async function signInAsGuest(): Promise<string> {
+  const { data, error } = await client().auth.signInAnonymously();
+  if (error) throw error;
+  const userId = data.user?.id;
+  if (!userId) throw new Error('Anonymous sign-in returned no user');
+  await ensureGuestProfile(userId);
+  return userId;
+}
+
+// idempotent: only creates the row when missing, so a stale session never
+// regenerates (and clobbers) an existing guest name.
+export async function ensureGuestProfile(userId: string): Promise<void> {
+  const { data, error: readError } = await client()
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+  if (readError) throw readError;
+  if (data) return;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { error } = await client().from('profiles').upsert({
+      id: userId,
+      username: generateGuestName(),
+      avatar_url: randomPresetMarker(),
+    });
+    if (!error) return;
+    if (error.code === '23505') continue;
+    throw error;
+  }
+  throw new Error('Could not pick an anonymous handle');
+}
+
+// repairs the profile before flows that hit the profiles FK (e.g. push token
+// upsert); no-op for google/other users.
+export async function ensureGuestReady(userId: string): Promise<void> {
+  const { data } = await client().auth.getSession();
+  if (!data.session?.user?.is_anonymous) return;
+  await ensureGuestProfile(userId);
 }
 
 export async function fetchUsername(userId: string): Promise<string | null> {
@@ -115,7 +164,7 @@ export async function fetchProfile(
 
 export async function setUsername(username: string): Promise<string> {
   const userId = await ensureSession();
-  const avatar_url = await getMyAvatarUrl();
+  const avatar_url = randomPresetMarker();
   const { error } = await client()
     .from('profiles')
     .upsert({ id: userId, username, avatar_url });
@@ -129,14 +178,25 @@ export type Account = {
   name: string | null;
   email: string | null;
   avatarUrl: string | null;
+  isGuest: boolean;
 };
 
 export async function getAccount(): Promise<Account | null> {
   if (!isSupabaseConfigured) return null;
   const { data } = await client().auth.getSession();
   const user = data.session?.user;
-  if (!user || user.is_anonymous) return null;
+  if (!user) return null;
   const profile = await fetchProfile(user.id);
+  if (user.is_anonymous) {
+    return {
+      userId: user.id,
+      username: profile?.username ?? null,
+      name: null,
+      email: null,
+      avatarUrl: profile?.avatarUrl ?? null,
+      isGuest: true,
+    };
+  }
   const google = googleFieldsOf(user);
   return {
     userId: user.id,
@@ -144,6 +204,7 @@ export async function getAccount(): Promise<Account | null> {
     name: google.name,
     email: google.email,
     avatarUrl: profile?.avatarUrl ?? google.avatarUrl,
+    isGuest: false,
   };
 }
 
@@ -151,7 +212,12 @@ export async function getMyAvatarUrl(): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   const { data } = await client().auth.getSession();
   const user = data.session?.user;
-  if (!user || user.is_anonymous) return null;
+  if (!user) return null;
+  if (user.is_anonymous) {
+    // guest avatar lives in the profile row (presets); google avatar n/a
+    const profile = await fetchProfile(user.id);
+    return profile?.avatarUrl ?? null;
+  }
   return googleFieldsOf(user).avatarUrl;
 }
 

@@ -60,7 +60,6 @@ export function normalizeVideoInfo(
     isFullData: false,
   };
 
-  // make caption authoritative over og:title
   if (parsedData.title) {
     info.metascraper = { title: parsedData.title };
   }

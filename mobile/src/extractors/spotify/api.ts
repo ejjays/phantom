@@ -146,7 +146,6 @@ function scriptJson(html: string, id: string): unknown {
   }
 }
 
-// credential-free metadata from the embed page json
 export function parseEmbedHtml(html: string): SpotifyEmbed | null {
   const next = scriptJson(html, '__NEXT_DATA__') as {
     props?: { pageProps?: { state?: { data?: { entity?: EmbedEntity } } } };

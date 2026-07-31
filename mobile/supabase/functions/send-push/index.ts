@@ -1,18 +1,18 @@
 /*
-* send-push — invoked by Supabase Database Webhooks on INSERT into comments,
-* comment_likes and updates. resolves who to notify, writes in-app inbox rows,
-* and sends FCM v1 pushes (per-token for personal events, one topic broadcast
-* for new updates). service-account secret lives only in Edge Function secrets.
-*
-* setup (one-time):
-*   1. supabase functions deploy send-push  (Verify JWT OFF — auth is the shared secret checked below)
-*   2. set secrets: FCM_PROJECT_ID, FCM_CLIENT_EMAIL, FCM_PRIVATE_KEY (paste the
-* service account private_key verbatim — \n escapes are handled),
-* PUSH_WEBHOOK_SECRET (any long random string)
-*   3. dashboard -> Database -> Webhooks -> create 3 webhooks (INSERT) on
-*  public.comments, public.comment_likes, public.updates, each POSTing to
-*  the function URL with header  x-webhook-secret: <PUSH_WEBHOOK_SECRET>
-*/
+ * send-push — invoked by Supabase Database Webhooks on INSERT into comments,
+ * comment_likes and updates. resolves who to notify, writes in-app inbox rows,
+ * and sends FCM v1 pushes (per-token for personal events, one topic broadcast
+ * for new updates). service-account secret lives only in Edge Function secrets.
+ *
+ * setup (one-time):
+ *   1. supabase functions deploy send-push  (Verify JWT OFF — auth is the shared secret checked below)
+ *   2. set secrets: FCM_PROJECT_ID, FCM_CLIENT_EMAIL, FCM_PRIVATE_KEY (paste the
+ * service account private_key verbatim — \n escapes are handled),
+ * PUSH_WEBHOOK_SECRET (any long random string)
+ *   3. dashboard -> Database -> Webhooks -> create 3 webhooks (INSERT) on
+ *  public.comments, public.comment_likes, public.updates, each POSTing to
+ *  the function URL with header  x-webhook-secret: <PUSH_WEBHOOK_SECRET>
+ */
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { buildNotifyKitPayload } from 'npm:react-native-notify-kit@10.4.6/server';
 import {
@@ -243,7 +243,7 @@ async function handleComment(
 
   await dispatch(sb, sa, recipients, {
     actorId: record.user_id,
-    actorName: actor.username,
+    actorName: actor.username ?? 'Anonymous',
     actorAvatar: actor.avatar_url,
     updateId: record.update_id,
     commentId: record.id,
@@ -287,7 +287,7 @@ async function handleLike(
 
   await dispatch(sb, sa, recipients, {
     actorId: record.user_id,
-    actorName: actor.username,
+    actorName: actor.username ?? 'Anonymous',
     actorAvatar: actor.avatar_url,
     updateId: row.update_id,
     commentId: record.comment_id,

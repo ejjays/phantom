@@ -9,9 +9,9 @@
 --        EXPO_PUBLIC_SUPABASE_ANON_KEY=...
 --   5. add new changelog rows from table editor -> updates
 --
--- identity: google sign-in only. profiles.username is the public display label.
--- reactions/comments/likes reference profiles(id), and the insert policies below
--- reject anonymous sessions — a real google account + username is required to write.
+-- identity: google sign-in or anonymous guest (auto-generated username like
+-- anonymous30584). reactions/comments/likes reference profiles(id); guests get
+-- a profile row on first sign-in, so every write has a valid user_id.
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
@@ -95,10 +95,7 @@ create policy profiles_read on public.profiles
 
 drop policy if exists profiles_insert_own on public.profiles;
 create policy profiles_insert_own on public.profiles
-  for insert with check (
-    auth.uid() = id
-    and coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) = false
-  );
+  for insert with check (auth.uid() = id);
 
 drop policy if exists profiles_update_own on public.profiles;
 create policy profiles_update_own on public.profiles
@@ -114,10 +111,7 @@ create policy reactions_read on public.reactions
 
 drop policy if exists reactions_insert_own on public.reactions;
 create policy reactions_insert_own on public.reactions
-  for insert with check (
-    auth.uid() = user_id
-    and coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) = false
-  );
+  for insert with check (auth.uid() = user_id);
 
 drop policy if exists reactions_delete_own on public.reactions;
 create policy reactions_delete_own on public.reactions
@@ -129,10 +123,7 @@ create policy comments_read on public.comments
 
 drop policy if exists comments_insert_own on public.comments;
 create policy comments_insert_own on public.comments
-  for insert with check (
-    auth.uid() = user_id
-    and coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) = false
-  );
+  for insert with check (auth.uid() = user_id);
 
 drop policy if exists comments_delete_own on public.comments;
 create policy comments_delete_own on public.comments
@@ -161,10 +152,7 @@ create policy comment_likes_read on public.comment_likes
 
 drop policy if exists comment_likes_insert_own on public.comment_likes;
 create policy comment_likes_insert_own on public.comment_likes
-  for insert with check (
-    auth.uid() = user_id
-    and coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) = false
-  );
+  for insert with check (auth.uid() = user_id);
 
 drop policy if exists comment_likes_delete_own on public.comment_likes;
 create policy comment_likes_delete_own on public.comment_likes
@@ -222,10 +210,7 @@ create policy device_tokens_read_own on public.device_tokens
 
 drop policy if exists device_tokens_insert_own on public.device_tokens;
 create policy device_tokens_insert_own on public.device_tokens
-  for insert with check (
-    auth.uid() = user_id
-    and coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) = false
-  );
+  for insert with check (auth.uid() = user_id);
 
 drop policy if exists device_tokens_update_own on public.device_tokens;
 create policy device_tokens_update_own on public.device_tokens

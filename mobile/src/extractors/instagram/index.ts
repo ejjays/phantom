@@ -122,12 +122,9 @@ function randomToken(): string {
 }
 
 async function fetchGraphqlMedia(shortcode: string): Promise<GqlNode | null> {
-  const pageRes = await igFetch(
-    `https://www.instagram.com/p/${shortcode}/`,
-    {
-      headers: PAGE_HEADERS,
-    }
-  );
+  const pageRes = await igFetch(`https://www.instagram.com/p/${shortcode}/`, {
+    headers: PAGE_HEADERS,
+  });
   if (!pageRes.ok) throw fromStatus(pageRes.status, 'Instagram');
   const html = await pageRes.text();
 
@@ -229,12 +226,9 @@ const SESSION_TTL_MS = 10 * 60 * 1000;
 async function getSession(shortcode: string): Promise<IgSession> {
   if (sessionCache && sessionCache.expiry > Date.now()) return sessionCache;
 
-  const pageRes = await igFetch(
-    `https://www.instagram.com/p/${shortcode}/`,
-    {
-      headers: PAGE_HEADERS,
-    }
-  );
+  const pageRes = await igFetch(`https://www.instagram.com/p/${shortcode}/`, {
+    headers: PAGE_HEADERS,
+  });
   if (!pageRes.ok) throw fromStatus(pageRes.status, 'Instagram');
   const html = await pageRes.text();
 
@@ -576,7 +570,6 @@ async function fetchSize(url: string): Promise<number | undefined> {
   }
 }
 
-// fallback cascade: cookie session -> cookieless /api/graphql -> web page graphql
 async function resolveParsed(shortcode: string): Promise<IgParsed> {
   const cookie = getInstagramCookie();
   const resolvers: Array<() => Promise<IgParsed | null>> = [];

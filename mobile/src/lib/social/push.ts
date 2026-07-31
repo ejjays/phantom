@@ -7,7 +7,7 @@ import {
   onMessage,
 } from '@react-native-firebase/messaging';
 import { supabase, isSupabaseConfigured } from './supabase';
-import { getExistingUserId, onAuthChange } from './updates';
+import { getExistingUserId, onAuthChange, ensureGuestReady } from './updates';
 import { warn } from '../log';
 import { displaySocialNotification } from './pushRender';
 import {
@@ -34,6 +34,9 @@ async function currentToken(): Promise<string | null> {
 
 async function upsertToken(userId: string): Promise<void> {
   if (!supabase) return;
+  // device_tokens.user_id → profiles FK; a stale guest session can lack the
+  // row (auth event fires before the profile upsert), so heal it first
+  await ensureGuestReady(userId);
   const token = await currentToken();
   if (!token) return;
   const { error } = await supabase

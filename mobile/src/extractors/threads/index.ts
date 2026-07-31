@@ -27,7 +27,6 @@ export async function getInfo(
 
     if (!videoInfo || videoInfo.formats.length === 0) throw noVideo('Threads');
 
-    // fetch size
     await mapLimit(videoInfo.formats, 2, async (format: Format) => {
       if (!format.url || format.filesize) return;
       const size = await fetchFileSize(format.url);

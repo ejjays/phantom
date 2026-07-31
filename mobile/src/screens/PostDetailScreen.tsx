@@ -225,7 +225,7 @@ export default function PostDetailScreen({
   tallies,
   myName,
   myAvatar,
-  ensureUsername,
+  ensureIdentity,
   onReact,
   onClose,
   focusCommentId,
@@ -234,7 +234,7 @@ export default function PostDetailScreen({
   tallies: ReactionTally[];
   myName: string | null;
   myAvatar: string | null;
-  ensureUsername: () => Promise<boolean>;
+  ensureIdentity: (mode?: 'google' | 'guest' | 'auto') => Promise<boolean>;
   onReact: (emoji: string) => void;
   onClose: () => void;
   focusCommentId?: string | null;
@@ -282,7 +282,7 @@ export default function PostDetailScreen({
         visible
         myName={myName}
         myAvatar={myAvatar}
-        ensureUsername={ensureUsername}
+        ensureIdentity={ensureIdentity}
         onBack={dismiss}
         focusCommentId={focusCommentId}
         barCategory={CATEGORY_LABEL[update.category]}

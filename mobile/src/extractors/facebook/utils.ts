@@ -1,5 +1,4 @@
 import { log } from '../../lib/log';
-// decode numeric + named HTML entities
 export function decodeHtmlEntities(text: string): string {
   return text
     .replace(/&#x([0-9a-fA-F]+);/gu, (_match, hex) =>
@@ -14,7 +13,6 @@ export function decodeHtmlEntities(text: string): string {
     .replace(/&gt;/gu, '>');
 }
 
-// decode js-escaped json-in-html capture
 export function decode(text: string): string {
   try {
     if (text.startsWith('"') && text.endsWith('"')) return JSON.parse(text);

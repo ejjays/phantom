@@ -95,7 +95,6 @@ export function extractFromJson(html: string): FbJsonResult | null {
       },
       haveAll
     );
-    // all fields found — skip remaining, often huge, blocks
     if (haveAll()) break;
   }
 

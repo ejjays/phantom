@@ -12,7 +12,12 @@ import tw from '../lib/tw';
 import Card from './Card';
 import Avatar from './Avatar';
 import KeyboardAvoidingForm from './KeyboardAvoidingForm';
-import { validateUsername, type Account } from '../lib/social/updates';
+import { GoogleIcon } from './icons';
+import {
+  validateUsername,
+  displayName,
+  type Account,
+} from '../lib/social/updates';
 
 const buttonGlow = {
   shadowColor: '#06b6d4',
@@ -100,6 +105,7 @@ export default function AccountPanel({
   onBack,
   onSignOut,
   onEditAvatar,
+  onLinkGoogle,
 }: {
   account: Account | null;
   nameValue: string;
@@ -110,6 +116,7 @@ export default function AccountPanel({
   onBack: () => void;
   onSignOut: () => void;
   onEditAvatar: () => void;
+  onLinkGoogle?: () => void;
 }) {
   const changed = nameValue.trim() !== (account?.username ?? '');
   const canSave = changed && validateUsername(nameValue).ok && !saving;
@@ -132,7 +139,7 @@ export default function AccountPanel({
         <View style={tw`mt-8 items-center`}>
           <Pressable onPress={onEditAvatar} hitSlop={8}>
             <Avatar
-              name={account?.username ?? account?.name ?? 'G'}
+              name={displayName(account?.username ?? account?.name ?? 'G')}
               uri={account?.avatarUrl}
               size={112}
             />
@@ -202,17 +209,41 @@ export default function AccountPanel({
           </LinearGradient>
         </Pressable>
 
-        <Pressable
-          onPress={onSignOut}
-          style={({ pressed }) => [
-            tw`mt-3 items-center rounded-full border border-white/10 bg-white/5 py-4`,
-            pressed ? { transform: [{ scale: 0.98 }] } : null,
-          ]}
-        >
-          <Text style={tw`font-sans-semibold text-[16px] text-red-400`}>
-            Log out
+        {account?.isGuest && onLinkGoogle ? (
+          <Pressable
+            onPress={onLinkGoogle}
+            style={({ pressed }) => [
+              tw`mt-3 flex-row items-center justify-center rounded-full border border-white/15 bg-white/5 py-4`,
+              pressed ? { transform: [{ scale: 0.98 }] } : null,
+            ]}
+          >
+            <GoogleIcon size={18} />
+            <Text style={tw`ml-3 font-sans-semibold text-[16px] text-white`}>
+              Link with Google
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {account?.isGuest ? (
+          <Text
+            style={tw`mt-4 text-center font-sans text-[12px] leading-4 text-slate-500`}
+          >
+            To prevent abuse, anonymous accounts can&apos;t be signed back into
+            — link Google to keep your comments and reactions.
           </Text>
-        </Pressable>
+        ) : (
+          <Pressable
+            onPress={onSignOut}
+            style={({ pressed }) => [
+              tw`mt-3 items-center rounded-full border border-white/10 bg-white/5 py-4`,
+              pressed ? { transform: [{ scale: 0.98 }] } : null,
+            ]}
+          >
+            <Text style={tw`font-sans-semibold text-[16px] text-red-400`}>
+              Log out
+            </Text>
+          </Pressable>
+        )}
       </View>
     </KeyboardAvoidingForm>
   );
