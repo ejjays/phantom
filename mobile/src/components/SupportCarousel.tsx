@@ -9,7 +9,6 @@ import Animated, {
   withTiming,
   withDelay,
   Easing,
-  runOnJS,
   type SharedValue,
 } from 'react-native-reanimated';
 import Carousel, {
@@ -69,17 +68,15 @@ function SupportCardContent({
   onSupport,
   onGithub,
   onSocial,
-  onInteraction,
 }: {
   id: CarouselCardId;
   cardW: number;
   cardHeight?: number;
   starActive: boolean;
-  onInteraction: () => void;
 } & CardHandlers) {
   if (id === 'support') {
     return (
-      <Pressable onPress={onSupport} onPressIn={onInteraction}>
+      <Pressable onPress={onSupport}>
         <HeroLottieCard source={supportBg} minHeight={cardHeight}>
           <Text
             style={[
@@ -109,12 +106,11 @@ function SupportCardContent({
         height={cardHeight}
         links={SOCIAL_LINKS}
         onOpen={onSocial}
-        onInteraction={onInteraction}
       />
     );
   }
   return (
-    <Pressable onPress={onGithub} onPressIn={onInteraction}>
+    <Pressable onPress={onGithub}>
       <HeroLottieCard
         source={githubBg}
         bgColor="#241654"
@@ -173,13 +169,11 @@ function CarouselCardItem({
   onSupport,
   onGithub,
   onSocial,
-  onInteraction,
 }: {
   id: CarouselCardId;
   width: number;
   animationValue: SharedValue<number>;
   starActive: boolean;
-  onInteraction: () => void;
 } & CardHandlers) {
   const cardW = width - 18;
   const fadeStyle = useAnimatedStyle(() => ({
@@ -205,7 +199,6 @@ function CarouselCardItem({
           onSupport={onSupport}
           onGithub={onGithub}
           onSocial={onSocial}
-          onInteraction={onInteraction}
         />
       </View>
     </Animated.View>
@@ -251,14 +244,12 @@ function StackCard({
   onSupport,
   onGithub,
   onSocial,
-  onInteraction,
 }: {
   id: CarouselCardId;
   index: number;
   cardW: number;
   cardHeight: number;
   visible: boolean;
-  onInteraction: () => void;
 } & CardHandlers) {
   const startX = index === 1 ? 40 : -40;
   const progress = useSharedValue(0);
@@ -284,7 +275,6 @@ function StackCard({
         onSupport={onSupport}
         onGithub={onGithub}
         onSocial={onSocial}
-        onInteraction={onInteraction}
       />
     </Animated.View>
   );
@@ -311,30 +301,24 @@ export default function SupportCarousel({
   const carouselRef = useRef<ICarouselInstance>(null);
   const progress = useSharedValue(0);
   const [activeCard, setActiveCard] = useState(0);
-  const [autoPlay, setAutoPlay] = useState(true);
-  const stopAutoplay = useCallback(() => setAutoPlay(false), []);
 
   const handleOpenSupport = useCallback(() => {
-    stopAutoplay();
     onOpenSupport();
-  }, [onOpenSupport, stopAutoplay]);
+  }, [onOpenSupport]);
 
   const handleOpenSource = useCallback(() => {
-    stopAutoplay();
     onOpenSource();
-  }, [onOpenSource, stopAutoplay]);
+  }, [onOpenSource]);
 
   const handleOpenSocial = useCallback(
     (url: string) => {
-      stopAutoplay();
       onOpenSocial(url);
     },
-    [onOpenSocial, stopAutoplay]
+    [onOpenSocial]
   );
 
   const onDotPress = (index: number) => {
     tapSelection();
-    stopAutoplay();
     carouselRef.current?.scrollTo({
       count: index - progress.value,
       animated: true,
@@ -355,7 +339,6 @@ export default function SupportCarousel({
             onSupport={handleOpenSupport}
             onGithub={handleOpenSource}
             onSocial={handleOpenSocial}
-            onInteraction={stopAutoplay}
           />
         ))}
       </View>
@@ -364,52 +347,35 @@ export default function SupportCarousel({
 
   return (
     <View>
-      <View
-        onStartShouldSetResponder={() => {
-          stopAutoplay();
-          return false;
+      <Carousel
+        ref={carouselRef}
+        data={CAROUSEL_DATA}
+        loop
+        scrollAnimationDuration={700}
+        width={contentW}
+        height={208}
+        mode="parallax"
+        modeConfig={{
+          parallaxScrollingScale: 0.92,
+          parallaxScrollingOffset: 48,
+          parallaxAdjacentItemScale: 0.82,
         }}
-        onResponderTerminationRequest={() => false}
-      >
-        <Carousel
-          ref={carouselRef}
-          data={CAROUSEL_DATA}
-          loop
-          autoPlay={autoPlay && visible}
-          autoPlayInterval={4000}
-          scrollAnimationDuration={700}
-          width={contentW}
-          height={208}
-          mode="parallax"
-          modeConfig={{
-            parallaxScrollingScale: 0.92,
-            parallaxScrollingOffset: 48,
-            parallaxAdjacentItemScale: 0.82,
-          }}
-          onConfigurePanGesture={(gesture) => {
-            gesture.onBegin(() => {
-              'worklet';
-              runOnJS(stopAutoplay)();
-            });
-          }}
-          onProgressChange={(_, absoluteProgress) => {
-            progress.value = absoluteProgress;
-          }}
-          onSnapToItem={setActiveCard}
-          renderItem={({ item, animationValue }) => (
-            <CarouselCardItem
-              id={item}
-              width={contentW}
-              animationValue={animationValue}
-              starActive={activeCard === 2}
-              onSupport={handleOpenSupport}
-              onGithub={handleOpenSource}
-              onSocial={handleOpenSocial}
-              onInteraction={stopAutoplay}
-            />
-          )}
-        />
-      </View>
+        onProgressChange={(_, absoluteProgress) => {
+          progress.value = absoluteProgress;
+        }}
+        onSnapToItem={setActiveCard}
+        renderItem={({ item, animationValue }) => (
+          <CarouselCardItem
+            id={item}
+            width={contentW}
+            animationValue={animationValue}
+            starActive={activeCard === 2}
+            onSupport={handleOpenSupport}
+            onGithub={handleOpenSource}
+            onSocial={handleOpenSocial}
+          />
+        )}
+      />
       <View
         style={[tw`mt-2.5 flex-row items-center justify-center`, { gap: 6 }]}
       >

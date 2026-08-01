@@ -82,11 +82,14 @@ function AppRoot() {
     settings: false,
     updates: false,
   });
+  const [homeFocus, setHomeFocus] = useState(0);
   const [deepLink, setDeepLink] = useState<SocialDeepLink | null>(null);
   const [navHidden, setNavHidden] = useState(false);
   const [bgReady, setBgReady] = useState(false);
   const [showVideoSplash, setShowVideoSplash] = useState(true);
   const [onboarded, setOnboardedState] = useState<boolean | null>(null);
+  const [firstVisit, setFirstVisit] = useState(false);
+  const [bubbleTrigger, setBubbleTrigger] = useState(0);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{
@@ -114,8 +117,20 @@ function AppRoot() {
     onboarded === true && !showVideoSplash
   );
   useEffect(() => {
-    void getOnboarded().then(setOnboardedState);
+    void getOnboarded().then((value) => {
+      setOnboardedState(value);
+      if (value === false) setFirstVisit(true);
+    });
   }, []);
+  useEffect(() => {
+    if (showVideoSplash) return;
+    setHomeFocus(1);
+  }, [showVideoSplash, setHomeFocus]);
+  useEffect(() => {
+    if (showVideoSplash) return;
+    if (firstVisit) return;
+    setBubbleTrigger((count) => count + 1);
+  }, [showVideoSplash, firstVisit]);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
@@ -307,6 +322,9 @@ function AppRoot() {
                   refreshing={refreshing}
                   onRefresh={onRefresh}
                   resetSignal={resetSignal}
+                  focusSignal={homeFocus}
+                  firstVisit={firstVisit}
+                  bubbleTrigger={bubbleTrigger}
                 />
               </View>
               {visited.settings && (
@@ -386,6 +404,7 @@ function AppRoot() {
                   onDone={() => {
                     setOnboardedState(true);
                     void setOnboarded(true);
+                    setBubbleTrigger((count) => count + 1);
                   }}
                 />
               </Animated.View>

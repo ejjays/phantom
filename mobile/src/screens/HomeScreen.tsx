@@ -9,13 +9,16 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  withSequence,
+  withTiming,
+  Easing,
 } from 'react-native-reanimated';
 import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../lib/tw';
 import PhantomHero, { PHANTOM_ASPECT } from '../components/PhantomHero';
+import SpeechBubble from '../components/SpeechBubble';
 import LinkPing from '../components/LinkPing';
-import Header from '../components/Header';
 import Button3D from '../components/Button3D';
 import FormatBar, { type DownloadMode } from '../components/FormatBar';
 import { useBlurOnKeyboardHide } from '../hooks/useKeyboard';
@@ -32,6 +35,9 @@ type Props = {
   refreshing: boolean;
   onRefresh: () => void;
   resetSignal: number;
+  focusSignal: number;
+  firstVisit: boolean;
+  bubbleTrigger: number;
 };
 
 export default function HomeScreen({
@@ -46,6 +52,9 @@ export default function HomeScreen({
   refreshing,
   onRefresh,
   resetSignal,
+  focusSignal,
+  firstVisit,
+  bubbleTrigger,
 }: Props) {
   const linkInputRef = useRef<TextInput>(null);
   useBlurOnKeyboardHide(linkInputRef);
@@ -53,7 +62,17 @@ export default function HomeScreen({
   const insets = useSafeAreaInsets();
   const kb = useSharedValue(0);
   const inputBottom = useSharedValue(0);
+  const moonX = useSharedValue(0);
   const [showSpinner, setShowSpinner] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
+
+  useEffect(() => {
+    if (focusSignal === 0) return;
+    moonX.value = withSequence(
+      withTiming(-260, { duration: 0 }),
+      withTiming(0, { duration: 1100, easing: Easing.out(Easing.cubic) })
+    );
+  }, [focusSignal, moonX]);
 
   useGenericKeyboardHandler(
     {
@@ -74,6 +93,10 @@ export default function HomeScreen({
     const overlap = inputBottom.value + insets.bottom + 16 - keyboardTop;
     return { transform: [{ translateY: -Math.max(0, overlap) }] };
   });
+
+  const moonStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: moonX.value }],
+  }));
 
   const baseIconSize = Math.min(228, Math.max(209, screenW * 0.266));
 
@@ -114,67 +137,98 @@ export default function HomeScreen({
   };
 
   return (
-    <ScrollView
-      style={tw`flex-1`}
-      contentContainerStyle={tw`grow px-6 pb-16`}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => void onRefresh()}
-          tintColor="#22d3ee"
-          colors={['#22d3ee']}
-          progressBackgroundColor="#17324c"
-          progressViewOffset={16}
-        />
-      }
-    >
-      <Header />
+    <View style={tw`flex-1`}>
       <Animated.View
-        style={[tw`flex-1 items-center justify-center -mt-6`, liftStyle]}
+        pointerEvents="none"
+        style={[
+          moonStyle,
+          {
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            width: 72,
+            height: 72,
+            borderRadius: 36,
+            backgroundColor: '#f9f9fb',
+            boxShadow:
+              '0px 0px 50px 0px rgba(193, 119, 241, 0.85), 0px 0px 50px 0px rgba(135, 42, 211, 0.85), inset 0px 0px 26px -10px #9b40fc',
+          },
+        ]}
+      />
+      <ScrollView
+        style={tw`flex-1`}
+        contentContainerStyle={tw`grow px-6 pb-16`}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void onRefresh()}
+            tintColor="#22d3ee"
+            colors={['#22d3ee']}
+            progressBackgroundColor="#17324c"
+            progressViewOffset={16}
+          />
+        }
       >
-        <View style={tw`w-full max-w-md`}>
-          <View style={tw`items-center mb-2`}>
-            <Animated.View style={ghostStyle}>
-              <PhantomHero />
-            </Animated.View>
-          </View>
-
-          <View style={tw`relative justify-center`}>
-            <View style={tw`absolute left-4 z-10`}>
-              <LinkPing />
+        <Animated.View
+          style={[tw`flex-1 items-center justify-center`, liftStyle]}
+        >
+          <View style={tw`w-full max-w-md`}>
+            <View style={tw`items-center mb-2`}>
+              <View style={{ position: 'relative' }}>
+                {!inputFocused && bubbleTrigger > 0 && (
+                  <SpeechBubble
+                    key={bubbleTrigger}
+                    variant={firstVisit ? 'welcome' : 'returning'}
+                  />
+                )}
+                <Animated.View style={ghostStyle}>
+                  {/* temprarily off (will use soon) — reenable w/ focusSignal */}
+                  <PhantomHero amazeSignal={0} />
+                </Animated.View>
+              </View>
             </View>
-            <TextInput
-              ref={linkInputRef}
-              style={[
-                tw`rounded-2xl border-2 border-primary bg-black/30 pl-12 pr-4 font-mono text-[15px] text-white`,
-                { height: 52, textAlignVertical: 'center' },
-              ]}
-              placeholder="paste your link here"
-              placeholderTextColor="#5b6472"
-              value={link}
-              onChangeText={onChangeLink}
-              onFocus={handleFocus}
-              autoCapitalize="none"
-              autoCorrect={false}
-              accessibilityLabel="Paste download link"
+
+            <View style={tw`relative justify-center`}>
+              <View style={tw`absolute left-4 z-10`}>
+                <LinkPing />
+              </View>
+              <TextInput
+                ref={linkInputRef}
+                style={[
+                  tw`rounded-2xl border-2 border-primary bg-black/30 pl-12 pr-4 font-mono text-[15px] text-white`,
+                  { height: 52, textAlignVertical: 'center' },
+                ]}
+                placeholder="paste your link here"
+                placeholderTextColor="#5b6472"
+                value={link}
+                onChangeText={onChangeLink}
+                onFocus={() => {
+                  setInputFocused(true);
+                  handleFocus();
+                }}
+                onBlur={() => setInputFocused(false)}
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel="Paste download link"
+              />
+            </View>
+
+            <FormatBar mode={mode} setMode={setMode} onPaste={onPaste} />
+
+            <Button3D
+              label="Download"
+              loading={showSpinner}
+              onPress={() => {
+                if (!link.trim()) return;
+                onResolve();
+                triggerDownload();
+              }}
             />
           </View>
-
-          <FormatBar mode={mode} setMode={setMode} onPaste={onPaste} />
-
-          <Button3D
-            label="Download"
-            loading={showSpinner}
-            onPress={() => {
-              if (!link.trim()) return;
-              onResolve();
-              triggerDownload();
-            }}
-          />
-        </View>
-      </Animated.View>
-    </ScrollView>
+        </Animated.View>
+      </ScrollView>
+    </View>
   );
 }

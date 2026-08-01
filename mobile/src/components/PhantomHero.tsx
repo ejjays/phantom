@@ -29,8 +29,17 @@ const IDLE_OPEN_MS = 10000;
 const IDLE_CLOSE_MS = 1000;
 const MOUTH_EASE = Easing.inOut(Easing.ease);
 
-const NEUTRAL_MOUTH = [187, 218, 225, 213, 218, 219, 187, 218] as const;
-const SMILE_MOUTH = [186, 213, 237, 214, 213, 207, 186, 213] as const;
+const NEUTRAL_MOUTH = [
+  187, 218, 195.67, 222.67, 204.33, 222.67, 213, 218, 204.33, 218.67, 195.67,
+  218.67, 187, 218,
+] as const;
+const SMILE_MOUTH = [
+  186, 213, 195.33, 229, 204.67, 229, 214, 213, 204.67, 209, 195.33, 209, 186,
+  213,
+] as const;
+const AMAZED_MOUTH = [
+  193, 222, 193, 206, 207, 206, 207, 222, 207, 238, 193, 238, 193, 222,
+] as const;
 
 const idleMouthCycle = () =>
   withRepeat(
@@ -51,7 +60,11 @@ const SWEAT_PATH =
 const SWEAT_HIGHLIGHT =
   'M14,26c-3.3086,0-6-2.6914-6-6c0-0.5527,0.4478-1,1-1s1,0.4473,1,1c0,2.2061,1.7944,4,4,4c0.5522,0,1,0.4473,1,1S14.5522,26,14,26z';
 
-export default function PhantomHero() {
+export default function PhantomHero({
+  amazeSignal = 0,
+}: {
+  amazeSignal?: number;
+}) {
   const floatY = useSharedValue(0);
   const shadowScale = useSharedValue(1);
   const shadowOpacity = useSharedValue(0.2);
@@ -63,6 +76,16 @@ export default function PhantomHero() {
   const burst = useSharedValue(1);
   const giggle = useSharedValue(0.85);
   const sweatAnim = useSharedValue(0);
+  const amaze = useSharedValue(0);
+
+  useEffect(() => {
+    if (amazeSignal === 0) return;
+    amaze.value = withSequence(
+      withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+      withDelay(1500, withTiming(1, { duration: 0 })),
+      withTiming(0, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+    );
+  }, [amazeSignal, amaze]);
 
   useEffect(() => {
     const ease = Easing.inOut(Easing.ease);
@@ -114,6 +137,7 @@ export default function PhantomHero() {
       cancelAnimation(burst);
       cancelAnimation(giggle);
       cancelAnimation(sweatAnim);
+      cancelAnimation(amaze);
     };
   }, []);
 
@@ -203,22 +227,24 @@ export default function PhantomHero() {
     const blend = pressBlend.value;
     return blend * burst.value + (1 - blend) * blinkScale.value;
   });
+  const faceTransform = useDerivedValue<Transforms3d>(() => [
+    { translateX: amaze.value * -20 },
+    { translateY: amaze.value * -30 },
+  ]);
+  const pupilTransform = useDerivedValue<Transforms3d>(() => [
+    { translateX: amaze.value * -9 },
+    { translateY: amaze.value * -3 },
+  ]);
   const sweatDropTransform = useDerivedValue<Transforms3d>(() => [
     { translateY: sweatAnim.value * 14 },
   ]);
   const mouthPath = useDerivedValue(() => {
     const blend = pressBlend.value;
     const t = blend * giggle.value + (1 - blend) * mouthAnim.value;
-    const lerp = (from: number, to: number) => from + (to - from) * t;
-    const startX = lerp(NEUTRAL_MOUTH[0], SMILE_MOUTH[0]);
-    const startY = lerp(NEUTRAL_MOUTH[1], SMILE_MOUTH[1]);
-    const ctrlY1 = lerp(NEUTRAL_MOUTH[2], SMILE_MOUTH[2]);
-    const endX = lerp(NEUTRAL_MOUTH[3], SMILE_MOUTH[3]);
-    const endY = lerp(NEUTRAL_MOUTH[4], SMILE_MOUTH[4]);
-    const ctrlY2 = lerp(NEUTRAL_MOUTH[5], SMILE_MOUTH[5]);
-    const closeX = lerp(NEUTRAL_MOUTH[6], SMILE_MOUTH[6]);
-    const closeY = lerp(NEUTRAL_MOUTH[7], SMILE_MOUTH[7]);
-    return `M ${startX} ${startY} Q 200 ${ctrlY1} ${endX} ${endY} Q 200 ${ctrlY2} ${closeX} ${closeY} Z`;
+    const a = amaze.value;
+    const cur = NEUTRAL_MOUTH.map((v, i) => v + (SMILE_MOUTH[i] - v) * t);
+    const morph = cur.map((v, i) => v + (AMAZED_MOUTH[i] - v) * a);
+    return `M ${morph[0]} ${morph[1]} C ${morph[2]} ${morph[3]}, ${morph[4]} ${morph[5]}, ${morph[6]} ${morph[7]} C ${morph[8]} ${morph[9]}, ${morph[10]} ${morph[11]}, ${morph[12]} ${morph[13]} Z`;
   });
 
   const shadowTransform = useDerivedValue<Transforms3d>(() => [
@@ -285,30 +311,46 @@ export default function PhantomHero() {
                 <Path path={SWEAT_HIGHLIGHT} color="#FFFFFF" />
               </Group>
             </Group>
-            <Group transform={blinkTransform}>
-              <Oval x={152} y={162} width={26} height={36} color="#083344" />
-              <Oval x={163} y={168} width={10} height={14} color="#FFFFFF" />
-              <Oval x={222} y={162} width={26} height={36} color="#083344" />
-              <Oval x={233} y={168} width={10} height={14} color="#FFFFFF" />
-            </Group>
-            <Oval
-              x={139}
-              y={192}
-              width={18}
-              height={10}
-              color="#0891B2"
-              opacity={0.6}
-            />
-            <Oval
-              x={243}
-              y={192}
-              width={18}
-              height={10}
-              color="#0891B2"
-              opacity={0.6}
-            />
-            <Group transform={mouthTransform}>
-              <Path path={mouthPath} color="#083344" />
+            <Group transform={faceTransform}>
+              <Group transform={blinkTransform}>
+                <Oval x={152} y={162} width={26} height={36} color="#083344" />
+                <Oval x={222} y={162} width={26} height={36} color="#083344" />
+                <Group transform={pupilTransform}>
+                  <Oval
+                    x={163}
+                    y={168}
+                    width={10}
+                    height={14}
+                    color="#FFFFFF"
+                  />
+                  <Oval
+                    x={233}
+                    y={168}
+                    width={10}
+                    height={14}
+                    color="#FFFFFF"
+                  />
+                </Group>
+              </Group>
+              <Oval
+                x={139}
+                y={192}
+                width={18}
+                height={10}
+                color="#0891B2"
+                opacity={0.6}
+              />
+              <Oval
+                x={243}
+                y={192}
+                width={18}
+                height={10}
+                color="#0891B2"
+                opacity={0.6}
+              />
+              <Group transform={mouthTransform}>
+                <Path path={mouthPath} color="#083344" />
+              </Group>
             </Group>
           </Group>
         </Group>
