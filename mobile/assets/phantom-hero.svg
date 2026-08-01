@@ -93,7 +93,7 @@
   <circle class="star-3" cx="1350" cy="330" r="2.5" fill="#67E8F9"/>
   <circle class="star-1" cx="880" cy="120" r="1.8" fill="#22d3ee"/>
 
-  <g transform="translate(90,15)">
+  <g transform="translate(130, 50) scale(0.8)">
     <ellipse class="ghost-ground-shadow" cx="200" cy="385" rx="75" ry="10" fill="#083344" opacity="0.2"/>
     <g class="ghost-body" filter="url(#ghost-shadow)">
       <path d="M 80 170 C 80 103.7, 133.7 50, 200 50 C 266.3 50, 320 103.7, 320 170 L 320 330 Q 290 352, 260 330 Q 230 352, 200 330 Q 170 352, 140 330 Q 110 352, 80 330 Z" fill="url(#ghost-body-grad)"/>
