@@ -9,8 +9,6 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSequence,
-  withTiming,
 } from 'react-native-reanimated';
 import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -55,10 +53,6 @@ export default function HomeScreen({
   const insets = useSafeAreaInsets();
   const kb = useSharedValue(0);
   const inputBottom = useSharedValue(0);
-  const glitchOpacity = useSharedValue(1);
-  const glitchScale = useSharedValue(1);
-  const glitchX = useSharedValue(0);
-  const glitchRotate = useSharedValue(0);
   const [showSpinner, setShowSpinner] = useState(false);
 
   useGenericKeyboardHandler(
@@ -89,54 +83,11 @@ export default function HomeScreen({
     return {
       width: size,
       height: size * GHOST_ASPECT,
-      opacity: glitchOpacity.value,
-      transform: [
-        { translateX: glitchX.value },
-        { scale: glitchScale.value },
-        { rotate: `${glitchRotate.value}deg` },
-      ],
     };
   });
 
-  const triggerGlitch = () => {
+  const triggerDownload = () => {
     setShowSpinner(true);
-
-    glitchOpacity.value = withSequence(
-      withTiming(0.3, { duration: 40 }),
-      withTiming(0.9, { duration: 40 }),
-      withTiming(0.2, { duration: 25 }),
-      withTiming(0.8, { duration: 35 }),
-      withTiming(0.4, { duration: 25 }),
-      withTiming(0.6, { duration: 30 }),
-      withTiming(0.0, { duration: 70 })
-    );
-
-    glitchScale.value = withSequence(
-      withTiming(1.12, { duration: 35 }),
-      withTiming(0.92, { duration: 40 }),
-      withTiming(1.08, { duration: 25 }),
-      withTiming(0.95, { duration: 30 }),
-      withTiming(1.05, { duration: 20 }),
-      withTiming(1, { duration: 35 })
-    );
-
-    glitchX.value = withSequence(
-      withTiming(-15, { duration: 25 }),
-      withTiming(12, { duration: 25 }),
-      withTiming(-10, { duration: 18 }),
-      withTiming(8, { duration: 18 }),
-      withTiming(-5, { duration: 12 }),
-      withTiming(4, { duration: 12 }),
-      withTiming(0, { duration: 25 })
-    );
-
-    glitchRotate.value = withSequence(
-      withTiming(-5, { duration: 25 }),
-      withTiming(4, { duration: 25 }),
-      withTiming(-3, { duration: 18 }),
-      withTiming(2, { duration: 18 }),
-      withTiming(0, { duration: 25 })
-    );
 
     onResolve();
   };
@@ -144,10 +95,6 @@ export default function HomeScreen({
   useEffect(() => {
     if (!loading) {
       const timer = setTimeout(() => {
-        glitchOpacity.value = 1;
-        glitchScale.value = 1;
-        glitchX.value = 0;
-        glitchRotate.value = 0;
         setShowSpinner(false);
       }, 2000);
       return () => clearTimeout(timer);
@@ -156,10 +103,6 @@ export default function HomeScreen({
 
   useEffect(() => {
     if (resetSignal === 0) return;
-    glitchOpacity.value = 1;
-    glitchScale.value = 1;
-    glitchX.value = 0;
-    glitchRotate.value = 0;
     setShowSpinner(false);
   }, [resetSignal]);
 
@@ -227,7 +170,7 @@ export default function HomeScreen({
             onPress={() => {
               if (!link.trim()) return;
               onResolve();
-              triggerGlitch();
+              triggerDownload();
             }}
           />
         </View>
