@@ -8,7 +8,7 @@
  * rate-limited & not meant for production, so the bucket stays private.
  *
  * setup (one-time, Cloudflare R2 + Supabase dashboard):
- *   1. R2 -> create bucket (nexstream-uploads), Standard class; keep it private
+ *   1. R2 -> create bucket (phantom-uploads), Standard class; keep it private
  *   2. R2 -> Manage API Tokens -> Create Account API Token: Object Read & Write,
  *        scoped to that bucket -> copy Access Key ID + Secret (secret shown once)
  *   3. deploy this fn (dashboard editor or `supabase functions deploy`), Verify

@@ -193,7 +193,7 @@ jobs:
             npm run build
             rm -rf dist/ffmpeg-core dist/libav
             cp -r functions dist/
-            npx --yes wrangler@4.93.0 pages deploy dist --project-name nex-stream --branch main
+            npx --yes wrangler@4.93.0 pages deploy dist --project-name c-phantom --branch main
       - save_cache:
           paths:
             - web/frontend/node_modules

@@ -36,7 +36,7 @@ The function lives in the frontend repo at [`web/frontend/functions/i/[[path]].t
 
 ### R2 Bucket + Token
 
-1. R2 → create a bucket (`panther-uploads`), Standard class. **Keep it private** — no public access needed.
+1. R2 → create a bucket (`phantom-uploads`), Standard class. **Keep it private** — no public access needed.
 2. R2 → Manage API Tokens → create an **Account API Token** with Object Read & Write, scoped to that bucket. Copy the Access Key ID + Secret (secret shown once).
 
 ### Upload Function (Supabase)
@@ -45,7 +45,7 @@ Deploy `r2-upload-url` (dashboard editor or `supabase functions deploy r2-upload
 
 ```
 R2_ACCOUNT_ID          your Cloudflare account id
-R2_BUCKET              panther-uploads
+R2_BUCKET              phantom-uploads
 R2_ACCESS_KEY_ID       from the API token
 R2_SECRET_ACCESS_KEY   from the API token
 R2_PUBLIC_BASE         https://c-phantom.pages.dev/i
@@ -53,7 +53,7 @@ R2_PUBLIC_BASE         https://c-phantom.pages.dev/i
 
 ### Serving Function (Cloudflare Pages)
 
-1. Cloudflare → your Pages project → Settings → Functions → **R2 bindings** → add binding: variable name `UPLOADS` → bucket `panther-uploads`.
+1. Cloudflare → your Pages project → Settings → Functions → **R2 bindings** → add binding: variable name `UPLOADS` → bucket `phantom-uploads`.
 2. The function file (`functions/i/[[path]].ts`) is already in the frontend repo; the next Pages deploy picks it up. It serves `https://c-phantom.pages.dev/i/comments/...`.
 
 ### Delete Function (Cloudflare Pages + Supabase Webhook)

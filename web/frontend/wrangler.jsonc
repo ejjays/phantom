@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "c-phantom",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "TURSO_URL": "libsql://nexstream-ejjays.aws-ap-northeast-1.turso.io",
+    "VITE_API_URL": "https://ej-nexstream.koyeb.app",
+    "VITE_SENTRY_DSN": "https://7110e6740bbf4eff1a453e492839d5d8@o4511417359728640.ingest.us.sentry.io/4511417398591488"
+  },
+  "r2_buckets": [
+    {
+      "binding": "UPLOADS",
+      "bucket_name": "phantom-uploads"
+    }
+  ]
+}
