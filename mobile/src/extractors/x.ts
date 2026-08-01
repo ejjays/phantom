@@ -102,7 +102,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
         const len = head.headers.get('content-length');
         if (len) format.filesize = parseInt(len, 10);
       } catch {
-        /* size optional */
+        // best-effort: HEAD can fail; keep going without filesize
       }
     });
 

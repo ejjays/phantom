@@ -276,7 +276,6 @@ async function viaConfig(
   url: string
 ): Promise<VideoInfo | null> {
   let cfg = await fetchConfig(ref.id, ref.hash);
-  // hash-gated pasted bare -> scrape page hash
   if (!cfg && !ref.hash) {
     const hash = await pageHash(ref.id, url);
     vlog('pageHash', hash);
@@ -287,7 +286,6 @@ async function viaConfig(
   const files = cfg.request?.files;
 
   const formats = buildFormats(files?.progressive ?? []);
-  // no progressive -> adaptive hls, parsed into per-quality variants
   if (formats.length === 0) {
     const cdn = files?.hls?.cdns?.[files.hls.default_cdn ?? ''];
     if (cdn?.url) {

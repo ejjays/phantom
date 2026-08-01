@@ -2,7 +2,7 @@ import notifee, { AndroidImportance } from 'react-native-notify-kit';
 import { startActivityAsync } from 'expo-intent-launcher';
 
 const CHANNEL = 'downloads';
-const NOTIF_ID = 'nexstream-download';
+const NOTIF_ID = 'phantom-download';
 const SMALL_ICON = 'notification_icon';
 const BRAND = '#22d3ee';
 
@@ -105,7 +105,7 @@ export async function openBatterySettings(): Promise<void> {
   ).catch(() => undefined);
 }
 
-const APP_PACKAGE = 'com.nexstream.app';
+const APP_PACKAGE = 'com.phantom.app';
 
 export async function requestIgnoreBatteryOptimization(): Promise<void> {
   // already exempt: open settings instead

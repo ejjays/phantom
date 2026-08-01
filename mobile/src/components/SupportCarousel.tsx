@@ -158,7 +158,7 @@ function SupportCardContent({
             textOutline,
           ]}
         >
-          Panther is fully free & open source
+          Phantom is fully free & open source
         </Text>
       </HeroLottieCard>
     </Pressable>

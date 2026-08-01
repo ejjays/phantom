@@ -13,8 +13,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import ReactNativeBlobUtil, { type Mediatype } from 'react-native-blob-util';
 import { error as logError, log, warn as logWarn } from '../log';
 
-const DIR_KEY = 'nexstream.saf.dir';
-const MEDIA_SUBFOLDER = 'Panther';
+const DIR_KEY = 'phantom.saf.dir';
+const MEDIA_SUBFOLDER = 'Phantom';
 const AUDIO_EXT = new Set(['mp3', 'm4a', 'aac', 'opus', 'ogg']);
 // bigger slices = fewer saf round-trips
 const CHUNK = 12 * 1024 * 1024;

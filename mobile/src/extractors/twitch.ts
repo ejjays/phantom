@@ -9,8 +9,7 @@ import { buildVideoInfo } from './videoInfo';
 const REFERER = 'https://www.twitch.tv/';
 const TW_DEBUG = false;
 
-// web public client ID — authorizes anon ShareClipRenderStatus.
-// (legacy ID rejected: 400 invalid Client-ID).
+// web public client ID for anon ShareClipRenderStatus; legacy ID 400s
 const CLIENT_ID = 'ue6666qo983tsx6so1t0vnawi233wa';
 const GQL_URL = 'https://gql.twitch.tv/gql';
 
@@ -90,8 +89,7 @@ function parseVodId(url: string): string | null {
   return match ? match[1] : null;
 }
 
-// clips signed-by-GQL: append same playbackAccessToken sig/token as ?sig=&token= to MP4 sourceURL.
-// both MUST be present or CDN returns 403.
+// GQL-signed clips: append playbackAccessToken sig+token to MP4 or CDN 403s
 function signClipUrl(
   sourceUrl: string,
   signature?: string,
@@ -262,8 +260,7 @@ async function fetchVodAccessToken(vodId: string): Promise<GqlResult> {
   }
 }
 
-// parse Twitch VOD master m3u8 -> build HLS Format objects
-// handles Twitch-specific EXT-X-MEDIA:VIDEO structure
+// Twitch VOD master: EXT-X-MEDIA:VIDEO structure differs from std hls
 async function parseHlsMaster(
   masterUrl: string,
   durationSec: number | undefined
@@ -285,7 +282,6 @@ async function parseHlsMaster(
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Track the most recent GROUP-ID from EXT-X-MEDIA:VIDEO lines
     if (line.startsWith('#EXT-X-MEDIA:') && /TYPE=VIDEO/u.test(line)) {
       const groupMatch = line.match(/GROUP-ID="([^"]+)"/u);
       if (groupMatch?.[1]) {
@@ -294,7 +290,6 @@ async function parseHlsMaster(
       continue;
     }
 
-    // Process EXT-X-STREAM-INF lines
     if (!line.startsWith('#EXT-X-STREAM-INF:')) continue;
 
     const attrs = line;
@@ -302,7 +297,6 @@ async function parseHlsMaster(
     if (!uri || uri.startsWith('#')) continue;
 
     const dims = attrs.match(/RESOLUTION=(\d+)x(\d+)/u);
-    // Handle audio-only variants (no RESOLUTION)
     if (!dims) continue;
 
     const width = Number(dims[1]);
@@ -387,7 +381,6 @@ async function extractClip(
   const thumb =
     clip.thumbnailURL ?? clip.assets?.[0]?.thumbnailURL ?? undefined;
 
-  // build initial video info (before fetching filesize)
   const initialInfo = buildVideoInfo({
     id: clip.id || slug,
     title: clip.title || 'Twitch Clip',
@@ -402,7 +395,6 @@ async function extractClip(
   // emit result early for faster UI feedback
   onPartial?.(initialInfo);
 
-  // attempt to fill filesize via HEAD request (best-effort)
   await mapLimit(formats, 3, async (format) => {
     try {
       const head = await gatedFetch(format.url, {
@@ -412,11 +404,10 @@ async function extractClip(
       const len = head?.headers?.get('content-length');
       if (len) format.filesize = parseInt(len, 10);
     } catch {
-      /* size optional */
+      // best-effort: HEAD can fail; keep going without filesize
     }
   });
 
-  // Build final video info (with filesize populated)
   const finalInfo = buildVideoInfo({
     id: clip.id || slug,
     title: clip.title || 'Twitch Clip',
@@ -428,19 +419,16 @@ async function extractClip(
     extractorKey: 'twitch',
   });
 
-  // Emit updated result with filesize
   onPartial?.(finalInfo);
 
   return finalInfo;
 }
 
-// VOD implementation: fetches metadata, access token, and parses HLS master manifest
 async function extractVod(
   vodId: string,
   url: string,
   onPartial?: OnPartial
 ): Promise<VideoInfo | null> {
-  // Step 1: Fetch VOD metadata via GQL (persisted query)
   const metaGql = await fetchVodMetadata(vodId);
   let vodMeta: TwitchVodMetadata | null = null;
   try {
@@ -459,13 +447,11 @@ async function extractVod(
     throw noVideo('Twitch', 'VOD');
   }
 
-  // Extract metadata for early partial
   const title = vodMeta.title ?? 'Twitch VOD';
   const uploader = vodMeta.owner?.displayName ?? 'Twitch';
   const thumb = vodMeta.previewThumbnailURL ?? undefined;
   const duration = parseIntSafe(vodMeta.lengthSeconds);
 
-  // Early partial (metadata only, no formats yet)
   onPartial?.(
     buildVideoInfo({
       id: vodMeta.id ?? vodId,
@@ -480,7 +466,6 @@ async function extractVod(
     })
   );
 
-  // Step 2: Get playback access token via inline GQL
   const tokenGql = await fetchVodAccessToken(vodId);
   let tokenValue: string | undefined;
   let tokenSignature: string | undefined;
@@ -507,7 +492,6 @@ async function extractVod(
     throw noVideo('Twitch', 'VOD');
   }
 
-  // Step 3: Build and fetch the HLS master manifest
   const usherUrl = new URL(`https://usher.ttvnw.net/vod/${vodId}.m3u8`);
   usherUrl.searchParams.set('allow_source', 'true');
   usherUrl.searchParams.set('allow_audio_only', 'true');
@@ -520,7 +504,6 @@ async function extractVod(
   const formats = await parseHlsMaster(usherUrl.toString(), duration);
   if (formats.length === 0) throw noVideo('Twitch', 'VOD');
 
-  // Build final VOD info
   const finalInfo = buildVideoInfo({
     id: vodMeta.id ?? vodId,
     title,
@@ -532,7 +515,6 @@ async function extractVod(
     extractorKey: 'twitch',
   });
 
-  // Final update (with formats)
   onPartial?.(finalInfo);
   return finalInfo;
 }

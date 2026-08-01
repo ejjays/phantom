@@ -31,7 +31,6 @@ async function getClientId(): Promise<string | null> {
   if (cachedClientId && Date.now() - clientIdAt < CLIENT_ID_TTL) {
     return cachedClientId;
   }
-  // survives reloads; id stable for hours
   const stored = await getScClientId();
   if (stored && Date.now() - stored.at < CLIENT_ID_TTL) {
     cachedClientId = stored.id;
@@ -84,8 +83,6 @@ interface Track {
   id?: string | number;
   user?: { username?: string; avatar_url?: string };
   artwork_url?: string;
-  // labels register these on monetized/DRM tracks; the isrc lets us find
-  // the identical recording on youtube when the file itself is locked.
   publisher_metadata?: {
     isrc?: string;
     artist?: string;
@@ -99,7 +96,6 @@ function pickThumbnail(track: Track): string | undefined {
   return art ? art.replace('-large', '-t500x500') : undefined;
 }
 
-// cbc-/ctr-encrypted-hls need a license key (major-label DRM); undownloadable
 function isEncrypted(tr: Transcoding): boolean {
   return tr.format.protocol.includes('encrypted');
 }
@@ -158,7 +154,6 @@ async function drmFallback(
     durationMs: track.full_duration || track.duration || 0,
     isrc: pm?.isrc,
   };
-  // repaint the picker with the label metadata while youtube resolves
   onPartial?.(partialFromMeta(meta, webpageUrl, 'soundcloud'));
 
   const videoUrl = await resolveViaYoutube(meta);
@@ -167,8 +162,7 @@ async function drmFallback(
   return buildFromYoutube(meta, webpageUrl, videoUrl, 'soundcloud');
 }
 
-// resolve won't follow share links; grab redirect target.
-// first 302 Location ~1s faster than full follow.
+// on.soundcloud links 302; read Location manually (faster than full follow)
 async function permalink(url: string): Promise<string> {
   if (!/on\.soundcloud\.com/iu.test(url)) return url;
   try {
@@ -222,9 +216,7 @@ function buildInfo(
   });
 }
 
-// mobile downloads format.url; resolve stream url. label tracks list plain
-// transcodings whose stream-resolve 404s — fall through the ranked list until
-// one resolves. first live stream, or the last error status seen.
+// label tracks 404 at stream-resolve; fall through ranked list
 async function resolveStreamUrl(
   candidates: Transcoding[],
   clientId: string
@@ -252,9 +244,7 @@ async function resolveStreamUrl(
   return { lastStatus };
 }
 
-// label-locked (only encrypted transcodings resolve): recover identical
-// recording from youtube via isrc-match pipeline, else surface honest
-// drm error. recovered info or throws.
+// label-locked: only encrypted streams resolve → isrc-match youtube, else honest drm error
 async function recoverDrm(
   track: Track,
   webpageUrl: string,
@@ -277,7 +267,9 @@ function assertNotSnippet(track: Track): void {
   }
 }
 
-// progressive is already mp3 (HEAD for picker size); hls is aac in m4a.
+/**
+ * progressive = native mp3 (no transcode); hls = aac wrapped in m4a.
+ */
 async function buildAudioFormat(
   streamUrl: string,
   isHls: boolean
@@ -292,7 +284,7 @@ async function buildAudioFormat(
       const len = head?.headers?.get('content-length');
       if (len) filesize = parseInt(len, 10);
     } catch {
-      /* size optional */
+      // best-effort: HEAD can fail; keep going without filesize
     }
   }
   return {
@@ -306,7 +298,6 @@ async function buildAudioFormat(
     isVideo: false,
     isMuxed: false,
     isHls: isHls || undefined,
-    // progressive is native mp3; save untouched
     noTranscode: isHls ? undefined : true,
   };
 }
@@ -337,8 +328,6 @@ export async function getInfo(
     const allTranscodings = track.media?.transcodings ?? [];
     const candidates = pickTranscodings(track);
     if (!candidates.length) {
-      // only encrypted streams listed → label-locked, not a parser bug.
-      // recover the same recording from youtube by isrc/title before giving up
       if (allTranscodings.some(isEncrypted)) {
         return recoverDrm(track, target, onPartial);
       }
@@ -361,8 +350,6 @@ export async function getInfo(
       clientId
     );
     if (!streamUrl || !picked) {
-      // every plain transcoding 404'd but encrypted ones exist → DRM-only.
-      // recover via the youtube isrc-match before surfacing the DRM error
       if (allTranscodings.some(isEncrypted)) {
         return recoverDrm(track, target, onPartial);
       }

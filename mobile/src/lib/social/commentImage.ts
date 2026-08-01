@@ -143,7 +143,7 @@ export async function downloadCommentImageAsJpg(url: string): Promise<void> {
   const perm = await requestPermissionsAsync();
   if (!perm.granted) throw new Error('Gallery permission denied');
   const clean = url.split('#')[0];
-  const stem = `nexstream-${Crypto.randomUUID()}`;
+  const stem = `phantom-${Crypto.randomUUID()}`;
   const webp = new File(Paths.cache, `${stem}.webp`);
   const jpg = new File(Paths.cache, `${stem}.jpg`);
   try {

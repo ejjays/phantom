@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Panther",
-    "slug": "cyan-phanter",
+    "name": "Phantom",
+    "slug": "cyan-phantom",
     "version": "1.1.0",
     "runtimeVersion": {
       "policy": "appVersion"
@@ -17,7 +17,7 @@
       "assets/fonts/*"
     ],
     "android": {
-      "package": "com.nexstream.app",
+      "package": "com.phantom.app",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
@@ -58,15 +58,15 @@
       [
         "expo-media-library",
         {
-          "savePhotosPermission": "Allow Panther to save downloads to your gallery.",
-          "photosPermission": "Allow Panther to access your gallery.",
+          "savePhotosPermission": "Allow Phantom to save downloads to your gallery.",
+          "photosPermission": "Allow Phantom to access your gallery.",
           "isAccessMediaLocationEnabled": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Panther to attach photos to your comments."
+          "photosPermission": "Allow Phantom to attach photos to your comments."
         }
       ],
       [
@@ -80,9 +80,7 @@
         {
           "android": {
             "foregroundService": {
-              "types": [
-                "dataSync"
-              ]
+              "types": ["dataSync"]
             }
           }
         }

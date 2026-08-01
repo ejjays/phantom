@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "98956193490",
-    "project_id": "nexstream-87d1b",
-    "storage_bucket": "nexstream-87d1b.firebasestorage.app"
+    "project_number": "270786941627",
+    "project_id": "phantom-713aa",
+    "storage_bucket": "phantom-713aa.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:98956193490:android:96fd32533f60f30addc70b",
+        "mobilesdk_app_id": "1:270786941627:android:04ff061643dcf4d99d8f9e",
         "android_client_info": {
-          "package_name": "com.nexstream.app"
+          "package_name": "com.phantom.app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyD7-Dstu-gJ_0F9-iRj_QXslPbX0HgYPZM"
+          "current_key": "AIzaSyByUlwQnZO_DHG7cKeBJAL2RjS1FJnVyVs"
         }
       ],
       "services": {

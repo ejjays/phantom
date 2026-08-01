@@ -1,4 +1,4 @@
-# Panther Android
+# Phantom Android
 
 Standalone Expo/React Native app (SDK 56, RN 0.85, Hermes, New Architecture). Runs the full pipeline on-device: resolve → download → mux → save. No backend. Includes a small Updates tab (Supabase) for app news, reactions, comments.
 

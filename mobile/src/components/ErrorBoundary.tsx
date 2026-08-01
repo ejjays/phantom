@@ -33,7 +33,7 @@ export default class ErrorBoundary extends Component<Props, State> {
         <Text
           style={tw`mb-6 text-center font-mono text-sm leading-5 text-slate-400`}
         >
-          Panther hit an unexpected error. your downloads are safe.
+          Phantom hit an unexpected error. your downloads are safe.
         </Text>
         <View
           style={tw`mb-6 w-full rounded-2xl border border-red-400/30 bg-red-400/10 p-4`}

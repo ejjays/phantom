@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { FeedData } from '../../screens/UpdatesScreen';
 
-const FEED_KEY = 'nexstream.updates.feed';
+const FEED_KEY = 'phantom.updates.feed';
 
 let memory: FeedData | null = null;
 

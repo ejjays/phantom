@@ -26,7 +26,7 @@ export default function DownloadSuccessSheet({
   isAudio,
   onOpen,
 }: Props) {
-  const dest = isAudio ? 'Music/Panther' : 'Movies/Panther';
+  const dest = isAudio ? 'Music/Phantom' : 'Movies/Phantom';
   const actionLabel = isAudio ? 'Open music' : 'Open gallery';
   return (
     <VisualSheet

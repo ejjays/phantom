@@ -52,6 +52,11 @@ describe('formatSize', () => {
     expect(formatSize(5 * 1024 * 1024)).toBe('5.0 MB');
   });
 
+  it('formats gigabytes at or above 1GB', () => {
+    expect(formatSize(2 * 1024 * 1024 * 1024)).toBe('2.0 GB');
+    expect(formatSize(3 * 1024 * 1024 * 1024)).toBe('3.0 GB');
+  });
+
   it('formats kilobytes below 1MB', () => {
     expect(formatSize(512 * 1024)).toBe('512 KB');
   });

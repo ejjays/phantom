@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 
-const HISTORY_KEY = 'nexstream.download.history';
+const HISTORY_KEY = 'phantom.download.history';
 
 export type HistoryItem = {
   id: string;
@@ -28,7 +28,9 @@ AsyncStorage.getItem(HISTORY_KEY)
       }
     }
   })
-  .catch(() => { /* ignore */ });
+  .catch(() => {
+    /* ignore */
+  });
 
 function read(): Promise<HistoryItem[]> {
   return AsyncStorage.getItem(HISTORY_KEY)

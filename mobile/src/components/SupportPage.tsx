@@ -122,7 +122,7 @@ export default function SupportPage({
                 textOutline,
               ]}
             >
-              I built Panther with one clear goal:{' '}
+              I built Phantom with one clear goal:{' '}
               <Text style={tw`font-sans-bold text-primary underline`}>
                 to make high-quality tools completely free for everyone
               </Text>
@@ -145,11 +145,12 @@ export default function SupportPage({
                 textOutline,
               ]}
             >
-              Your support will mean the world to me. It will help me
-              stay focused on continue developing the next generation of
-              open-source media tools for the community. Thank you for support
-              and being part of my journey, <Text style={tw`font-sans-bold text-primary underline`}>
-              Godbless!
+              Your support will mean the world to me. It will help me stay
+              focused on continue developing the next generation of open-source
+              media tools for the community. Thank you for support and being
+              part of my journey,{' '}
+              <Text style={tw`font-sans-bold text-primary underline`}>
+                Godbless!
               </Text>
             </Text>
           </HeroLottieCard>

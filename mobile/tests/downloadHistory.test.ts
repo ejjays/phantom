@@ -38,7 +38,7 @@ describe('downloadHistory', () => {
     await addHistory(item('b'));
     const raw = await (
       await import('@react-native-async-storage/async-storage')
-    ).default.getItem('nexstream.download.history');
+    ).default.getItem('phantom.download.history');
     const parsed = JSON.parse(raw ?? '[]') as unknown[];
     expect(parsed.map((x) => (x as { id: string }).id)).toEqual(['b', 'a']);
   });
@@ -49,7 +49,7 @@ describe('downloadHistory', () => {
     await addHistory(item('a'));
     const raw = await (
       await import('@react-native-async-storage/async-storage')
-    ).default.getItem('nexstream.download.history');
+    ).default.getItem('phantom.download.history');
     const parsed = JSON.parse(raw ?? '[]') as { id: string }[];
     expect(parsed).toHaveLength(2);
     expect(parsed[0].id).toBe('a');
@@ -61,7 +61,7 @@ describe('downloadHistory', () => {
     await removeHistory('a');
     const raw = await (
       await import('@react-native-async-storage/async-storage')
-    ).default.getItem('nexstream.download.history');
+    ).default.getItem('phantom.download.history');
     const parsed = JSON.parse(raw ?? '[]') as { id: string }[];
     expect(parsed.map((x) => x.id)).toEqual(['b']);
   });
@@ -71,7 +71,7 @@ describe('downloadHistory', () => {
     await clearHistory();
     const raw = await (
       await import('@react-native-async-storage/async-storage')
-    ).default.getItem('nexstream.download.history');
+    ).default.getItem('phantom.download.history');
     expect(raw).toBeNull();
   });
 });

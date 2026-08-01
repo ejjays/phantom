@@ -90,8 +90,7 @@ function isPinterestHost(url: string): boolean {
   return /(?:^|\.)pinterest\.(?:[a-z]{2,4}|com?\.[a-z]{2})$/u.test(host);
 }
 
-// pin.it/<code> -> canonical /pin/<id>/ via redirect.
-// head first to skip downloading the page body; fall back to GET if refused.
+// pin.it redirects to /pin/<id>; HEAD first (skip page body), GET fallback (some refuse HEAD)
 async function resolveShortLink(url: string): Promise<string> {
   try {
     const res = await gatedFetch(url, {
@@ -101,7 +100,7 @@ async function resolveShortLink(url: string): Promise<string> {
     });
     if (res.ok || res.status < 400) return res.url || url;
   } catch {
-    // some proxies/servers refuse HEAD; retry with GET below
+    // some servers refuse HEAD; GET fallback below
   }
   const res = await gatedFetch(url, {
     redirect: 'follow',

@@ -196,7 +196,7 @@ function shortcodeToMediaId(shortcode: string): string {
   return pk.toString();
 }
 
-// set-cookie header parser; read-miss harmless as RN native store replays them
+// session tokens (lsd/csrf/cookie) cached & replayed by RN store; read-miss harmless
 function cookieJar(res: Response): Record<string, string> {
   const jar: Record<string, string> = {};
   const getter = (res.headers as unknown as { getSetCookie?: () => string[] })
@@ -213,7 +213,6 @@ function cookieJar(res: Response): Record<string, string> {
   return jar;
 }
 
-// cache session tokens (lsd/csrf/anon-cookie) to avoid redundant page fetches
 interface IgSession {
   lsd: string;
   csrf?: string;

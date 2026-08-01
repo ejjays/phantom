@@ -135,8 +135,7 @@ function DownloadsScreenInner({ visible }: Props) {
   const { showDialog } = useAppDialog();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const titleSize = Math.min(30, Math.max(22, width * 0.062));
-  const catSize = Math.min(200, Math.max(140, width * 0.5));
+  const ufoSize = Math.min(320, Math.max(200, width * 0.6));
 
   useEffect(() => {
     if (visible) void refresh();
@@ -174,12 +173,7 @@ function DownloadsScreenInner({ visible }: Props) {
           { paddingTop: insets.top + 12 },
         ]}
       >
-        <Text
-          style={[
-            tw`font-mono-bold text-slate-100`,
-            { fontSize: titleSize, lineHeight: titleSize * 1.2 },
-          ]}
-        >
+        <Text style={tw`font-sans-bold text-[30px] tracking-tight text-white`}>
           History
         </Text>
         {items.length > 0 && (
@@ -211,7 +205,7 @@ function DownloadsScreenInner({ visible }: Props) {
               source={ufo}
               autoPlay
               loop
-              style={{ width: catSize, height: catSize }}
+              style={{ width: ufoSize, height: ufoSize }}
             />
             <Text
               style={tw`mt-4 text-center font-mono-medium text-sm text-cyan-400`}

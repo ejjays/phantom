@@ -1,9 +1,7 @@
 <p align="center">
-  <img src="mobile/assets/panther-attack.png" alt="Panther" width="180" />
-  <br/>
-  <img src="mobile/assets/cyan-panther-title.svg" alt="Cyan Panther" width="350" />
-  <br/>
-  <em>Media Orchestration Engine</em>
+  <a href="https://github.com/ejjays/panther">
+    <img width="1400" height="460" alt="Cyan Phantom" src="mobile/assets/phantom-hero.svg" />
+  </a>
 </p>
 
 <p align="center">
@@ -16,15 +14,16 @@
 
 ## What this is
 
-Panther downloads 4K+ video and audio, and breaks songs into stems + chords for practice. It pushes heavy media work onto your device (browser or phone) instead of a server — so it stays free, ad-free, and unmetered.
+Phantom downloads 4K+ video and audio, and breaks songs into stems + chords for practice. It pushes heavy media work onto your device (browser or phone) instead of a server — so it stays free, ad-free, and unmetered.
 
 **Three deployment targets, one codebase:**
 
-| Target | What runs where | Repo path |
-|--------|-----------------|-----------|
-| **Web app** | Extraction/mux on server (Node), browser mux via `mediabunny`, server fallback | `web/` |
-| **Android app** | Full pipeline on-device (Expo RN, Hermes, ffmpeg-kit) | `mobile/` |
-| **Remix Lab** | ML stem/chord/beat/key analysis on free Kaggle/Colab GPUs | `remix/` |
+| Target          | What runs where                                                                | Repo path |
+| --------------- | ------------------------------------------------------------------------------ | --------- |
+| **Web app**     | Extraction/mux on server (Node), browser mux via `mediabunny`, server fallback | `web/`    |
+| **Android app** | Full pipeline on-device (Expo RN, Hermes, ffmpeg-kit)                          | `mobile/` |
+| **Remix Lab**   | ML stem/chord/beat/key analysis on free Kaggle/Colab GPUs                      | `remix/`  |
+
 ---
 
 ## Quick start (web)
@@ -47,6 +46,7 @@ npm run ui    # frontend dev server
 ```
 
 **Production-style:**
+
 ```bash
 npm run build:api
 npm run build:ui
@@ -54,6 +54,7 @@ cd web/backend && npm start
 ```
 
 **Docker (backend only):**
+
 ```bash
 docker build -f web/backend/Dockerfile -t panther .
 docker run -p 8000:8000 --env-file web/backend/.env panther
@@ -99,9 +100,7 @@ Prebuilt APKs: GitHub Releases (built via EAS). Android only — iOS untested/un
 
 ## Remix Lab Preview
 
-<p align="center">
-  <img src="remix/assets/demo.gif" width="600" alt="Remix Lab Demo" />
-</p>
+https://github.com/user-attachments/assets/c6e6badc-3f4a-40b5-86a9-7849e77b63aa
 
 ---
 
@@ -136,18 +135,17 @@ nexstream/
 
 ## Documentation
 
-| Doc | What it covers |
-|-----|----------------|
-| [`docs/run-an-instance.md`](docs/run-an-instance.md) | Prerequisites, Termux, Docker, tunnels, dev/prod commands |
-| [`docs/env-variables.md`](docs/env-variables.md) | Every env var, defaults, where to get API keys |
+| Doc                                                          | What it covers                                                         |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| [`docs/run-an-instance.md`](docs/run-an-instance.md)         | Prerequisites, Termux, Docker, tunnels, dev/prod commands              |
+| [`docs/env-variables.md`](docs/env-variables.md)             | Every env var, defaults, where to get API keys                         |
 | [`docs/protect-an-instance.md`](docs/protect-an-instance.md) | Hardening a public deployment (API key, URL signing, rate limits, TLS) |
-| [`docs/api.md`](docs/api.md) | Endpoint contracts, request/response shapes, SSE events |
-| [`docs/mobile-app.md`](docs/mobile-app.md) | Android app architecture, extractors, download pipeline, EAS build |
-| [`docs/remix-lab.md`](docs/remix-lab.md) | ML pipeline, models, Kaggle/Colab setup, local run, API |
-| [`docs/phone-worker-setup.md`](docs/phone-worker-setup.md) | Legacy: using a spare phone as yt-dlp/media relay for web backend |
+| [`docs/api.md`](docs/api.md)                                 | Endpoint contracts, request/response shapes, SSE events                |
+| [`docs/mobile-app.md`](docs/mobile-app.md)                   | Android app architecture, extractors, download pipeline, EAS build     |
+| [`docs/remix-lab.md`](docs/remix-lab.md)                     | ML pipeline, models, Kaggle/Colab setup, local run, API                |
+| [`docs/phone-worker-setup.md`](docs/phone-worker-setup.md)   | Legacy: using a spare phone as yt-dlp/media relay for web backend      |
 
 ---
-
 
 **AGPL-3.0-or-later** for the main apps (`web/`, `mobile/`, `remix/`).
 

@@ -12,13 +12,13 @@ export function getInstagramCookie(): string {
 
 export type FilenameFormat = 'artist-title' | 'title' | 'title-platform';
 
-const FORMAT_KEY = 'nexstream.filename.format';
-const AUTOPASTE_KEY = 'nexstream.autopaste';
-const NOTIFY_KEY = 'nexstream.notify';
-const NOTIFY_PRIMED_KEY = 'nexstream.notify.primed';
-const HAPTICS_KEY = 'nexstream.haptics';
-const SC_CLIENTID_KEY = 'nexstream.soundcloud.clientid';
-const ONBOARDED_KEY = 'nexstream.onboarded';
+const FORMAT_KEY = 'phantom.filename.format';
+const AUTOPASTE_KEY = 'phantom.autopaste';
+const NOTIFY_KEY = 'phantom.notify';
+const NOTIFY_PRIMED_KEY = 'phantom.notify.primed';
+const HAPTICS_KEY = 'phantom.haptics';
+const SC_CLIENTID_KEY = 'phantom.soundcloud.clientid';
+const ONBOARDED_KEY = 'phantom.onboarded';
 
 export async function getOnboarded(): Promise<boolean> {
   const v = await AsyncStorage.getItem(ONBOARDED_KEY).catch(() => null);
