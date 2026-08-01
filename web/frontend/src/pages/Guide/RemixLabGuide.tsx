@@ -87,9 +87,9 @@ const RemixLabGuide = () => {
     },
     {
       icon: <LinkIcon className="text-amber-400" size={24} />,
-      title: 'Step 5: Connect to Panther',
+      title: 'Step 5: Connect to Phantom',
       description:
-        'Once it finishes booting, it will output a public URL at the bottom (e.g., https://xxxx.gradio.live). Copy this URL, head back to the Remix Lab in Panther, and paste it into the &apos;Kaggle Endpoint URL&apos; box.',
+        'Once it finishes booting, it will output a public URL at the bottom (e.g., https://xxxx.gradio.live). Copy this URL, head back to the Remix Lab in Phantom, and paste it into the &apos;Kaggle Endpoint URL&apos; box.',
 
       placeholder:
         '[Image Placeholder: Show Gradio public URL in Kaggle output]',

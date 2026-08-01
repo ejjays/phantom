@@ -1,6 +1,6 @@
 # API Reference
 
-Panther exposes a small HTTP API. Responses are validated against the shared Zod schemas in [`../web/shared/schemas/media.schema.ts`](../web/shared/schemas/media.schema.ts) — that file is the source of truth for shapes.
+Phantom exposes a small HTTP API. Responses are validated against the shared Zod schemas in [`../web/shared/schemas/media.schema.ts`](../web/shared/schemas/media.schema.ts) — that file is the source of truth for shapes.
 
 ## Auth
 

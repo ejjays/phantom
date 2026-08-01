@@ -49,7 +49,7 @@ const LyricsSheet = ({
     if (projectId.includes('demo') || projectId.startsWith('project-')) {
       setData({
         title: 'Demo / Sample Song',
-        artist: 'Panther',
+        artist: 'Phantom',
         lyrics:
           'Lyrics & chord extraction is disabled for static demo files. Upload your own track to use this feature!',
         chordsSheet: '',

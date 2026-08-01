@@ -15,7 +15,7 @@ interface LogState {
 
 function runWithRecordedState() {
   const state: LogState = {
-    desktopLogs: ['[0:00] Initializing Panther Core Engine...'],
+    desktopLogs: ['[0:00] Initializing Phantom Core Engine...'],
     pendingSubStatuses: [],
     subStatus: '',
   };
@@ -343,7 +343,7 @@ describe('handleSseMessage — App.tsx wrapper integration', () => {
   it('appends to the real Zustand store via the wrapper', async () => {
     const { useRemixStore } = await import('../src/store/useRemixStore');
     useRemixStore.setState({
-      desktopLogs: ['[0:00] Initializing Panther Core Engine...'],
+      desktopLogs: ['[0:00] Initializing Phantom Core Engine...'],
       pendingSubStatuses: [],
       subStatus: '',
       sessionStartTime: Date.now(),

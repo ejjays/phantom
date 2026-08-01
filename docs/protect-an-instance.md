@@ -1,6 +1,6 @@
 # Protecting a Public Instance
 
-A localhost or personal instance needs no extra setup — auth is off by default. If you expose Panther to the public internet, harden it as below. None of this requires paid infrastructure.
+A localhost or personal instance needs no extra setup — auth is off by default. If you expose Phantom to the public internet, harden it as below. None of this requires paid infrastructure.
 
 ## 1. Require an API Key
 

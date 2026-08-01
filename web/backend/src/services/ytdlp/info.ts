@@ -18,10 +18,8 @@ import { handleYoutubeTiktokInfo, handleSocialJSInfo } from './info-youtube.js';
 import { secureFetch } from '../../utils/network/security.util.js';
 import { queryConfigWithMeta } from '../../utils/infra/db.util.js';
 
-// keep public API stable for consumers
+// keep public API stable; native extractors avoid yt-dlp
 export { expandShortUrl, runYtdlpInfo } from './info-core.js';
-
-// native extractors that shouldn't need yt-dlp
 export function nativePlatform(url: string): string | null {
   if (url.includes('youtube.com') || url.includes('youtu.be')) return 'YouTube';
   if (url.includes('tiktok.com')) return 'TikTok';
@@ -58,7 +56,6 @@ function shouldPeerResolve(url: string): boolean {
   return PEER_HOSTS.some((host) => lower.includes(host));
 }
 
-// short liveness probe
 async function peerHealthy(base: string): Promise<boolean> {
   try {
     let cleaned = base;
@@ -90,7 +87,7 @@ async function resolvePeerBase(): Promise<string> {
   return base;
 }
 
-// fetch one peer; null on failure
+// fetch one peer; null on failure, reject empty
 async function peerFetch(
   base: string,
   url: string,
@@ -107,7 +104,6 @@ async function peerFetch(
       return null;
     }
     const data = (await res.json()) as VideoInfo;
-    // reject empty peer results
     if (data?.formats?.length || data?.title) return data;
     return null;
   } catch (error) {
@@ -116,7 +112,6 @@ async function peerFetch(
   }
 }
 
-// peer resolves with a non-blocked ip
 async function tryPeerResolve(
   url: string,
   clientId: string | null
@@ -236,7 +231,6 @@ export async function getVideoInfo(
     reportProgress(clientId, status, progress, subStatus, details);
   };
 
-  // delegate blocked hosts before local expansion
   if (!forceRefresh && shouldPeerResolve(url)) {
     const peerKey = `${url}_${cookieArgs.join('_')}`;
     const peerCached = await getCachedInfo(peerKey, false, clientId);
@@ -273,14 +267,12 @@ export async function getVideoInfo(
     return prefetchResult;
   }
 
-  // check cache
   const cached = await getCachedInfo(cacheKey, forceRefresh, clientId);
   if (cached) {
     console.log(`[Timing] /info served from cache in ${Date.now() - t0}ms`);
     return cached;
   }
 
-  // handle spotify
   if (targetUrl.includes('spotify.com') && !forceRefresh) {
     return handleSpotifyInfo(targetUrl, cacheKey, clientId, onProgress);
   }
@@ -288,7 +280,6 @@ export async function getVideoInfo(
   const isYouTube =
     targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
 
-  // handle yt/tiktok
   if ((isYouTube || targetUrl.includes('tiktok.com')) && !forceRefresh) {
     const jsInfo = await handleYoutubeTiktokInfo(
       targetUrl,
@@ -306,7 +297,6 @@ export async function getVideoInfo(
     }
   }
 
-  // handle social
   if (!isYouTube) {
     const socialInfo = await handleSocialJSInfo(
       targetUrl,
@@ -322,7 +312,6 @@ export async function getVideoInfo(
     }
   }
 
-  // fallback ytdlp
   const isFbStory = targetUrl.includes('/stories/');
   if (isFbStory) throw new Error('Could not extract Facebook Story media.');
 
@@ -346,7 +335,6 @@ export async function getVideoInfo(
 
   const info = await runYtdlpInfo(targetUrl, cookieArgs, signal);
 
-  // ensure frontend sync
   info.isPartial = false;
   info.isFullData = true;
   if (!info.extractorKey) info.extractorKey = 'youtube';

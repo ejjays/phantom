@@ -9,7 +9,6 @@ import {
   type ProgressCallback,
 } from './info-core.js';
 
-// enrich with yt-dlp
 async function runYtdlpEnhancement(
   cacheKey: string,
   targetUrl: string,
@@ -79,7 +78,6 @@ async function runYtdlpEnhancement(
   }
 }
 
-// handle yt/tiktok
 export async function handleYoutubeTiktokInfo(
   targetUrl: string,
   cacheKey: string,
@@ -126,7 +124,7 @@ export async function handleYoutubeTiktokInfo(
       };
       await setCachedInfo(cacheKey, fullInfo);
 
-      // JS already returned HD; only enhance via yt-dlp when opted in // eslint-disable-line panther/panther-comments
+      // JS already returned HD; only enhance via yt-dlp when opted in // eslint-disable-line phantom/phantom-comments
       if (!isTikTok && process.env.YT_DLP_ENHANCE === '1')
         void runYtdlpEnhancement(
           cacheKey,
@@ -163,8 +161,7 @@ export async function handleYoutubeTiktokInfo(
       try {
         const prefetchUrl = jsInfo?.targetUrl || targetUrl;
 
-        // spawn yt-dlp lazily — only as a real fallback when JS comes back
-        // empty, or eagerly when YT_DLP_ENHANCE=1 opts into the parallel pass
+        // yt-dlp only as fallback when JS empty, or eagerly via YT_DLP_ENHANCE
         const enhance = process.env.YT_DLP_ENHANCE === '1';
         let ytdlpProc: Promise<VideoInfo | null> | null = null;
         const runYtdlp = () =>
@@ -179,7 +176,6 @@ export async function handleYoutubeTiktokInfo(
           ));
         if (enhance) runYtdlp();
 
-        // await js result
         const jsPromise = getInFlightJsResult(targetUrl);
         if (jsPromise) {
           const jsResult = await jsPromise;
@@ -388,7 +384,6 @@ const _handleHasHD = (
   return jsInfo;
 };
 
-// handle social
 export async function handleSocialJSInfo(
   targetUrl: string,
   cacheKey: string,
@@ -423,7 +418,6 @@ export async function handleSocialJSInfo(
       const inflight = getInFlightJsResult(targetUrl);
       const jsActual = inflight ? await inflight : null;
       if (jsActual?.formats?.length) {
-        // carry metascraper title/thumb from the meta-partial
         jsActual.metascraper = jsActual.metascraper || jsInfo?.metascraper;
         jsActual.thumbnail = jsActual.thumbnail || jsInfo?.thumbnail;
         resolved = jsActual;

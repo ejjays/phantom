@@ -25,7 +25,6 @@ export interface MuxOptions {
   videoBytesHint?: number;
 }
 
-// check for basic browser support
 export function isClientMuxSupported(): boolean {
   return (
     typeof window !== 'undefined' &&
@@ -35,11 +34,10 @@ export function isClientMuxSupported(): boolean {
 }
 
 const muxFileName = (session: string, suffix: string) =>
-  `panther-mux-${session}-${suffix}`;
+  `phantom-mux-${session}-${suffix}`;
 
 const STALE_MUX_FILE_MS = 5 * 60 * 1000;
 
-// cleanup stale OPFS files
 async function sweepStaleMuxFiles(): Promise<void> {
   if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) {
     return;
@@ -52,7 +50,7 @@ async function sweepStaleMuxFiles(): Promise<void> {
     if (typeof iterable.keys !== 'function') return;
     const now = Date.now();
     for await (const name of iterable.keys()) {
-      const match = /^panther-mux-(\d+)-/.exec(name);
+      const match = /^phantom-mux-(\d+)-/.exec(name);
       if (!match) continue;
       const stamp = Number(match[1]);
       if (Number.isFinite(stamp) && now - stamp < STALE_MUX_FILE_MS) continue;

@@ -47,7 +47,6 @@ export const useRemixEngine = (
       if (!master) return;
 
       if (isPlaying && !master.paused) {
-        // sync check
         let minTime = master.currentTime;
         let maxTime = master.currentTime;
         activeKeys.forEach((trackKey) => {
@@ -92,7 +91,6 @@ export const useRemixEngine = (
           });
         }
 
-        // throttled sync
         if (
           !isWaitingForStallRef.current &&
           perfTime - lastSyncTime.current > 1000
@@ -124,7 +122,6 @@ export const useRemixEngine = (
           lastSyncTime.current = perfTime;
         }
 
-        // update UI
         if (!isWaitingForStallRef.current && !master.paused) {
           const rawTime = master.currentTime;
 
@@ -133,10 +130,9 @@ export const useRemixEngine = (
             lastPerfTime.current = perfTime;
           }
 
-          // smooth UI progression
+          // smooth progression, clamped against jumps
           let smoothTime =
             lastAudioTime.current + (perfTime - lastPerfTime.current) / 1000;
-          // clamp time
           if (smoothTime - rawTime > 0.1) smoothTime = rawTime;
 
           setCurrentTime(smoothTime);
@@ -164,8 +160,7 @@ export const useRemixEngine = (
           }
         }
       }
-      // reschedule owned by driver loop
-      // early-return must not kill loop
+      // driver loop owns reschedule; early-return must not kill loop
     },
     [
       beats,
@@ -186,7 +181,6 @@ export const useRemixEngine = (
   const loadAudioSources = useCallback(
     async (stems: Record<string, string>) => {
       try {
-        // reset tracks
         Object.values(audioRefs.current).forEach((a) => {
           a.pause();
           a.src = '';
@@ -212,7 +206,6 @@ export const useRemixEngine = (
               audio.removeEventListener('loadedmetadata', onReady);
               audio.removeEventListener('error', onError);
 
-              // set duration
               if (
                 audio.duration &&
                 isFinite(audio.duration) &&
@@ -232,7 +225,6 @@ export const useRemixEngine = (
         });
 
         await Promise.all(loadPromises);
-        // unlock UI after tracks ready
         useRemixStore.getState().setIsReady(true);
       } catch (err) {
         console.error('[Engine] load error', err);
@@ -295,8 +287,7 @@ export const useRemixEngine = (
   }, []);
 
   useEffect(() => {
-    // driver loop schedules next then runs
-    // keeps loop alive if animate bails
+    // rAF loop: schedules next frame then runs; survives if animate bails
     const loop = (perfTime: number) => {
       requestRef.current = requestAnimationFrame(loop);
       animateRef.current(perfTime);

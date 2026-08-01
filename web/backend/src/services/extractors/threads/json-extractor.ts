@@ -12,7 +12,6 @@ const str = (value: unknown): string | undefined =>
 const num = (value: unknown): number | undefined =>
   typeof value === 'number' ? value : undefined;
 
-// walk every object node in parsed json
 function walk(node: unknown, visit: (obj: Obj) => void): void {
   if (!node || typeof node !== 'object') return;
   if (Array.isArray(node)) {
@@ -23,7 +22,7 @@ function walk(node: unknown, visit: (obj: Obj) => void): void {
   for (const value of Object.values(node)) walk(value, visit);
 }
 
-// highest-resolution entry from a versions array
+// highest-resolution: versions entry / image candidate
 function bestVideo(
   versions: unknown
 ): { url: string; width?: number; height?: number } | null {
@@ -41,7 +40,6 @@ function bestVideo(
   return best;
 }
 
-// highest-resolution image candidate url
 function bestImage(imageVersions: unknown): string | undefined {
   if (!imageVersions || typeof imageVersions !== 'object') return undefined;
   const candidates = (imageVersions as Obj).candidates;

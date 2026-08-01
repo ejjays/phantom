@@ -191,7 +191,6 @@ export const QualitySelectionShared = ({
   useEffect(() => {
     if (!isDropdownOpen) return undefined;
 
-    // focus the listbox when dropdown opens
     const listbox = dropdownRef.current?.querySelector(
       '[role="listbox"]'
     ) as HTMLElement;
@@ -230,7 +229,9 @@ export const QualitySelectionShared = ({
               onClick={onRetry}
               className="w-full h-[58px] bg-white/5 border border-amber-500/30 rounded-2xl flex items-center justify-between px-4 text-amber-300 hover:bg-white/10 transition-all"
             >
-              <span className="text-xs font-bold">Taking longer than usual</span>
+              <span className="text-xs font-bold">
+                Taking longer than usual
+              </span>
               <span className="text-[10px] font-black uppercase tracking-wider">
                 Retry
               </span>
@@ -327,7 +328,6 @@ export const QualitySelectionShared = ({
                             setSelectedQualityId(
                               String(options[nextIndex].formatId)
                             );
-                            // scroll into view
                             const container = e.currentTarget;
                             const buttons = container.querySelectorAll(
                               'button[role="option"]'
@@ -517,7 +517,6 @@ export const EditModeUIShared = ({
     </motion.div>
   );
 };
-
 
 export interface AudioTrackOption {
   language: string;

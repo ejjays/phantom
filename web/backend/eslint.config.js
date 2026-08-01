@@ -9,11 +9,11 @@ import { fileURLToPath } from 'node:url';
 
 const pluginPath = join(
   dirname(fileURLToPath(import.meta.url)),
-  '../../scripts/eslint-plugin-panther.js'
+  '../../scripts/eslint-plugin-phantom.js'
 );
 const hasPlugin = existsSync(pluginPath);
-const pantherPlugin = hasPlugin
-  ? (await import('../../scripts/eslint-plugin-panther.js')).default
+const phantomPlugin = hasPlugin
+  ? (await import('../../scripts/eslint-plugin-phantom.js')).default
   : null;
 
 export default tseslint.config(
@@ -26,7 +26,7 @@ export default tseslint.config(
   prettierConfig,
   {
     plugins: {
-      ...(pantherPlugin ? { panther: pantherPlugin } : {}),
+      ...(phantomPlugin ? { phantom: phantomPlugin } : {}),
     },
     languageOptions: {
       ecmaVersion: 2022,
@@ -36,11 +36,11 @@ export default tseslint.config(
       },
     },
     rules: {
-      ...(pantherPlugin
+      ...(phantomPlugin
         ? {
-            'panther/panther-comments': 'error',
-            'panther/no-raw-fetch': 'error',
-            'panther/no-raw-spawn': 'error',
+            'phantom/phantom-comments': 'error',
+            'phantom/no-raw-fetch': 'error',
+            'phantom/no-raw-spawn': 'error',
           }
         : {}),
       complexity: ['error', 30],
@@ -143,11 +143,11 @@ export default tseslint.config(
       'sonarjs/no-all-duplicated-branches': 'off',
       'sonarjs/unused-import': 'off',
       '@typescript-eslint/no-explicit-any': 'error',
-      ...(pantherPlugin
+      ...(phantomPlugin
         ? {
-            'panther/panther-comments': 'error',
-            'panther/no-raw-fetch': 'error',
-            'panther/no-raw-spawn': 'error',
+            'phantom/phantom-comments': 'error',
+            'phantom/no-raw-fetch': 'error',
+            'phantom/no-raw-spawn': 'error',
           }
         : {}),
     },

@@ -94,7 +94,6 @@ export const handleSseMessage = (
         const prevData = prev as Record<string, unknown> | null;
         const isNowFull = update.isFullData === true;
 
-        // guard overwrite
         if (prevData?.isFullData === true && update.isPartial === true) {
           return prevData;
         }
@@ -187,7 +186,7 @@ export const handleSseMessage = (
 
   if (data.details) {
     safe(() => {
-      // skip JSON blobs
+      // skip json blobs + decorative details
       const detailsStr = String(data.details);
       if (
         detailsStr.includes('"early_metadata"') ||
@@ -195,7 +194,6 @@ export const handleSseMessage = (
       ) {
         return;
       }
-      // skip decorative details paired with a subStatus
       if (data.subStatus) return;
       const log = `${timestamp} ${detailsStr}`.trim();
       appendUniqueLog(setDesktopLogs, log);

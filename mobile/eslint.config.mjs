@@ -8,18 +8,18 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 
-const pluginPath = join(process.cwd(), '../scripts/eslint-plugin-panther.js');
+const pluginPath = join(process.cwd(), '../scripts/eslint-plugin-phantom.js');
 const hasPlugin = existsSync(pluginPath);
-const pantherPlugin = hasPlugin
-  ? (await import('../scripts/eslint-plugin-panther.js')).default
+const phantomPlugin = hasPlugin
+  ? (await import('../scripts/eslint-plugin-phantom.js')).default
   : null;
 
 // rule plugin is dev-local (gitignored) — absent in CI/fresh clone, so register
-// no-op stubs so inline panther/* disable directives resolve (else eslint
+// no-op stubs so inline phantom/* disable directives resolve (else eslint
 // errors "definition not found" & fails lint)
 const noopRule = { create: () => ({}) };
-const pantherPluginOrStub = pantherPlugin ?? {
-  rules: { 'no-inline-svg': noopRule, 'panther-comments': noopRule },
+const phantomPluginOrStub = phantomPlugin ?? {
+  rules: { 'no-inline-svg': noopRule, 'phantom-comments': noopRule },
 };
 
 export default tseslint.config(
@@ -44,7 +44,7 @@ export default tseslint.config(
   prettierConfig,
   {
     plugins: {
-      panther: pantherPluginOrStub,
+      phantom: phantomPluginOrStub,
     },
     languageOptions: {
       ecmaVersion: 2022,
@@ -59,10 +59,10 @@ export default tseslint.config(
       },
     },
     rules: {
-      ...(pantherPlugin
+      ...(phantomPlugin
         ? {
-            'panther/panther-comments': 'error',
-            'panther/no-inline-svg': 'warn',
+            'phantom/phantom-comments': 'error',
+            'phantom/no-inline-svg': 'warn',
           }
         : {}),
       complexity: ['error', 30],

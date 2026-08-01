@@ -4,7 +4,7 @@
 
 Please report security issues **privately** — don't open a public issue for them.
 
-Use GitHub's [private vulnerability reporting](https://github.com/ejjays/panther/security/advisories/new) (the repo's **Security → Report a vulnerability** tab). If it isn't enabled yet, turn it on under _Settings → Code security → Private vulnerability reporting_.
+Use GitHub's [private vulnerability reporting](https://github.com/ejjays/phantom/security/advisories/new) (the repo's **Security → Report a vulnerability** tab). If it isn't enabled yet, turn it on under _Settings → Code security → Private vulnerability reporting_.
 
 Include the affected endpoint/component, steps to reproduce, and the impact. A suggested fix is welcome but not required. This is a solo-maintained project, so reports are triaged as fast as is realistically possible — expect an initial reply within a few days.
 
@@ -14,7 +14,7 @@ Security fixes land on `main`. If you self-host, track `main` or pin a tagged re
 
 ## What the Backend Already Does
 
-Panther is built to be safe to self-host:
+Phantom is built to be safe to self-host:
 
 - **SSRF protection** — every outbound media/proxy fetch resolves the target host and rejects private, loopback, and link-local IP ranges. Raw `fetch` / `child_process.spawn` are blocked at lint time by custom rules (`no-raw-fetch`, `no-raw-spawn`), so new code has to go through the vetted helpers.
 - **Signed media URLs** — `/proxy` and stream links are HMAC-signed with an expiry; forged or expired links get `403`.
@@ -33,4 +33,4 @@ Authentication is **opt-in and off by default** (so a localhost dev setup needs 
 
 ## Scope
 
-Panther only downloads free, publicly accessible content and caches **resolution metadata**, never media files. Please use it for content you have the right to process.
+Phantom only downloads free, publicly accessible content and caches **resolution metadata**, never media files. Please use it for content you have the right to process.

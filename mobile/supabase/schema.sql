@@ -1,4 +1,4 @@
--- nexstream updates feature schema
+-- phantom updates feature schema
 --
 -- setup:
 --   1. create a free project at https://supabase.com (no credit card)

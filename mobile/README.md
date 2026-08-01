@@ -93,7 +93,7 @@ Two coexisting paths in `lib/social/googleAuth.ts` + `lib/social/updates.ts`:
 
 ## Build & Deploy (EAS — Android only)
 
-- **Managed / CNG** — no `android/`/`ios/` committed; EAS generates native at build. Package `com.nexstream.app`.
+- **Managed / CNG** — no `android/`/`ios/` committed; EAS generates native at build. Package `com.phantom.app`.
 - `app.json`: no iOS config; `eas.json` builds APKs only.
 - Profiles: `development` (dev client, internal, `EAS_SKIP_AUTO_FINGERPRINT=1`), `preview` (internal, arm64-v8a), `production` (apk, arm64-v8a). `appVersionSource: remote`.
 - Config plugins: notify-kit (fg service `dataSync`), ffmpeg-kit (`full-gpl`), media-library, splash, font/image/sharing/status-bar, `react-native-nitro-google-signin` (needs `iosUrlScheme` placeholder or prebuild throws), `./plugins/withLargeHeap`, `./plugins/withNotificationIcon`.

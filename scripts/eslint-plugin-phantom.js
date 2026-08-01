@@ -2,7 +2,7 @@
  * @fileoverview custom rules
  */
 
-const pantherPlugin = {
+const phantomPlugin = {
   rules: {
     'no-raw-fetch': {
       meta: {
@@ -56,7 +56,7 @@ const pantherPlugin = {
         };
       },
     },
-    'panther-comments': {
+    'phantom-comments': {
       meta: {
         type: 'suggestion',
         docs: { description: 'Comment style (disabled)' },
@@ -103,4 +103,4 @@ const pantherPlugin = {
   },
 };
 
-export default pantherPlugin;
+export default phantomPlugin;

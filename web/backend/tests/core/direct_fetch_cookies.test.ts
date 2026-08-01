@@ -34,7 +34,7 @@ vi.mock('../../src/utils/network/proxy.util.js', () => {
 
 const COOKIES_PATH = path.join(
   os.tmpdir(),
-  `panther_directcookies_${process.pid}.txt`
+  `phantom_directcookies_${process.pid}.txt`
 );
 
 beforeEach(() => {

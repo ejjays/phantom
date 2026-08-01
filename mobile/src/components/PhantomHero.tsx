@@ -22,7 +22,7 @@ import {
   Easing,
 } from 'react-native-reanimated';
 
-export const GHOST_ASPECT = 430 / 400;
+export const PHANTOM_ASPECT = 430 / 400;
 const FLOAT_DURATION = 1600;
 const SMILE_DELAY = 2000;
 const IDLE_OPEN_MS = 10000;
@@ -51,7 +51,7 @@ const SWEAT_PATH =
 const SWEAT_HIGHLIGHT =
   'M14,26c-3.3086,0-6-2.6914-6-6c0-0.5527,0.4478-1,1-1s1,0.4473,1,1c0,2.2061,1.7944,4,4,4c0.5522,0,1,0.4473,1,1S14.5522,26,14,26z';
 
-export default function GhostHero() {
+export default function PhantomHero() {
   const floatY = useSharedValue(0);
   const shadowScale = useSharedValue(1);
   const shadowOpacity = useSharedValue(0.2);

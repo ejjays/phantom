@@ -1,5 +1,5 @@
 import './instrument.js';
-import 'dotenv/config'; 
+import 'dotenv/config';
 import dns from 'node:dns';
 import { startCipherRotation } from './utils/network/cipher.util.js';
 
@@ -100,7 +100,6 @@ if (dnsModule.setDefaultResultOrder) {
   dnsModule.setDefaultResultOrder('ipv4first');
 }
 
-// global errors
 process.on('unhandledRejection', (reason: unknown) => {
   const message = reason instanceof Error ? reason.message : String(reason);
   console.error(`[Unhandled] reason: ${message}`);
@@ -114,7 +113,6 @@ process.on('uncaughtException', (err: unknown) => {
 const app = express();
 app.set('trust proxy', 1);
 
-// observe latency + outcomes
 app.use(metricsMiddleware);
 
 const PORT = Number(process.env.PORT) || 5000;
@@ -125,9 +123,8 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        // no inline scripts; external bundles only
+        // no inline scripts; styles inline (hardened later)
         scriptSrc: ["'self'"],
-        // styles still inline (react/libs); hardened later
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", 'data:', 'https:'],
         connectSrc: ["'self'", 'https:', 'wss:'],
@@ -156,7 +153,7 @@ const infoLimiter = rateLimit({
 
 app.use(['/info', '/stream-urls'], infoLimiter);
 
-// skip HEAD to allow resumes
+// skip HEAD (resume); no SSE compression
 const convertLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
   max: 60,
@@ -168,7 +165,6 @@ const convertLimiter = rateLimit({
 
 app.use('/convert', convertLimiter);
 
-// seeder is expensive to run
 const seedLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -179,7 +175,6 @@ const seedLimiter = rateLimit({
 
 app.use('/seed-intelligence', seedLimiter);
 
-// disable SSE compression
 app.use(
   compression({
     filter: (req, res) => {
@@ -228,7 +223,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// cors middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin as string | undefined;
   const allowlist = (process.env.ALLOWED_ORIGINS || '')
@@ -252,7 +246,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Last-Event-ID, ngrok-skip-browser-warning, bypass-tunnel-reminder, sentry-trace, baggage'
   );
-  // eme worker reads these for progress
   res.header(
     'Access-Control-Expose-Headers',
     'Content-Length, Content-Range, Accept-Ranges'
@@ -303,7 +296,6 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
-// core routes
 const TEMP_DIR = path.join(__dirname, 'temp');
 const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
 
@@ -336,7 +328,7 @@ app.get('/api/get-url', async (_req: Request, res: Response) => {
   res.json({ url: null });
 });
 
-// opt-in auth; off unless API_KEY set
+// opt-in auth; gated: localhost or API_KEY only
 app.use(
   [
     '/info',
@@ -364,18 +356,16 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-// gated: localhost or API_KEY only
 app.get('/metrics', requireLocalOrApiKey, (_req: Request, res: Response) => {
   res.status(200).json(getMetrics());
 });
 
-// global error handler
+// global error handler: hide internals in production
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const reason = err instanceof Error ? err.name : 'UnknownError';
   recordFailure(reason);
   logger.error({ err, path: req.path, method: req.method }, 'request error');
   if (!res.headersSent) {
-    // hide internals from clients in production
     const details =
       process.env.NODE_ENV === 'production'
         ? undefined

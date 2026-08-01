@@ -43,14 +43,14 @@ Tables live in [`../mobile/supabase/schema.sql`](../mobile/supabase/schema.sql):
 
 ### Firebase
 
-Project is `panther-87d1b`. From **Project settings → Service accounts → Generate new private key** you get a JSON with `project_id`, `client_email`, and `private_key` — those three feed the secrets below. `google-services.json` at the app root is the client config (not a secret).
+Project is `phantom-713aa`. From **Project settings → Service accounts → Generate new private key** you get a JSON with `project_id`, `client_email`, and `private_key` — those three feed the secrets below. `google-services.json` at the app root is the client config (not a secret).
 
 ### Secrets
 
 Set these in Supabase → Edge Functions → `send-push` → Secrets:
 
 ```
-FCM_PROJECT_ID       panther-87d1b
+FCM_PROJECT_ID       phantom-713aa
 FCM_CLIENT_EMAIL     <service account client_email>
 FCM_PRIVATE_KEY      <service account private_key, pasted verbatim — literal \n is handled>
 PUSH_WEBHOOK_SECRET  <any long random string, shared with the webhooks below>

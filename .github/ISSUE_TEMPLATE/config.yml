@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/ejjays/nexstream/security/advisories/new
+    url: https://github.com/ejjays/phantom/security/advisories/new
     about: Report security issues privately (see SECURITY.md). Please don't open a public issue.

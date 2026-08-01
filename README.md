@@ -1,12 +1,12 @@
 <p align="center">
-  <a href="https://github.com/ejjays/panther">
+  <a href="https://github.com/ejjays/phantom">
     <img width="1400" height="460" alt="Cyan Phantom" src="mobile/assets/phantom-hero.svg" />
   </a>
 </p>
 
 <p align="center">
   <a href="https://dl.circleci.com/status-badge/redirect/circleci/9BjBRRbsXUjJueU2cq7uGg/YU36DWYQs3RevrR3a2o1CN/tree/main"><img src="https://dl.circleci.com/status-badge/img/circleci/9BjBRRbsXUjJueU2cq7uGg/YU36DWYQs3RevrR3a2o1CN/tree/main.svg?style=shield" alt="CircleCI" /></a>
-  <a href="https://app.deepsource.com/gh/ejjays/panther/"><img src="https://app.deepsource.com/gh/ejjays/panther.svg/?label=active+issues&show_trend=true&token=AjSUM1LGBlY2Uzo6_spxrx9Q" alt="DeepSource" /></a>
+  <a href="https://app.deepsource.com/gh/ejjays/phantom/"><img src="https://app.deepsource.com/gh/ejjays/phantom.svg/?label=active+issues&show_trend=true&token=AjSUM1LGBlY2Uzo6_spxrx9Q" alt="DeepSource" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue?style=flat" alt="License: AGPL v3" /></a>
 </p>
 
@@ -30,8 +30,8 @@ Phantom downloads 4K+ video and audio, and breaks songs into stems + chords for 
 
 ```bash
 # Prerequisites: Node 22+, yt-dlp, ffmpeg, Redis
-git clone https://github.com/ejjays/panther.git
-cd panther
+git clone https://github.com/ejjays/phantom.git
+cd phantom
 
 npm install              # root tooling (husky, prettier)
 npm run install:web      # installs frontend, backend, shared
@@ -56,8 +56,8 @@ cd web/backend && npm start
 **Docker (backend only):**
 
 ```bash
-docker build -f web/backend/Dockerfile -t panther .
-docker run -p 8000:8000 --env-file web/backend/.env panther
+docker build -f web/backend/Dockerfile -t phantom .
+docker run -p 8000:8000 --env-file web/backend/.env phantom
 ```
 
 ---
@@ -107,18 +107,18 @@ https://github.com/user-attachments/assets/c6e6badc-3f4a-40b5-86a9-7849e77b63aa
 ## Architecture overview
 
 ```
-nexstream/
+phantom/
 ├── web/
 │   ├── frontend/       # React 19 + Vite + Tailwind + Styled Components
 │   ├── backend/        # Express 5 + yt-dlp + ffmpeg + Redis + Turso
-│   └── shared/         # @panther/shared (Zod schemas)
+│   └── shared/         # @phantom/shared (Zod schemas)
 ├── mobile/             # Expo SDK 56, RN 0.85, Hermes, New Arch
 │   ├── src/extractors/ # 13 pure-JS platform extractors
 │   ├── src/lib/        # download pipeline, social, net, notify
 │   └── src/components/ # UI, sheets, backgrounds, webviews
 ├── packages/
-│   ├── extractors/     # @panther/extractors (prototype, WIP)
-│   └── web-mux/        # @panther/web-mux (prototype, WIP)
+│   ├── extractors/     # @phantom/extractors (prototype, WIP)
+│   └── web-mux/        # @phantom/web-mux (prototype, WIP)
 ├── remix/              # Python ML engine (Demucs, BTC, madmom, nnAudio)
 ├── scripts/            # termux install, tunnels, kaggle bundler
 └── docs/               # self-host, env, hardening, API, mobile, remix
@@ -149,7 +149,7 @@ nexstream/
 
 **AGPL-3.0-or-later** for the main apps (`web/`, `mobile/`, `remix/`).
 
-**MIT** for standalone packages in `packages/` (`@panther/extractors`, `@panther/web-mux`) — each carries its own LICENSE.
+**MIT** for standalone packages in `packages/` (`@phantom/extractors`, `@phantom/web-mux`) — each carries its own LICENSE.
 
 See [`LICENSE`](LICENSE) and [`packages/*/LICENSE`](packages/extractors/LICENSE).
 

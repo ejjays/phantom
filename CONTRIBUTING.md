@@ -6,16 +6,16 @@ If anything here is unclear, don't worry about getting it perfect — open an is
 
 ## Project Structure
 
-Panther is a multi-target repo:
+Phantom is a multi-target repo:
 
 | Target         | Path            | Stack                                                 |
 | -------------- | --------------- | ----------------------------------------------------- |
 | Web backend    | `web/backend/`  | Express 5 + TS, yt-dlp, ffmpeg, Redis, Turso          |
 | Web frontend   | `web/frontend/` | React 19 + Vite, Tailwind + Styled Components         |
-| Shared schemas | `web/shared/`   | Zod schemas (`@panther/shared`)                       |
+| Shared schemas | `web/shared/`   | Zod schemas (`@phantom/shared`)                       |
 | Android app    | `mobile/`       | Expo SDK 56, RN 0.85, Hermes, New Architecture        |
 | Remix Lab      | `remix/`        | Python (Demucs, BTC, madmom, nnAudio) on Kaggle/Colab |
-| Packages       | `packages/`     | `@panther/extractors`, `@panther/web-mux` (both MIT)  |
+| Packages       | `packages/`     | `@phantom/extractors`, `@phantom/web-mux` (both MIT)  |
 
 ## Getting Set Up
 

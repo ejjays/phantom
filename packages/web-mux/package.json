@@ -1,17 +1,17 @@
 {
-  "name": "@panther/web-mux",
+  "name": "@phantom/web-mux",
   "version": "0.0.1",
   "description": "Browser-side demux + remux of separate video/audio URLs into one MP4 (WebCodecs + OPFS, no server transcode).",
   "license": "MIT",
   "author": "ejjays <christsonalloso021@gmail.com>",
-  "homepage": "https://github.com/ejjays/panther/tree/main/packages/web-mux#readme",
+  "homepage": "https://github.com/ejjays/phantom/tree/main/packages/web-mux#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ejjays/panther.git",
+    "url": "git+https://github.com/ejjays/phantom.git",
     "directory": "packages/web-mux"
   },
   "bugs": {
-    "url": "https://github.com/ejjays/panther/issues"
+    "url": "https://github.com/ejjays/phantom/issues"
   },
   "keywords": [
     "muxer",

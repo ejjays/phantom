@@ -151,10 +151,8 @@ export async function getInfo(
   const getInfoStart = Date.now();
   const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
 
-  // use oEmbed/metascraper
   const metaFetcher = isYouTube ? fetchYoutubeOEmbed : fetchMetadata;
 
-  // define metascraper promise
   const metaFetchStart = Date.now();
   const metascraperTask = metaFetcher(url)
     .catch(() => null)
@@ -205,7 +203,6 @@ export async function getInfo(
           const wallClockMs = options.requestT0
             ? Date.now() - options.requestT0
             : null;
-          // track total request execution time
           const wallClockSuffix =
             wallClockMs !== null ? `, wall-clock ${wallClockMs}ms` : '';
           console.log(
@@ -225,7 +222,6 @@ export async function getInfo(
       return meta;
     });
 
-  // js extraction
   const jsTask = (async () => {
     try {
       const res = await extractor.getInfo(url, options);
@@ -236,7 +232,6 @@ export async function getInfo(
     }
   })();
 
-  // cache JS task
   inFlightJsTasks.set(url, jsTask);
   jsTask.finally(() => {
     const cleanupTimer = setTimeout(() => {
@@ -293,7 +288,6 @@ export async function getInfo(
     } as VideoInfo;
   }
 
-  // fallback to js
   return await jsTask;
 }
 

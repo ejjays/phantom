@@ -102,7 +102,6 @@ export const useDownloadOrchestrator = () => {
   const setVideoTitle = useRemixStore((state) => state.setVideoTitle);
   const lastDownloadRef = useRef(0);
 
-  // init service
   const service = useMemo(
     () =>
       new OrchestratorService({
@@ -174,7 +173,6 @@ export const useDownloadOrchestrator = () => {
       const audioLang = metadataOverrides.audioLang;
       setVideoTitle(finalTitle);
 
-      // setup engine
       const selectedOption = (
         selectedFormat === 'mp4' ? videoData?.formats : videoData?.audioFormats
       )?.find((f: Format) => String(f.formatId) === formatId);
@@ -212,7 +210,6 @@ export const useDownloadOrchestrator = () => {
         }
       }
 
-      // try direct download
       if (emeEligible) {
         const success = await service.startDirectDownload({
           url,
@@ -227,7 +224,6 @@ export const useDownloadOrchestrator = () => {
         if (success) return;
       }
 
-      // final server fallback
       const serverBytes = Number(selectedOption?.filesize) || 0;
       if (serverBytes > EME_HARD_CAP_BYTES) {
         setError(

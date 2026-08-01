@@ -416,7 +416,7 @@ export default function UpdatesPage() {
         onOpen={() => {}}
       />
     ));
-  };
+  }
 
   const heading = (
     <div className="mb-4 ml-1 mr-1 flex items-center justify-between">
@@ -435,7 +435,7 @@ export default function UpdatesPage() {
     <>
       <SEO
         title="Updates"
-        description="Latest features, optimizations, and fixes for Panther"
+        description="Latest features, optimizations, and fixes for Phantom"
       />
       <div
         className="w-full min-h-screen"

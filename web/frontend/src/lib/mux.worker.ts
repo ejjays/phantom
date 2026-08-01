@@ -47,7 +47,7 @@ const ctx = self as unknown as {
 };
 
 const muxName = (session: string, suffix: string) =>
-  `panther-mux-${session}-${suffix}`;
+  `phantom-mux-${session}-${suffix}`;
 
 const FLUSH_INTERVAL = 32 * 1024 * 1024;
 
@@ -181,7 +181,7 @@ async function sweepOrphans(dir: FileSystemDirectoryHandle): Promise<void> {
   const now = Date.now();
   try {
     for await (const name of iterable.keys()) {
-      const match = /^panther-mux-(\d+)-/.exec(name);
+      const match = /^phantom-mux-(\d+)-/.exec(name);
       if (!match) continue;
       const stamp = Number(match[1]);
       if (Number.isFinite(stamp) && now - stamp < ORPHAN_AGE_MS) continue;

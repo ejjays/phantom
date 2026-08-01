@@ -63,12 +63,10 @@ function purgeSocialMetadata(
   title: string,
   author: string | undefined
 ): string {
-  // bypass long titles
   if (title.length > 300) return title.trim();
 
   let text = title;
 
-  // clean whitespace
   text = text
     .replace(/\\n|\\r|\\t/gu, ' ')
     .replace(/\n|\r|\t/gu, ' ')
@@ -86,8 +84,7 @@ function purgeSocialMetadata(
     );
   }
 
-  // strip system prefix
-  // strip system prefix
+  // strip fb system prefix
   const prefixMatch = text.match(/^(?:Reel|Video)\s+by\s+/iu);
   if (prefixMatch) {
     const afterPrefix = text.slice(prefixMatch[0].length);
@@ -95,19 +92,16 @@ function purgeSocialMetadata(
     if (sepIdx !== -1) text = afterPrefix.slice(sepIdx + 1);
   }
 
-  // strip social metrics
   text = text.replace(
     /\d{1,20}(?:\.\d{1,20})?[KkM]?(?:\s+na\s+)?(?:views?|reactions?|shares?|likes?|comments?|reaksyon|heart)\b/giu,
     ''
   );
 
-  // clean separators
   text = text
     .replace(/[·•|:-]/gu, ' ')
     .replace(/\s+/gu, ' ')
     .trim();
 
-  // strip short hashtags
   if (text.length < 100) {
     text = text.replace(/#\w+/gu, '');
   }
@@ -231,8 +225,7 @@ export const normalizeArtist = (info: RawSocialData): string => {
     info.webpageUrl?.includes('youtube.com') ||
     info.webpageUrl?.includes('youtu.be');
 
-  // trust provided uploader
-  // bypass title guessing
+  // trust uploader fields; skip title guessing on yt
   if (isYouTube) {
     const candidates: Array<unknown> = [
       info.uploader,
@@ -285,16 +278,13 @@ const isJunkTitle = (value: string): boolean => {
 export const normalizeTitle = (info: RawSocialData): string => {
   const author = normalizeArtist(info);
 
-  // prefer metascraper title
+  // prefer metascraper title; strip seo noise
   const rawTitle = info.metascraper?.title || applySmartFallback(info);
-
-  // reduce seo noise
   let finalTitle = rawTitle;
   if (info.metascraper?.title) {
-    // split reel format
     if (finalTitle.includes('|')) {
       const parts = finalTitle.split('|').map((part) => part.trim());
-      // filter platform noise
+      // split reel `A | B`; drop platform noise parts
       const filtered = parts.filter((part) => {
         const clean = part.toLowerCase();
         return (
@@ -315,7 +305,6 @@ export const normalizeTitle = (info: RawSocialData): string => {
     }
   }
 
-  // apply purging rules
   if (finalTitle && finalTitle.length < 300) {
     finalTitle = purgeSocialMetadata(finalTitle, author);
   }
@@ -335,7 +324,6 @@ export const normalizeTitle = (info: RawSocialData): string => {
   return finalTitle;
 };
 
-// metascraper check
 export const getBestThumbnail = (info: RawSocialData): string | undefined => {
   if (typeof info !== 'object' || info === null) {
     return undefined;

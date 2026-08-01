@@ -100,7 +100,7 @@ export const useRemixStore = create<RemixState>()(
     clientId: (() => {
       const saved =
         typeof window !== 'undefined'
-          ? localStorage.getItem('panther_client_id')
+          ? localStorage.getItem('phantom_client_id')
           : null;
       if (saved) return saved;
       const newId =
@@ -108,7 +108,7 @@ export const useRemixStore = create<RemixState>()(
           ? crypto.randomUUID().split('-')[0]
           : Math.random().toString(36).substring(2, 10);
       if (typeof window !== 'undefined')
-        localStorage.setItem('panther_client_id', newId);
+        localStorage.setItem('phantom_client_id', newId);
       return newId;
     })(),
 

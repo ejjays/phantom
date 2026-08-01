@@ -8,7 +8,6 @@ from fastapi import BackgroundTasks, UploadFile, File, Form
 from remix.orchestrator import remix_audio_dual_gpu
 from remix.config import API_PORT, BASE_DIR, logger, IS_KAGGLE
 
-# task store
 tasks: dict[str, dict] = {}
 tasks_lock = asyncio.Lock()
 TASK_TTL = 3600 # 1 hour
@@ -37,7 +36,7 @@ async def cleanup_tasks():
 def create_ui():
     import gradio as gr
     with gr.Blocks(theme=gr.themes.Monochrome()) as interface:
-        gr.Markdown("# Panther Nitro Lab")
+        gr.Markdown("# Phantom Nitro Lab")
         with gr.Row():
             audio_in = gr.Audio(type="filepath", label="Input")
             with gr.Column():
@@ -61,7 +60,6 @@ def run_separation_task(task_id, temp_path, engine, stems):
         res = remix_audio_dual_gpu(str(temp_path), engine, stems)
         v, d, b, o, g, p, chords, beats, _, zip_p, _ = res
         
-        # handle sync context
         created_at = tasks.get(task_id, {}).get("created_at", time.time())
         
         tasks[task_id] = {
@@ -106,7 +104,6 @@ async def download_file(path: str):
 
 def launch():
     import gradio as gr
-    # apply patches
     nest_asyncio.apply()
     ui = create_ui()
     
@@ -127,22 +124,18 @@ def _launch_kaggle(ui):
                 free_port = port
                 break
     
-# init UI
-    # get public URL
     _, _, public_url = ui.launch(share=True, server_port=free_port, quiet=True, prevent_thread_lock=True)
     
-    # attach routes
     if hasattr(ui, 'app') and ui.app:
         ui.app.add_api_route("/process", process_audio, methods=["POST"])
         ui.app.add_api_route("/status/{task_id}", get_task_status, methods=["GET"])
         ui.app.add_api_route("/download", download_file, methods=["GET"])
         logger.info("Nitro Async API routes attached to Gradio app instance")
 
-    # register worker
     def register_worker():
         time.sleep(15) # wait for tunnel
-        backend_url = os.environ.get("PANTHER_BACKEND_URL")
-        session_id = os.environ.get("PANTHER_SESSION_ID")
+        backend_url = os.environ.get("PHANTOM_BACKEND_URL")
+        session_id = os.environ.get("PHANTOM_SESSION_ID")
         
         if public_url and backend_url and session_id:
             logger.info("Registering session %s at %s", session_id, backend_url)
@@ -156,10 +149,8 @@ def _launch_kaggle(ui):
             except Exception as e:
                 logger.error("Engine registration failed: %s", e)
 
-    # bg register
     threading.Thread(target=register_worker, daemon=True).start()
     
-    # init cleanup
     def run_cleanup():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -179,7 +170,7 @@ def _launch_local(ui):
     import uvicorn
     import gradio as gr
 
-    app = FastAPI(title="Panther Nitro Engine")
+    app = FastAPI(title="Phantom Nitro Engine")
     cleanup_task = []
 
     @app.on_event("startup")

@@ -99,7 +99,7 @@ function _resolveFString(
 
 function _isCopyCompatible(selectedFormat: Format): boolean {
   const vcodec = selectedFormat?.vcodec || '';
-  // mp4 stream-copy compatible codecs
+  // stream-copy codecs: mp4 video; aac/opus/none audio
   const isMp4CompatibleVideo =
     vcodec.startsWith('avc1') ||
     vcodec.startsWith('h264') ||
@@ -109,7 +109,6 @@ function _isCopyCompatible(selectedFormat: Format): boolean {
     vcodec.startsWith('hev1') ||
     vcodec.startsWith('hvc1');
   const acodec = selectedFormat?.acodec || '';
-  // aac, opus, none all copy clean
   const isCopyableAudio =
     acodec === 'none' ||
     acodec === '' ||
@@ -119,8 +118,7 @@ function _isCopyCompatible(selectedFormat: Format): boolean {
   return Boolean(isMp4CompatibleVideo && isCopyableAudio);
 }
 
-// client mix handles POT bypass
-// tv most reliable for DASH with cookies
+// client mix: tv most reliable for DASH+cookies & POT bypass
 export const YT_CLIENTS = ['tv', 'android_vr', 'mweb', 'web_embedded'] as const;
 
 // formats not on android_vr — use mweb
@@ -140,11 +138,10 @@ export function pickBestClient(selectedFormat: Format | undefined): number {
   const fid = String(selectedFormat.formatId || '');
   const height = selectedFormat.height || 0;
   const vcodec = String(selectedFormat.vcodec || '');
-  // android_vr never serves av1; route to mweb
+  // android_vr no av1; 4k+ needs tv (mweb needs POT)
   if (vcodec.startsWith('av01')) {
     return YT_CLIENTS.indexOf('mweb');
   }
-  // 4k+ needs tv (mweb needs POT)
   if (HIGH_RES_FORMATS.has(fid) || height >= 2160) {
     return YT_CLIENTS.indexOf('tv');
   }
@@ -192,13 +189,12 @@ export function buildYtdlpArgs(
     args.push('--merge-output-format', 'mp4');
   }
 
-  // copy unknown-codec merges instead of transcoding
+  // copy unknown-codec merges; detect paired audio for bsf
   const shouldCopy = selectedFormat?.vcodec
     ? _isCopyCompatible(selectedFormat)
     : isMerging;
 
   if (isMerging) {
-    // detect paired audio for bsf filter
     const bestAudio = formats.find(
       (fmt) => fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none'
     );
@@ -208,15 +204,13 @@ export function buildYtdlpArgs(
 
     if (!isYtAudioOnly) {
       if (shouldCopy) {
-        // native dl, 50x faster than ffmpeg
-        // bsf only if source is aac
+        // native dl 50x faster (bsf only for aac); transcode needs ffmpeg
         const bsfArg = audioIsAAC ? ['-bsf:a', 'aac_adtstoasc'] : [];
         args.push(
           '--postprocessor-args',
           `ffmpeg:-c:v copy -c:a copy ${bsfArg.join(' ')} -movflags +faststart`.trim()
         );
       } else {
-        // transcode requires ffmpeg downloader
         const height = selectedFormat?.height || 0;
         const preset = height >= 1080 ? 'superfast' : 'ultrafast';
         args.push(
@@ -232,6 +226,11 @@ export function buildYtdlpArgs(
   return args;
 }
 
+/**
+ * streams yt-dlp output to the client. kills on 60s stall, caps stderr,
+ * sweeps partial .fXXX files via watchdog, cleans up on client-gone.
+ * abort from child is expected (no log).
+ */
 export function handleYtdlpOutput(
   childProcess: ChildProcess,
   format: string,
@@ -242,14 +241,13 @@ export function handleYtdlpOutput(
   metaArgs: string[] = []
 ) {
   if (tempFile) {
-    // file mode: native dl, pipe after
+    // file mode: native dl, pipe after; cleanup temp+partials once
     let capturedStderr = '';
     let lastProgressLog = 0;
 
     const tmpPath = tempFile;
     let cleaned = false;
     let activeFileStream: import('node:fs').ReadStream | null = null;
-    // remove temp and partial siblings once
     const cleanupTemp = async () => {
       if (cleaned) return;
       cleaned = true;
@@ -268,7 +266,6 @@ export function handleYtdlpOutput(
         // ignore cleanup failure
       }
     };
-    // client gone: stop and clean up
     const onDownstreamGone = () => {
       if (activeFileStream && !activeFileStream.closed)
         activeFileStream.destroy();
@@ -279,7 +276,6 @@ export function handleYtdlpOutput(
     combinedStdout.on('close', onDownstreamGone);
     combinedStdout.on('error', onDownstreamGone);
 
-    // stall detection: kill after 60s silence
     let stallTimer = setTimeout(() => {
       console.log('[Streamer] Stall detected (60s silence), killing...');
       gracefulKill(childProcess);
@@ -297,9 +293,7 @@ export function handleYtdlpOutput(
       childProcess.stderr.on('data', (chunk) => {
         bumpStall();
         const msg = chunk.toString();
-        // cap stderr to avoid unbounded growth
         if (capturedStderr.length < 65536) capturedStderr += msg;
-        // surface stderr lines with throttled progress
         for (const line of msg.split('\n')) {
           if (!line.trim()) continue;
           const isProgress = /\[download\]\s+\d+\.\d+%/u.test(line);
@@ -318,7 +312,6 @@ export function handleYtdlpOutput(
       });
     }
 
-    // watchdog logs temp file growth
     let lastWatchdogBytes = 0;
     const watchdog = setInterval(async () => {
       try {
@@ -326,7 +319,6 @@ export function handleYtdlpOutput(
         const path = await import('node:path');
         const dir = path.dirname(tempFile);
         const base = path.basename(tempFile, path.extname(tempFile));
-        // intermediate .fXXX.webm/.mp4 during dl
         const siblings = readdirSync(dir).filter((name) =>
           name.startsWith(base)
         );
@@ -379,7 +371,6 @@ export function handleYtdlpOutput(
         if (!combinedStdout.writableEnded) combinedStdout.end();
         return;
       }
-      // download complete, stream file to client
       try {
         const { createReadStream } = await import('node:fs');
 
@@ -428,7 +419,6 @@ export function handleYtdlpOutput(
     );
 
     if (ffmpeg.stderr) ffmpeg.stderr.resume();
-    // swallow AbortError from child process
     ffmpeg.on('error', (err: Error) => {
       if (err.name !== 'AbortError')
         console.error('[Streamer] mp3 ffmpeg error:', err.message);

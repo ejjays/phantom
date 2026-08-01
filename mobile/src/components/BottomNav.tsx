@@ -189,7 +189,7 @@ function BottomNav({
         style={[styles.canvas, { height: totalH }]}
         pointerEvents="box-none"
       >
-        {/* eslint-disable-next-line panther/no-inline-svg */}
+        {/* eslint-disable-next-line phantom/no-inline-svg */}
         <Svg height={totalH} style={styles.svg} pointerEvents="none">
           <Defs>
             <SvgGradient id="barFill" x1="0" y1="0" x2="0" y2="1">

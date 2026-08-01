@@ -1,6 +1,6 @@
 {
-  "name": "Panther",
-  "short_name": "Panther",
+  "name": "Phantom",
+  "short_name": "Phantom",
   "description": "Download and convert videos from YouTube, Spotify, and more.",
   "start_url": "/",
   "display": "standalone",

@@ -1,17 +1,17 @@
 {
-  "name": "@panther/extractors",
+  "name": "@phantom/extractors",
   "version": "0.0.1",
   "description": "Pure-JS metadata/stream extractors for social + video platforms. Bring your own fetch.",
   "license": "MIT",
   "author": "ejjays <christsonalloso021@gmail.com>",
-  "homepage": "https://github.com/ejjays/panther/tree/main/packages/extractors#readme",
+  "homepage": "https://github.com/ejjays/phantom/tree/main/packages/extractors#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ejjays/panther.git",
+    "url": "git+https://github.com/ejjays/phantom.git",
     "directory": "packages/extractors"
   },
   "bugs": {
-    "url": "https://github.com/ejjays/panther/issues"
+    "url": "https://github.com/ejjays/phantom/issues"
   },
   "keywords": [
     "extractor",

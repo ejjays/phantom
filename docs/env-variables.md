@@ -1,6 +1,6 @@
 # Environment Variables
 
-Panther boots without most of these — they enable optional features and degrade gracefully when unset. Backend vars go in `web/backend/.env`, frontend vars in `web/frontend/.env`, mobile vars in `mobile/.env` (or `eas.json` for builds).
+Phantom boots without most of these — they enable optional features and degrade gracefully when unset. Backend vars go in `web/backend/.env`, frontend vars in `web/frontend/.env`, mobile vars in `mobile/.env` (or `eas.json` for builds).
 
 ## Where to Get Keys
 

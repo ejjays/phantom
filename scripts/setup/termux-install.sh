@@ -7,10 +7,10 @@ pkg update -y && pkg upgrade -y
 pkg install -y python ffmpeg nodejs-lts git build-essential curl openssl-tool deno
 pip install yt-dlp
 
-if [ -d "nexstream" ]; then
-    cd nexstream && git pull
+if [ -d "phantom" ]; then
+    cd phantom && git pull
 else
-    git clone https://github.com/ejjays/nexstream.git && cd nexstream
+    git clone https://github.com/ejjays/phantom.git && cd phantom
 fi
 
 BASE=$(pwd)

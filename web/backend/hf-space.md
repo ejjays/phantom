@@ -1,17 +1,17 @@
 ---
-title: Panther Backend
+title: Phantom Backend
 emoji: 🎬
 colorFrom: blue
 colorTo: indigo
 sdk: docker
 app_port: 7860
 pinned: false
-short_description: Panther media backend (experimental)
+short_description: Phantom media backend (experimental)
 ---
 
-# Panther Backend — Hugging Face Space
+# Phantom Backend — Hugging Face Space
 
-Experimental Docker deployment of the Panther Express backend.
+Experimental Docker deployment of the Phantom Express backend.
 
 This Space serves the API only (`API_ONLY=true`). The container listens on
 `7860` (matching `app_port`).

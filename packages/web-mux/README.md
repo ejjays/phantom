@@ -1,4 +1,4 @@
-# @panther/web-mux (prototype)
+# @phantom/web-mux (prototype)
 
 the browser-side muxing half of the app, pulled out of `web/frontend/src/lib` (`mux-core.ts`, `muxer.ts`, `mux.worker.ts`, `mux-codecs.ts`) into something standalone. it's the sibling to [`../extractors`](../extractors/README.md) — extractors resolve a URL into separate video/audio format URLs, this takes those two URLs and combines them into one mp4, entirely in the browser, no server transcode.
 
@@ -7,12 +7,12 @@ the browser-side muxing half of the app, pulled out of `web/frontend/src/lib` (`
 hand it a `videoUrl` and an `audioUrl`, it hands back an mp4 `Blob` — video and audio remuxed (not re-encoded) into one file. this is what makes DASH-style sources (separate video/audio streams, e.g. youtube) downloadable as one file without your backend ever touching the bytes.
 
 ```ts
-import { muxToMp4 } from '@panther/web-mux';
+import { muxToMp4 } from '@phantom/web-mux';
 
 const blob = await muxToMp4({
   videoUrl,
   audioUrl,
-  workerUrl: new URL('@panther/web-mux/worker', import.meta.url),
+  workerUrl: new URL('@phantom/web-mux/worker', import.meta.url),
   onProgress: (pct, detail) => console.log(pct, detail),
 });
 ```

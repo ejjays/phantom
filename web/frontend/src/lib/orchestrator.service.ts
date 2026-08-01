@@ -20,7 +20,6 @@ export interface OrchestratorCallbacks {
   onComplete?: () => void;
 }
 
-// orchestrator core
 export class OrchestratorService {
   private onStatus: (status: string) => void;
   private onProgress: (progress: number) => void;
@@ -102,7 +101,6 @@ export class OrchestratorService {
         true,
         audioLang
       );
-      // need a single progressive stream
       if (!directUrl || audioUrl) return false;
 
       const fileName = getSanitizedFilename(
@@ -174,7 +172,6 @@ export class OrchestratorService {
     }
   }
 
-  // server turbo
   async startServerDownload(params: {
     url: string;
     finalTitle: string;
@@ -245,7 +242,6 @@ export class OrchestratorService {
         });
 
       if (wasTriggered) {
-        // bridge handled it
         setTimeout(() => this.onComplete(), 500);
       } else {
         const link = document.createElement('a');
@@ -255,7 +251,6 @@ export class OrchestratorService {
         link.click();
         document.body.removeChild(link);
 
-        // sync with browser
         const syncInterval = setInterval(() => {
           if (document.cookie.includes(`download_token=${serverClientId}`)) {
             clearInterval(syncInterval);
@@ -275,7 +270,6 @@ export class OrchestratorService {
     }
   }
 
-  // edge muxing
   async startEdgeMuxing(params: {
     url: string;
     clientId: string;
@@ -303,7 +297,6 @@ export class OrchestratorService {
 
     // only video copy-mux runs client-side
     if (selectedFormat !== 'mp4' || !isClientMuxSupported()) return false;
-    // native bridge keeps the server path
     if (typeof window === 'undefined' || 'ReactNativeWebView' in window) {
       return false;
     }
@@ -327,7 +320,6 @@ export class OrchestratorService {
         return false;
       }
 
-      // confirmed muxing; now show eme ui
       this.onSubStatus('Processing on your device...');
       this.onStatus('eme_downloading');
       useRemixStore.getState().setEmePhase('download');
@@ -391,7 +383,6 @@ export class OrchestratorService {
       this.onSubStatus('Successfully Sent to Device');
       this.onComplete();
       recordEmeOutcome('success');
-      // keep the finalize caption readable briefly
       setTimeout(() => {
         useRemixStore.getState().setEmePhase(null);
         useRemixStore.getState().setEmeProgress(0);
@@ -406,9 +397,8 @@ export class OrchestratorService {
         useRemixStore.getState().setEmePhase(null);
         return false;
       }
-      // distinguish intentional skips from errors
+      // codec/opfs skips are intentional, not errors; learn opfs ceiling
       const codecSkip = e?.name === 'UnsupportedMuxCodecError';
-      // device opfs ran out; learn ceiling
       const quotaSkip = e?.name === 'QuotaExceededError';
       if (quotaSkip && typeof e.ceiling === 'number') {
         recordOpfsCeiling(e.ceiling);

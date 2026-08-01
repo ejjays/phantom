@@ -14,8 +14,7 @@ import {
 
 const TIMEOUT_MS = 10000;
 
-// retryable signal so resolve cascade fails fast instead of hammering every
-// path (& deepening throttle) once IG starts returning 429/503
+// fail fast on 429/503; don't hammer & deepen throttle
 export class IgRateLimitError extends Error {
   readonly retryable = true;
 }
@@ -23,7 +22,7 @@ function isRateLimit(status: number): boolean {
   return status === 429 || status === 503;
 }
 
-// pull shortcode from any post/reel/tv url
+// shortcode from url; oembed maps to numeric id
 export function extractShortcode(url: string): string | null {
   const match = url.match(/\/(?:reels?|p|tv)\/([A-Za-z0-9_-]+)/u);
   return match ? match[1] : null;
@@ -37,7 +36,6 @@ function withCookie(
   return cookie ? { ...headers, Cookie: cookie } : headers;
 }
 
-// oembed maps shortcode to numeric media id
 async function fetchMediaId(
   shortcode: string,
   options: ExtractorOptions
@@ -55,7 +53,7 @@ async function fetchMediaId(
   return data?.media_id ?? null;
 }
 
-// primary path, mobile private api
+// primary: mobile private api; else scrape bootstrap blob
 export async function fetchMobileItem(
   shortcode: string,
   options: ExtractorOptions
@@ -78,7 +76,6 @@ export async function fetchMobileItem(
   return data?.items?.[0] ?? null;
 }
 
-// scrape a bootstrap blob from html
 function objectFromEntries(
   name: string,
   html: string
@@ -106,7 +103,7 @@ export function shortcodeToMediaId(shortcode: string): string {
   return pk.toString();
 }
 
-// Set-Cookie -> replayable header (anonymous csrftoken/mid, NOT login cookie) // eslint-disable-line panther/panther-comments
+// Set-Cookie -> replayable header (anonymous csrftoken/mid, NOT login cookie) // eslint-disable-line phantom/phantom-comments
 function jarFromResponse(
   response: globalThis.Response
 ): Record<string, string> {
@@ -120,8 +117,7 @@ function jarFromResponse(
   return jar;
 }
 
-// session tokens reusable for minutes — cache anonymous ones so burst of
-// resolves fetches post page once, not per request
+// cache anonymous session (never login cookie); html shell drops stale
 interface IgSession {
   lsd: string;
   csrf?: string;
@@ -178,14 +174,11 @@ async function getSession(
     cookie,
     expiry: Date.now() + SESSION_TTL_MS,
   };
-  // only cache shared anonymous session, never caller login cookie
   if (!hasCookie) sessionCache = session;
   return session;
 }
 
-// logged-out post resolve: reuse cached page tokens, then /api/graphql.
-// IG gates old shortcode query behind auth, but this media_id query is // eslint-disable-line panther/panther-comments
-// served logged-out — sec-fetch headers keep IG returning JSON not html shell
+// IG gates shortcode query; media_id served logged-out, sec-fetch keeps JSON // eslint-disable-line phantom/phantom-comments
 export async function fetchLoggedOutMedia(
   shortcode: string,
   options: ExtractorOptions
@@ -241,7 +234,6 @@ export async function fetchLoggedOutMedia(
 
   const text = (await response.text()).replace(/^for\s*\(;;\);/u, '');
   if (text.startsWith('<')) {
-    // html shell instead of JSON — tokens may be stale, drop cache to refresh
     sessionCache = null;
     return null;
   }

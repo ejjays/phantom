@@ -601,7 +601,7 @@ const SongKeyChanger = () => {
         schema={{
           '@context': 'https://schema.org',
           '@type': 'SoftwareApplication',
-          name: 'Panther Song Key Changer',
+          name: 'Phantom Song Key Changer',
           operatingSystem: 'All',
           applicationCategory: 'MultimediaApplication',
           offers: {

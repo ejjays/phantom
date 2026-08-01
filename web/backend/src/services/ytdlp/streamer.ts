@@ -105,7 +105,6 @@ async function handlePureJSStream(
     );
 
     if (ffmpeg.stderr) ffmpeg.stderr.resume();
-    // swallow signal-abort error on disconnect
     ffmpeg.on('error', (err: Error) => {
       if (err.name !== 'AbortError')
         console.error('[Streamer] mp3 ffmpeg error:', err.message);
@@ -358,7 +357,7 @@ function isDubRequest(audioFormats: Format[], audioLang?: string): boolean {
   const wanted = (audioLang || '').toLowerCase();
   if (!wanted) return false;
   const base = wanted.split('-')[0];
-  // non-original track means a dub
+  // non-original track = dub; gated dubs need yt-dlp+cookies
   return audioFormats.some(
     (fmt) =>
       !fmt.isOriginal &&
@@ -366,7 +365,6 @@ function isDubRequest(audioFormats: Format[], audioLang?: string): boolean {
   );
 }
 
-// gated dubs need yt-dlp with cookies
 async function streamYoutubeDub(
   url: string,
   videoFormatId: string,
@@ -382,7 +380,6 @@ async function streamYoutubeDub(
     : COMMON_ARGS.includes('--cookies')
       ? ['--cookies', COMMON_ARGS[COMMON_ARGS.indexOf('--cookies') + 1]]
       : [];
-  // dubbed audio needs cookies
   if (cookies.length === 0) {
     console.log(`[Dub] [${tid}] no cookies; cannot fetch dubbed audio`);
     return false;
@@ -577,7 +574,7 @@ export function streamDownload(
 
       const tid = getTraceId() || 'global';
 
-      // real-time mux for YouTube merges (video+audio)
+      // real-time mux for yt merges; temp file 50x faster
       if (isMerging && extractorKey === 'youtube') {
         const delivered = await deliverYoutubeMerge(
           url,
@@ -610,7 +607,6 @@ export function streamDownload(
       );
       // stale nsig = throttled; skip cache
       const useCache = false;
-      // merge mode: temp file 50x faster
       const fsSync = await import('node:fs');
       const useTempFile = isMerging;
       let tempPath = '-';
@@ -659,7 +655,6 @@ export function streamDownload(
         console.log(
           `[Streamer] Rotating to client: ${YT_CLIENTS[clientIndex]}`
         );
-        // cleanup leftover temp file from retry
         if (useTempFile && fsSync.existsSync(tempPath)) {
           try {
             fsSync.unlinkSync(tempPath);

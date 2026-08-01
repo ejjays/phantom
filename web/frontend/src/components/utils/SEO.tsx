@@ -10,7 +10,7 @@ interface SEOProps {
 
 const SEO = ({ title, description, canonicalUrl, image, schema }: SEOProps) => {
   useEffect(() => {
-    const baseTitle = 'Panther';
+    const baseTitle = 'Phantom';
     const finalTitle = title
       ? `${baseTitle} | ${title}`
       : `${baseTitle} — YouTube, Spotify, TikTok & Instagram Downloader · 4K MP3`;

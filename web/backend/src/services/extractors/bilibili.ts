@@ -12,11 +12,10 @@ import { normalizeTitle, normalizeArtist } from '../social.service.js';
 const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-// international bilibili.tv (bstar), not mainland .com
+// bstar (not mainland); cookie unlocks HD-gated streams
 const PLAYURL_API = 'https://api.bilibili.tv/intl/gateway/web/playurl';
 const REFERER = 'https://www.bilibili.tv/';
 
-// header-format cookie unlocks login/HD-gated streams
 function biliCookieHeader(): Record<string, string> {
   const cookie = process.env.BILIBILI_COOKIE?.trim();
   return cookie ? { Cookie: cookie } : {};
@@ -173,12 +172,11 @@ function buildVideoRawFormats(
       formatId: height ? `${height}p` : `q${resource.quality ?? 'src'}`,
       quality_label: height ? `${height}p` : undefined,
       ext: 'mp4',
-      // has_video would also mark it audio
+      // has_video also marks audio; pair audio for mux
       is_video: true,
       isVideo: true,
       is_audio: false,
       isAudio: false,
-      // pair audio for the mux pipeline
       audioUrl,
     } as RawFormat;
   });
@@ -235,7 +233,6 @@ export async function getInfo(
       formats: videoRaw,
     });
 
-    // gated/region-locked: fall back to yt-dlp
     if (formats.length === 0) return null;
 
     const info: VideoInfo = {

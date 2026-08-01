@@ -13,7 +13,7 @@ import Animated, {
 import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../lib/tw';
-import GhostHero, { GHOST_ASPECT } from '../components/GhostHero';
+import PhantomHero, { PHANTOM_ASPECT } from '../components/PhantomHero';
 import LinkPing from '../components/LinkPing';
 import Header from '../components/Header';
 import Button3D from '../components/Button3D';
@@ -82,7 +82,7 @@ export default function HomeScreen({
     const size = baseIconSize - progress * baseIconSize * 0.1;
     return {
       width: size,
-      height: size * GHOST_ASPECT,
+      height: size * PHANTOM_ASPECT,
     };
   });
 
@@ -137,7 +137,7 @@ export default function HomeScreen({
         <View style={tw`w-full max-w-md`}>
           <View style={tw`items-center mb-2`}>
             <Animated.View style={ghostStyle}>
-              <GhostHero />
+              <PhantomHero />
             </Animated.View>
           </View>
 

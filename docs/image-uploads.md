@@ -16,14 +16,14 @@ ask for presigned PUT         supabase fn: r2-upload-url (10 min TTL, rejects an
 PUT bytes → R2                react-native-blob-util, streamed from disk (no RAM buffer)
        │
        ▼
-store publicUrl               comments.image_url = https://panther-downloader.pages.dev/i/comments/<uid>/<uuid>.webp
+store publicUrl               comments.image_url = https://c-phantom.pages.dev/i/comments/<uid>/<uuid>.webp
 ```
 
 The temp webp is deleted in a `finally` block even if upload fails — no cache leftovers. On failure the composer rolls back the optimistic comment and restores your text + pending image.
 
 ## Why a Pages Function, Not r2.dev
 
-R2 will hand you a `pub-*.r2.dev` public URL, but Cloudflare's own docs say it's **not for production and has a variable rate limit** — under real traffic it starts returning 429s and images flicker blank. Instead the bucket stays **private**, and a Pages Function bound to it serves bytes from our own `panther-downloader.pages.dev` domain:
+R2 will hand you a `pub-*.r2.dev` public URL, but Cloudflare's own docs say it's **not for production and has a variable rate limit** — under real traffic it starts returning 429s and images flicker blank. Instead the bucket stays **private**, and a Pages Function bound to it serves bytes from our own `c-phantom.pages.dev` domain:
 
 - No rate limit — it's our Worker, not r2.dev
 - R2 egress is free, so image bandwidth never touches Supabase's ~10 GB/month
@@ -48,25 +48,25 @@ R2_ACCOUNT_ID          your Cloudflare account id
 R2_BUCKET              panther-uploads
 R2_ACCESS_KEY_ID       from the API token
 R2_SECRET_ACCESS_KEY   from the API token
-R2_PUBLIC_BASE         https://panther-downloader.pages.dev/i
+R2_PUBLIC_BASE         https://c-phantom.pages.dev/i
 ```
 
 ### Serving Function (Cloudflare Pages)
 
 1. Cloudflare → your Pages project → Settings → Functions → **R2 bindings** → add binding: variable name `UPLOADS` → bucket `panther-uploads`.
-2. The function file (`functions/i/[[path]].ts`) is already in the frontend repo; the next Pages deploy picks it up. It serves `https://panther-downloader.pages.dev/i/comments/...`.
+2. The function file (`functions/i/[[path]].ts`) is already in the frontend repo; the next Pages deploy picks it up. It serves `https://c-phantom.pages.dev/i/comments/...`.
 
 ### Delete Function (Cloudflare Pages + Supabase Webhook)
 
 When a comment (or its row's parent via cascade) is deleted, a Supabase database webhook posts to another Pages Function that drops the R2 object. Catches direct deletes and cascades (profile → comments), so nothing orphans in R2.
 
 1. Cloudflare → the Pages project → Settings → Variables and Secrets → add a **secret** `WEBHOOK_SECRET` (any long random string — `openssl rand -hex 32`). The `UPLOADS` R2 binding from the serving function is reused, no changes needed.
-2. The function file (`functions/comment-deleted.ts`) is already in the frontend repo; the next Pages deploy picks it up. Its route is `https://panther-downloader.pages.dev/comment-deleted`.
+2. The function file (`functions/comment-deleted.ts`) is already in the frontend repo; the next Pages deploy picks it up. Its route is `https://c-phantom.pages.dev/comment-deleted`.
 3. Supabase → Database → **Webhooks** → Create a webhook:
    - Name: `r2-comment-cleanup`
    - Table: `public.comments`, Event: **Delete**
    - Type: **HTTP Request**, Method: **POST**
-   - URL: `https://panther-downloader.pages.dev/comment-deleted`
+   - URL: `https://c-phantom.pages.dev/comment-deleted`
    - HTTP Headers: add `X-Webhook-Secret` with the same value from step 1
 
 Verify by deleting a test comment that has an image — the row goes, the R2 object goes with it. Wrong-event or bad-key payloads still return 200 so Supabase doesn't retry pointlessly.
@@ -77,11 +77,11 @@ If any images were already stored against the old `r2.dev` base, rewrite them on
 
 ```sql
 update public.comments
-set image_url = 'https://panther-downloader.pages.dev/i/' ||
+set image_url = 'https://c-phantom.pages.dev/i/' ||
                 substring(image_url from 'comments/.*$')
 where image_url is not null
   and image_url like '%/comments/%'
-  and image_url not like 'https://panther-downloader.pages.dev/i/%';
+  and image_url not like 'https://c-phantom.pages.dev/i/%';
 ```
 
 ## Notes

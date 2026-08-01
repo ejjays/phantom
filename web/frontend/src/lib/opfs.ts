@@ -42,7 +42,7 @@ export class OPFSStorage {
     try {
       const root = await navigator.storage.getDirectory();
       const processingDir = await root.getDirectoryHandle(
-        'panther-processing',
+        'phantom-processing',
         { create: true }
       );
 
@@ -132,7 +132,7 @@ export class OPFSStorage {
   static async clearAll() {
     try {
       const root = await navigator.storage.getDirectory();
-      await root.removeEntry('panther-processing', { recursive: true });
+      await root.removeEntry('phantom-processing', { recursive: true });
     } catch (_e) {
       /* ignore */
     }

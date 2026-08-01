@@ -1,6 +1,6 @@
 # Running an Instance (Web)
 
-Panther's web backend runs on Node.js 22+. It shells out to `yt-dlp` and `ffmpeg`, uses Redis for caching/queueing, and optionally Turso (libSQL) for the persistent registry. Built to self-host cheaply — including directly on Android via Termux.
+Phantom's web backend runs on Node.js 22+. It shells out to `yt-dlp` and `ffmpeg`, uses Redis for caching/queueing, and optionally Turso (libSQL) for the persistent registry. Built to self-host cheaply — including directly on Android via Termux.
 
 ## Prerequisites
 
@@ -14,14 +14,14 @@ Panther's web backend runs on Node.js 22+. It shells out to `yt-dlp` and `ffmpeg
 Automated provisioning (system update + dependencies + build):
 
 ```bash
-curl -sL https://raw.githubusercontent.com/ejjays/panther/main/scripts/setup/termux-install.sh | bash
+curl -sL https://raw.githubusercontent.com/ejjays/phantom/main/scripts/setup/termux-install.sh | bash
 ```
 
 ## Manual Setup
 
 ```bash
-git clone https://github.com/ejjays/panther.git
-cd panther
+git clone https://github.com/ejjays/phantom.git
+cd phantom
 
 npm install          # root tooling (husky, prettier)
 npm run install:web  # installs frontend, backend & shared in one go
@@ -51,8 +51,8 @@ cd web/backend && npm start
 Build context is the repo root; the image bundles `yt-dlp` + `ffmpeg` and listens on `8000`:
 
 ```bash
-docker build -f web/backend/Dockerfile -t panther .
-docker run -p 8000:8000 --env-file web/backend/.env panther
+docker build -f web/backend/Dockerfile -t phantom .
+docker run -p 8000:8000 --env-file web/backend/.env phantom
 ```
 
 ## Exposing It

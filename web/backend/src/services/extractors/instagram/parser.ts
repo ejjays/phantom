@@ -57,7 +57,7 @@ function mediaFromGql(node: any): IgMedia | null {
   return null;
 }
 
-// mobile api items[0], single or carousel
+// single or carousel: mobile items[0], gql shortcode_media
 export function parseMobileItem(item: any): IgParsed | null {
   if (!item) return null;
 
@@ -119,7 +119,7 @@ function parseDashManifest(manifest: string): {
 function expandDashVariants(base: IgMedia, manifest?: string): IgMedia[] {
   if (!base.isVideo) return [base];
   const dash = manifest ? parseDashManifest(manifest) : null;
-  // need separate audio to mux dash video-only
+  // dash video-only needs separate audio; progressive muxed fallback safest
   if (!dash || dash.videos.length === 0 || !dash.audioUrl) return [base];
 
   const list: IgMedia[] = dash.videos.map((video) => {
@@ -136,7 +136,6 @@ function expandDashVariants(base: IgMedia, manifest?: string): IgMedia[] {
     };
   });
 
-  // progressive muxed fallback, lowest and safe
   const pShort =
     base.width && base.height ? Math.min(base.width, base.height) : 0;
   list.push({
@@ -167,8 +166,7 @@ function singleVideoMedia(node: any): IgMedia[] {
   return expandDashVariants(base, node?.dash_info?.video_dash_manifest);
 }
 
-// logged-out /api/graphql product shares mobile-API item shape, but carries
-// dash manifest at top level (video_dash_manifest)
+// logged-out gql shares mobile shape but dash at top level
 export function parseLoggedOutProduct(product: any): IgParsed | null {
   if (!product) return null;
 
@@ -192,7 +190,6 @@ export function parseLoggedOutProduct(product: any): IgParsed | null {
   };
 }
 
-// graphql shortcode_media, single or sidecar
 export function parseGraphqlMedia(node: any): IgParsed | null {
   if (!node) return null;
 
@@ -215,7 +212,7 @@ export function parseGraphqlMedia(node: any): IgParsed | null {
   };
 }
 
-// embed bundles a graphql node in contextJSON
+// embed bundles graphql; degraded regex for older embeds
 function extractEmbedContext(html: string): any {
   try {
     const initMatch = html.match(/"init",\[\],\[(.*?)\]\],/u);
@@ -240,7 +237,6 @@ export function parseEmbed(html: string): IgParsed | null {
     if (structured) return structured;
   }
 
-  // degraded regex path for older embeds
   const videoMatch = html.match(/"video_url"\s*:\s*"([^"]+)"/u);
   const url = videoMatch ? decode(videoMatch[1]) : null;
   if (!url) return null;

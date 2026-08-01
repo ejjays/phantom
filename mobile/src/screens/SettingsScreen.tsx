@@ -691,9 +691,7 @@ function SettingsScreen({
 
   const openSourceCode = () => {
     tapSelection();
-    Linking.openURL('https://github.com/ejjays/nexstream').catch(
-      () => undefined
-    );
+    Linking.openURL('https://github.com/ejjays/phantom').catch(() => undefined);
   };
 
   const openSocial = (url: string) => {

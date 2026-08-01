@@ -23,7 +23,7 @@ export type ProgressCallback = (
   details?: string
 ) => void;
 
-// fail-fast cache so redis never blocks
+// fail-fast redis cache; bounded l1 to avoid unbounded growth
 const redis = createRedisClient('MetadataCache', {
   enableOfflineQueue: false,
   maxRetriesPerRequest: 1,
@@ -31,7 +31,6 @@ const redis = createRedisClient('MetadataCache', {
   connectTimeout: 8000,
 });
 const METADATA_EXPIRY = 7200000; // 2 hours
-// bound l1 cache to avoid unbounded growth
 const metadataCache = new LRUCache<
   string,
   { data: VideoInfo; timestamp: number }
@@ -41,7 +40,6 @@ export const prefetchPromises = new Map<
   Promise<VideoInfo | undefined>
 >();
 
-// report progress
 export function reportProgress(
   clientId: string | null,
   status: string,
@@ -84,17 +82,15 @@ export function reportProgress(
   sendEvent(clientId, event);
 }
 
-// check cache
 export async function getCachedInfo(
   cacheKey: string,
   forceRefresh: boolean,
   clientId: string | null
 ): Promise<VideoInfo | null> {
-  // temp toggle: bypass cache for fresh-link testing
+  // cache bypass toggles (temp flag / peek without it)
   const cacheFlag = process.env.DISABLE_INFO_CACHE;
   if (cacheFlag && cacheFlag !== '0' && cacheFlag !== 'false') return null;
 
-  // check l1
   const cachedL1 = metadataCache.get(cacheKey);
   if (cachedL1 && !forceRefresh && Date.now() - cachedL1.timestamp < 300_000) {
     return cachedL1.data;
@@ -129,7 +125,6 @@ export async function getCachedInfo(
   return null;
 }
 
-// peek l1 cache, bypassing the disable toggle
 export function peekCachedInfo(cacheKey: string): VideoInfo | null {
   const entry = metadataCache.get(cacheKey);
   if (entry && Date.now() - entry.timestamp < 300_000) return entry.data;
@@ -137,11 +132,10 @@ export function peekCachedInfo(cacheKey: string): VideoInfo | null {
 }
 
 export async function setCachedInfo(cacheKey: string, data: VideoInfo) {
-  // skip caching partial or empty results
+  // skip partial/empty; never cache raw yt-dlp shape
   if (data?.isPartial === true || !data?.formats?.length) {
     return;
   }
-  // safety net: never cache raw yt-dlp shape
   ensureNormalizedFormats(data);
   metadataCache.set(cacheKey, { data, timestamp: Date.now() });
   try {
@@ -156,7 +150,7 @@ export async function setCachedInfo(cacheKey: string, data: VideoInfo) {
   }
 }
 
-// avoid redundant extraction in streamer
+// persist + normalize for streamer consistency
 async function persistInfoJsonToDisk(
   info: VideoInfo,
   rawJson: string
@@ -176,7 +170,6 @@ async function persistInfoJsonToDisk(
   }
 }
 
-// ensure consistent data shape for streamer
 export function ensureNormalizedFormats(info: VideoInfo): void {
   if (!info || !Array.isArray(info.formats)) return;
   const first = info.formats[0] as unknown as
@@ -230,7 +223,6 @@ async function _expandFetch(
 const expandCache = new LRUCache<string, string>({ max: 500, ttl: 600_000 });
 
 export async function expandShortUrl(url: string): Promise<string> {
-  // instant youtube expansion
   if (url.includes('youtu.be/')) {
     const id = url.split('youtu.be/')[1]?.split(/[?#]/u)[0];
     if (id) return `https://www.youtube.com/watch?v=${id}`;
@@ -356,7 +348,7 @@ export async function runYtdlpInfo(
       if (args[i] === '--cookies') {
         i++; // skip the path
       } else if (args[i] === '--geo-bypass') {
-        // skip
+        // skip geo-bypass arg
       } else {
         cleanArgs.push(args[i]);
       }
@@ -407,7 +399,6 @@ export async function runYtdlpInfo(
     throw new Error('Instagram Login Wall detected in yt-dlp');
   }
 
-  // cache for subsequent stream spawn
   void persistInfoJsonToDisk(parsedData, stdout);
 
   const ytdlpLabel = targetUrl.includes('tiktok.com')

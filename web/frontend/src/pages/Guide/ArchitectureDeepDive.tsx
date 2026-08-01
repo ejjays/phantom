@@ -141,7 +141,7 @@ const ArchitectureDeepDive = () => {
     <div className="w-full flex flex-col gap-10 pb-12">
       <SEO
         title="Architecture Deep Dive — How the Media Engine Works"
-        description="Inside the Panther media engine: parallel resolution race, edge registry, hybrid muxing, on-device Web Worker offload, and the dual-GPU MIR kernel."
+        description="Inside the Phantom media engine: parallel resolution race, edge registry, hybrid muxing, on-device Web Worker offload, and the dual-GPU MIR kernel."
         canonicalUrl="/resources/architecture"
       />
       <header className="text-center flex flex-col items-center gap-4">
@@ -163,7 +163,7 @@ const ArchitectureDeepDive = () => {
           🚀 The Orchestration Layer
         </h2>
         <p className="text-gray-300 leading-relaxed text-lg font-medium">
-          Panther isn&apos;t just a UI; it&apos;s a{' '}
+          Phantom isn&apos;t just a UI; it&apos;s a{' '}
           <span className="text-white font-bold">
             parallel resolution system
           </span>
@@ -290,7 +290,7 @@ const ArchitectureDeepDive = () => {
               Header Spoofing & Double-Pipe Strategy
             </span>
             . While conventional tools often fail due to authorization errors or
-            fragmented assets, Panther captures streams in memory and re-muxes
+            fragmented assets, Phantom captures streams in memory and re-muxes
             them into a seekable container on-the-fly.
           </p>
           <div className="bg-black/30 p-5 rounded-2xl border border-white/5 font-mono text-[10px] sm:text-xs text-gray-500 shadow-inner flex flex-col gap-2">
@@ -325,7 +325,7 @@ const ArchitectureDeepDive = () => {
             </h2>
           </div>
           <p className="text-sm text-gray-400 leading-relaxed font-medium">
-            Panther is engineered for platform-agnostic delivery. While
+            Phantom is engineered for platform-agnostic delivery. While
             currently optimized for the{' '}
             <span className="text-white">Web PWA</span> and{' '}
             <span className="text-white">Desktop Interface</span>, the
@@ -364,14 +364,14 @@ const ArchitectureDeepDive = () => {
                 Independent <span className="text-cyan-400">Project</span>
               </h2>
               <p className="text-gray-400 text-sm max-w-lg leading-relaxed font-medium">
-                Panther is an independent development project dedicated to
+                Phantom is an independent development project dedicated to
                 building cleaner media tools. If you find the orchestration
                 engine useful, a star on GitHub would be greatly appreciated.
               </p>
               <p className="text-gray-500 text-xs font-medium leading-relaxed">
                 Free software under{' '}
                 <a
-                  href="https://github.com/ejjays/nexstream/blob/main/LICENSE"
+                  href="https://github.com/ejjays/phantom/blob/main/LICENSE"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-cyan-400 hover:underline"
@@ -383,7 +383,7 @@ const ArchitectureDeepDive = () => {
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
               <a
-                href="https://github.com/ejjays/nexstream"
+                href="https://github.com/ejjays/phantom"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 bg-white text-black font-black uppercase text-[10px] tracking-widest px-8 py-4 rounded-2xl hover:scale-105 transition-transform whitespace-nowrap"

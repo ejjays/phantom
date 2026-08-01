@@ -55,13 +55,12 @@ function extractDashFormats(html: string): FbRawFormat[] {
 
 function extractFallbackFormats(html: string): FbRawFormat[] {
   const formats: FbRawFormat[] = [];
-  // hd: browser_native first, else story
+  // hd: browser_native first else story; sd covers story playable_url
   const hd =
     firstCapture(html, HD_FALLBACK_PATTERNS) ??
     firstCapture(html, STORY_PATTERNS);
   if (hd) formats.push({ url: hd, format_id: 'hd', ext: 'mp4' });
 
-  // sd also covers story playable_url
   const sd = firstCapture(html, SD_FALLBACK_PATTERNS);
   if (sd) formats.push({ url: sd, format_id: 'sd', ext: 'mp4' });
 

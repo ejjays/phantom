@@ -107,7 +107,7 @@ const TechStack = () => {
     <div className="w-full flex flex-col gap-12 pb-12">
       <SEO
         title="Tech Stack — Open-Source Engines & Models"
-        description="The technologies behind Panther: React 19, Vite, Express 5, Turso, FFmpeg, yt-dlp, and the AI models (Demucs, BTC Transformer) powering Remix Lab."
+        description="The technologies behind Phantom: React 19, Vite, Express 5, Turso, FFmpeg, yt-dlp, and the AI models (Demucs, BTC Transformer) powering Remix Lab."
         canonicalUrl="/resources/stack"
       />
 
@@ -160,7 +160,7 @@ const TechStack = () => {
                 FFmpeg 8.x &amp; mediabunny
               </div>
               <p className="text-gray-300 text-sm leading-relaxed max-sm:text-xs max-w-sm">
-                The standard multimedia framework. Panther utilizes a hybrid
+                The standard multimedia framework. Phantom utilizes a hybrid
                 model, combining server-side FFmpeg memory pipes with
                 client-side <code>mediabunny</code> remuxing for high-speed,
                 distributed media synthesis.
@@ -251,7 +251,7 @@ const TechStack = () => {
               A Note of Gratitude
             </div>
             <p className="text-lg text-cyan-50 leading-relaxed max-w-2xl mx-auto font-medium">
-              Panther functions as an independent orchestration bridge,
+              Phantom functions as an independent orchestration bridge,
               coordinating powerful media engines into a unified interface. The
               true complexity is handled by the legendary contributors behind{' '}
               <a

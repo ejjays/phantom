@@ -10,7 +10,6 @@ function isLocalRequest(req: Request): boolean {
 
 export type AuthMode = 'open' | 'apikey' | 'deny';
 
-// resolve effective auth posture
 export function resolveAuthMode(
   env: NodeJS.ProcessEnv = process.env
 ): AuthMode {
@@ -68,7 +67,6 @@ export function requireApiKey(
   next: NextFunction
 ): void {
   const mode = resolveAuthMode();
-  // open: no auth required
   if (mode === 'open') {
     next();
     return;
@@ -78,12 +76,10 @@ export function requireApiKey(
     next();
     return;
   }
-  // deny: fail closed for public requests
   if (mode === 'deny') {
     res.status(403).json({ error: 'Public access is not configured' });
     return;
   }
-  // apikey: require a matching key
   const expected = process.env.API_KEY;
   const provided = extractKey(req);
   if (expected && provided && keysMatch(provided, expected)) {

@@ -251,8 +251,8 @@ export const wakeEngine = async (
     const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
 
     // update metadata
-    metadata.id = `${finalUsername}/panther-engine-${sessionId.substring(0, 8)}`;
-    metadata.title = `Panther Engine ${sessionId.substring(0, 8)}`;
+    metadata.id = `${finalUsername}/phantom-engine-${sessionId.substring(0, 8)}`;
+    metadata.title = `Phantom Engine ${sessionId.substring(0, 8)}`;
     metadata.code_file = 'run_engine.py';
     metadata.accelerator = 'NvidiaTeslaT4'; // set accelerator
 
@@ -268,8 +268,8 @@ export const wakeEngine = async (
     const safeSessionId = JSON.stringify(sessionId);
     const injectedScript = `
 import os
-os.environ["PANTHER_BACKEND_URL"] = ${safeBackendUrl}
-os.environ["PANTHER_SESSION_ID"] = ${safeSessionId}
+os.environ["PHANTOM_BACKEND_URL"] = ${safeBackendUrl}
+os.environ["PHANTOM_SESSION_ID"] = ${safeSessionId}
 
 ${baseScript}
     `;

@@ -96,12 +96,12 @@ const HeroSection = ({ variants }: { variants: Variants }) => (
     >
       <img
         src="/logo.webp"
-        alt="Panther"
+        alt="Phantom"
         className="w-full h-full object-contain"
       />
     </motion.div>
     <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-white">
-      The Story of <span className="text-cyan-400">Panther</span>
+      The Story of <span className="text-cyan-400">Phantom</span>
     </h1>
     <p className="text-gray-400 text-lg font-medium max-w-2xl mx-auto">
       A high-performance media bridge built from passion, persistence, and a
@@ -143,7 +143,7 @@ const MissionText = () => (
     </h2>
     <div className="space-y-4 text-gray-300 leading-relaxed text-base">
       <p>
-        I built Panther with one clear goal:{' '}
+        I built Phantom with one clear goal:{' '}
         <span className="text-white font-bold underline decoration-cyan-500/30 underline-offset-4">
           to make high-quality tools completely free for everyone
         </span>
@@ -320,7 +320,7 @@ const AboutPage = () => {
     >
       <SEO
         title="About — Built for Musicians, Creators, and Power Users"
-        description="Why Panther exists, who built it, and what makes it different: free, ad-free, self-hostable, with a real research-grade music lab and no premium tier."
+        description="Why Phantom exists, who built it, and what makes it different: free, ad-free, self-hostable, with a real research-grade music lab and no premium tier."
         canonicalUrl="/resources/story"
       />
       <HeroSection variants={itemVariants} />

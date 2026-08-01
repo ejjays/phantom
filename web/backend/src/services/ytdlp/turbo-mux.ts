@@ -106,7 +106,6 @@ export async function handleTurboMux(
     }
   );
 
-  // drain stderr
   if (ffmpeg.stdio[2])
     (ffmpeg.stdio[2] as import('node:stream').Readable).resume();
   // swallow AbortError from child process
@@ -138,7 +137,7 @@ export async function handleTurboMux(
 
   const { pipeline } = await import('node:stream/promises');
 
-  // track progress via video bytes
+  // progress via video bytes; flush when size unknown
   const videoTotal = Number(selectedFormat?.filesize) || 0;
   let videoBytes = 0;
   const videoProgress = new Transform({
@@ -151,7 +150,6 @@ export async function handleTurboMux(
       cb(null, chunk as Buffer);
     },
     flush(cb) {
-      // advance progress when size unknown
       combinedStdout.emit('progress', 90);
       cb();
     },
@@ -360,13 +358,15 @@ export async function attemptTurboMux(
   const client = 'tv';
   const tid = getTraceId() || 'global';
 
-  // mux straight from extracted urls
   const tryInfoUrls = (): Promise<boolean> => {
     const videoUrl = selectedFormat?.url;
     const audioCandidates = pickAudioLanguagePool(
       [...audioFormats, ...formats].filter(
         (fmt) =>
-          fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none' && fmt.url
+          fmt.acodec &&
+          fmt.acodec !== 'none' &&
+          fmt.vcodec === 'none' &&
+          fmt.url
       ),
       options.audioLang
     );
@@ -394,11 +394,11 @@ export async function attemptTurboMux(
     );
   };
 
-  // prefer extracted urls; yt-dlp is fallback
+  // prefer extracted urls; yt-dlp resolves misses
   if (await tryInfoUrls()) return true;
 
   try {
-    // cache key includes audio language
+    // cache (4h) keyed by audio language; stream-copy safe codec
     const videoId =
       url.match(/(?:v=|\/v\/|youtu\.be\/)([0-9A-Za-z_-]{11})/)?.[1] || url;
     const audioLangKey = options.audioLang || 'orig';
@@ -426,7 +426,6 @@ export async function attemptTurboMux(
       ) || audioLangPool[0];
     const audioSelector = aacAudio?.formatId || 'bestaudio';
 
-    // check cache (4h TTL)
     let videoUrl: string | undefined;
     let audioUrl: string | undefined;
     let audioAcodec: string | undefined;
@@ -436,7 +435,6 @@ export async function attemptTurboMux(
         const parsed = JSON.parse(cached);
         videoUrl = parsed.video;
         audioUrl = parsed.audio;
-        // ensure stream copy safety via codec
         audioAcodec = parsed.acodec;
         console.log(`[TurboMux] [${tid}] Cache HIT`);
       }
@@ -444,7 +442,6 @@ export async function attemptTurboMux(
       /* cache miss or parse error */
     }
 
-    // miss → resolve via yt-dlp
     if (!videoUrl || !audioUrl) {
       console.log(`[TurboMux] [${tid}] Refreshing URLs via ${client}...`);
       const { execFile } = await import('node:child_process');
@@ -477,7 +474,6 @@ export async function attemptTurboMux(
       }
       [videoUrl, audioUrl] = urls;
       audioAcodec = aacAudio?.acodec || 'opus';
-      // cache codec for safe stream copy
       redis
         .set(
           cacheKey,

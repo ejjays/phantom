@@ -35,7 +35,6 @@ function getPool(url: string, originalHost?: string): Pool {
 
     const hostToCheck = originalHost || urlObj.hostname;
 
-    // max streams
     pools.set(
       origin,
       new Pool(origin, {
@@ -152,17 +151,15 @@ export async function pipeWebStream(
 
   const urlObj = new URL(url);
 
-  // ssrf guard
+  // ssrf guard: anti-rebinding IP
   const resolvedIp = await resolveAndValidateHost(urlObj.hostname);
 
-  // anti-rebinding IP
   const safeIp = resolvedIp.includes(':') ? `[${resolvedIp}]` : resolvedIp;
   const port = urlObj.port ? `:${urlObj.port}` : '';
   const poolUrl = `${urlObj.protocol}//${safeIp}${port}`;
   const client = getPool(poolUrl, urlObj.hostname);
 
   const requestHeaders = getProxyHeaders(url, incomingHeaders);
-  // set host header
   requestHeaders.host = urlObj.host;
 
   try {
@@ -173,7 +170,6 @@ export async function pipeWebStream(
       signal,
     });
 
-    // redirect
     if (
       [301, 302, 307, 308].includes(statusCode) &&
       typeof headers.location === 'string'
@@ -182,7 +178,6 @@ export async function pipeWebStream(
       console.log(
         `[ProxyStream] Redirecting ${statusCode} -> ${redirectUrl.substring(0, 50)}...`
       );
-      // consume body
       body.on('data', () => {
         /* ignore */
       });
@@ -196,7 +191,6 @@ export async function pipeWebStream(
       );
     }
 
-    // log status
     const timestamp = new Date().toLocaleTimeString('en-US', {
       hour12: true,
       hour: 'numeric',
@@ -210,7 +204,6 @@ export async function pipeWebStream(
       `[${timestamp}] [ProxyStream] ${statusCode} OK (${size}) -> ${url.substring(0, 40)}...`
     );
 
-    // check sent headers
     if (!localResponse.headersSent) {
       localResponse.status(statusCode);
       const passThrough = [

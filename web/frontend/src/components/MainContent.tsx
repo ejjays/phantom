@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link as LinkIcon } from 'lucide-react';
 import MusicIcon from '../assets/icons/MusicIcon';
@@ -16,25 +16,23 @@ import SEO from './utils/SEO';
 import { PlayerData } from '../types/remix';
 
 const MusicPlayerCard = lazy(() => import('./MusicPlayerCard'));
-import PantherHero from './PantherHero';
+import PhantomHero from '../assets/icons/PhantomHero';
 
 type HeroProps = {
   isVisible: boolean;
-  trigger: number;
-  status: string;
 };
 
-const HeroSection = ({ isVisible, trigger, status }: HeroProps) => (
+const HeroSection = ({ isVisible }: HeroProps) => (
   <div className="relative flex flex-col items-center justify-center gap-4">
     <div className="relative">
-      <PantherHero isVisible={isVisible} trigger={trigger} status={status} />
+      <PhantomHero isVisible={isVisible} />
       {/* <div className="absolute -right-4 -top-2 sm:-right-6 sm:-top-4 md:-right-14 md:-top-2 z-20">
         <DocsButton />
       </div> */}
     </div>
 
     <div className="sr-only">
-      <h1>Panther | 4K Media Converter</h1>
+      <h1>Phantom | 4K Media Converter</h1>
       <p>Ultimate Youtube & Spotify Downloader</p>
     </div>
   </div>
@@ -209,15 +207,10 @@ const MainContent = () => {
     requestClipboard,
   } = useMediaConverter();
 
-  const [pantherTrigger, setPantherTrigger] = useState(0);
-  const triggerPanther = () => setPantherTrigger((count) => count + 1);
-
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      // global Ctrl/Cmd+V to paste
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
         const target = e.target as HTMLElement;
-        // skip when focused on input/textarea
         if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
           e.preventDefault();
           try {
@@ -240,7 +233,6 @@ const MainContent = () => {
 
       if (e.key === 'Enter' && !loading && url) {
         e.preventDefault();
-        triggerPanther();
         handleDownloadTrigger();
       }
     };
@@ -265,7 +257,6 @@ const MainContent = () => {
           window.location.pathname
         );
         setTimeout(() => {
-          triggerPanther();
           handleDownloadTrigger(finalUrl);
         }, 100);
       }
@@ -285,7 +276,7 @@ const MainContent = () => {
         schema={{
           '@context': 'https://schema.org',
           '@type': 'SoftwareApplication',
-          name: 'Panther',
+          name: 'Phantom',
           operatingSystem: 'All',
           applicationCategory: 'MultimediaApplication',
           offers: {
@@ -306,11 +297,7 @@ const MainContent = () => {
           `Download progress: ${Math.round(progress)}%`}
       </div>
       <div className="flex flex-col justify-center items-center w-full gap-3 px-4 transition-transform duration-500 ease-in-out">
-        <HeroSection
-          isVisible={isVisible}
-          trigger={pantherTrigger}
-          status={status}
-        />
+        <HeroSection isVisible={isVisible} />
         <SearchInput url={url} setUrl={setUrl} />
         <FormatPicker
           url={url}
@@ -331,10 +318,7 @@ const MainContent = () => {
         <div className="pt-2">
           <GlowButton
             text={loading ? 'Processing...' : 'Convert & Download'}
-            onClick={() => {
-              triggerPanther();
-              handleDownloadTrigger();
-            }}
+            onClick={() => handleDownloadTrigger()}
             disabled={loading}
           />
         </div>

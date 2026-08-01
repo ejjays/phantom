@@ -28,17 +28,14 @@ const PRIVATE_IP_RANGES = [
   /^::ffff:(?:127\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[0-1])\.|169\.254\.|0\.|100\.(?:6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\.|255\.255\.255\.255|22[4-9]\.|23\d\.)/, // ipv4 private
 ];
 
-// check IP safety
 export function isSafeIp(ip: string): boolean {
   if (!isIP(ip)) return false;
   return !PRIVATE_IP_RANGES.some((regex) => regex.test(ip));
 }
 
-// resolve and check
 export async function resolveAndValidateHost(
   hostname: string
 ): Promise<string> {
-  // check direct IP
   if (isIP(hostname)) {
     if (!isSafeIp(hostname)) {
       throw new Error(
@@ -91,14 +88,12 @@ const ssrfSafeAgent = new Agent({
           }
         }
 
-        // validate IPs
         callback(null, address as unknown as string, family);
       });
     },
   },
 });
 
-// secure fetch
 export async function secureFetch(
   targetUrl: string | URL,
   options: RequestInit = {}
@@ -201,7 +196,6 @@ export const globalMediaGuard = (options: number | MediaGuardOptions = {}) => {
   };
 };
 
-// limit operations
 export const concurrencyGuard = (limit = 2) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     const clientIp = req.ip || 'unknown';

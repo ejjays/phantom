@@ -10,11 +10,11 @@ import { fileURLToPath } from 'node:url';
 
 const pluginPath = join(
   dirname(fileURLToPath(import.meta.url)),
-  '../../scripts/eslint-plugin-panther.js'
+  '../../scripts/eslint-plugin-phantom.js'
 );
 const hasPlugin = existsSync(pluginPath);
-const pantherPlugin = hasPlugin
-  ? (await import('../../scripts/eslint-plugin-panther.js')).default
+const phantomPlugin = hasPlugin
+  ? (await import('../../scripts/eslint-plugin-phantom.js')).default
   : null;
 
 export default tseslint.config(
@@ -29,7 +29,7 @@ export default tseslint.config(
   prettierConfig,
   {
     plugins: {
-      ...(pantherPlugin ? { panther: pantherPlugin } : {}),
+      ...(phantomPlugin ? { phantom: phantomPlugin } : {}),
     },
     languageOptions: {
       ecmaVersion: 2022,
@@ -44,10 +44,10 @@ export default tseslint.config(
       },
     },
     rules: {
-      ...(pantherPlugin
+      ...(phantomPlugin
         ? {
-            'panther/panther-comments': 'error',
-            'panther/no-inline-svg': 'warn',
+            'phantom/phantom-comments': 'error',
+            'phantom/no-inline-svg': 'warn',
           }
         : {}),
       // deepsource alignment
@@ -159,7 +159,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': 'off',
       'sonarjs/unused-import': 'off',
       'require-await': 'off',
-      ...(pantherPlugin ? { 'panther/panther-comments': 'off' } : {}),
+      ...(phantomPlugin ? { 'phantom/phantom-comments': 'off' } : {}),
       'spaced-comment': 'off',
       'react/jsx-max-depth': ['error', { max: 5 }],
     },

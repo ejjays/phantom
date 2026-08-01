@@ -101,9 +101,14 @@
       ]
     ],
     "extra": {
+      "expo-navigation-bar": {
+        "enforceContrast": false,
+        "style": "light"
+      },
       "eas": {
-        "projectId": "53a37ed1-aeda-4cf4-81de-18ba7e1e40a9"
+        "projectId": "ec1cf54b-dee4-4847-9897-c24e8bd5eb74"
       }
-    }
+    },
+    "owner": "ejjayz"
   }
 }
