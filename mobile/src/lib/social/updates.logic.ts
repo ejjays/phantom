@@ -77,9 +77,15 @@ export function suggestUsernameFrom(name: string | null): string {
 // guests get an auto handle `anonymous` + 5 digits: unique, \w-safe for
 // mentions, and prettifiable to "Anonymous 30584" for display only.
 const GUEST_PATTERN = /^anonymous\d{5}$/u;
+const usedGuestNames = new Set<string>();
 
 export function generateGuestName(): string {
-  return `anonymous${Math.floor(10000 + Math.random() * 90000)}`;
+  let name: string;
+  do {
+    name = `anonymous${Math.floor(10000 + Math.random() * 90000)}`;
+  } while (usedGuestNames.has(name));
+  usedGuestNames.add(name);
+  return name;
 }
 
 export function isGuestName(

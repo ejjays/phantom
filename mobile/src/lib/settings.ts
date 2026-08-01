@@ -31,6 +31,30 @@ export async function setOnboarded(value: boolean): Promise<void> {
   );
 }
 
+const SPEECH_MSG_KEY = 'phantom.speech.msgIdx';
+
+export async function nextSpeechMsgIndex(count: number): Promise<number> {
+  const next = await AsyncStorage.getItem(SPEECH_MSG_KEY)
+    .then((v) => (v ? Number(v) : 0))
+    .catch(() => 0);
+  await AsyncStorage.setItem(SPEECH_MSG_KEY, String((next + 1) % count)).catch(
+    () => undefined
+  );
+  return next;
+}
+
+const FOLLOWUP_KEY = 'phantom.speech.followIdx';
+
+export async function nextFollowupIndex(count: number): Promise<number> {
+  const last = await AsyncStorage.getItem(FOLLOWUP_KEY)
+    .then((v) => (v ? Number(v) : -1))
+    .catch(() => -1);
+  let pick = Math.floor(Math.random() * count);
+  if (count > 1 && pick === last) pick = (pick + 1) % count;
+  await AsyncStorage.setItem(FOLLOWUP_KEY, String(pick)).catch(() => undefined);
+  return pick;
+}
+
 export async function getScClientId(): Promise<{
   id: string;
   at: number;
