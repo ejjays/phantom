@@ -6,6 +6,7 @@
     "start": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" npx expo start --dev-client",
     "start:userland": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" npx expo start --dev-client --offline",
     "android": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" expo start --android",
+    "eas-build-post-install": "node scripts/ensure-ffmpeg-aar.js",
     "typecheck": "tsc --noEmit",
     "test": "npx vitest run",
     "test:live": "VITEST_INCLUDE_LIVE=1 npx vitest run tests/live",
@@ -13,7 +14,7 @@
     "lint:all": "eslint ."
   },
   "dependencies": {
-    "@nikhil-cephei/ffmpeg-kit-react-native": "6.0.8",
+    "@nikhil-cephei/ffmpeg-kit-react-native": "6.0.12",
     "@phantom/extractors": "0.0.1",
     "@phantom/web-mux": "0.0.1",
     "@react-native-async-storage/async-storage": "2.2.0",

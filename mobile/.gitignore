@@ -5,6 +5,7 @@ web-build/
 android/
 ios/
 *.log
+*.apk
 .DS_Store
 .env
 .env*.local

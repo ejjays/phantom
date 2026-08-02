@@ -9,7 +9,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EAS_SKIP_AUTO_FINGERPRINT": "1"
+        "EAS_SKIP_AUTO_FINGERPRINT": "1",
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
       },
       "android": {
         "buildType": "apk"
