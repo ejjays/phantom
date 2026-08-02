@@ -112,6 +112,7 @@
   },
   "optionalDependencies": {
     "@esbuild/android-arm64": "^0.28.0",
+    "@esbuild/linux-x64": "^0.28.0",
     "@libsql/android-arm64": "npm:null@*",
     "@rollup/rollup-android-arm64": "^4.60.3",
     "@rollup/rollup-linux-x64-gnu": "^4.60.3"
