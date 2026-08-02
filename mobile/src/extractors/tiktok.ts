@@ -243,8 +243,8 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       isFullData: !isPhoto,
     };
 
-    info.title = normalizeTitle(info);
-    info.uploader = normalizeArtist(info);
+    info.title = normalizeTitle(info as unknown as Record<string, unknown>);
+    info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
 
     const cookie = cookieHeader();
     log(

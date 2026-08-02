@@ -29,6 +29,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./social": {
+      "types": "./dist/social.d.ts",
+      "import": "./dist/social.js"
+    },
     "./facebook/*": {
       "types": "./dist/facebook/*.d.ts",
       "import": "./dist/facebook/*.js"
