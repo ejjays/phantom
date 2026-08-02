@@ -44,20 +44,13 @@ function dispatchProgress(progress: number, prevTarget = 0): RecordedState {
 }
 
 describe('progress monotonic guard — never rewinds', () => {
-  it('accepts a forward jump (0 → 50)', () => {
-    // forward jump
-    const state = dispatchProgress(50, 0);
-    expect(state.targetProgress).toBe(50);
-  });
-
-  it('REFUSES a backward jump (50 → 3) — the regression case', () => {
-    // ignore backward jump
-    const state = dispatchProgress(3, 50);
-    expect(state.targetProgress).toBe(50);
-  });
-  it('REFUSES a small backward delta (45 → 24)', () => {
-    const state = dispatchProgress(24, 45);
-    expect(state.targetProgress).toBe(45);
+  it.each([
+    { name: 'accepts a forward jump (0 → 50)', progress: 50, prev: 0, expected: 50 },
+    { name: 'REFUSES a backward jump (50 → 3)', progress: 3, prev: 50, expected: 50 },
+    { name: 'REFUSES a small backward delta (45 → 24)', progress: 24, prev: 45, expected: 45 },
+  ])('$name', ({ progress, prev, expected }) => {
+    const state = dispatchProgress(progress, prev);
+    expect(state.targetProgress).toBe(expected);
   });
 
   it('REFUSES same value (no-op)', () => {

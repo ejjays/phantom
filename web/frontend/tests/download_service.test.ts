@@ -84,7 +84,7 @@ describe('DownloadService', () => {
     expect(updates[0]).toEqual({ status: 'connecting', progress: 0 });
     expect(updates).toContainEqual({ status: 'downloading', progress: 50 });
     expect(updates).toContainEqual({ status: 'downloading', progress: 100 });
-    expect(writes.length).toBe(2);
+    expect(writes).toHaveLength(2);
 
     const done = updates.find((update) => update.status === 'complete');
     expect(done).toBeDefined();

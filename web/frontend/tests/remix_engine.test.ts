@@ -165,7 +165,7 @@ describe('useRemixEngine', () => {
     });
 
     // check instances
-    expect(createdAudioInstances.length).toBe(6);
+    expect(createdAudioInstances).toHaveLength(6);
 
     // check preload
     createdAudioInstances.forEach((audio) => {

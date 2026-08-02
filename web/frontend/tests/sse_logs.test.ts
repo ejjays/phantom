@@ -206,7 +206,7 @@ describe('handleSseMessage — branch isolation', () => {
     );
 
     // subStatus branch still runs despite the throw; paired details is dropped
-    expect(desktopLogsCalls.length).toBe(1);
+    expect(desktopLogsCalls).toHaveLength(1);
   });
 
   it('still processes subStatus even when setIsPickerOpen throws', () => {
@@ -235,7 +235,7 @@ describe('handleSseMessage — branch isolation', () => {
       }
     );
 
-    expect(desktopLogsCalls.length).toBe(1);
+    expect(desktopLogsCalls).toHaveLength(1);
   });
 });
 
@@ -309,7 +309,7 @@ describe('handleSseMessage — guards against silent failure modes', () => {
      * Two appends would be unsafe — the JSON details must be filtered.
      * One append (for subStatus) is the correct count.
      */
-    expect(state.desktopLogs.length).toBe(2);
+    expect(state.desktopLogs).toHaveLength(2);
   });
 
   it('does not crash when getTS is not provided (defensive)', () => {
@@ -387,7 +387,7 @@ describe('handleSseMessage — App.tsx wrapper integration', () => {
     );
 
     const finalLogs = useRemixStore.getState().desktopLogs;
-    expect(finalLogs.length).toBe(4);
+    expect(finalLogs).toHaveLength(4);
     expect(finalLogs[1]).toContain('Decrypting streams');
     expect(finalLogs[2]).toContain('Metadata parsed');
     expect(finalLogs[3]).toContain('SPAWNING_YTDLP_FALLBACK');

@@ -37,44 +37,31 @@ function setMediaCapabilities(mc?: MockMediaCapabilities) {
 }
 
 describe('codec-support: AV1 detection and filtering', () => {
-  it('initAV1Support returns true only when smooth+powerEfficient', async () => {
-    setMediaCapabilities({
-      decodingInfo: vi.fn().mockResolvedValue({
-        supported: true,
-        smooth: true,
-        powerEfficient: true,
-      }),
-    });
-    const { initAV1Support, supportsAV1 } = await importFresh();
-    await initAV1Support();
-    expect(supportsAV1()).toBe(true);
-  });
-
-  it('initAV1Support returns false when smooth=false (software decode)', async () => {
-    setMediaCapabilities({
-      decodingInfo: vi.fn().mockResolvedValue({
-        supported: true,
-        smooth: false,
-        powerEfficient: false,
-      }),
-    });
-    const { initAV1Support, supportsAV1 } = await importFresh();
-    await initAV1Support();
-    expect(supportsAV1()).toBe(false);
-  });
-
-  it('initAV1Support returns false when powerEfficient=false', async () => {
-    setMediaCapabilities({
-      decodingInfo: vi.fn().mockResolvedValue({
-        supported: true,
-        smooth: true,
-        powerEfficient: false,
-      }),
-    });
-    const { initAV1Support, supportsAV1 } = await importFresh();
-    await initAV1Support();
-    expect(supportsAV1()).toBe(false);
-  });
+  it.each([
+    {
+      name: 'smooth+powerEfficient',
+      decodingInfo: { supported: true, smooth: true, powerEfficient: true },
+      expected: true,
+    },
+    {
+      name: 'smooth=false (software decode)',
+      decodingInfo: { supported: true, smooth: false, powerEfficient: false },
+      expected: false,
+    },
+    {
+      name: 'powerEfficient=false',
+      decodingInfo: { supported: true, smooth: true, powerEfficient: false },
+      expected: false,
+    },
+  ])(
+    'initAV1Support returns $expected when $name',
+    async ({ decodingInfo, expected }) => {
+      setMediaCapabilities({ decodingInfo: vi.fn().mockResolvedValue(decodingInfo) });
+      const { initAV1Support, supportsAV1 } = await importFresh();
+      await initAV1Support();
+      expect(supportsAV1()).toBe(expected);
+    }
+  );
 
   it('falls back to MediaSource sync probe when MediaCapabilities missing', async () => {
     setMediaCapabilities();

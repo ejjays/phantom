@@ -4,6 +4,13 @@
   "private": true,
   "license": "AGPL-3.0-or-later",
   "type": "module",
+  "workspaces": [
+    "web/backend",
+    "web/frontend",
+    "web/shared",
+    "mobile",
+    "packages/*"
+  ],
   "scripts": {
     "ui": "cd web/frontend && npm run dev",
     "api": "cd web/backend && npm run dev",
@@ -25,7 +32,8 @@
     "prettier": "^3.8.3",
     "pretty-quick": "^4.2.2"
   },
-  "dependencies": {
-    "typescript": "^6.0.3"
+  "overrides": {
+    "libsql": "npm:empty-npm-package@1.0.0",
+    "@libsql/android-arm64": "npm:null@*"
   }
 }

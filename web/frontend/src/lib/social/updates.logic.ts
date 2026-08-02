@@ -63,10 +63,11 @@ export function suggestUsernameFrom(name: string | null): string {
   const base = name
     .toLowerCase()
     .replace(/[^a-z0-9_]+/gu, '_')
-    .replace(/_+/gu, '_')
-    .replace(/^_+|_+$/gu, '')
-    .slice(0, USERNAME_MAX);
-  return base.length >= USERNAME_MIN ? base : '';
+    .replace(/_+/gu, '_');
+  const stripped = base.startsWith('_') ? base.slice(1) : base;
+  const trimmed = stripped.endsWith('_') ? stripped.slice(0, -1) : stripped;
+  const username = trimmed.slice(0, USERNAME_MAX);
+  return username.length >= USERNAME_MIN ? username : '';
 }
 
 export function validateComment(
