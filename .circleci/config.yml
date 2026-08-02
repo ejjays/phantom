@@ -22,7 +22,7 @@ commands:
 jobs:
   test-backend:
     docker:
-      - image: cimg/node:22.12
+      - image: cimg/node:24.18
       - image: cimg/redis:7.0
     steps:
       - checkout:
@@ -31,35 +31,34 @@ jobs:
           pattern: "^web/backend/|^web/shared/|^packages/|^.circleci/config.yml"
       - restore_cache:
           keys:
-            - v2-backend-{{ checksum "web/backend/package-lock.json" }}-{{ checksum "web/shared/package-lock.json" }}
-            - v2-backend-{{ checksum "web/backend/package-lock.json" }}-
+            - v4-root-{{ checksum "package-lock.json" }}
+            - v4-root-
       - run:
           name: Install FFmpeg, Python, and System Dependencies
           command: |
             sudo apt-get update
             sudo apt-get install -y ffmpeg python3 python3-pip
-            sudo pip3 install --upgrade yt-dlp
+            sudo pip3 install --break-system-packages --upgrade yt-dlp
       - run:
-          name: Install Backend Dependencies
-          command: |
-            (cd web/shared && npm ci)
-            (cd web/backend && npm ci)
+          name: Install Dependencies (monorepo root)
+          # --ignore-scripts: skip ffmpeg-kit AAR download + native builds.
+          # Backend tests mock native deps (fpcalc/libsql); typecheck/lint/tests
+          # need no native link. Package builds via explicit step below.
+          command: npm ci --ignore-scripts
       - run:
           name: Build shared extractor package
           command: |
             (cd packages/extractors && npm run build)
       - save_cache:
           paths:
-            - web/backend/node_modules
-            - web/shared/node_modules
-            - web/backend/bin
-          key: v2-backend-{{ checksum "web/backend/package-lock.json" }}-{{ checksum "web/shared/package-lock.json" }}
+            - node_modules
+          key: v4-root-{{ checksum "package-lock.json" }}
       - run:
           name: Typecheck, lint, and build
           command: |
             cd web/backend
             npx tsc --noEmit
-            npm run lint:all
+            npx eslint .
             npm run build
       - run:
           name: Run Deterministic Core Tests
@@ -78,7 +77,7 @@ jobs:
 
   test-frontend:
     docker:
-      - image: cimg/node:22.12
+      - image: cimg/node:24.18
     steps:
       - checkout:
           method: full
@@ -86,22 +85,21 @@ jobs:
           pattern: "^web/frontend/|^web/shared/|^.circleci/config.yml"
       - restore_cache:
           keys:
-            - v3-frontend-{{ checksum "web/frontend/package-lock.json" }}
+            - v4-root-{{ checksum "package-lock.json" }}
+            - v4-root-
       - run:
-          name: Install Frontend Dependencies
-          command: |
-            (cd web/shared && npm ci)
-            (cd web/frontend && npm ci)
+          name: Install Dependencies (monorepo root)
+          command: npm ci --ignore-scripts
       - save_cache:
           paths:
-            - web/frontend/node_modules
-          key: v3-frontend-{{ checksum "web/frontend/package-lock.json" }}
+            - node_modules
+          key: v4-root-{{ checksum "package-lock.json" }}
       - run:
           name: Typecheck and lint
           command: |
             cd web/frontend
             npx tsc --noEmit
-            npm run lint:all
+            npx eslint .
       - run:
           name: Run Frontend Tests
           command: |
@@ -110,7 +108,7 @@ jobs:
 
   test-mobile:
     docker:
-      - image: cimg/node:22.13
+      - image: cimg/node:24.18
     steps:
       - checkout:
           method: full
@@ -118,31 +116,32 @@ jobs:
           pattern: "^mobile/|^packages/|^.circleci/config.yml"
       - restore_cache:
           keys:
-            - v1-mobile-{{ checksum "mobile/package-lock.json" }}
+            - v4-root-{{ checksum "package-lock.json" }}
+            - v4-root-
       - run:
-          name: Install Mobile Dependencies
+          name: Install Dependencies (monorepo root)
           # --ignore-scripts skips ffmpeg-kit's ~57MB AAR download (429-prone &
           # only needed for EAS native builds, not typecheck/lint/vitest)
-          command: cd mobile && npm ci --ignore-scripts
+          command: npm ci --ignore-scripts
       - run:
           name: Build shared extractor package
           command: |
             (cd packages/extractors && npm run build)
       - save_cache:
           paths:
-            - mobile/node_modules
-          key: v1-mobile-{{ checksum "mobile/package-lock.json" }}
+            - node_modules
+          key: v4-root-{{ checksum "package-lock.json" }}
       - run:
           name: Typecheck, lint, and test
           command: |
             cd mobile
             npx tsc --noEmit
-            npm run lint:all
+            npx eslint .
             npx vitest run
 
   synthetic-live-tests:
     docker:
-      - image: cimg/node:22.12
+      - image: cimg/node:24.18
     steps:
       - checkout
       - run:
@@ -155,27 +154,28 @@ jobs:
       - run:
           name: Execute Live Upstream Health Checks
           command: |
-            cd web/backend
-            npm ci
+            npm ci --ignore-scripts
             (cd packages/extractors && npm run build)
             # runs benchmark tests
+            cd web/backend
             VITEST_INCLUDE_MANUAL=1 npx vitest run \
               tests/flows/live.test.ts \
               tests/manual/yt_live.test.ts
 
   mobile-live-health:
     docker:
-      - image: cimg/node:22.13
+      - image: cimg/node:24.18
     steps:
       - checkout
       - restore_cache:
           keys:
-            - v1-mobile-{{ checksum "mobile/package-lock.json" }}
+            - v4-root-{{ checksum "package-lock.json" }}
+            - v4-root-
       - run:
-          name: Install Mobile Dependencies
+          name: Install Dependencies (monorepo root)
           # --ignore-scripts skips ffmpeg-kit's ~57MB AAR download (429-prone &
           # only needed for EAS native builds, not typecheck/lint/vitest)
-          command: cd mobile && npm ci --ignore-scripts
+          command: npm ci --ignore-scripts
       - run:
           name: Build shared extractor package
           command: |
@@ -189,7 +189,7 @@ jobs:
 
   deploy-frontend:
     docker:
-      - image: cimg/node:22.12
+      - image: cimg/node:24.18
     steps:
       - checkout:
           method: full
@@ -197,21 +197,22 @@ jobs:
           pattern: "^web/frontend/|^.circleci/config.yml"
       - restore_cache:
           keys:
-            - v3-frontend-{{ checksum "web/frontend/package-lock.json" }}
+            - v4-root-{{ checksum "package-lock.json" }}
+            - v4-root-
       - run:
           name: Build and Deploy Frontend
           command: |
+            npm ci --ignore-scripts
             cd web/frontend
-            npm ci
             npm run build
             rm -rf dist/ffmpeg-core dist/libav
             cp -r functions dist/
             npx --yes wrangler@4.93.0 pages deploy dist --project-name c-phantom --branch main
       - save_cache:
           paths:
-            - web/frontend/node_modules
+            - node_modules
             - ~/.npm
-          key: v3-frontend-{{ checksum "web/frontend/package-lock.json" }}
+          key: v4-root-{{ checksum "package-lock.json" }}
 
   # parked HF Space experiment — tried for more compute than koyeb's free tier,
   # but datacenter IP gets bot-blocked on yt-dlp/extractors same as anywhere.
@@ -253,16 +254,14 @@ jobs:
 
   security-scan:
     docker:
-      - image: cimg/node:22.12
+      - image: cimg/node:24.18
     steps:
       - checkout
       - run:
           name: Dependency audit (npm)
           command: |
-            for dir in web/backend web/frontend web/shared; do
-              echo "=== npm audit: $dir ==="
-              (cd "$dir" && npm audit --omit=dev --audit-level=critical)
-            done
+            npm ci --ignore-scripts
+            npm audit --omit=dev --audit-level=critical
       - run:
           name: Supply-chain scan (OSV-Scanner)
           command: |
@@ -272,9 +271,7 @@ jobs:
               chmod +x /tmp/osv-scanner
               /tmp/osv-scanner --version
               /tmp/osv-scanner scan source \
-                --lockfile=web/backend/package-lock.json \
-                --lockfile=web/frontend/package-lock.json \
-                --lockfile=web/shared/package-lock.json || true
+                --lockfile=package-lock.json || true
             else
               echo "OSV-Scanner download failed; skipping"
             fi
