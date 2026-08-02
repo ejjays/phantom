@@ -462,7 +462,8 @@ export const convertVideo = (req: Request, res: Response): void => {
   }
 
   const token = requestData.token || clientId;
-  if (token) {
+  // cookie value must be injection-safe; clients send uuid fragments/base36
+  if (token && /^[A-Za-z0-9_-]{1,64}$/u.test(token)) {
     res.setHeader('Set-Cookie', `download_token=${token}; Path=/; Max-Age=60`);
   }
 

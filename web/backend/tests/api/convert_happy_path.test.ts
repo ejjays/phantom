@@ -126,4 +126,44 @@ describe('/convert — happy path', () => {
     const res = await request(app).get('/convert');
     expect(res.status).toBe(400);
   });
+
+  it('sets download_token cookie for safe token values', async () => {
+    const res = await request(app)
+      .get('/convert')
+      .query({ url: 'https://www.youtube.com/watch?v=happyDl12345', token: 'abc_123-DEF' })
+      .buffer(true)
+      .parse((res, callback) => {
+        res.on('data', () => {});
+        res.on('end', () => callback(null, Buffer.alloc(0)));
+      });
+
+    expect(res.status).toBe(200);
+    const cookie = (res.headers['set-cookie'] || []).find((cookie) =>
+      cookie.startsWith('download_token=')
+    );
+    expect(cookie).toContain('download_token=abc_123-DEF');
+  });
+
+  it('drops download_token cookie for injection-shaped tokens', async () => {
+    const res = await request(app)
+      .get('/convert')
+      .query({
+        url: 'https://www.youtube.com/watch?v=happyDl12345',
+        token: 'x\r\nSet-Cookie: admin=1',
+      })
+      .buffer(true)
+      .parse((res, callback) => {
+        res.on('data', () => {});
+        res.on('end', () => callback(null, Buffer.alloc(0)));
+      });
+
+    expect(res.status).toBe(200);
+    const cookies = res.headers['set-cookie'] as string[] | undefined;
+    expect(
+      (cookies || []).some((cookie) => cookie.startsWith('download_token='))
+    ).toBe(false);
+    expect(
+      (cookies || []).some((cookie) => /(^|\s)admin=/u.test(cookie))
+    ).toBe(false);
+  });
 });

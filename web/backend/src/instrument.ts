@@ -1,3 +1,6 @@
+// loaded before any env reads (sentry dsn, LOG_LEVEL) — instrument.js runs
+// before app.js's own dotenv import
+import 'dotenv/config';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { logger } from './utils/infra/logger.util.js';
 
