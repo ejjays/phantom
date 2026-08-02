@@ -10,6 +10,7 @@ import { Readable } from 'node:stream';
 import os from 'node:os';
 import { z } from 'zod';
 import { secureFetch, resolveWithin } from '../utils/network/security.util.js';
+import { registerSession, getSessionUrl } from '../services/sessionStore.js';
 
 const EngineStartResponseSchema = z
   .object({
@@ -42,8 +43,6 @@ if (!fs.existsSync(STEMS_BASE_DIR)) {
   fs.mkdirSync(STEMS_BASE_DIR, { recursive: true });
 }
 
-const sessionEngines = new Map<string, string>();
-
 export const registerEngine = (req: Request, res: Response): void => {
   const { url, session_id } = req.body || {};
   console.log(
@@ -55,7 +54,7 @@ export const registerEngine = (req: Request, res: Response): void => {
     res.status(400).json({ error: 'URL and session_id required' });
     return;
   }
-  sessionEngines.set(session_id, url);
+  registerSession(session_id, url);
   console.log(`[Engine] Successfully registered: ${session_id} -> ${url}`);
   res.json({ success: true, url, session_id });
 };
@@ -66,7 +65,7 @@ export const getEngineStatus = (req: Request, res: Response): void => {
     res.json({ url: null, error: 'session_id required' });
     return;
   }
-  const url = sessionEngines.get(sessionId) || null;
+  const url = getSessionUrl(sessionId);
   if (url)
     console.log(`[Engine] Status check: session=${sessionId} found=${url}`);
   res.json({ url });
@@ -81,7 +80,7 @@ export const processAudio = async (
     `[Process] Request received: engine=${engine} stems=${stems} session_id=${session_id}`
   );
 
-  const engineUrlRaw = session_id ? sessionEngines.get(session_id) : null;
+  const engineUrlRaw = session_id ? getSessionUrl(session_id) : null;
   console.log(
     `[Process] Engine lookup: session_id=${session_id} -> url=${engineUrlRaw}`
   );

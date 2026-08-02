@@ -254,6 +254,7 @@ export function extractSongData(
   engineChords: Array<{ chord: string; is_passing: boolean }> = []
 ): Promise<SongData> {
   return new Promise((resolve, reject) => {
+    const shazamFallback = () => fallbackToShazam(filePath, engineChords);
     fpcalc(
       filePath,
       async (
@@ -262,10 +263,7 @@ export function extractSongData(
       ) => {
         if (error || !result) {
           try {
-            const fallbackResult = await fallbackToShazam(
-              filePath,
-              engineChords
-            );
+            const fallbackResult = await shazamFallback();
             resolve(fallbackResult);
             return;
           } catch (fallbackErr) {
@@ -286,10 +284,7 @@ export function extractSongData(
               '[ExtractService] Acoustid validation failed:',
               parsedAcoustid.error.message
             );
-            const fallbackResult = await fallbackToShazam(
-              filePath,
-              engineChords
-            );
+            const fallbackResult = await shazamFallback();
             resolve(fallbackResult);
             return;
           }
@@ -297,10 +292,7 @@ export function extractSongData(
           const recording = data.results?.[0]?.recordings?.[0];
 
           if (!recording) {
-            const fallbackResult = await fallbackToShazam(
-              filePath,
-              engineChords
-            );
+            const fallbackResult = await shazamFallback();
             resolve(fallbackResult);
             return;
           }
@@ -317,10 +309,7 @@ export function extractSongData(
               '[ExtractService] MusicBrainz validation failed:',
               parsedMb.error.message
             );
-            const fallbackResult = await fallbackToShazam(
-              filePath,
-              engineChords
-            );
+            const fallbackResult = await shazamFallback();
             resolve(fallbackResult);
             return;
           }
@@ -328,10 +317,7 @@ export function extractSongData(
           const isrc = mbData.isrcs?.[0];
 
           if (!isrc) {
-            const fallbackResult = await fallbackToShazam(
-              filePath,
-              engineChords
-            );
+            const fallbackResult = await shazamFallback();
             resolve(fallbackResult);
             return;
           }
@@ -346,19 +332,13 @@ export function extractSongData(
               '[ExtractService] Deezer validation failed:',
               parsedDeezer.error.message
             );
-            const fallbackResult = await fallbackToShazam(
-              filePath,
-              engineChords
-            );
+            const fallbackResult = await shazamFallback();
             resolve(fallbackResult);
             return;
           }
           const deezerData = parsedDeezer.data;
           if (deezerData.error || !deezerData.artist || !deezerData.title) {
-            const fallbackResult = await fallbackToShazam(
-              filePath,
-              engineChords
-            );
+            const fallbackResult = await shazamFallback();
             resolve(fallbackResult);
             return;
           }
@@ -377,10 +357,7 @@ export function extractSongData(
             error
           );
           try {
-            const fallbackResult = await fallbackToShazam(
-              filePath,
-              engineChords
-            );
+            const fallbackResult = await shazamFallback();
             resolve(fallbackResult);
             return;
           } catch (fallbackErr) {
