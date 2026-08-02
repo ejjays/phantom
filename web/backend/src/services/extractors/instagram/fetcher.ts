@@ -1,4 +1,5 @@
 import { secureFetch } from '../../../utils/network/security.util.js';
+import { logger } from '../../../utils/infra/logger.util.js';
 import { randomBytes } from 'node:crypto';
 import { ExtractorOptions } from '../../../types/index.js';
 import {
@@ -273,7 +274,7 @@ export async function fetchFileSize(url: string): Promise<number | undefined> {
       if (len) return parseInt(len, 10);
     }
   } catch (error: unknown) {
-    console.debug(`[Instagram] Size fetch failed: ${(error as Error).message}`);
+    logger.debug(`[Instagram] Size fetch failed: ${(error as Error).message}`);
   }
   return undefined;
 }

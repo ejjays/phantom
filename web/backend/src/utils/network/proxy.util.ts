@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { logger } from '../infra/logger.util.js';
 import { Pool } from 'undici';
 import { URL } from 'node:url';
 import { PassThrough } from 'node:stream';
@@ -10,8 +11,8 @@ import { resolveAndValidateHost } from './security.util.js';
 const pools = new LRUCache<string, Pool>({
   max: 100, // max origins
   dispose: (pool: Pool, key: string) => {
-    console.log(`[ProxyStream] Disposing connection pool for: ${key}`);
-    pool.close().catch(console.error);
+    logger.info(`[ProxyStream] Disposing connection pool for: ${key}`);
+    pool.close().catch(logger.error);
   },
 });
 
@@ -31,7 +32,7 @@ function getPool(url: string, originalHost?: string): Pool {
   const origin = urlObj.origin;
 
   if (!pools.has(origin)) {
-    console.log(`[ProxyStream] Creating new connection pool for: ${origin}`);
+    logger.info(`[ProxyStream] Creating new connection pool for: ${origin}`);
 
     const hostToCheck = originalHost || urlObj.hostname;
 
@@ -175,7 +176,7 @@ export async function pipeWebStream(
       typeof headers.location === 'string'
     ) {
       const redirectUrl = new URL(headers.location, url).toString();
-      console.log(
+      logger.info(
         `[ProxyStream] Redirecting ${statusCode} -> ${redirectUrl.substring(0, 50)}...`
       );
       body.on('data', () => {
@@ -200,7 +201,7 @@ export async function pipeWebStream(
     const size = headers['content-length']
       ? `${(Number(headers['content-length']) / 1024 / 1024).toFixed(1)}MB`
       : 'unknown';
-    console.log(
+    logger.info(
       `[${timestamp}] [ProxyStream] ${statusCode} OK (${size}) -> ${url.substring(0, 40)}...`
     );
 
@@ -247,12 +248,12 @@ export async function pipeWebStream(
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     if (isBenignDisconnect(error)) {
-      console.warn(
+      logger.warn(
         '[ProxyStream] Client disconnected; media stream aborted gracefully.'
       );
       return false;
     }
-    console.error('[ProxyStream] Stream Error:', error.message);
+    logger.error('[ProxyStream] Stream Error:', error.message);
     if (!localResponse.headersSent) localResponse.status(500).end();
     throw error;
   }
@@ -296,7 +297,7 @@ export function getProxiedStream(
         (err) => {
           if (err) {
             if (err.message !== 'Premature close') {
-              console.error('[ProxyStream] Helper Error:', err.message);
+              logger.error('[ProxyStream] Helper Error:', err.message);
             }
             failStream(err);
           }
@@ -304,7 +305,7 @@ export function getProxiedStream(
       );
     })
     .catch((err) => {
-      console.error('[ProxyStream] SSRF/DNS Block:', err.message);
+      logger.error('[ProxyStream] SSRF/DNS Block:', err.message);
       failStream(err);
     });
 

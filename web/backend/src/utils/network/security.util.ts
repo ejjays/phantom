@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { logger } from '../infra/logger.util.js';
 import os from 'node:os';
 import { lookup } from 'node:dns/promises';
 import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
@@ -179,7 +180,7 @@ export const globalMediaGuard = (options: number | MediaGuardOptions = {}) => {
       }
     } catch (error: unknown) {
       // redis down; fail open
-      console.warn('[MediaGuard] redis unavailable:', (error as Error).message);
+      logger.warn('[MediaGuard] redis unavailable:', (error as Error).message);
       next();
       return;
     }
@@ -218,7 +219,7 @@ export const concurrencyGuard = (limit = 2) => {
       if (!released) {
         released = true;
         releaseLock(clientIp).catch((error) =>
-          console.error(
+          logger.error(
             '[Security] Lock release error:',
             (error as Error).message
           )

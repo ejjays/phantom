@@ -1,4 +1,5 @@
 import metascraper from 'metascraper';
+import { logger } from '../infra/logger.util.js';
 import metascraperAuthor from 'metascraper-author';
 import metascraperDescription from 'metascraper-description';
 import metascraperImage from 'metascraper-image';
@@ -103,7 +104,7 @@ export async function fetchYoutubeOEmbed(
       url: canonical,
     };
   } catch (error) {
-    console.debug(
+    logger.debug(
       `[MetadataUtil] oEmbed fast-path failed for ${targetUrl}:`,
       error instanceof Error ? error.message : error
     );
@@ -163,7 +164,7 @@ export async function fetchMetadata(
     return metadata as Metadata;
   } catch (error) {
     // debug stealth fail
-    console.debug(
+    logger.debug(
       `[MetadataUtil] Stealth fetch failed for ${targetUrl}:`,
       error instanceof Error ? error.message : error
     );

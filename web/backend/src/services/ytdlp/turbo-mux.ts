@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { logger } from '../../utils/infra/logger.util.js';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { Readable, Transform } from 'node:stream';
 import { COMMON_ARGS, USER_AGENT } from './config.js';
@@ -22,7 +23,7 @@ export async function handleTurboMux(
 ) {
   const { formatId, format } = options;
   const tid = getTraceId() || 'global';
-  console.log(
+  logger.info(
     `[Streamer] [${tid}] Turbo-Muxing enabled for: ${selectedFormat.formatId}`
   );
 
@@ -53,7 +54,7 @@ export async function handleTurboMux(
       try {
         return `${new URL(targetUrl).origin}/`;
       } catch (error) {
-        console.debug(
+        logger.debug(
           '[Streamer] Referer resolution failed:',
           (error as Error).message
         );
@@ -111,11 +112,11 @@ export async function handleTurboMux(
   // swallow AbortError from child process
   ffmpeg.on('error', (err: Error) => {
     if (err.name !== 'AbortError')
-      console.error('[Streamer] Turbo-Mux ffmpeg error:', err.message);
+      logger.error('[Streamer] Turbo-Mux ffmpeg error:', err.message);
   });
 
   const handleError = (error: Error, type: string) => {
-    console.error(`[Streamer] Turbo-Mux ${type} Error:`, error.message);
+    logger.error(`[Streamer] Turbo-Mux ${type} Error:`, error.message);
     combinedStdout.emit('error', error);
   };
 
@@ -172,7 +173,7 @@ export async function handleTurboMux(
         error.name !== 'AbortError' &&
         error.code !== 'ERR_STREAM_PREMATURE_CLOSE'
       ) {
-        console.error('[Streamer] Pipeline failure:', error);
+        logger.error('[Streamer] Pipeline failure:', error);
         Sentry.captureException(error);
         combinedStdout.emit('error', error);
       }
@@ -214,7 +215,7 @@ async function tryYouTubeTurboMux(
   // prefer phone relay; residential proxy rotates ips
   const usePhone = phoneMediaReady();
   const muxDispatcher = usePhone ? undefined : ytProxyDispatcher();
-  if (usePhone) console.log(`[TurboMux] [${tid}] sourcing via phone relay`);
+  if (usePhone) logger.info(`[TurboMux] [${tid}] sourcing via phone relay`);
   const makeProvider = (getUrl: () => string) => () => {
     const raw = getUrl();
     return Promise.resolve({
@@ -234,13 +235,13 @@ async function tryYouTubeTurboMux(
     );
     if (vMatch?.url) currentVideoUrl = vMatch.url;
     if (aMatch?.url) currentAudioUrl = aMatch.url;
-    console.log(`[TurboMux] [${tid}] Transplant OK`);
+    logger.info(`[TurboMux] [${tid}] Transplant OK`);
   };
 
   try {
     const { fetchChunked } = await import('./chunked-fetcher.js');
 
-    console.log(
+    logger.info(
       `[TurboMux] [${tid}] Starting real-time mux: video=${selectedFormat.formatId} audio=${audioFormat.formatId}`
     );
 
@@ -322,7 +323,7 @@ async function tryYouTubeTurboMux(
           error.name !== 'AbortError' &&
           error.code !== 'ERR_STREAM_PREMATURE_CLOSE'
         ) {
-          console.error('[TurboMux] Pipeline error:', error.message);
+          logger.error('[TurboMux] Pipeline error:', error.message);
           combinedStdout.emit('error', error);
         }
       })
@@ -330,13 +331,13 @@ async function tryYouTubeTurboMux(
         gracefulKill(ffmpeg);
       });
 
-    console.log(
+    logger.info(
       `[TurboMux] [${tid}] Piping started — video=${(Number(videoResult.size) / 1024 / 1024).toFixed(1)}MB audio=${(Number(audioResult.size) / 1024 / 1024).toFixed(1)}MB`
     );
     // unknown size requires chunked delivery
     return true;
   } catch (error: unknown) {
-    console.log(
+    logger.info(
       `[TurboMux] [${tid}] Failed, falling back: ${(error as Error).message}`
     );
     videoController.abort();
@@ -383,7 +384,7 @@ export async function attemptTurboMux(
       vcodec: 'none',
       acodec: audioPick.acodec || 'opus',
     } as Format;
-    console.log(`[TurboMux] [${tid}] Fast-path: muxing pre-resolved urls`);
+    logger.info(`[TurboMux] [${tid}] Fast-path: muxing pre-resolved urls`);
     return tryYouTubeTurboMux(
       url,
       muxVideo,
@@ -436,14 +437,14 @@ export async function attemptTurboMux(
         videoUrl = parsed.video;
         audioUrl = parsed.audio;
         audioAcodec = parsed.acodec;
-        console.log(`[TurboMux] [${tid}] Cache HIT`);
+        logger.info(`[TurboMux] [${tid}] Cache HIT`);
       }
     } catch {
       /* cache miss or parse error */
     }
 
     if (!videoUrl || !audioUrl) {
-      console.log(`[TurboMux] [${tid}] Refreshing URLs via ${client}...`);
+      logger.info(`[TurboMux] [${tid}] Refreshing URLs via ${client}...`);
       const { execFile } = await import('node:child_process');
       const { promisify } = await import('node:util');
       const exec = promisify(execFile);
@@ -469,7 +470,7 @@ export async function attemptTurboMux(
       );
       const urls = stdout.trim().split('\n').filter(Boolean);
       if (urls.length < 2) {
-        console.log(`[TurboMux] [${tid}] Got ${urls.length} URLs, need 2`);
+        logger.info(`[TurboMux] [${tid}] Got ${urls.length} URLs, need 2`);
         return tryInfoUrls();
       }
       [videoUrl, audioUrl] = urls;
@@ -505,7 +506,7 @@ export async function attemptTurboMux(
     );
     return ok;
   } catch (err: unknown) {
-    console.log(`[TurboMux] [${tid}] Failed: ${(err as Error).message}`);
+    logger.info(`[TurboMux] [${tid}] Failed: ${(err as Error).message}`);
     return false;
   }
 }

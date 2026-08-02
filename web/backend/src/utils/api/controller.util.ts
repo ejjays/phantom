@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { logger } from '../infra/logger.util.js';
 import { sendEvent } from '../network/sse.util.js';
 import { getCookieType } from '../media/video.util.js';
 import { downloadCookies } from '../network/cookie.util.js';
@@ -114,7 +115,7 @@ export function handleBrainHit(
           saveToBrain(videoURL, { ...spotifyData, cover: finalThumbnail });
         }
       } catch (err: unknown) {
-        console.debug(
+        logger.debug(
           '[ControllerUtil] Brain hit handle error:',
           (err as Error).message
         );
@@ -129,7 +130,7 @@ export async function resolveConvertTarget(
   cookieArgs: string[]
 ): Promise<string> {
   if (targetURL && !isValidProxyUrl(targetURL)) {
-    console.warn('[Security] Blocked invalid targetUrl in resolve');
+    logger.warn('[Security] Blocked invalid targetUrl in resolve');
     return videoURL;
   }
 

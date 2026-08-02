@@ -1,4 +1,5 @@
 import { Readable } from 'node:stream';
+import { logger } from '../../utils/infra/logger.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
 import { secureFetch } from '../../utils/network/security.util.js';
 import { getProxiedStream } from '../../utils/network/proxy.util.js';
@@ -191,7 +192,7 @@ export async function getInfo(
     // null falls back to yt-dlp
     if (!aid && !epId) return null;
 
-    console.log(
+    logger.info(
       `[Metadata] Engine: Pure-JS | Platform: Bilibili | URL: ${url}`
     );
 
@@ -260,7 +261,7 @@ export async function getInfo(
     return info;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-Bilibili] Error extracting ${url}: ${message}`);
+    logger.error(`[JS-Bilibili] Error extracting ${url}: ${message}`);
     return null;
   }
 }

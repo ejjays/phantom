@@ -63,8 +63,8 @@ if (process.platform === 'android') {
             originalRequire as (...innerArgs: unknown[]) => unknown
           ).apply(this, [name, ...args]);
         } catch (_ERROR) {
-          console.debug('[System] LibSQL bypass error:', _ERROR);
-          console.warn(
+          logger.debug('[System] LibSQL bypass error:', _ERROR);
+          logger.warn(
             `[System] LibSQL native library '${name}' not found, bypassing...`
           );
           return {
@@ -84,10 +84,10 @@ if (process.platform === 'android') {
         [name, ...args]
       );
     };
-    console.log('[System] Mocked native modules for Termux compatibility');
+    logger.info('[System] Mocked native modules for Termux compatibility');
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.warn(
+    logger.warn(
       `[System] Failed to mock @ffmpeg-installer/ffmpeg: ${message}`
     );
   }
@@ -102,12 +102,12 @@ if (dnsModule.setDefaultResultOrder) {
 
 process.on('unhandledRejection', (reason: unknown) => {
   const message = reason instanceof Error ? reason.message : String(reason);
-  console.error(`[Unhandled] reason: ${message}`);
+  logger.error(`[Unhandled] reason: ${message}`);
 });
 process.on('uncaughtException', (err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
-  console.error(`[Uncaught] error: ${message}`);
-  if (err instanceof Error && err.stack) console.error(err.stack);
+  logger.error(`[Uncaught] error: ${message}`);
+  if (err instanceof Error && err.stack) logger.error(err.stack);
 });
 
 const app = express();
@@ -217,7 +217,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   });
   const traceId =
     (traceContext.getStore() as { traceId?: string })?.traceId || 'global';
-  console.log(
+  logger.info(
     `[${timestamp}] [${traceId}] ${req.method} ${req.originalUrl || req.url}`
   );
   next();
@@ -258,33 +258,33 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-console.log('--- Environment Check ---');
-console.log(`PORT: ${PORT}`);
-console.log(
+logger.info('--- Environment Check ---');
+logger.info(`PORT: ${PORT}`);
+logger.info(
   `COOKIES_URL: ${process.env.COOKIES_URL ? '✅ LOADED' : '❌ MISSING'}`
 );
-console.log(
+logger.info(
   `GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
 );
-console.log(
+logger.info(
   `GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
 );
-console.log(
+logger.info(
   `BILIBILI_COOKIE: ${process.env.BILIBILI_COOKIE ? '✅ LOADED' : '➖ not set (720p cap)'}`
 );
-console.log(
+logger.info(
   `INFO CACHE: ${process.env.DISABLE_INFO_CACHE && process.env.DISABLE_INFO_CACHE !== '0' ? '🚫 DISABLED (testing)' : '✅ ENABLED'}`
 );
 
 dns.lookup('google.com', { family: 4 }, (err, addr) => {
   const status = err ? '❌ FAILED' : `✅ ${addr}`;
-  console.log(`DNS google.com: ${status}`);
+  logger.info(`DNS google.com: ${status}`);
 });
 dns.lookup('youtube.com', { family: 4 }, (err, addr) => {
   const status = err ? '❌ FAILED' : `✅ ${addr}`;
-  console.log(`DNS youtube.com: ${status}`);
+  logger.info(`DNS youtube.com: ${status}`);
 });
-console.log('-------------------------');
+logger.info('-------------------------');
 
 app.use((_req: Request, res: Response, next: NextFunction) => {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
@@ -305,7 +305,7 @@ const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
   }
 });
 
-console.log('[System] Initializing routes...');
+logger.info('[System] Initializing routes...');
 app.get('/ping', (_req: Request, res: Response) => {
   res.status(200).send('pong');
 });
@@ -323,7 +323,7 @@ app.get('/api/get-url', async (_req: Request, res: Response) => {
       }
     }
   } catch (error) {
-    console.error('[Discovery] Error fetching URL:', error);
+    logger.error('[Discovery] Error fetching URL:', error);
   }
   res.json({ url: null });
 });
@@ -343,7 +343,7 @@ app.use(
 app.use('/', videoRoutes);
 app.use('/api/key-changer', keyChangerRoutes);
 app.use('/api/remix', remixRoutes);
-console.log('[System] Routes ready');
+logger.info('[System] Routes ready');
 
 if (process.env.SENTRY_DSN) {
   Sentry.setupExpressErrorHandler(app);
@@ -409,7 +409,7 @@ export default app;
 if (process.env.NODE_ENV !== 'test') {
   assertProdConfig();
   const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on port ${PORT}`);
+    logger.info(`Server is running on port ${PORT}`);
 
     configureServerTimeouts(server);
 
@@ -425,19 +425,19 @@ if (process.env.NODE_ENV !== 'test') {
 
     import('node:child_process').then(({ exec, spawn: spawnChild }) => {
       exec('yt-dlp --version', (err, stdout) => {
-        if (err) console.error(`yt-dlp check failed: ${err.message}`);
-        else console.log(`yt-dlp: ${stdout.trim()}`);
+        if (err) logger.error(`yt-dlp check failed: ${err.message}`);
+        else logger.info(`yt-dlp: ${stdout.trim()}`);
       });
 
       exec('ffmpeg -version', (err, stdout) => {
-        if (err) console.error(`FFmpeg check failed: ${err.message}`);
-        else console.log(`FFmpeg: ${stdout.split('\n')[0]}`);
+        if (err) logger.error(`FFmpeg check failed: ${err.message}`);
+        else logger.info(`FFmpeg: ${stdout.split('\n')[0]}`);
       });
 
       // pot opt-in; bgutil currently fails botguard
       const potEnabled = process.env.ENABLE_POT_PLUGIN === '1';
       if (!potEnabled) {
-        console.log('[PO Token] disabled; set ENABLE_POT_PLUGIN=1 to enable');
+        logger.info('[PO Token] disabled; set ENABLE_POT_PLUGIN=1 to enable');
       } else {
         const potCandidates = [
           process.env.HOME
@@ -459,16 +459,16 @@ if (process.env.NODE_ENV !== 'test') {
               detached: true,
             });
             pot.unref();
-            console.log(
+            logger.info(
               `PO Token server started (pid: ${pot.pid}, port: 4416)`
             );
           } else {
-            console.log(
+            logger.info(
               `[PO Token] Server script not found in: ${potCandidates.join(', ')}`
             );
           }
         } catch (error: unknown) {
-          console.error('[PO Token] Spawn failed:', (error as Error).message);
+          logger.error('[PO Token] Spawn failed:', (error as Error).message);
         }
       }
     });
@@ -480,7 +480,7 @@ if (process.env.NODE_ENV !== 'test') {
       const mem = process.memoryUsage();
       const mb = (bytes: number) => Math.round(bytes / 1048576);
       const limit = process.env.KOYEB_INSTANCE_MEMORY_MB || '?';
-      console.log(
+      logger.info(
         `[Mem] idle snapshot: rss=${mb(mem.rss)}MB heapUsed=${mb(mem.heapUsed)}MB ` +
           `heapTotal=${mb(mem.heapTotal)}MB external=${mb(mem.external)}MB ` +
           `arrayBuffers=${mb(mem.arrayBuffers)}MB (instance limit=${limit}MB)`

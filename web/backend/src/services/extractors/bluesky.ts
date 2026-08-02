@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { logger } from '../../utils/infra/logger.util.js';
 import { Readable } from 'node:stream';
 import { secureFetch } from '../../utils/network/security.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
@@ -194,7 +195,7 @@ export async function getInfo(
     return info;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-Bluesky] Error extracting ${url}: ${message}`);
+    logger.error(`[JS-Bluesky] Error extracting ${url}: ${message}`);
     return null;
   }
 }
@@ -239,7 +240,7 @@ export function getStream(
 
   (ffmpeg.stdio[2] as Readable | null)?.resume();
   ffmpeg.on('error', (err: Error) =>
-    console.error(`[JS-Bluesky] ffmpeg error: ${err.message}`)
+    logger.error(`[JS-Bluesky] ffmpeg error: ${err.message}`)
   );
 
   return Promise.resolve(ffmpeg.stdout as Readable);

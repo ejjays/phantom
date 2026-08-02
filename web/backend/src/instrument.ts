@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
+import { logger } from './utils/infra/logger.util.js';
 
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
@@ -7,13 +8,13 @@ Sentry.init({
 });
 
 process.on('uncaughtException', async (error) => {
-  console.error('[Uncaught Exception]', error);
+  logger.error('[Uncaught Exception]', error);
   Sentry.captureException(error);
   await Sentry.close(2000);
   throw error;
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error('[Unhandled Rejection]', reason);
+  logger.error('[Unhandled Rejection]', reason);
   Sentry.captureException(reason);
 });

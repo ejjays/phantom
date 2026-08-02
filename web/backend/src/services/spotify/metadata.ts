@@ -1,4 +1,5 @@
 import _spotifyUrlInfo from 'spotify-url-info';
+import { logger } from '../../utils/infra/logger.util.js';
 import { secureFetch } from '../../utils/network/security.util.js';
 import { recordFailure } from '../../utils/infra/metrics.util.js';
 import { load } from 'cheerio';
@@ -63,7 +64,7 @@ async function fetchFromSpotifyAPI(
         audioFeatures = (await afRes.json()) as AudioFeatures;
       }
     } catch (error: unknown) {
-      console.debug(
+      logger.debug(
         '[SpotifyMetadata] Audio features error:',
         (error as Error).message
       );
@@ -91,7 +92,7 @@ async function fetchFromSpotifyAPI(
     };
   } catch (error: unknown) {
     recordFailure('resolve:spotify_api');
-    console.error(`[Spotify-API] Error: ${(error as Error).message}`);
+    logger.error(`[Spotify-API] Error: ${(error as Error).message}`);
     return null;
   }
 }
@@ -168,7 +169,7 @@ export async function fetchFromSoundcharts(
     };
   } catch (error) {
     recordFailure('resolve:soundcharts');
-    console.debug('[Soundcharts] Request failed:', (error as Error).message);
+    logger.debug('[Soundcharts] Request failed:', (error as Error).message);
     return null;
   }
 }
@@ -214,7 +215,7 @@ async function getScraperDetails(
   try {
     details = await (getData(safeUrl) as Promise<ScraperDetails>);
   } catch (error: unknown) {
-    console.debug(
+    logger.debug(
       '[SpotifyMetadata] Scraper getData error:',
       (error as Error).message
     );
@@ -223,7 +224,7 @@ async function getScraperDetails(
     try {
       details = await (getDetails(safeUrl) as Promise<ScraperDetails>);
     } catch (error: unknown) {
-      console.debug(
+      logger.debug(
         '[SpotifyMetadata] Scraper getDetails error:',
         (error as Error).message
       );
@@ -242,7 +243,7 @@ async function getScraperDetails(
         };
       }
     } catch (error: unknown) {
-      console.debug(
+      logger.debug(
         '[SpotifyMetadata] Scraper oembed fetch error:',
         (error as Error).message
       );
@@ -449,7 +450,7 @@ export async function fetchSpotifyPageData(
     const cheerioDoc = load(data);
     return { cover: cheerioDoc('meta[property="og:image"]').attr('content') };
   } catch (error) {
-    console.debug('[SpotifyPage] Fetch failed:', (error as Error).message);
+    logger.debug('[SpotifyPage] Fetch failed:', (error as Error).message);
     return null;
   }
 }
@@ -464,7 +465,7 @@ export async function resolveSideTasks(
       metadata.imageUrl = response.cover;
     }
   } catch (error: unknown) {
-    console.debug(
+    logger.debug(
       '[SpotifyMetadata] Side tasks error:',
       (error as Error).message
     );
@@ -498,7 +499,7 @@ export async function fetchPreviewUrlManually(
     const match = data.match(/"preview_url":"(https:[^"]+)"/u);
     return match?.[1]?.replace(/\\/gu, '/') || null;
   } catch (error) {
-    console.debug(
+    logger.debug(
       '[SpotifyPreview] Manual fetch failed:',
       (error as Error).message
     );

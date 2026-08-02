@@ -4,6 +4,7 @@ import {
   setGlobalDispatcher,
   type Dispatcher,
 } from 'undici';
+import { logger } from '../../utils/infra/logger.util.js';
 
 // experimental: route yt egress via residential proxy (YT_PROXY)
 export const YT_PROXY = process.env.YT_PROXY?.trim() || '';
@@ -39,7 +40,7 @@ export function ytProxyDispatcher(): Dispatcher | undefined {
       cachedDispatcher = new ProxyAgent(YT_PROXY);
     } else {
       // undici needs http(s) proxy
-      console.warn(
+      logger.warn(
         `[YT_PROXY] media fetch needs http(s) proxy; got ${YT_PROXY.split('://')[0]}://`
       );
     }
@@ -66,7 +67,7 @@ function originHost(origin: string | URL | undefined): string {
 export function installYtProxy(): void {
   if (proxyInstalled || !YT_PROXY) return;
   if (!/^https?:\/\//u.test(YT_PROXY)) {
-    console.warn('[YT_PROXY] needs an http(s) proxy url; skipping');
+    logger.warn('[YT_PROXY] needs an http(s) proxy url; skipping');
     return;
   }
   proxyInstalled = true;
@@ -83,5 +84,5 @@ export function installYtProxy(): void {
           : dispatch(opts, handler)
   );
   setGlobalDispatcher(routed);
-  console.log('[YT_PROXY] residential routing installed (youtube only)');
+  logger.info('[YT_PROXY] residential routing installed (youtube only)');
 }

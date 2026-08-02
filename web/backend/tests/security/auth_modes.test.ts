@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import app from '../../src/app.js';
+import { logger } from '../../src/utils/infra/logger.util.js';
 import {
   resolveAuthMode,
   assertProdConfig,
@@ -81,7 +82,7 @@ describe('assertProdConfig posture warnings', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('warns (not throws) in deny mode', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     expect(() =>
       assertProdConfig({
         NODE_ENV: 'production',
@@ -92,7 +93,7 @@ describe('assertProdConfig posture warnings', () => {
   });
 
   it('warns in explicit open mode', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     assertProdConfig({
       NODE_ENV: 'production',
       PROXY_SIGNING_SECRET: 's',

@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { logger } from '../infra/logger.util.js';
 import {
   VideoInfo,
   SpotifyMetadata,
@@ -124,9 +125,9 @@ export async function prepareFinalResponse(
   if (isSpotify) {
     const preview = spotifyData?.previewUrl || info.previewUrl;
     if (preview) {
-      console.log(`[Response] Sending Preview: ${preview.substring(0, 50)}...`);
+      logger.info(`[Response] Sending Preview: ${preview.substring(0, 50)}...`);
     } else {
-      console.log(
+      logger.info(
         `[Response] No Preview found for ${spotifyData?.title || info.title}`
       );
     }

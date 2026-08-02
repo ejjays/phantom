@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { logger } from '../../utils/infra/logger.util.js';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 
@@ -66,24 +67,24 @@ if (cookieHeader && !envCookiesPath) {
     }
     fs.mkdirSync(TEMP_DIR, { recursive: true });
     fs.writeFileSync(defaultCookiesPath, `${netscape.join('\n')}\n`);
-    console.log('[YtdlpConfig] Cookie file written from YT_DLP_COOKIE');
+    logger.info('[YtdlpConfig] Cookie file written from YT_DLP_COOKIE');
   } catch (error) {
-    console.log(
+    logger.info(
       `[YtdlpConfig] YT_COOKIE conversion failed: ${(error as Error).message}`
     );
   }
 }
 
 if (envCookiesPath && fs.existsSync(envCookiesPath)) {
-  console.log(`[YtdlpConfig] Using cookies from ENV: ${envCookiesPath}`);
+  logger.info(`[YtdlpConfig] Using cookies from ENV: ${envCookiesPath}`);
   COMMON_ARGS.push('--cookies', envCookiesPath);
 } else if (fs.existsSync(defaultCookiesPath)) {
-  console.log(
+  logger.info(
     `[YtdlpConfig] Using cookies from DEFAULT: ${defaultCookiesPath}`
   );
   COMMON_ARGS.push('--cookies', defaultCookiesPath);
 } else {
-  console.log('[YtdlpConfig] No cookies file found');
+  logger.info('[YtdlpConfig] No cookies file found');
 }
 
 export async function bootstrapCookies(): Promise<void> {
@@ -105,7 +106,7 @@ export async function bootstrapCookies(): Promise<void> {
     fs.mkdirSync(path.dirname(defaultCookiesPath), { recursive: true });
     fs.writeFileSync(defaultCookiesPath, text);
     COMMON_ARGS.push('--cookies', defaultCookiesPath);
-    console.log('[YtdlpConfig] Cookies fetched from remote');
+    logger.info('[YtdlpConfig] Cookies fetched from remote');
   } catch {
     // non-critical, proceed without
   }

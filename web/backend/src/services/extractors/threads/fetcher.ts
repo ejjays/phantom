@@ -1,4 +1,5 @@
 import { HEADERS, DESKTOP_UA } from './constants.js';
+import { logger } from '../../../utils/infra/logger.util.js';
 import { secureFetch } from '../../../utils/network/security.util.js';
 
 type FetchOptions = {
@@ -57,7 +58,7 @@ export async function fetchFileSize(url: string): Promise<number | undefined> {
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.debug('[ThreadsExtractor] Size fetch error:', message);
+    logger.debug('[ThreadsExtractor] Size fetch error:', message);
   }
   return undefined;
 }

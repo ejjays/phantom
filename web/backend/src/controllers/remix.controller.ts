@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { logger } from '../utils/infra/logger.util.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'node:url';
@@ -45,17 +46,17 @@ if (!fs.existsSync(STEMS_BASE_DIR)) {
 
 export const registerEngine = (req: Request, res: Response): void => {
   const { url, session_id } = req.body || {};
-  console.log(
+  logger.info(
     `[Engine] Registration attempt: session=${session_id} url=${url}`
   );
 
   if (!url || !session_id) {
-    console.error('[Engine] Registration failed: Missing url or session_id');
+    logger.error('[Engine] Registration failed: Missing url or session_id');
     res.status(400).json({ error: 'URL and session_id required' });
     return;
   }
   registerSession(session_id, url);
-  console.log(`[Engine] Successfully registered: ${session_id} -> ${url}`);
+  logger.info(`[Engine] Successfully registered: ${session_id} -> ${url}`);
   res.json({ success: true, url, session_id });
 };
 
@@ -67,7 +68,7 @@ export const getEngineStatus = (req: Request, res: Response): void => {
   }
   const url = getSessionUrl(sessionId);
   if (url)
-    console.log(`[Engine] Status check: session=${sessionId} found=${url}`);
+    logger.info(`[Engine] Status check: session=${sessionId} found=${url}`);
   res.json({ url });
 };
 
@@ -76,24 +77,24 @@ export const processAudio = async (
   res: Response
 ): Promise<void> => {
   const { engine, stems, session_id } = req.body;
-  console.log(
+  logger.info(
     `[Process] Request received: engine=${engine} stems=${stems} session_id=${session_id}`
   );
 
   const engineUrlRaw = session_id ? getSessionUrl(session_id) : null;
-  console.log(
+  logger.info(
     `[Process] Engine lookup: session_id=${session_id} -> url=${engineUrlRaw}`
   );
 
   if (!engineUrlRaw) {
-    console.error(
+    logger.error(
       `[Process] Failed: No engine mapped for session ${session_id}`
     );
     res.status(400).json({ error: 'Engine not connected or session expired' });
     return;
   }
   if (!req.file) {
-    console.error('[Process] Failed: No file uploaded');
+    logger.error('[Process] Failed: No file uploaded');
     res.status(400).json({ error: 'No file uploaded' });
     return;
   }
@@ -107,18 +108,18 @@ export const processAudio = async (
     form.append('stems', stems || '4 Stems');
 
     const engineUrl = engineUrlRaw.replace(/\/$/, '');
-    console.log(`[Process] Forwarding to engine: ${engineUrl}/process`);
+    logger.info(`[Process] Forwarding to engine: ${engineUrl}/process`);
 
     const startRes = await secureFetch(`${engineUrl}/process`, {
       method: 'POST',
       body: form,
     });
 
-    console.log(`[Process] Engine response status: ${startRes.status}`);
+    logger.info(`[Process] Engine response status: ${startRes.status}`);
 
     if (!startRes.ok) {
       const rawErr = await startRes.json().catch(() => ({}));
-      console.error('[Process] Engine error response:', rawErr);
+      logger.error('[Process] Engine error response:', rawErr);
       const startData = EngineStartResponseSchema.safeParse(rawErr);
       const errMessage = startData.success ? startData.data.message : undefined;
       throw new Error(errMessage || `Engine error ${startRes.status}`);
@@ -205,17 +206,17 @@ export const wakeEngine = async (
       });
       const rows = dbResult?.rows;
       if (rows && rows.length > 0) {
-        console.log(
+        logger.info(
           `[Engine] Overriding localhost with public URL from DB: ${rows[0].value}`
         );
         backendUrl = rows[0].value as string;
       }
     } catch (error) {
-      console.error('[Engine] DB URL lookup failed:', error);
+      logger.error('[Engine] DB URL lookup failed:', error);
     }
   }
 
-  console.log(
+  logger.info(
     `[Engine] Wake-engine request: user=${kaggleUsername} backendUrl=${backendUrl}`
   );
 
@@ -292,7 +293,7 @@ ${baseScript}
     );
 
     kaggleProcess.on('error', (error) => {
-      console.error('Failed to spawn kaggle process:', error);
+      logger.error('Failed to spawn kaggle process:', error);
     });
 
     // cleanup dirs
@@ -303,13 +304,13 @@ ${baseScript}
         if (fs.existsSync(WORKSPACE_DIR))
           fs.rmSync(WORKSPACE_DIR, { recursive: true, force: true });
       } catch (error) {
-        console.error('Cleanup failed:', error);
+        logger.error('Cleanup failed:', error);
       }
     }, 30000); // wait for push
 
     res.json({ success: true, status: 'waking', session_id: sessionId });
   } catch (error) {
-    console.error('Kernel dispatch failed:', error);
+    logger.error('Kernel dispatch failed:', error);
     res.status(500).json({ error: 'Kernel dispatch failed' });
   }
 };
@@ -404,7 +405,7 @@ export const saveRemix = async (
     }
     res.json({ success: true, localStems });
   } catch (error: unknown) {
-    console.error('[Save] Remix persistence failed:', error);
+    logger.error('[Save] Remix persistence failed:', error);
     res.status(500).json({ error: 'Failed to persist remix data' });
   }
 };
@@ -470,7 +471,7 @@ export const getHistory = async (
     }));
     res.json(history);
   } catch (error) {
-    console.error('[History] Fetch failed:', error);
+    logger.error('[History] Fetch failed:', error);
     res.status(500).json({ error: 'Failed to fetch history' });
   }
 };
@@ -491,7 +492,7 @@ export const renameRemix = async (
     });
     res.json({ success: true });
   } catch (error) {
-    console.error('[Rename] Operation failed:', error);
+    logger.error('[Rename] Operation failed:', error);
     res.status(500).json({ error: 'Failed to rename' });
   }
 };
@@ -515,7 +516,7 @@ export const deleteRemix = async (
       fs.rmSync(targetDir, { recursive: true, force: true });
     res.json({ success: true });
   } catch (error: unknown) {
-    console.error('[Delete] Operation failed:', error);
+    logger.error('[Delete] Operation failed:', error);
     res.status(500).json({ error: 'Failed to delete' });
   }
 };
@@ -589,7 +590,7 @@ export const exportRemix = async (
         try {
           process.kill(-zipProcess.pid, 'SIGKILL');
         } catch (error) {
-          console.debug('[Export] Cleanup failed:', error);
+          logger.debug('[Export] Cleanup failed:', error);
         }
       }
     });
@@ -597,17 +598,17 @@ export const exportRemix = async (
     zipProcess.stdout.pipe(res);
 
     zipProcess.stderr.on('data', (data) => {
-      console.error(`zip stderr: ${data}`);
+      logger.error(`zip stderr: ${data}`);
     });
 
     zipProcess.on('close', (code) => {
       if (code !== 0) {
-        console.error(`zip process exited with code ${code}`);
+        logger.error(`zip process exited with code ${code}`);
         if (!res.headersSent) res.status(500).send('Zip generation failed');
       }
     });
   } catch (error) {
-    console.error('Export exception:', error);
+    logger.error('Export exception:', error);
     if (!res.headersSent) res.status(500).send('Export failed');
   }
 };
@@ -650,7 +651,7 @@ export const extractRemix = async (
             try {
               process.kill(-ffmpegProcess.pid, 'SIGKILL');
             } catch (error) {
-              console.debug('[Extract] Cleanup failed:', error);
+              logger.debug('[Extract] Cleanup failed:', error);
             }
           }
         };
@@ -666,7 +667,7 @@ export const extractRemix = async (
         });
       });
     } catch (error: unknown) {
-      console.error('[Extract] Audio preparation failed:', error);
+      logger.error('[Extract] Audio preparation failed:', error);
       res.status(500).json({ error: 'Failed to prepare audio' });
       return;
     }

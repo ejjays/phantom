@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { logger } from '../../utils/infra/logger.util.js';
 import { Readable } from 'node:stream';
 import { VideoInfo, ExtractorOptions } from '../../types/index.js';
 import { secureFetch } from '../../utils/network/security.util.js';
@@ -16,7 +17,7 @@ async function getClientId(): Promise<string | null> {
   }
 
   try {
-    console.log('[SoundCloud] Fetching fresh client_id...');
+    logger.info('[SoundCloud] Fetching fresh client_id...');
     const response = await secureFetch('https://soundcloud.com', {
       headers: { 'User-Agent': UA },
     });
@@ -33,12 +34,12 @@ async function getClientId(): Promise<string | null> {
       if (idMatch) {
         cachedClientId = idMatch[1];
         lastClientIdFetch = Date.now();
-        console.log(`[SoundCloud] Found client_id: ${cachedClientId}`);
+        logger.info(`[SoundCloud] Found client_id: ${cachedClientId}`);
         return cachedClientId;
       }
     }
   } catch (error: unknown) {
-    console.error(
+    logger.error(
       '[SoundCloud] Failed to fetch client_id:',
       error instanceof Error ? error.message : String(error)
     );
@@ -59,9 +60,9 @@ export async function search(query: string): Promise<unknown[]> {
     return collection ?? [];
   } catch (error: unknown) {
     if (error instanceof Error) {
-      console.error('[SoundCloud] Search error:', error.message);
+      logger.error('[SoundCloud] Search error:', error.message);
     } else {
-      console.error('[SoundCloud] Search error:', error);
+      logger.error('[SoundCloud] Search error:', error);
     }
     return [];
   }
@@ -97,7 +98,7 @@ export async function getInfo(
 ): Promise<VideoInfo> {
   const clientId = await getClientId();
   if (!clientId) throw new Error('Could not obtain SoundCloud client_id');
-  console.log(
+  logger.info(
     `[Metadata] Engine: Pure-JS | Platform: SoundCloud | URL: ${url}`
   );
 
@@ -112,7 +113,7 @@ export async function getInfo(
       track.policy === 'SNIPPET' ||
       (track.duration < 60000 && track.full_duration > 60000);
     if (isSnippet) {
-      console.warn(
+      logger.warn(
         `[SoundCloud] Rejected snippet: ${track.title} (${(track.duration / 1000).toFixed(1)}s)`
       );
       throw new Error('This track is a preview snippet only.');
@@ -160,7 +161,7 @@ export async function getInfo(
       isFullData: false,
     };
   } catch (error: unknown) {
-    console.error(
+    logger.error(
       '[SoundCloud] getInfo error:',
       error instanceof Error ? error.message : String(error)
     );
@@ -205,7 +206,7 @@ export async function getStream(
     );
     (ffmpeg.stdio[2] as Readable | null)?.resume();
     ffmpeg.on('error', (err: Error) =>
-      console.error(`[SoundCloud] ffmpeg error: ${err.message}`)
+      logger.error(`[SoundCloud] ffmpeg error: ${err.message}`)
     );
     return ffmpeg.stdout as Readable;
   }

@@ -1,4 +1,5 @@
 import { VideoInfo, SpotifyMetadata } from '../types/index.js';
+import { logger } from '../utils/infra/logger.util.js';
 import { cacheVideoInfo } from './ytdlp.service.js';
 import { sendEvent } from '../utils/network/sse.util.js';
 import { prepareFinalResponse } from '../utils/api/response.util.js';
@@ -37,7 +38,7 @@ export async function resolveAndSaveTrack(
       metadata,
       [],
       (stage, progress, message) => {
-        console.log(
+        logger.info(
           `[Seeder] [${track.id}] ${stage}: ${progress}% ${message || ''}`
         );
         if (clientId) {
@@ -71,7 +72,7 @@ export async function resolveAndSaveTrack(
       return finalData;
     }
   } catch (error) {
-    console.error(
+    logger.error(
       `[Seeder] [${track.id}] Resolution failed:`,
       (error as Error).message
     );
@@ -83,7 +84,7 @@ export async function processBackgroundTracks(
   tracks: SeedTrack[],
   _clientId: string
 ) {
-  console.log(
+  logger.info(
     `[Seeder] Starting background processing for ${tracks.length} tracks...`
   );
 
@@ -115,7 +116,7 @@ export async function resolveSeedTracks(url: string): Promise<unknown[]> {
   try {
     tracks = await getTracks(url);
   } catch (error: unknown) {
-    console.debug(
+    logger.debug(
       '[VideoController] Track fetch error:',
       (error as Error).message
     );

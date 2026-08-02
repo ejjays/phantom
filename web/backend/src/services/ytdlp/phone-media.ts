@@ -6,6 +6,7 @@
  * falls back to backend if phone is offline.
  */
 import { createHmac } from 'node:crypto';
+import { logger } from '../../utils/infra/logger.util.js';
 import { secureFetch } from '../../utils/network/security.util.js';
 import { resolvePhoneTunnelUrl } from './remote-ytdlp.js';
 
@@ -43,7 +44,7 @@ async function pingHealth(): Promise<void> {
     }
   }
   if (was !== healthy) {
-    console.log(
+    logger.info(
       healthy
         ? `[PhoneMedia] relay ONLINE (${tunnelUrl})`
         : '[PhoneMedia] relay OFFLINE; downloads use server proxy'

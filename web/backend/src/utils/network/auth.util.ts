@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { logger } from '../infra/logger.util.js';
 import { timingSafeEqual } from 'node:crypto';
 
 function isLocalRequest(req: Request): boolean {
@@ -33,13 +34,13 @@ export function assertProdConfig(env: NodeJS.ProcessEnv = process.env): void {
   }
   const mode = resolveAuthMode(env);
   if (mode === 'deny') {
-    console.warn(
+    logger.warn(
       '[auth] DENY MODE — no API_KEY and no AUTH_MODE set. ' +
         'Non-localhost requests are blocked. ' +
         'Set API_KEY to require a key, or AUTH_MODE=open for an open public instance.'
     );
   } else if (mode === 'open') {
-    console.warn(
+    logger.warn(
       '[auth] OPEN MODE — all requests allowed without authentication.'
     );
   }

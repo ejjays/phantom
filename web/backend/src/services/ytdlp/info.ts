@@ -1,4 +1,5 @@
 import { isSupportedUrl } from '../../utils/network/validation.util.js';
+import { logger } from '../../utils/infra/logger.util.js';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { normalizeUrl } from '../../utils/media/video.util.js';
 import { VideoInfo } from '../../types/index.js';
@@ -80,7 +81,7 @@ async function resolvePeerBase(): Promise<string> {
     const ageS = Date.now() / 1000 - phone.updatedAt;
     if (ageS < PEER_PHONE_MAX_AGE_S && (await peerHealthy(phone.value))) {
       base = phone.value;
-      console.log('[Peer] live phone tunnel selected');
+      logger.info('[Peer] live phone tunnel selected');
     }
   }
   peerBaseCache = { base, at: Date.now() };
@@ -100,14 +101,14 @@ async function peerFetch(
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) {
-      console.warn(`[Peer] resolve failed: HTTP ${res.status}`);
+      logger.warn(`[Peer] resolve failed: HTTP ${res.status}`);
       return null;
     }
     const data = (await res.json()) as VideoInfo;
     if (data?.formats?.length || data?.title) return data;
     return null;
   } catch (error) {
-    console.warn(`[Peer] resolve error: ${(error as Error).message}`);
+    logger.warn(`[Peer] resolve error: ${(error as Error).message}`);
     return null;
   }
 }
@@ -139,7 +140,7 @@ async function tryPeerResolve(
   // phone failed, fall back to koyeb
   if (isPhone && koyeb) {
     peerBaseCache = null;
-    console.warn('[Peer] primary failed, falling back');
+    logger.warn('[Peer] primary failed, falling back');
     return peerFetch(koyeb, url, clientId, PEER_FALLBACK_TIMEOUT);
   }
   return null;
@@ -157,14 +158,14 @@ export function startPeerKeepWarm(): void {
   };
   ping();
   setInterval(ping, 4 * 60 * 1000).unref();
-  console.log(`[Peer] keep-warm enabled for ${base}`);
+  logger.info(`[Peer] keep-warm enabled for ${base}`);
 }
 
 const _handleUrlDecoding = (url: string) => {
   let decodedUrl = normalizeUrl(url);
   if (decodedUrl.includes('http') && decodedUrl.lastIndexOf('http') > 0) {
     decodedUrl = decodedUrl.substring(decodedUrl.lastIndexOf('http'));
-    console.log(`[Info] Fixed double-pasted URL: ${decodedUrl}`);
+    logger.info(`[Info] Fixed double-pasted URL: ${decodedUrl}`);
   }
   return decodedUrl;
 };
@@ -180,7 +181,7 @@ async function _expandIfShortLink(url: string, clientId: string | null) {
     url.includes('on.soundcloud.com');
 
   if (needsExpansion) {
-    console.log('[Info] Expanding URL:', url);
+    logger.info('[Info] Expanding URL:', url);
     reportProgress(
       clientId,
       'initializing',
@@ -218,7 +219,7 @@ export async function getVideoInfo(
 ): Promise<VideoInfo> {
   const tid = getTraceId() || 'global';
   const t0 = Date.now();
-  console.log(`[Info] [${tid}] Starting getVideoInfo for:`, url);
+  logger.info(`[Info] [${tid}] Starting getVideoInfo for:`, url);
   if (!isSupportedUrl(url)) throw new Error('Unsupported or malicious URL');
 
   const onProgress = (
@@ -227,7 +228,7 @@ export async function getVideoInfo(
     subStatus?: string,
     details?: string
   ) => {
-    console.log('[Info] Progress:', status, subStatus);
+    logger.info('[Info] Progress:', status, subStatus);
     reportProgress(clientId, status, progress, subStatus, details);
   };
 
@@ -235,26 +236,26 @@ export async function getVideoInfo(
     const peerKey = `${url}_${cookieArgs.join('_')}`;
     const peerCached = await getCachedInfo(peerKey, false, clientId);
     if (peerCached) {
-      console.log(`[Timing] /info via peer cache in ${Date.now() - t0}ms`);
+      logger.info(`[Timing] /info via peer cache in ${Date.now() - t0}ms`);
       return peerCached;
     }
     const peerInfo = await tryPeerResolve(url, clientId);
     if (peerInfo) {
       await setCachedInfo(peerKey, peerInfo);
-      console.log(`[Timing] /info via peer in ${Date.now() - t0}ms`);
+      logger.info(`[Timing] /info via peer in ${Date.now() - t0}ms`);
       return peerInfo;
     }
   }
 
   const targetUrl = await _expandIfShortLink(url, clientId);
-  console.log(`[Info] Resolved URL: ${targetUrl} (T+${Date.now() - t0}ms)`);
+  logger.info(`[Info] Resolved URL: ${targetUrl} (T+${Date.now() - t0}ms)`);
 
   const cacheKey = `${targetUrl}_${cookieArgs.join('_')}`;
 
   if (reuseLive) {
     const live = peekCachedInfo(cacheKey);
     if (live) {
-      console.log(
+      logger.info(
         `[Timing] /info reused live resolution in ${Date.now() - t0}ms`
       );
       return live;
@@ -263,13 +264,13 @@ export async function getVideoInfo(
 
   const prefetchResult = await _syncPrefetch(cacheKey, clientId);
   if (prefetchResult) {
-    console.log(`[Timing] /info served from prefetch in ${Date.now() - t0}ms`);
+    logger.info(`[Timing] /info served from prefetch in ${Date.now() - t0}ms`);
     return prefetchResult;
   }
 
   const cached = await getCachedInfo(cacheKey, forceRefresh, clientId);
   if (cached) {
-    console.log(`[Timing] /info served from cache in ${Date.now() - t0}ms`);
+    logger.info(`[Timing] /info served from cache in ${Date.now() - t0}ms`);
     return cached;
   }
 
@@ -290,7 +291,7 @@ export async function getVideoInfo(
       t0
     );
     if (jsInfo) {
-      console.log(
+      logger.info(
         `[Timing] /info handleYoutubeTiktokInfo returned in ${Date.now() - t0}ms (isPartial=${jsInfo.isPartial})`
       );
       return jsInfo;
@@ -305,7 +306,7 @@ export async function getVideoInfo(
       onProgress
     );
     if (socialInfo) {
-      console.log(
+      logger.info(
         `[Timing] /info handleSocialJSInfo returned in ${Date.now() - t0}ms`
       );
       return socialInfo;
@@ -315,7 +316,7 @@ export async function getVideoInfo(
   const isFbStory = targetUrl.includes('/stories/');
   if (isFbStory) throw new Error('Could not extract Facebook Story media.');
 
-  console.log('[Info] Falling back to slow-path (yt-dlp)...');
+  logger.info('[Info] Falling back to slow-path (yt-dlp)...');
 
   // native extractor yielded nothing (drift)
   const degraded = nativePlatform(targetUrl);
@@ -342,7 +343,7 @@ export async function getVideoInfo(
   ensureNormalizedFormats(info);
 
   await setCachedInfo(cacheKey, info);
-  console.log(
+  logger.info(
     `[Timing] /info served from yt-dlp slow-path in ${Date.now() - t0}ms`
   );
   return info;

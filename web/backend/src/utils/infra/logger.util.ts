@@ -1,7 +1,21 @@
 import pino from 'pino';
 import { getTraceId } from './trace.util.js';
 
-export const logger = pino({
+type LooseLogFn = (objOrMsg?: unknown, msgOrArg?: unknown, ...args: unknown[]) => void;
+
+type LooseLogger = Omit<
+  pino.Logger,
+  'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'
+> & {
+  trace: LooseLogFn;
+  debug: LooseLogFn;
+  info: LooseLogFn;
+  warn: LooseLogFn;
+  error: LooseLogFn;
+  fatal: LooseLogFn;
+};
+
+export const logger: LooseLogger = pino({
   level: process.env.LOG_LEVEL || 'info',
   mixin() {
     const traceId = getTraceId();

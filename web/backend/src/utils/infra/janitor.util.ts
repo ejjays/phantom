@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { logger } from './logger.util.js';
 import path from 'node:path';
 import { type Client } from '@libsql/client';
 import { acquireSingletonLock } from './redis.util.js';
@@ -58,7 +59,7 @@ export async function cleanupRemixRegistry(
       sql: 'DELETE FROM remix_history WHERE id = ?',
       args: [id],
     });
-    console.log(`[Janitor] Cleaned up expired remix: ${id}`);
+    logger.info(`[Janitor] Cleaned up expired remix: ${id}`);
   }
   return expired.rows.length;
 }
@@ -79,7 +80,7 @@ export async function runJanitor(opts: JanitorOpts): Promise<void> {
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[Janitor] tick error: ${message}`);
+    logger.error(`[Janitor] tick error: ${message}`);
   }
 }
 

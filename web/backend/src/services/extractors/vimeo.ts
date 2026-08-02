@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { logger } from '../../utils/infra/logger.util.js';
 import { Readable } from 'node:stream';
 import { secureFetch } from '../../utils/network/security.util.js';
 import { getProxiedStream } from '../../utils/network/proxy.util.js';
@@ -11,7 +12,7 @@ const REFERER = 'https://vimeo.com/';
 // flip true to trace config/player-page resolution
 const VM_DEBUG = false;
 const vlog = (...args: unknown[]): void => {
-  if (VM_DEBUG) console.log('[JS-Vimeo]', ...args);
+  if (VM_DEBUG) logger.info('[JS-Vimeo]', ...args);
 };
 
 interface Progressive {
@@ -249,7 +250,7 @@ export async function getInfo(
     return await viaConfig(ref, url);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-Vimeo] Error extracting ${url}: ${message}`);
+    logger.error(`[JS-Vimeo] Error extracting ${url}: ${message}`);
     return null;
   }
 }
@@ -292,7 +293,7 @@ export function getStream(
     );
     (ffmpeg.stdio[2] as Readable | null)?.resume();
     ffmpeg.on('error', (err: Error) =>
-      console.error(`[JS-Vimeo] ffmpeg error: ${err.message}`)
+      logger.error(`[JS-Vimeo] ffmpeg error: ${err.message}`)
     );
     return Promise.resolve(ffmpeg.stdout as Readable);
   }

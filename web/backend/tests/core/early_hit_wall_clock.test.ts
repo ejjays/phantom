@@ -29,12 +29,13 @@ vi.mock('../../src/services/extractors/youtube/index.js', () => ({
 }));
 
 import { getInfo } from '../../src/services/extractors/index.js';
+import { logger } from '../../src/utils/infra/logger.util.js';
 
 describe('[Metadata] Early hit — backend wall-clock metric', () => {
   let logSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    logSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
   });
 
   afterEach(() => {

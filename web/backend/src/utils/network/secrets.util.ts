@@ -1,10 +1,11 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { logger } from '../infra/logger.util.js';
 
 // per-boot secret unless pinned for restarts
 const ENV_SECRET = process.env.PROXY_SIGNING_SECRET;
 if (!ENV_SECRET && process.env.NODE_ENV !== 'test') {
   // random secret invalidates signed urls on restart
-  console.warn(
+  logger.warn(
     '[Secrets] PROXY_SIGNING_SECRET unset; signed URLs will break on restart.'
   );
 }

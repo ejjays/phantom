@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { logger } from '../../utils/infra/logger.util.js';
 import { sendEvent } from '../../utils/network/sse.util.js';
 import { VideoInfo, Format } from '../../types/index.js';
 import {
@@ -54,10 +55,10 @@ async function runYtdlpEnhancement(
         null,
         targetUrl
       )) as VideoInfo;
-      console.log(
+      logger.info(
         `[Info] [Enhancement] yt-dlp added ${fullFormatCount - baseFormatCount} formats for ${finalData.title}, pushing update.`
       );
-      console.log(
+      logger.info(
         `[Info] [Enhancement] Processed formats: ${finalData.formats?.length || 0} video, ${finalData.audioFormats?.length || 0} audio. Heights: ${(finalData.formats || []).map((fmt) => fmt.height || '?').join(',')}`
       );
       sendEvent(clientId, {
@@ -71,7 +72,7 @@ async function runYtdlpEnhancement(
       });
     }
   } catch (error: unknown) {
-    console.debug(
+    logger.debug(
       '[Info] [Enhancement] yt-dlp failed:',
       (error as Error).message
     );
@@ -145,7 +146,7 @@ export async function handleYoutubeTiktokInfo(
     }
 
     if (hasFormats) {
-      console.log(
+      logger.info(
         `[Info] JS race winner has only ${(jsInfo?.formats || []).length} formats (no 720p+); escalating to fallbackTask.`
       );
     }
@@ -167,7 +168,7 @@ export async function handleYoutubeTiktokInfo(
         const runYtdlp = () =>
           (ytdlpProc ??= runYtdlpInfo(prefetchUrl, cookieArgs).catch(
             (error: unknown) => {
-              console.debug(
+              logger.debug(
                 '[Info] [Background] yt-dlp fallback failed:',
                 (error as Error).message
               );
@@ -212,7 +213,7 @@ export async function handleYoutubeTiktokInfo(
                 null,
                 targetUrl
               )) as VideoInfo;
-              console.log(
+              logger.info(
                 `[Info] [Background] JS resolution complete for ${finalData.title} (${jsFormats.length} JS formats), pushing update.`
               );
               sendEvent(clientId, {
@@ -239,17 +240,17 @@ export async function handleYoutubeTiktokInfo(
           }
 
           if (jsFormats.length > 0) {
-            console.log(
+            logger.info(
               `[Info] [Background] JS produced only ${jsFormats.length} formats (HD=${jsHasHd}); escalating to yt-dlp speculative.`
             );
           }
         }
 
         // js empty → real yt-dlp fallback
-        console.log('[Info] [Background] JS empty, falling back to yt-dlp...');
+        logger.info('[Info] [Background] JS empty, falling back to yt-dlp...');
         const fullInfo = await runYtdlp();
         if (!fullInfo) {
-          console.warn(
+          logger.warn(
             '[Info] [Background] Speculative yt-dlp returned no info'
           );
           return null;
@@ -274,7 +275,7 @@ export async function handleYoutubeTiktokInfo(
             targetUrl
           )) as VideoInfo;
 
-          console.log(
+          logger.info(
             `[Info] [Background] Deep-scan complete for ${finalData.title}, pushing update.`
           );
           sendEvent(clientId, {
@@ -289,7 +290,7 @@ export async function handleYoutubeTiktokInfo(
         }
         return fullInfo;
       } catch (error: unknown) {
-        console.warn(
+        logger.warn(
           '[Info] [Background] Resolution failed:',
           (error as Error).message
         );
@@ -305,7 +306,7 @@ export async function handleYoutubeTiktokInfo(
     );
 
     // fast partial return
-    console.log(
+    logger.info(
       '[Info] Fast metadata hit, returning partial info immediately.'
     );
     return {
@@ -318,9 +319,9 @@ export async function handleYoutubeTiktokInfo(
     const err = error as Error;
     if (err.name === 'ZodError') {
       const issues = (err as { issues?: unknown }).issues;
-      console.error('[Metadata] Zod Validation Failed for Pure-JS:', issues);
+      logger.error('[Metadata] Zod Validation Failed for Pure-JS:', issues);
     }
-    console.warn(
+    logger.warn(
       `[Metadata] Engine: Pure-JS URL: ${targetUrl} (Failed: ${err.message})`
     );
   }
@@ -376,7 +377,7 @@ const _handleHasHD = (
     );
 
   if (!hasHD && !isFbStory && !hasPhoto && !isAudioOnly) {
-    console.log(
+    logger.info(
       `[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (SD only, falling back to yt-dlp for HD)`
     );
     return null;
@@ -433,7 +434,7 @@ export async function handleSocialJSInfo(
     }
   } catch (error: unknown) {
     const err = error as Error;
-    console.warn(
+    logger.warn(
       `[Metadata] Engine: Pure-JS | Platform: ${platform} | URL: ${targetUrl} (Failed: ${err.message})`
     );
   }

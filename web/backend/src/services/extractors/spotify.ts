@@ -2,6 +2,7 @@ import {
   getInfo as getYtInfo,
   getStream as getYtStream,
 } from './youtube/index.js';
+import { logger } from '../../utils/infra/logger.util.js';
 import { VideoInfo, ExtractorOptions, Format } from '../../types/index.js';
 import { Readable } from 'node:stream';
 
@@ -38,7 +39,7 @@ async function getSpotifyService(): Promise<SpotifyService> {
     !spotifyModule ||
     typeof spotifyModule.resolveSpotifyToYoutube !== 'function'
   ) {
-    console.error('[JS-Spotify] Circular dependency error');
+    logger.error('[JS-Spotify] Circular dependency error');
     throw new Error('Service initialization error.');
   }
 
@@ -129,7 +130,7 @@ export async function getInfo(
     return mapToJsResult(url, spotifyData, ytInfo);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-Spotify] Error extracting ${url}: ${message}`);
+    logger.error(`[JS-Spotify] Error extracting ${url}: ${message}`);
     return null;
   }
 }

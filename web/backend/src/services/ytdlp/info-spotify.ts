@@ -1,4 +1,5 @@
 import { sendEvent } from '../../utils/network/sse.util.js';
+import { logger } from '../../utils/infra/logger.util.js';
 import { VideoInfo, SpotifyMetadata, SSEEvent } from '../../types/index.js';
 import {
   setCachedInfo,
@@ -55,7 +56,7 @@ async function _refreshSpotifyPreview(
     await spotifyIdx
       .refreshPreviewIfNeeded(targetUrl, brainData, onProgress)
       .catch((error: Error) => {
-        console.debug('[Spotify] Preview refresh failed:', error.message);
+        logger.debug('[Spotify] Preview refresh failed:', error.message);
       });
   }
 }
@@ -114,7 +115,7 @@ export async function handleSpotifyInfo(
       }
     } catch (error: unknown) {
       const err = error as Error;
-      console.warn('[Info] [Speed] Failed to parse brain data:', err.message);
+      logger.warn('[Info] [Speed] Failed to parse brain data:', err.message);
     }
   }
 
@@ -128,7 +129,7 @@ export async function handleSpotifyInfo(
     await spotifyIdx
       .refreshPreviewIfNeeded(targetUrl, metadata, onProgress)
       .catch((error: Error) => {
-        console.debug(
+        logger.debug(
           '[Spotify] Initial preview refresh failed:',
           error.message
         );
@@ -161,7 +162,7 @@ export async function handleSpotifyInfo(
             ensureNormalizedFormats(viaYtdlp);
             if (viaYtdlp?.formats?.length) ytInfo = viaYtdlp;
           } catch (fallbackErr) {
-            console.debug(
+            logger.debug(
               '[Spotify] yt-dlp format fallback failed:',
               (fallbackErr as Error).message
             );
@@ -210,7 +211,7 @@ export async function handleSpotifyInfo(
       return null;
     } catch (error: unknown) {
       const err = error as Error;
-      console.warn('[Info] [Speed] Background resolution failed:', err.message);
+      logger.warn('[Info] [Speed] Background resolution failed:', err.message);
       return null;
     } finally {
       prefetchPromises.delete(cacheKey);

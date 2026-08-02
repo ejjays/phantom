@@ -1,4 +1,5 @@
 import { Readable } from 'node:stream';
+import { logger } from '../../utils/infra/logger.util.js';
 import {
   request,
   interceptors,
@@ -197,7 +198,7 @@ async function* readChunks(
           { cause: err }
         );
       }
-      console.warn(
+      logger.warn(
         `[chunked] transient drop, retry ${dropRetries}/${MAX_DROP_RETRIES}`
       );
       await new Promise((resolve) => setTimeout(resolve, 300 * dropRetries));

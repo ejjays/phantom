@@ -1,4 +1,5 @@
 import { getProxiedStream } from '../../../utils/network/proxy.util.js';
+import { logger } from '../../../utils/infra/logger.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../../types/index.js';
 import { Readable } from 'node:stream';
 import { DESKTOP_UA } from './constants.js';
@@ -54,7 +55,7 @@ export async function getInfo(
     return videoInfo;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-FB] Error extracting ${url}: ${message}`);
+    logger.error(`[JS-FB] Error extracting ${url}: ${message}`);
     return null;
   }
 }

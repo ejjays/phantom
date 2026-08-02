@@ -2,6 +2,7 @@ import {
   getInfo as ytGetInfo,
   getStream as ytGetStream,
 } from './youtube/index.js';
+import { logger } from '../../utils/infra/logger.util.js';
 import {
   getInfo as igGetInfo,
   getStream as igGetStream,
@@ -158,7 +159,7 @@ export async function getInfo(
     .catch(() => null)
     .then(async (meta) => {
       const metaFetchMs = Date.now() - metaFetchStart;
-      console.log(
+      logger.info(
         `[Timing] ${isYouTube ? 'oEmbed' : 'metascraper'} fetch took ${metaFetchMs}ms (returned ${meta ? 'data' : 'null'})`
       );
 
@@ -193,7 +194,7 @@ export async function getInfo(
 
           // skip flickery paint for platform labels
           if (isLowValueEarlyAuthor(finalEarlyData.artist)) {
-            console.log(
+            logger.info(
               `[Metadata] Skipped low-value early hit (author "${finalEarlyData.artist}")`
             );
             return meta;
@@ -205,7 +206,7 @@ export async function getInfo(
             : null;
           const wallClockSuffix =
             wallClockMs !== null ? `, wall-clock ${wallClockMs}ms` : '';
-          console.log(
+          logger.info(
             `[Metadata] Early hit: "${finalEarlyData.title}" by "${finalEarlyData.artist}" (T+${totalEarlyHitMs}ms from getInfo start, dispatch prep ${Date.now() - dispatchStart}ms${wallClockSuffix})`
           );
 
@@ -216,7 +217,7 @@ export async function getInfo(
             JSON.stringify({ early_metadata: finalEarlyData })
           );
         } catch (err) {
-          console.error('[Metadata] Early dispatch failed:', err);
+          logger.error('[Metadata] Early dispatch failed:', err);
         }
       }
       return meta;

@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { logger } from '../infra/logger.util.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,7 +29,7 @@ export const normalizeUrl = (url: string): string => {
     normalized = parsed.toString();
   } catch (_ERR) {
     // parse failed
-    console.debug('[URL Normalization] Failed to parse URL:', _ERR);
+    logger.debug('[URL Normalization] Failed to parse URL:', _ERR);
   }
 
   return normalized;

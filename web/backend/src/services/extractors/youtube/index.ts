@@ -1,4 +1,5 @@
 import { getProxiedStream } from '../../../utils/network/proxy.util.js';
+import { logger } from '../../../utils/infra/logger.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../../types/index.js';
 import { Readable } from 'node:stream';
 import { normalizeVideoInfo } from './normalizer.js';
@@ -79,7 +80,7 @@ export async function getInfo(
           baseClient = clientType;
           break;
         }
-        console.debug(
+        logger.debug(
           `[JS-YT] ${clientType} produced no playable formats for ${videoId}`
         );
       } catch (clientError: unknown) {
@@ -88,7 +89,7 @@ export async function getInfo(
           false,
           Date.now() - startedAt
         );
-        console.debug(
+        logger.debug(
           `[JS-YT] ${clientType} failed: ${(clientError as Error).message}`
         );
       }
@@ -117,7 +118,7 @@ export async function getInfo(
     return base;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-YT] Error extracting ${url}: ${message}`);
+    logger.error(`[JS-YT] Error extracting ${url}: ${message}`);
     return null;
   }
 }

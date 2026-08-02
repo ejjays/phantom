@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { logger } from '../infra/logger.util.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { secureFetch } from './security.util.js';
@@ -46,7 +47,7 @@ export async function downloadCookies(type: string): Promise<string | null> {
     fs.writeFileSync(cookiePath, text);
     return cookiePath;
   } catch (error) {
-    console.error(
+    logger.error(
       `[Cookies] Download failed for ${type}:`,
       (error as Error).message
     );

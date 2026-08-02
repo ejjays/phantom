@@ -1,4 +1,5 @@
 import { getProxiedStream } from '../../../utils/network/proxy.util.js';
+import { logger } from '../../../utils/infra/logger.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../../types/index.js';
 import { IgParsed } from './types.js';
 import { Readable } from 'node:stream';
@@ -47,7 +48,7 @@ async function resolveParsed(
     } catch (error: unknown) {
       // IG rate-limiting — stop cascade rather than hammering every path // eslint-disable-line phantom/phantom-comments
       if ((error as { retryable?: boolean })?.retryable) throw error;
-      console.debug(`[JS-IG] path failed: ${(error as Error).message}`);
+      logger.debug(`[JS-IG] path failed: ${(error as Error).message}`);
     }
   }
   return null;
@@ -86,7 +87,7 @@ export async function getInfo(
     return videoInfo;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-IG] Error extracting ${url}: ${message}`);
+    logger.error(`[JS-IG] Error extracting ${url}: ${message}`);
     return null;
   }
 }

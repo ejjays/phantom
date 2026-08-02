@@ -1,4 +1,5 @@
 import { createClient } from '@libsql/client';
+import { logger } from './logger.util.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +13,7 @@ const client = (() => {
   try {
     // android bypass
     if (process.platform === 'android') {
-      console.log('[DB] Mocking LibSQL for Termux compatibility');
+      logger.info('[DB] Mocking LibSQL for Termux compatibility');
       return {
         execute: () => Promise.resolve({ rows: [] }),
         batch: () => Promise.resolve([]),
@@ -31,15 +32,15 @@ const client = (() => {
         url,
         authToken,
       });
-      console.log(`[DB] Connected to ${isTest ? 'Local SQLite' : 'Turso'}`);
+      logger.info(`[DB] Connected to ${isTest ? 'Local SQLite' : 'Turso'}`);
       return dbClient;
     } else {
-      console.warn(
+      logger.warn(
         '[DB] Turso credentials missing, running in local-only mode'
       );
     }
   } catch (error) {
-    console.error('[DB] Connection failed:', (error as Error).message);
+    logger.error('[DB] Connection failed:', (error as Error).message);
   }
   return null;
 })();
@@ -55,7 +56,7 @@ export async function queryConfig(key: string): Promise<string | null> {
     });
     return result.rows[0]?.value as string;
   } catch (error) {
-    console.error(
+    logger.error(
       `[DB] Config lookup failed for ${key}:`,
       (error as Error).message
     );
@@ -79,7 +80,7 @@ export async function queryConfigWithMeta(
       updatedAt: Number(row.updated_at) || 0,
     };
   } catch (error) {
-    console.error(
+    logger.error(
       `[DB] Config meta lookup failed for ${key}:`,
       (error as Error).message
     );
@@ -98,7 +99,7 @@ export async function saveSession(
       args: [sessionId, url, Date.now()],
     });
   } catch (error) {
-    console.error('[DB] Session save failed:', (error as Error).message);
+    logger.error('[DB] Session save failed:', (error as Error).message);
   }
 }
 
@@ -111,6 +112,6 @@ export async function cleanupOldSessions(): Promise<void> {
       args: [dayAgo],
     });
   } catch (error) {
-    console.error('[DB] Session cleanup failed:', (error as Error).message);
+    logger.error('[DB] Session cleanup failed:', (error as Error).message);
   }
 }

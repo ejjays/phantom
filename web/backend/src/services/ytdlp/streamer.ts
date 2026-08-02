@@ -1,4 +1,5 @@
 import { spawn, ChildProcess } from 'node:child_process';
+import { logger } from '../../utils/infra/logger.util.js';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { PassThrough, Readable } from 'node:stream';
 import { COMMON_ARGS, USER_AGENT, CACHE_DIR } from './config.js';
@@ -49,7 +50,7 @@ async function handlePureJSStream(
 ) {
   const { formatId, format } = options;
   const tid = getTraceId() || 'global';
-  console.log(
+  logger.info(
     `[Download] [${tid}] Engine: Pure-JS | Platform: ${platform} | URL: ${url}`
   );
 
@@ -59,7 +60,7 @@ async function handlePureJSStream(
     selectedFormat?.isAudio ||
     (selectedFormat?.acodec && selectedFormat.acodec !== 'none')
   );
-  console.log(
+  logger.info(
     `[Streamer] Selected Format: ${selectedFormat?.formatId} | Resolution: ${selectedFormat?.resolution} | Has Audio: ${hasAudio}`
   );
 
@@ -107,7 +108,7 @@ async function handlePureJSStream(
     if (ffmpeg.stderr) ffmpeg.stderr.resume();
     ffmpeg.on('error', (err: Error) => {
       if (err.name !== 'AbortError')
-        console.error('[Streamer] mp3 ffmpeg error:', err.message);
+        logger.error('[Streamer] mp3 ffmpeg error:', err.message);
     });
 
     combinedStdout.kill = () => {
@@ -131,7 +132,7 @@ async function handlePureJSStream(
           error.name !== 'AbortError' &&
           error.code !== 'ERR_STREAM_PREMATURE_CLOSE'
         ) {
-          console.error('[Streamer] FFmpeg Transcode Error:', error);
+          logger.error('[Streamer] FFmpeg Transcode Error:', error);
           Sentry.captureException(error);
           combinedStdout.emit('error', error);
         }
@@ -230,7 +231,7 @@ async function tryChunkedFetch(
         `transplant: format ${options.formatId} missing in fresh info`
       );
     }
-    console.log(
+    logger.info(
       `[Streamer] [${tid}] Transplant successful, URL refreshed for format ${options.formatId}`
     );
     currentUrl = match.url;
@@ -238,7 +239,7 @@ async function tryChunkedFetch(
 
   try {
     const { fetchChunked } = await import('./chunked-fetcher.js');
-    console.log(
+    logger.info(
       `[Streamer] [${tid}] Engine: Chunked-Fetch | Platform: ${platform} | URL: ${currentUrl.substring(0, 60)}...`
     );
     const { stream, size } = await fetchChunked({
@@ -248,12 +249,12 @@ async function tryChunkedFetch(
       service: 'youtube',
       dispatcher: ytProxyDispatcher(),
     });
-    console.log(
+    logger.info(
       `[Streamer] [${tid}] Chunked pre-flight OK; size=${(Number(size) / 1024 / 1024).toFixed(1)}MB`
     );
 
     stream.on('error', (error: Error) => {
-      console.error('[Streamer] Chunked stream error:', error.message);
+      logger.error('[Streamer] Chunked stream error:', error.message);
       combinedStdout.emit('error', error);
     });
     stream.on('end', () => combinedStdout.emit('progress', 100));
@@ -265,7 +266,7 @@ async function tryChunkedFetch(
     };
     return true;
   } catch (error: unknown) {
-    console.log(
+    logger.info(
       `[Streamer] [${tid}] Chunked fetch failed, falling back: ${(error as Error).message}`
     );
     return false;
@@ -279,7 +280,7 @@ async function tryDirectFetch(
   platform: string
 ): Promise<boolean> {
   if (!selectedFormat?.url) return false;
-  console.log(
+  logger.info(
     `[Streamer] Engine: Node-Fetch (Direct) | Platform: ${platform} | URL: ${url}`
   );
   try {
@@ -303,7 +304,7 @@ async function tryDirectFetch(
     };
     return true;
   } catch (error: unknown) {
-    console.log(
+    logger.info(
       '[Streamer] Direct fetch failed, falling back to yt-dlp process:',
       (error as Error).message
     );
@@ -381,7 +382,7 @@ async function streamYoutubeDub(
       ? ['--cookies', COMMON_ARGS[COMMON_ARGS.indexOf('--cookies') + 1]]
       : [];
   if (cookies.length === 0) {
-    console.log(`[Dub] [${tid}] no cookies; cannot fetch dubbed audio`);
+    logger.info(`[Dub] [${tid}] no cookies; cannot fetch dubbed audio`);
     return false;
   }
 
@@ -431,7 +432,7 @@ async function streamYoutubeDub(
     url,
   ];
 
-  console.log(`[Dub] [${tid}] fetching ${audioLang} via yt-dlp (cookies+pot)`);
+  logger.info(`[Dub] [${tid}] fetching ${audioLang} via yt-dlp (cookies+pot)`);
   const child = spawn('yt-dlp', args, { detached: true });
   combinedStdout.kill = () => gracefulKill(child);
   handleYtdlpOutput(
@@ -471,7 +472,7 @@ async function deliverYoutubeMerge(
       metaArgs
     );
     if (dubOk) {
-      console.log(`[Streamer] [${tid}] YouTube delivery: DUB via yt-dlp`);
+      logger.info(`[Streamer] [${tid}] YouTube delivery: DUB via yt-dlp`);
       return true;
     }
   }
@@ -486,7 +487,7 @@ async function deliverYoutubeMerge(
     options.formatId
   );
   if (turboOk) {
-    console.log(
+    logger.info(
       `[Streamer] [${tid}] YouTube delivery: REAL-TIME mux (no temp file)`
     );
     return true;
@@ -543,7 +544,7 @@ export function streamDownload(
           );
           return;
         } catch (error: unknown) {
-          console.warn(
+          logger.warn(
             '[Streamer] JS Direct-Pipe failed, falling back to yt-dlp:',
             (error as Error).message
           );
@@ -587,12 +588,12 @@ export function streamDownload(
           metaArgs
         );
         if (delivered) return;
-        console.log(
+        logger.info(
           `[Streamer] [${tid}] YouTube delivery: BUFFERED temp file (turbo-mux unavailable)`
         );
       }
 
-      console.log(
+      logger.info(
         `[Download] [${tid}] Engine: yt-dlp | Platform: ${platform} | URL: ${url}`
       );
       const fallbackUrl = info.targetUrl || url;
@@ -652,7 +653,7 @@ export function streamDownload(
           return;
         }
         tried.add(clientIndex);
-        console.log(
+        logger.info(
           `[Streamer] Rotating to client: ${YT_CLIENTS[clientIndex]}`
         );
         if (useTempFile && fsSync.existsSync(tempPath)) {
@@ -674,7 +675,7 @@ export function streamDownload(
         );
       };
 
-      console.log(
+      logger.info(
         `[Streamer] Starting with client: ${YT_CLIENTS[startClient]} (formatId=${selectedFormat?.formatId})${useTempFile ? ' [temp file mode]' : ''}`
       );
       activeChildProcess = spawnYtdlp(useCache, startClient);
@@ -688,7 +689,7 @@ export function streamDownload(
         metaArgs
       );
     } catch (error: unknown) {
-      console.error('[Streamer] fatal:', (error as Error).message);
+      logger.error('[Streamer] fatal:', (error as Error).message);
       Sentry.captureException(error);
       combinedStdout.emit('error', error);
     }

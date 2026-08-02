@@ -1,4 +1,5 @@
 import multer from 'multer';
+import { logger } from '../utils/infra/logger.util.js';
 import ffmpeg from 'fluent-ffmpeg';
 import { dirname, join, extname, basename } from 'node:path';
 import { resolveWithin } from '../utils/network/security.util.js';
@@ -60,7 +61,7 @@ async function getEssentia(): Promise<EssentiaInstance | null> {
     essentia = new EssentiaModule.Essentia(EssentiaModule.EssentiaWASM);
     return essentia;
   } catch (error: unknown) {
-    console.error('❌ Essentia WASM failed', (error as Error).message);
+    logger.error('❌ Essentia WASM failed', (error as Error).message);
     return null;
   }
 }
@@ -216,7 +217,7 @@ export const detectKey = async (req: Request, res: Response): Promise<void> => {
     const result = await detectKeyFromFile(req.file.path);
     res.json(result);
   } catch (error) {
-    console.error('[KeyChanger] Detection Error:', error);
+    logger.error('[KeyChanger] Detection Error:', error);
     res.status(500).json({ error: 'Audio analysis failed' });
   } finally {
     unlink(req.file.path, (_error) => {});
@@ -243,7 +244,7 @@ export const detectProcessedKey = async (
     const result = await detectKeyFromFile(filePath);
     res.json(result);
   } catch (error) {
-    console.error('[KeyChanger] Processed Detection Error:', error);
+    logger.error('[KeyChanger] Processed Detection Error:', error);
     res.status(500).json({ error: 'Analysis failed' });
   }
 };
@@ -298,7 +299,7 @@ export const convertKey = (req: Request, res: Response): void => {
     })
     .on('error', (error: unknown) => {
       const errorObj = error as Error;
-      console.error('[KeyChanger] Conversion Error:', errorObj.message);
+      logger.error('[KeyChanger] Conversion Error:', errorObj.message);
       if (!res.headersSent)
         res
           .status(500)
@@ -337,7 +338,7 @@ export const downloadFile = (req: Request, res: Response): void => {
         ) {
           return;
         }
-        console.error('[KeyChanger] Download Error:', error);
+        logger.error('[KeyChanger] Download Error:', error);
       }
     });
   } else {

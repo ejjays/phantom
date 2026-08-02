@@ -1,4 +1,5 @@
 import { downloadImageToBuffer } from './ytdlp.service.js';
+import { logger } from '../utils/infra/logger.util.js';
 import type { RawSocialData } from '@phantom/extractors/social';
 
 export { normalizeTitle, normalizeArtist } from '@phantom/extractors/social';
@@ -57,13 +58,13 @@ export const proxyThumbnailIfNeeded = async (
       const extension = thumbnailUrl.split('.').pop()?.split('?')[0] || 'jpeg';
       const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
 
-      console.log(
+      logger.info(
         `[Proxy] Volatile platform detected. Storing as Base64 (${mimeType})`
       );
       return `data:${mimeType};base64,${base64Img}`;
     } catch (error: unknown) {
       const errorObj = error as Error;
-      console.warn('[Proxy] Failed to proxy thumbnail:', errorObj.message);
+      logger.warn('[Proxy] Failed to proxy thumbnail:', errorObj.message);
       return thumbnailUrl;
     }
   }

@@ -1,4 +1,5 @@
 import fpcalc from 'fpcalc';
+import { logger } from '../utils/infra/logger.util.js';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 // lazy load to reduce boot RAM
 import { getUgChords } from './ug-grounding.service.js';
@@ -112,7 +113,7 @@ async function getGeminiChords(
     return text || null;
   } catch (error: unknown) {
     const errorObj = error as Error;
-    console.error('Gemini Chords Error:', errorObj.message);
+    logger.error('Gemini Chords Error:', errorObj.message);
     Sentry.captureException(error);
     return null;
   }
@@ -138,7 +139,7 @@ async function getLyrics(
       const json = (await response.json()) as LyricsData;
       return json;
     } catch (error) {
-      console.debug('[ExtractService] lyrics fetch exact failed:', error);
+      logger.debug('[ExtractService] lyrics fetch exact failed:', error);
       return null;
     }
   };
@@ -160,7 +161,7 @@ async function getLyrics(
         );
       }
     } catch (error) {
-      console.debug('[ExtractService] lyrics fetch search failed:', error);
+      logger.debug('[ExtractService] lyrics fetch search failed:', error);
       return null;
     }
     return null;
@@ -280,7 +281,7 @@ export function extractSongData(
           const parsedAcoustid =
             AcoustidResponseSchema.safeParse(rawAcoustidData);
           if (!parsedAcoustid.success) {
-            console.debug(
+            logger.debug(
               '[ExtractService] Acoustid validation failed:',
               parsedAcoustid.error.message
             );
@@ -305,7 +306,7 @@ export function extractSongData(
           const rawMbData = await mbRes.json();
           const parsedMb = MusicBrainzResponseSchema.safeParse(rawMbData);
           if (!parsedMb.success) {
-            console.debug(
+            logger.debug(
               '[ExtractService] MusicBrainz validation failed:',
               parsedMb.error.message
             );
@@ -328,7 +329,7 @@ export function extractSongData(
           const rawDeezerData = await deezerRes.json();
           const parsedDeezer = DeezerResponseSchema.safeParse(rawDeezerData);
           if (!parsedDeezer.success) {
-            console.debug(
+            logger.debug(
               '[ExtractService] Deezer validation failed:',
               parsedDeezer.error.message
             );
@@ -352,7 +353,7 @@ export function extractSongData(
           resolve(finalResult);
           return;
         } catch (error) {
-          console.debug(
+          logger.debug(
             '[ExtractService] Acoustid match failed, falling back:',
             error
           );

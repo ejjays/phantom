@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { logger } from '../infra/logger.util.js';
 import { VideoInfo, Format } from '../../types/index.js';
 import { sendEvent, sendBufferedEvent } from '../network/sse.util.js';
 import { signProxyParams } from '../network/secrets.util.js';
@@ -137,10 +138,10 @@ export function buildProxyUrl(
   const formatId = String(format.formatId);
   const phoneUrl = buildPhoneMediaUrl(rawUrl, targetUrl);
   if (phoneUrl) {
-    console.log(`[Download] fmt ${formatId}: via phone relay`);
+    logger.info(`[Download] fmt ${formatId}: via phone relay`);
     return phoneUrl;
   }
-  console.log(`[Download] fmt ${formatId}: via server proxy`);
+  logger.info(`[Download] fmt ${formatId}: via server proxy`);
 
   const { exp, sig } = signProxyParams({ targetUrl, rawUrl, formatId });
 
@@ -238,7 +239,7 @@ export function setupStreamListeners(
       totalBytesSent.value += chunk.length;
 
       if (totalBytesSent.value === chunk.length) {
-        console.log(
+        logger.info(
           `[StreamUtil] First chunk received for client ${clientId} (${chunk.length} bytes)`
         );
         if (clientId) {
@@ -262,7 +263,7 @@ export function setupStreamListeners(
   startHeartbeat();
 
   const onStreamComplete = () => {
-    console.log(
+    logger.info(
       `[StreamUtil] Stream closed for client ${clientId} (Total: ${(totalBytesSent.value / (1024 * 1024)).toFixed(1)}MB)`
     );
     if (clientId) {
@@ -284,7 +285,7 @@ export function setupStreamListeners(
       .then(onStreamComplete)
       .catch((error) => {
         if (error.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
-          console.error('[Stream] Pipeline failed:', error.message);
+          logger.error('[Stream] Pipeline failed:', error.message);
         }
       });
   } else {
@@ -297,7 +298,7 @@ export function setupStreamListeners(
   videoProcess.on('error', (error: unknown) => {
     const typedError = error as NodeJS.ErrnoException;
     if (typedError.code === 'ERR_STREAM_WRITE_AFTER_END') return;
-    console.error('[Convert] Stream Error:', typedError.message);
+    logger.error('[Convert] Stream Error:', typedError.message);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Stream generation failed' });
     } else {

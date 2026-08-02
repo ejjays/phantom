@@ -1,4 +1,5 @@
 import { Redis, type RedisOptions } from 'ioredis';
+import { logger } from './logger.util.js';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 
@@ -45,7 +46,7 @@ export const createRedisClient = (
     if (loggedConnects.has(name)) return;
     loggedConnects.add(name);
     const type = isExternal ? 'External' : 'Local';
-    console.log(`[Redis] ${name} connected to ${type} instance`);
+    logger.info(`[Redis] ${name} connected to ${type} instance`);
   });
 
   client.on('error', (err: NodeJS.ErrnoException) => {
@@ -54,15 +55,15 @@ export const createRedisClient = (
     // throttle error logs
     if (!loggedErrors.has(errorKey)) {
       if (err.code === 'ETIMEDOUT') {
-        console.error(
+        logger.error(
           `[Redis] ${name} connection timed out. Check network/whitelisting.`
         );
       } else if (err.code === 'ECONNREFUSED') {
-        console.error(
+        logger.error(
           `[Redis] ${name} connection refused. Is Redis running locally?`
         );
       } else {
-        console.error(`[Redis] ${name} error: ${err.message}`);
+        logger.error(`[Redis] ${name} error: ${err.message}`);
       }
       loggedErrors.add(errorKey);
 

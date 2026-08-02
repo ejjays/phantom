@@ -1,4 +1,5 @@
 import { secureFetch } from '../utils/network/security.util.js';
+import { logger } from '../utils/infra/logger.util.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // fetch chords
@@ -6,7 +7,7 @@ export async function getUgChords(
   artist: string,
   title: string
 ): Promise<{ chordsSheet: string; chordsLink: string } | null> {
-  console.log(`[UG] Searching for: ${artist} - ${title}`);
+  logger.info(`[UG] Searching for: ${artist} - ${title}`);
 
   try {
     const query = encodeURIComponent(`${artist} ${title} chords`);
@@ -56,7 +57,7 @@ export async function getUgChords(
 
     return content ? { chordsSheet: content, chordsLink: chordsUrl } : null;
   } catch (error) {
-    console.error('[UG] Scraping failed:', (error as Error).message);
+    logger.error('[UG] Scraping failed:', (error as Error).message);
     return null;
   }
 }

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { logger } from '../../utils/infra/logger.util.js';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { pipeline } from 'node:stream/promises';
 import {
@@ -34,7 +35,7 @@ export async function executeDownload(
       cookieArgs
     );
 
-    console.log(
+    logger.info(
       `[${timestamp}] [Turbo] Resolved target for download: ${resolvedTargetURL}`
     );
 
@@ -70,7 +71,7 @@ export async function executeDownload(
     const totalBytesSent = { value: 0 };
     setupConvertResponse(res, filename, format);
 
-    console.log(
+    logger.info(
       `[${timestamp}] [Turbo] Spawning stream download for: ${filename}`
     );
     const videoProcess = streamDownload(
@@ -92,7 +93,7 @@ export async function executeDownload(
     const hardTimeoutId = setTimeout(
       () => {
         if (typeof videoProcess.kill === 'function') {
-          console.error(
+          logger.error(
             `[${timestamp}] [Turbo] Hard timeout reached (30m) for stream: ${clientId}. Forcing SIGKILL.`
           );
           videoProcess.kill('SIGKILL');
@@ -105,7 +106,7 @@ export async function executeDownload(
   } catch (error: unknown) {
     const err = error as Error;
     recordFailure('convert');
-    console.error('[ConvertVideo] Error:', err.message);
+    logger.error('[ConvertVideo] Error:', err.message);
     Sentry.captureException(error);
     if (clientId)
       sendEvent(clientId, {
@@ -163,7 +164,7 @@ export async function streamDubbedAudio(
     targetUrl,
   ];
 
-  console.log(`[DubAudio] streaming ${audioLang} via yt-dlp`);
+  logger.info(`[DubAudio] streaming ${audioLang} via yt-dlp`);
   const ytProcess = spawnChild('yt-dlp', args, {
     detached: true,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -174,14 +175,14 @@ export async function streamDubbedAudio(
       if (ytProcess.pid) process.kill(-ytProcess.pid, 'SIGKILL');
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
-        console.error('[DubAudio] kill error', error);
+        logger.error('[DubAudio] kill error', error);
       }
     }
   });
   ytProcess.stderr?.resume();
   ytProcess.stdout?.pipe(res);
   ytProcess.on('error', (error: Error) => {
-    console.error('[DubAudio] spawn error', error.message);
+    logger.error('[DubAudio] spawn error', error.message);
     if (!res.headersSent) res.status(502).end();
   });
   ytProcess.on('close', () => {
@@ -202,7 +203,7 @@ export async function streamViaYtdlp(
     minute: '2-digit',
     second: '2-digit',
   });
-  console.log(`[${timestamp}] [EME] Proxying stream via yt-dlp...`);
+  logger.info(`[${timestamp}] [EME] Proxying stream via yt-dlp...`);
   const { spawn: spawnChild } = await import('child_process');
   const { USER_AGENT: userAgent } = await import('../ytdlp/config.js');
   const { downloadCookies } =
@@ -263,7 +264,7 @@ export async function streamViaYtdlp(
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ESRCH')
-        console.error('yt-dlp kill error', error);
+        logger.error('yt-dlp kill error', error);
     }
   });
 
@@ -273,7 +274,7 @@ export async function streamViaYtdlp(
   } catch (error: unknown) {
     const typedError = error as Error;
     if (typedError.name !== 'AbortError') {
-      console.error('[Proxy] yt-dlp Pipe Error:', typedError.message);
+      logger.error('[Proxy] yt-dlp Pipe Error:', typedError.message);
       Sentry.captureException(typedError);
     }
   }

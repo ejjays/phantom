@@ -1,3 +1,4 @@
+import { logger } from '../infra/logger.util.js';
 export type State = 'idle' | 'fetching' | 'processing' | 'done' | 'error';
 
 export interface Transition {
@@ -22,12 +23,12 @@ export class FSM {
     const transitionData = this.transitions.get(key);
 
     if (transitionData) {
-      console.log(`[FSM] Transition: ${this.currentState} to ${to}`);
+      logger.info(`[FSM] Transition: ${this.currentState} to ${to}`);
       if (transitionData.action) await transitionData.action();
       this.currentState = to;
     } else {
       const errorMsg = `Invalid transition from ${this.currentState} to ${to}`;
-      console.warn(`[FSM] Error: ${errorMsg}`);
+      logger.warn(`[FSM] Error: ${errorMsg}`);
     }
   }
 

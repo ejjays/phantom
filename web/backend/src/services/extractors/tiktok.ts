@@ -1,4 +1,5 @@
 import { secureFetch } from '../../utils/network/security.util.js';
+import { logger } from '../../utils/infra/logger.util.js';
 import { VideoInfo, Format, ExtractorOptions } from '../../types/index.js';
 import { Readable } from 'node:stream';
 import { normalizeTitle, normalizeArtist } from '../social.service.js';
@@ -204,7 +205,7 @@ export async function getInfo(
     return info;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[JS-TikTok] Error extracting ${url}: ${message}`);
+    logger.error(`[JS-TikTok] Error extracting ${url}: ${message}`);
     return null;
   }
 }

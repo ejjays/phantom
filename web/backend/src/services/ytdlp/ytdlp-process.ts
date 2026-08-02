@@ -1,4 +1,5 @@
 import { spawn, ChildProcess } from 'node:child_process';
+import { logger } from '../../utils/infra/logger.util.js';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import { COMMON_ARGS, USER_AGENT } from './config.js';
 import { ytProxyArgs } from './yt-proxy.js';
@@ -26,7 +27,7 @@ export function gracefulKill(childProcess: ChildProcess | null) {
 
   const tid = getTraceId() || 'global';
   const pid = childProcess.pid;
-  console.log(
+  logger.info(
     `[Streamer] [${tid}] Attempting graceful shutdown of PGID ${pid}...`
   );
 
@@ -43,7 +44,7 @@ export function gracefulKill(childProcess: ChildProcess | null) {
       !childProcess.killed &&
       childProcess.exitCode === null
     ) {
-      console.warn(
+      logger.warn(
         `[Streamer] [${tid}] PGID ${pid} still alive after SIGTERM, escalating to SIGKILL.`
       );
       try {
@@ -277,13 +278,13 @@ export function handleYtdlpOutput(
     combinedStdout.on('error', onDownstreamGone);
 
     let stallTimer = setTimeout(() => {
-      console.log('[Streamer] Stall detected (60s silence), killing...');
+      logger.info('[Streamer] Stall detected (60s silence), killing...');
       gracefulKill(childProcess);
     }, 60000);
     const bumpStall = () => {
       clearTimeout(stallTimer);
       stallTimer = setTimeout(() => {
-        console.log('[Streamer] Stall detected (60s silence), killing...');
+        logger.info('[Streamer] Stall detected (60s silence), killing...');
         gracefulKill(childProcess);
       }, 60000);
     };
@@ -300,11 +301,11 @@ export function handleYtdlpOutput(
           if (isProgress) {
             const now = Date.now();
             if (now - lastProgressLog > 3000) {
-              console.log(`[ytdlp] ${line.trim()}`);
+              logger.info(`[ytdlp] ${line.trim()}`);
               lastProgressLog = now;
             }
           } else {
-            console.log(`[ytdlp] ${line.trim()}`);
+            logger.info(`[ytdlp] ${line.trim()}`);
           }
         }
         const match = msg.match(/\[download\]\s+(\d+\.\d+)%/u);
@@ -334,22 +335,22 @@ export function handleYtdlpOutput(
           }
         }
         if (siblings.length === 0) {
-          console.log('[Streamer-Watchdog] no temp files yet');
+          logger.info('[Streamer-Watchdog] no temp files yet');
         } else {
           if (totalBytes > lastWatchdogBytes) bumpStall();
           lastWatchdogBytes = totalBytes;
-          console.log(
+          logger.info(
             `[Streamer-Watchdog] total=${(totalBytes / 1024 / 1024).toFixed(1)}MB | ${summary.join(', ')}`
           );
         }
       } catch {
-        console.log('[Streamer-Watchdog] dir unreadable');
+        logger.info('[Streamer-Watchdog] dir unreadable');
       }
     }, 10000);
     childProcess.on('close', () => clearInterval(watchdog));
     childProcess.on('close', async (code) => {
       if (code !== 0) {
-        console.error(
+        logger.error(
           `[Streamer] yt-dlp exited with code ${code}. Stderr: ${capturedStderr}`
         );
         const isRetryable =
@@ -361,7 +362,7 @@ export function handleYtdlpOutput(
           capturedStderr.includes('Requested format is not available') ||
           capturedStderr.includes('Sign in to confirm');
         if (isRetryable) {
-          console.log(
+          logger.info(
             '[Streamer] retryable error detected, rotating client...'
           );
           retryCallback();
@@ -382,12 +383,12 @@ export function handleYtdlpOutput(
           await cleanupTemp();
         });
         fileStream.on('error', async (error) => {
-          console.error('[Streamer] file stream error:', error.message);
+          logger.error('[Streamer] file stream error:', error.message);
           await cleanupTemp();
           if (!combinedStdout.writableEnded) combinedStdout.end();
         });
       } catch (error: unknown) {
-        console.error(
+        logger.error(
           '[Streamer] failed to read temp file:',
           (error as Error).message
         );
@@ -421,7 +422,7 @@ export function handleYtdlpOutput(
     if (ffmpeg.stderr) ffmpeg.stderr.resume();
     ffmpeg.on('error', (err: Error) => {
       if (err.name !== 'AbortError')
-        console.error('[Streamer] mp3 ffmpeg error:', err.message);
+        logger.error('[Streamer] mp3 ffmpeg error:', err.message);
     });
 
     const originalKill = combinedStdout.kill;
@@ -451,7 +452,7 @@ export function handleYtdlpOutput(
               error.name !== 'AbortError' &&
               error.code !== 'ERR_STREAM_PREMATURE_CLOSE'
             ) {
-              console.error('[Streamer] FFmpeg Transcode Error:', error);
+              logger.error('[Streamer] FFmpeg Transcode Error:', error);
               Sentry.captureException(error);
               combinedStdout.emit('error', error);
             }
@@ -478,7 +479,7 @@ export function handleYtdlpOutput(
 
   childProcess.on('close', (code) => {
     if (code !== 0) {
-      console.error(
+      logger.error(
         `[Streamer] yt-dlp exited with code ${code}. Stderr: ${capturedStderr}`
       );
       const isRetryable =
@@ -490,7 +491,7 @@ export function handleYtdlpOutput(
         capturedStderr.includes('Requested format is not available') ||
         capturedStderr.includes('Sign in to confirm');
       if (isRetryable) {
-        console.log('[Streamer] retryable error detected, rotating client...');
+        logger.info('[Streamer] retryable error detected, rotating client...');
         retryCallback();
         return;
       }

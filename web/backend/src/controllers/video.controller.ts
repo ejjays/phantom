@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { logger } from '../utils/infra/logger.util.js';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import {
   addClient,
@@ -48,7 +49,7 @@ export const streamEvents = async (
   res: Response
 ): Promise<void> => {
   const id = (req.query.id as string) || undefined;
-  console.log(`[SSE] Client connecting: ${id}`);
+  logger.info(`[SSE] Client connecting: ${id}`);
   if (!id) {
     res.status(400).end();
     return;
@@ -124,7 +125,7 @@ export const getVideoInformation = async (
   } catch (error: unknown) {
     const isTimeout = (error as Error).message === 'RESOLVE_TIMEOUT';
     recordFailure('info');
-    console.error('[VideoInfo] Error:', (error as Error).message);
+    logger.error('[VideoInfo] Error:', (error as Error).message);
     if (!isTimeout) Sentry.captureException(error);
     if (clientId) removeClient(clientId);
     if (!res.headersSent)
@@ -153,7 +154,7 @@ export const getStreamUrls = async (
     return;
   }
 
-  console.log(`[${timestamp}] [EME] Resolving manifests for Edge Muxing...`);
+  logger.info(`[${timestamp}] [EME] Resolving manifests for Edge Muxing...`);
 
   try {
     const {
@@ -180,7 +181,7 @@ export const getStreamUrls = async (
     );
   } catch (error: unknown) {
     recordFailure('stream_urls');
-    console.error('[StreamUrls] Error:', (error as Error).message);
+    logger.error('[StreamUrls] Error:', (error as Error).message);
     Sentry.captureException(error);
     if (!res.headersSent)
       res.status(500).json({ error: 'Failed to resolve stream URLs' });
@@ -276,7 +277,7 @@ const handleEmeChunkedStream = async (
 
     let sentBytes = 0;
     const progressMsg = isResume ? `resume@${startByte} ` : '';
-    console.log(
+    logger.info(
       `[EME] chunked begin: ${progressMsg}expecting ${size - startByte} of ${size} bytes`
     );
 
@@ -284,10 +285,10 @@ const handleEmeChunkedStream = async (
       sentBytes += chunk.length;
     });
     stream.on('end', () => {
-      console.log(`[EME] chunked end: sent ${sentBytes} / ${size}`);
+      logger.info(`[EME] chunked end: sent ${sentBytes} / ${size}`);
     });
     stream.on('error', (err: Error) => {
-      console.error(
+      logger.error(
         `[Proxy] EME chunked error after ${sentBytes}/${size}:`,
         err.message
       );
@@ -297,7 +298,7 @@ const handleEmeChunkedStream = async (
     stream.pipe(res);
     return true;
   } catch (chunkErr: unknown) {
-    console.warn(
+    logger.warn(
       `[Proxy] EME chunked unavailable, piping instead: ${(chunkErr as Error).message}`
     );
     return false;
@@ -352,7 +353,7 @@ export const proxyStream = async (
   const urlToFetch = rawUrl;
 
   // trace which client path fetched this
-  console.log(
+  logger.info(
     `[Proxy] via=${(req.query.via as string) || 'direct'} fmt=${req.query.formatId ?? '?'}`
   );
 
@@ -392,7 +393,7 @@ export const proxyStream = async (
       return;
     } catch (error: unknown) {
       recordFailure('proxy');
-      console.error('[Proxy] Raw Pipe Error:', (error as Error).message);
+      logger.error('[Proxy] Raw Pipe Error:', (error as Error).message);
       Sentry.captureException(error);
       if (!res.headersSent)
         res.status(500).json({ error: 'Proxy fetch failed' });
@@ -418,7 +419,7 @@ export const reportTelemetry = (req: Request, res: Response): void => {
     second: '2-digit',
   });
   const safeEvent = String(event || 'unknown').replaceAll(/[^\w]/gu, '_');
-  console.log(`[${timestamp}] [EME] Client-Side Handshake: ${safeEvent}`);
+  logger.info(`[${timestamp}] [EME] Client-Side Handshake: ${safeEvent}`);
   res.status(204).end();
 };
 
@@ -452,10 +453,10 @@ export const convertVideo = (req: Request, res: Response): void => {
   } = requestData;
   const clientId = clientIdStr || undefined;
 
-  console.log(`[Convert] Request received for: ${videoURL} (ID: ${clientId})`);
+  logger.info(`[Convert] Request received for: ${videoURL} (ID: ${clientId})`);
 
   if (!videoURL || !isSupportedUrl(videoURL)) {
-    console.warn(`[Convert] Invalid URL: ${videoURL}`);
+    logger.warn(`[Convert] Invalid URL: ${videoURL}`);
     res.status(400).json({ error: 'No valid URL provided' });
     return;
   }
@@ -483,7 +484,7 @@ export const convertVideo = (req: Request, res: Response): void => {
     isSpotifyRequest
   );
 
-  console.log(
+  logger.info(
     `[${timestamp}] [Turbo] Starting Server-Side muxing for: ${filename}`
   );
 
@@ -513,7 +514,7 @@ export const convertVideo = (req: Request, res: Response): void => {
       req.on('close', () => {
         clearTimeout(hardTimeoutId);
         if (typeof videoProcess.kill === 'function') {
-          console.log(
+          logger.info(
             `[${timestamp}] [Turbo] Client disconnected. Cleaning up stream for: ${clientId}`
           );
           videoProcess.kill();
@@ -522,7 +523,7 @@ export const convertVideo = (req: Request, res: Response): void => {
       });
     }
   })().catch((error) => {
-    console.error(
+    logger.error(
       `[${timestamp}] [ConvertVideo] Unhandled exception in download workflow:`,
       error
     );
@@ -560,7 +561,7 @@ export const seedIntelligence = async (
     });
     processBackgroundTracks(tracks as SeedTrack[], clientId).catch(
       (error: Error) => {
-        console.error('[Seeder] Background Process Crashed:', error.message);
+        logger.error('[Seeder] Background Process Crashed:', error.message);
         Sentry.captureException(error);
       }
     );

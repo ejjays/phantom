@@ -1,4 +1,5 @@
 import { Innertube, Platform } from 'youtubei.js';
+import { logger } from '../../../utils/infra/logger.util.js';
 import vm from 'node:vm';
 
 let cachedClient: Innertube | null = null;
@@ -56,7 +57,7 @@ export async function getYoutubeClient(): Promise<Innertube> {
     return cachedClient;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[YouTubeClient] Init failed: ${message}`);
+    logger.error(`[YouTubeClient] Init failed: ${message}`);
     throw error;
   }
 }

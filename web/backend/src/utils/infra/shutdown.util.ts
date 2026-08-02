@@ -1,4 +1,5 @@
 import type { Server } from 'node:http';
+import { logger } from './logger.util.js';
 
 interface ShutdownOptions {
   timeoutMs?: number;
@@ -17,7 +18,7 @@ export function setupGracefulShutdown(
   const shutdown = (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
-    console.log(`[Shutdown] ${signal} received, draining connections...`);
+    logger.info(`[Shutdown] ${signal} received, draining connections...`);
     // bail if connections never close
     const force = setTimeout(() => exit(1), timeoutMs);
     force.unref();

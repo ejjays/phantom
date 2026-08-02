@@ -1,4 +1,5 @@
 import { HEADERS, DESKTOP_UA } from './constants.js';
+import { logger } from '../../../utils/infra/logger.util.js';
 import { secureFetch } from '../../../utils/network/security.util.js';
 
 type FetchHtmlOptions = {
@@ -38,9 +39,9 @@ export async function fetchFileSize(url: string): Promise<number | undefined> {
     }
   } catch (error: unknown) {
     if (error instanceof Error) {
-      console.debug('[FacebookExtractor] Size fetch error:', error.message);
+      logger.debug('[FacebookExtractor] Size fetch error:', error.message);
     } else {
-      console.debug('[FacebookExtractor] Size fetch error:', String(error));
+      logger.debug('[FacebookExtractor] Size fetch error:', String(error));
     }
   }
   return undefined;

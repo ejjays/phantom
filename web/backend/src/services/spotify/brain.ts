@@ -1,4 +1,5 @@
 import db from '../../utils/infra/db.util.js';
+import { logger } from '../../utils/infra/logger.util.js';
 import { SpotifyMetadata, Format } from '../../types/index.js';
 
 interface RawMapping {
@@ -77,10 +78,10 @@ if (db) {
       await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_spotify_youtube ON spotify_mappings(youtubeUrl)'
       );
-      console.log('[Turso] Database initialized.');
+      logger.info('[Turso] Database initialized.');
     } catch (err: unknown) {
       const error = err as Error;
-      console.error('[Turso] Database bootstrap failed:', error.message);
+      logger.error('[Turso] Database bootstrap failed:', error.message);
     }
   })();
 }
@@ -132,7 +133,7 @@ export function saveToBrain(spotifyUrl: string, data: SpotifyMetadata): void {
         })
         .catch((err: unknown) => {
           const error = err as Error;
-          console.warn('[Turso] Failed to save to database:', error.message);
+          logger.warn('[Turso] Failed to save to database:', error.message);
         });
 
       if (
@@ -147,14 +148,14 @@ export function saveToBrain(spotifyUrl: string, data: SpotifyMetadata): void {
             args: [cleanUrl, Date.now() + 55 * 60 * 1000, 'spotify_preview'],
           })
           .catch((err: Error) => {
-            console.debug(
+            logger.debug(
               '[Turso] Volatile link save failed:',
               (err as Error).message
             );
           });
       }
     } catch (err: unknown) {
-      console.warn(
+      logger.warn(
         '[Turso] Synchronous error preparing database save:',
         (err as Error).message
       );
@@ -173,7 +174,7 @@ export async function getFromBrain(
     });
     return (result.rows?.[0] as unknown as RawMapping) || null;
   } catch (err) {
-    console.debug('[Turso] Brain lookup failed:', (err as Error).message);
+    logger.debug('[Turso] Brain lookup failed:', (err as Error).message);
     return null;
   }
 }
@@ -203,7 +204,7 @@ export async function updatePreviewInBrain(
     }
   } catch (err: unknown) {
     const error = err as Error;
-    console.warn(
+    logger.warn(
       '[Turso] Failed to update preview in database:',
       error.message
     );
@@ -238,11 +239,11 @@ if (db) {
             }
           }
           if (refreshed > 0) {
-            console.log(`[JIT Worker] refreshed ${refreshed} preview link(s)`);
+            logger.info(`[JIT Worker] refreshed ${refreshed} preview link(s)`);
           }
         }
       } catch (err: unknown) {
-        console.warn(
+        logger.warn(
           '[JIT Worker] Error scanning volatile_links:',
           (err as Error).message
         );

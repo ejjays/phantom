@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { logger } from '../../utils/infra/logger.util.js';
 import { secureFetch } from '../../utils/network/security.util.js';
 import { recordFailure } from '../../utils/infra/metrics.util.js';
 
@@ -68,7 +69,7 @@ async function queryGroq(promptText: string): Promise<AIQueryResult | null> {
   } catch (error: unknown) {
     const err = error as Error;
     recordFailure('resolve:ai_groq');
-    console.debug('[SpotifyAI] Groq error:', err.message);
+    logger.debug('[SpotifyAI] Groq error:', err.message);
   }
   return null;
 }
@@ -89,7 +90,7 @@ async function queryGemini(promptText: string): Promise<AIQueryResult | null> {
     } catch (error: unknown) {
       const err = error as Error;
       recordFailure('resolve:ai_gemini');
-      console.debug(`[SpotifyAI] Gemini error (${modelName}):`, err.message);
+      logger.debug(`[SpotifyAI] Gemini error (${modelName}):`, err.message);
     }
   }
   return null;

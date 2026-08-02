@@ -1,4 +1,5 @@
 import { URL } from 'node:url';
+import { logger } from '../infra/logger.util.js';
 
 const SUPPORTED_DOMAINS: string[] = [
   'youtube.com',
@@ -92,7 +93,7 @@ export function decodeUrlIfNeeded(url: string): string {
       const decoded = decodeURIComponent(url);
       if (decoded.startsWith('http')) return decoded;
     } catch (error: unknown) {
-      console.debug(
+      logger.debug(
         '[VideoController] URL decode error:',
         (error as Error).message
       );

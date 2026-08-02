@@ -4,6 +4,7 @@ import {
   updatePreviewInBrain,
   parseCachedMapping,
 } from './brain.js';
+import { logger } from '../../utils/infra/logger.util.js';
 import { fetchInitialMetadata, fetchPreviewUrlManually } from './metadata.js';
 import { fetchIsrcFromDeezer } from './external.js';
 import { runPriorityRace } from './resolver.js';
@@ -76,7 +77,7 @@ export async function refreshPreviewIfNeeded(
       });
     }
   } catch (error: unknown) {
-    console.debug(
+    logger.debug(
       '[SpotifyIndex] Preview refresh error:',
       (error as Error).message
     );

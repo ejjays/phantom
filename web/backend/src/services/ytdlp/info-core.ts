@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { logger } from '../../utils/infra/logger.util.js';
 import { remoteYtdlpConfigured, runYtdlpRemote } from './remote-ytdlp.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -72,7 +73,7 @@ export function reportProgress(
         event.details = undefined;
       }
     } catch (error) {
-      console.debug(
+      logger.debug(
         '[SSE] Failed to parse early metadata JSON:',
         (error as Error).message
       );
@@ -116,7 +117,7 @@ export async function getCachedInfo(
         return data;
       }
     } catch (error) {
-      console.warn(
+      logger.warn(
         '[Info] Redis cache fetch failed:',
         (error as Error).message
       );
@@ -146,7 +147,7 @@ export async function setCachedInfo(cacheKey: string, data: VideoInfo) {
       METADATA_EXPIRY
     );
   } catch (error) {
-    console.warn('[Info] Redis cache save failed:', (error as Error).message);
+    logger.warn('[Info] Redis cache save failed:', (error as Error).message);
   }
 }
 
@@ -163,7 +164,7 @@ async function persistInfoJsonToDisk(
     await fs.promises.writeFile(filePath, rawJson, 'utf8');
   } catch (error) {
     // non-critical optimization fallback
-    console.debug(
+    logger.debug(
       '[Info] Disk JSON cache write failed:',
       (error as Error).message
     );
@@ -235,7 +236,7 @@ export async function expandShortUrl(url: string): Promise<string> {
   try {
     expanded = await _expandFetch(url, 'HEAD');
   } catch (error) {
-    console.debug('[Info] HEAD expansion failed:', (error as Error).message);
+    logger.debug('[Info] HEAD expansion failed:', (error as Error).message);
   }
 
   // bili.im 405s HEAD without redirect
@@ -243,7 +244,7 @@ export async function expandShortUrl(url: string): Promise<string> {
     try {
       expanded = await _expandFetch(url, 'GET');
     } catch (getError) {
-      console.debug(
+      logger.debug(
         '[Info] GET expansion failed:',
         (getError as Error).message
       );
@@ -268,7 +269,7 @@ function runYtdlpLocal(
           try {
             process.kill(-childProcess.pid, 'SIGKILL');
           } catch (error) {
-            console.debug(
+            logger.debug(
               '[Process] Abort signal kill failed:',
               (error as Error).message
             );
@@ -305,7 +306,7 @@ async function execYtdlp(
       const remote = await runYtdlpRemote(args, signal);
       if (remote) return remote;
     } catch (error) {
-      console.warn(
+      logger.warn(
         '[YtdlpRemote] delegate failed; using local yt-dlp:',
         (error as Error).message
       );
@@ -367,13 +368,13 @@ export async function runYtdlpInfo(
       parsedData = JSON.parse(stdout) as VideoInfo;
     } catch (error: unknown) {
       const err = error as Error;
-      console.debug('[YtdlpInfo] JSON parse error:', err.message);
+      logger.debug('[YtdlpInfo] JSON parse error:', err.message);
     }
   }
 
   if (code !== 0 && code !== null) {
     const errorMsg = stderr.trim();
-    console.error(
+    logger.error(
       `[yt-dlp-error] Code ${code}: ${errorMsg} | Command: yt-dlp ${args.join(' ')}`
     );
 
@@ -382,7 +383,7 @@ export async function runYtdlpInfo(
       (errorMsg.includes('Requested format is not available') ||
         errorMsg.includes('Sign in to confirm you’re not a bot'))
     ) {
-      console.log('[YtdlpInfo] Retrying WITHOUT cookies/geo-bypass...');
+      logger.info('[YtdlpInfo] Retrying WITHOUT cookies/geo-bypass...');
       return runYtdlpInfo(targetUrl, cookieArgs, signal, true);
     }
 

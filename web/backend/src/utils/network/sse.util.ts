@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { logger } from '../infra/logger.util.js';
 import { SSEEvent } from '../../types/index.js';
 import { createRedisClient } from '../infra/redis.util.js';
 
@@ -20,7 +21,7 @@ function writeToClient(
   try {
     client.write(`data: ${JSON.stringify(event)}\n\n`);
   } catch (error) {
-    console.error('[SSE] Write failed:', (error as Error).message);
+    logger.error('[SSE] Write failed:', (error as Error).message);
     removeClient(id);
   }
 }
@@ -31,7 +32,7 @@ function ensureRelay(): void {
   subscriber
     .subscribe(RELAY_CHANNEL)
     .catch((error) =>
-      console.error('[SSE] relay subscribe failed:', (error as Error).message)
+      logger.error('[SSE] relay subscribe failed:', (error as Error).message)
     );
   subscriber.on('message', (channel: string, payload: string) => {
     if (channel !== RELAY_CHANNEL) return;
@@ -56,7 +57,7 @@ function startHeartbeat() {
       try {
         client.write(': heartbeat\n\n');
       } catch (err) {
-        console.debug(
+        logger.debug(
           '[SSE] Heartbeat failed, removing client',
           id,
           (err as Error).message

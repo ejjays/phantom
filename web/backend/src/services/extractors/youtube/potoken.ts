@@ -1,4 +1,5 @@
 import { Innertube } from 'youtubei.js';
+import { logger } from '../../../utils/infra/logger.util.js';
 import { BG } from 'bgutils-js';
 import { JSDOM } from 'jsdom';
 
@@ -80,14 +81,14 @@ async function generate(): Promise<PoTokenBundle | null> {
       expiresAt: Date.now() + Math.max(ttlMs - REFRESH_MARGIN_MS, 60_000),
     };
     cached = bundle;
-    console.log(
+    logger.info(
       `[poToken] generated (len=${bundle.poToken.length}, ttl=${Math.round(
         (bundle.expiresAt - Date.now()) / 1000
       )}s)`
     );
     return bundle;
   } catch (err) {
-    console.warn('[poToken] generation failed:', (err as Error).message);
+    logger.warn('[poToken] generation failed:', (err as Error).message);
     return null;
   }
 }

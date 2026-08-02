@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { logger } from '../../utils/infra/logger.util.js';
 import { getCookieArgs } from '../../utils/api/controller.util.js';
 import { getVideoInfo } from '../ytdlp.service.js';
 import {
@@ -227,7 +228,7 @@ export async function resolveManifests(
         info.duration || 0
       ) || 0);
   } catch (error: unknown) {
-    console.warn('[Size] Estimation failed:', (error as Error).message);
+    logger.warn('[Size] Estimation failed:', (error as Error).message);
   }
 
   return {

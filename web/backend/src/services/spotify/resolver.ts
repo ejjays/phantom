@@ -1,4 +1,5 @@
 import { VideoInfo } from '../../types/index.js';
+import { logger } from '../../utils/infra/logger.util.js';
 
 interface SearchResult {
   url: string;
@@ -154,7 +155,7 @@ async function searchOnYoutube(
         retryCount + 1
       );
     }
-    console.debug(`[YouTubeSearch] Error: ${(error as Error).message}`);
+    logger.debug(`[YouTubeSearch] Error: ${(error as Error).message}`);
     return null;
   }
 }
@@ -266,7 +267,7 @@ async function searchOnSoundCloud(
 
     return { url: searchResults[0].permalink_url, info, diff: drift };
   } catch (error: unknown) {
-    console.error(
+    logger.error(
       `[Race] SoundCloud search failed: ${(error as Error).message}`
     );
     return null;

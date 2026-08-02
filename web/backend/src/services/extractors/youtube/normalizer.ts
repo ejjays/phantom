@@ -1,4 +1,5 @@
 import { VideoInfo } from '../../../types/index.js';
+import { logger } from '../../../utils/infra/logger.util.js';
 import {
   processVideoFormats,
   processAudioFormats,
@@ -37,7 +38,7 @@ export async function normalizeVideoInfo(
           await raw.decipher(client.session.player);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          console.debug('[JS-YT] Decipher failed:', msg);
+          logger.debug('[JS-YT] Decipher failed:', msg);
         }
       }
     })

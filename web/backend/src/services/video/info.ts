@@ -1,4 +1,5 @@
 import { logExtractionSteps } from '../../utils/api/controller.util.js';
+import { logger } from '../../utils/infra/logger.util.js';
 import { getVideoInfo } from '../ytdlp.service.js';
 import { saveToBrain } from '../spotify.service.js';
 import {
@@ -22,7 +23,7 @@ export async function fetchMediaInfo(
     null,
     clientId
   ).catch((error: unknown) => {
-    console.error('[VideoInfo] Extraction failed:', (error as Error).message);
+    logger.error('[VideoInfo] Extraction failed:', (error as Error).message);
     return null;
   });
 
@@ -38,7 +39,7 @@ export function handleSpotifyRegistry(
 ) {
   if (info.fromBrain || !info.isJsInfo || !info.isIsrcMatch) return;
 
-  console.log(
+  logger.info(
     `[Registry] Saving new mapping for: ${info.title} (ISRC: ${info.isrc})`
   );
   saveToBrain(videoURL, {

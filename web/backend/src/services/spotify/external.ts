@@ -1,4 +1,5 @@
 import { isValidSpotifyUrl } from '../../utils/network/validation.util.js';
+import { logger } from '../../utils/infra/logger.util.js';
 import { secureFetch } from '../../utils/network/security.util.js';
 import { recordFailure } from '../../utils/infra/metrics.util.js';
 
@@ -102,7 +103,7 @@ export async function fetchIsrcFromDeezer(
     }
   } catch (error: unknown) {
     recordFailure('resolve:deezer');
-    console.debug('[SpotifyExternal] Deezer error:', (error as Error).message);
+    logger.debug('[SpotifyExternal] Deezer error:', (error as Error).message);
   }
   return null;
 }
@@ -148,7 +149,7 @@ export async function fetchIsrcFromItunes(
     }
   } catch (error: unknown) {
     recordFailure('resolve:itunes');
-    console.debug('[SpotifyExternal] iTunes error:', (error as Error).message);
+    logger.debug('[SpotifyExternal] iTunes error:', (error as Error).message);
   }
   return null;
 }
@@ -196,7 +197,7 @@ export async function fetchFromOdesli(
     return processOdesliData(data);
   } catch (error) {
     recordFailure('resolve:odesli');
-    console.debug('Ignored:', (error as Error).message);
+    logger.debug('Ignored:', (error as Error).message);
     return null;
   }
 }
