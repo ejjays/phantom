@@ -1,6 +1,7 @@
 # Hugging Face Spaces (Docker SDK) build.
-# Place this file as ./Dockerfile at the Space repo root,
-# alongside shared/ and backend/ (build context = repo root).
+# Place this file as ./Dockerfile at the Space repo root.
+# Space layout mirrors the monorepo: package.json + package-lock.json +
+# packages/ + web/shared + web/backend (see deploy-hf-space job).
 FROM node:22-slim
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -27,15 +28,19 @@ WORKDIR $HOME/app
 
 RUN curl -fsSL https://deno.land/install.sh | sh
 
-# shared has its own deps (zod) the schemas need
-COPY --chown=node:node shared/ ./shared/
-RUN cd shared && npm ci
+# single root lockfile; -w keeps the image lean (no mobile/frontend deps)
+COPY --chown=node:node package.json package-lock.json ./
+COPY --chown=node:node web/shared/package.json ./web/shared/
+COPY --chown=node:node web/backend/package.json ./web/backend/
+COPY --chown=node:node packages/extractors/package.json ./packages/extractors/
+RUN npm ci --ignore-scripts -w web/backend -w web/shared -w packages/extractors
 
-COPY --chown=node:node backend/package*.json ./backend/
-WORKDIR $HOME/app/backend
-RUN npm ci
+COPY --chown=node:node web/shared/ ./web/shared/
+COPY --chown=node:node packages/extractors/ ./packages/extractors/
+RUN (cd packages/extractors && npm run build)
 
-COPY --chown=node:node backend/ ./
+WORKDIR $HOME/app/web/backend
+COPY --chown=node:node web/backend/ ./
 RUN npx tsc && mkdir -p temp
 
 ENV PORT=7860 \

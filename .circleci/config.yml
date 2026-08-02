@@ -240,8 +240,9 @@ jobs:
             git clone "https://huggingface.co/spaces/$HF_USER/$HF_SPACE" space
             cd space
             find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-            # tracked source only (no node_modules/dist)
-            git -C "$SRC" archive HEAD web/shared web/backend | tar -x --strip-components=1
+            # tracked source only (no node_modules/dist); space layout mirrors
+            # the monorepo so the root-lockfile workspace install resolves
+            git -C "$SRC" archive HEAD package.json package-lock.json packages web/shared web/backend | tar -x
             cp "$SRC/web/backend/Dockerfile.hf" ./Dockerfile
             cp "$SRC/web/backend/hf-space.md"  ./README.md
             cp "$SRC/.dockerignore"             ./.dockerignore

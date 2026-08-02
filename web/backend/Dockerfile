@@ -25,15 +25,19 @@ RUN python3 -m venv /opt/tool-venv \
     && /opt/tool-venv/bin/pip install --upgrade --pre yt-dlp kaggle yt-dlp-getpot-wpc
 ENV PATH="/opt/tool-venv/bin:$PATH"
 
-# shared has its own deps (zod) the schemas need
-WORKDIR /app/shared
-COPY web/shared/ ./
-RUN npm ci
+# single root lockfile; -w keeps the image lean (no mobile/frontend deps),
+# --ignore-scripts skips husky + native postinstalls
+COPY package.json package-lock.json ./
+COPY web/shared/package.json ./web/shared/
+COPY web/backend/package.json ./web/backend/
+COPY packages/extractors/package.json ./packages/extractors/
+RUN npm ci --ignore-scripts -w web/backend -w web/shared -w packages/extractors
 
-WORKDIR /app/backend
-COPY web/backend/package*.json ./
-RUN npm ci
+COPY web/shared/ ./web/shared/
+COPY packages/extractors/ ./packages/extractors/
+RUN (cd packages/extractors && npm run build)
 
+WORKDIR /app/web/backend
 COPY web/backend/ ./
 RUN npx tsc
 

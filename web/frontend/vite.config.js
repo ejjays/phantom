@@ -31,10 +31,10 @@ export default defineConfig({
     modulePreload: { polyfill: false },
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['framer-motion', 'lucide-react'],
-          'lottie-vendor': ['lottie-react'],
+        manualChunks(id) {
+          if (/node_modules\/(react|react-dom|react-router)/.test(id)) return 'react-vendor';
+          if (/node_modules\/(framer-motion|lucide-react)/.test(id)) return 'ui-vendor';
+          if (/node_modules\/lottie/.test(id)) return 'lottie-vendor';
         },
       },
     },

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# no root workspace — each folder keeps own package-lock.json, so per-service
-# docker/cloudflare deploys stay isolated.
+# single root workspace install — the root lockfile is authoritative.
 #
 # termux backend needs 2 android-only workarounds:
 #   --force          libsql declares os darwin,linux,win32 → EBADPLATFORM. mocked at runtime.
@@ -17,10 +16,8 @@ if node -e 'process.exit(process.platform === "android" ? 0 : 1)' 2>/dev/null; t
   backend_flags="--force --ignore-scripts"
 fi
 
-echo "→ web/shared"
-(cd "$ROOT/web/shared" && npm install)
-echo "→ web/backend${backend_flags:+ ($backend_flags)}"
-(cd "$ROOT/web/backend" && npm install $backend_flags)
-echo "→ web/frontend"
-(cd "$ROOT/web/frontend" && npm install)
+echo "→ root workspace"
+(cd "$ROOT" && npm install $backend_flags)
+echo "→ build @phantom/extractors"
+(cd "$ROOT/packages/extractors" && npm run build)
 echo "✅ web deps installed"

@@ -16,13 +16,15 @@ fi
 BASE=$(pwd)
 
 # root tooling (also activates the git pre-commit hooks via `prepare`)
-npm install --silent
-
-# install + build the backend (tsc -> web/backend/dist; `npm start` runs from there)
 # --force: libsql declares os darwin,linux,win32 — mocked at runtime on termux anyway
 # --ignore-scripts: re2 & other native addons have no android prebuilt/NDK; app falls back
-cd "$BASE/web/backend"
 npm install --force --ignore-scripts --silent
+
+# shared extractor package (backend imports resolve to its dist)
+(cd packages/extractors && npm run build --silent)
+
+# build the backend (tsc -> web/backend/dist; `npm start` runs from there)
+cd "$BASE/web/backend"
 npm run build --silent
 
 if [ ! -f .env ]; then

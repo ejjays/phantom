@@ -9,11 +9,10 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
-    "downlevelIteration": true,
     "outDir": "./dist",
-    "baseUrl": ".",
+    "rootDir": "..",
     "paths": {
-      "@/*": ["src/*"],
+      "@/*": ["./src/*"],
       "@shared/*": ["../shared/*"]
     },
     "jsx": "preserve",
