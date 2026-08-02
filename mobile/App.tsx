@@ -50,7 +50,6 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import IBMPlexMonoRegular from './assets/fonts/IBMPlexMono-Regular.ttf';
 import IBMPlexMonoMedium from './assets/fonts/IBMPlexMono-Medium.ttf';
-import { VideoSplashScreen } from './src/components/VideoSplashScreen';
 import IBMPlexMonoSemiBold from './assets/fonts/IBMPlexMono-SemiBold.ttf';
 import IBMPlexMonoBold from './assets/fonts/IBMPlexMono-Bold.ttf';
 import RubikRegular from './assets/fonts/Rubik-Regular.ttf';
@@ -86,7 +85,6 @@ function AppRoot() {
   const [deepLink, setDeepLink] = useState<SocialDeepLink | null>(null);
   const [navHidden, setNavHidden] = useState(false);
   const [bgReady, setBgReady] = useState(false);
-  const [showVideoSplash, setShowVideoSplash] = useState(true);
   const [onboarded, setOnboardedState] = useState<boolean | null>(null);
   const [firstVisit, setFirstVisit] = useState(false);
   const [bubbleTrigger, setBubbleTrigger] = useState(0);
@@ -113,9 +111,7 @@ function AppRoot() {
     isAudio: false,
   });
   const { paste, readClipboard } = useClipboardPaste(setLink);
-  const notifPriming = useNotificationPriming(
-    onboarded === true && !showVideoSplash
-  );
+  const notifPriming = useNotificationPriming(onboarded === true);
   useEffect(() => {
     void getOnboarded().then((value) => {
       setOnboardedState(value);
@@ -123,14 +119,12 @@ function AppRoot() {
     });
   }, []);
   useEffect(() => {
-    if (showVideoSplash) return;
     setHomeFocus(1);
-  }, [showVideoSplash, setHomeFocus]);
+  }, [setHomeFocus]);
   useEffect(() => {
-    if (showVideoSplash) return;
     if (firstVisit) return;
     setBubbleTrigger((count) => count + 1);
-  }, [showVideoSplash, firstVisit]);
+  }, [firstVisit]);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
@@ -285,9 +279,6 @@ function AppRoot() {
   }
   return (
     <QueryClientProvider client={queryClient}>
-      {showVideoSplash && (
-        <VideoSplashScreen onFinish={() => setShowVideoSplash(false)} />
-      )}
       <GestureHandlerRootView style={tw`flex-1 bg-background`}>
         <KeyboardProvider preload>
           <SafeAreaProvider initialMetrics={initialWindowMetrics}>

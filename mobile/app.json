@@ -54,7 +54,6 @@
           "backgroundColor": "#000000"
         }
       ],
-      "react-native-video",
       [
         "expo-media-library",
         {
