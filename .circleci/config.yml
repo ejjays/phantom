@@ -64,8 +64,8 @@ jobs:
           name: Run Deterministic Core Tests
           command: |
             cd web/backend
-            # exclude manual tests
-            npx vitest run --coverage --environment node
+            # manual tests excluded; no --coverage (esbuild-wasm OOB in CI worker)
+            npx vitest run --environment node
       - store_test_results:
           path: web/backend/test-results.xml
       - store_artifacts:

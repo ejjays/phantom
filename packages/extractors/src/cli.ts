@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process';
+import { spawn } from 'node:child_process'; // skipcq: JS-0271
 import { createWriteStream } from 'node:fs';
 import { Readable, Writable } from 'node:stream';
 import { getExtractor } from './index.js';
