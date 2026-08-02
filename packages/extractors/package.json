@@ -28,6 +28,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./facebook/*": {
+      "types": "./dist/facebook/*.d.ts",
+      "import": "./dist/facebook/*.js"
+    },
+    "./threads/*": {
+      "types": "./dist/threads/*.d.ts",
+      "import": "./dist/threads/*.js"
     }
   },
   "files": [
@@ -38,8 +46,9 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json",
     "prepack": "npm run build",
+    "postinstall": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json",
     "demo:mock": "npm run build && node --experimental-strip-types examples/mock-demo.ts",
     "demo:live": "npm run build && node --experimental-strip-types examples/live-demo.ts"
   },

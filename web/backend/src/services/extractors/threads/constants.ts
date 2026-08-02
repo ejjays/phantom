@@ -1,3 +1,5 @@
+export * from '@phantom/extractors/threads/constants';
+
 export const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36';
 
@@ -15,6 +17,3 @@ export const HEADERS = {
   'Sec-Fetch-User': '?1',
   'Upgrade-Insecure-Requests': '1',
 };
-
-// post|t shortcode from permalink
-export const ID_REGEX = /\/(?:post|t)\/([A-Za-z0-9_-]+)/u;

@@ -1,71 +1,9 @@
-import { VideoInfo, Format } from '../types';
-import { normalizeTitle, normalizeArtist } from '../social';
-import { FbParsed } from './types';
+import type { VideoInfo } from '../types';
+import type { FbParsed } from './types';
+import { normalizeVideoInfo as normalize } from '@phantom/extractors/facebook/normalizer';
 
-export function normalizeVideoInfo(
+export const normalizeVideoInfo = (
   url: string,
   parsedData: FbParsed | null
-): VideoInfo | null {
-  if (!parsedData) return null;
-
-  const formats: Format[] = parsedData.formats.map((formatItem, index) => {
-    const vcodec =
-      formatItem.vcodec ?? (formatItem.ext === 'mp4' ? 'h264' : undefined);
-    const acodec =
-      formatItem.acodec ??
-      (formatItem.ext === 'mp4' || formatItem.ext === 'm4a'
-        ? 'aac'
-        : undefined);
-
-    const tier =
-      formatItem.format_id === 'hd'
-        ? 'HD'
-        : formatItem.format_id === 'sd'
-          ? 'SD'
-          : formatItem.format_id?.startsWith('photo')
-            ? 'Photo'
-            : undefined;
-
-    return {
-      formatId: formatItem.format_id || `fb_${index}`,
-      url: formatItem.url,
-      extension: formatItem.ext ?? 'mp4',
-      resolution: tier ?? 'Source',
-      quality: tier,
-      acodec,
-      vcodec,
-      isAudio: Boolean(acodec && acodec !== 'none'),
-      isVideo: Boolean(vcodec && vcodec !== 'none'),
-      isMuxed: Boolean(
-        acodec && acodec !== 'none' && vcodec && vcodec !== 'none'
-      ),
-    };
-  });
-
-  if (formats.length === 0) return null;
-
-  const info: VideoInfo = {
-    type: 'video',
-    id: parsedData.id || url,
-    title: parsedData.title || 'Facebook Video',
-    uploader: parsedData.uploader || 'Facebook User',
-    thumbnail: parsedData.thumbnail || undefined,
-    webpageUrl: url,
-    formats,
-    extractorKey: 'facebook',
-    isJsInfo: true,
-    fromBrain: false,
-    isPartial: false,
-    isIsrcMatch: false,
-    isFullData: false,
-  };
-
-  if (parsedData.title) {
-    info.metascraper = { title: parsedData.title };
-  }
-
-  info.title = normalizeTitle(info);
-  info.uploader = normalizeArtist(info);
-
-  return info;
-}
+): VideoInfo | null =>
+  normalize(url, parsedData) as unknown as VideoInfo | null;

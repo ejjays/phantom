@@ -1,9 +1,8 @@
+export * from '@phantom/extractors/threads/constants';
+
 import { DESKTOP_UA } from '../../lib/userAgents';
 
 export { DESKTOP_UA };
-
-// cdn authorizes media against this origin
-export const STREAM_REFERER = 'https://www.threads.com/';
 
 export const HEADERS = {
   'User-Agent': DESKTOP_UA,
@@ -16,6 +15,3 @@ export const HEADERS = {
   'Sec-Fetch-User': '?1',
   'Upgrade-Insecure-Requests': '1',
 };
-
-// post|t shortcode from permalink
-export const ID_REGEX = /\/(?:post|t)\/([A-Za-z0-9_-]+)/u;

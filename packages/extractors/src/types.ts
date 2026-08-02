@@ -26,6 +26,9 @@ export interface VideoInfo {
   webpageUrl: string;
   thumbnail?: string;
   duration?: number;
+  author?: string;
+  description?: string;
+  metascraper?: Record<string, unknown>;
   formats: Format[];
   extractorKey?: string;
   isJsInfo: boolean;

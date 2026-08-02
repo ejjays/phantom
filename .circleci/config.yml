@@ -28,7 +28,7 @@ jobs:
       - checkout:
           method: full
       - halt-unless-changed:
-          pattern: "^web/backend/|^web/shared/|^.circleci/config.yml"
+          pattern: "^web/backend/|^web/shared/|^packages/|^.circleci/config.yml"
       - restore_cache:
           keys:
             - v2-backend-{{ checksum "web/backend/package-lock.json" }}-{{ checksum "web/shared/package-lock.json" }}
@@ -44,6 +44,10 @@ jobs:
           command: |
             (cd web/shared && npm ci)
             (cd web/backend && npm ci)
+      - run:
+          name: Build shared extractor package
+          command: |
+            (cd packages/extractors && npm run build)
       - save_cache:
           paths:
             - web/backend/node_modules
@@ -111,7 +115,7 @@ jobs:
       - checkout:
           method: full
       - halt-unless-changed:
-          pattern: "^mobile/|^.circleci/config.yml"
+          pattern: "^mobile/|^packages/|^.circleci/config.yml"
       - restore_cache:
           keys:
             - v1-mobile-{{ checksum "mobile/package-lock.json" }}
@@ -120,6 +124,10 @@ jobs:
           # --ignore-scripts skips ffmpeg-kit's ~57MB AAR download (429-prone &
           # only needed for EAS native builds, not typecheck/lint/vitest)
           command: cd mobile && npm ci --ignore-scripts
+      - run:
+          name: Build shared extractor package
+          command: |
+            (cd packages/extractors && npm run build)
       - save_cache:
           paths:
             - mobile/node_modules
@@ -149,6 +157,7 @@ jobs:
           command: |
             cd web/backend
             npm ci
+            (cd packages/extractors && npm run build)
             # runs benchmark tests
             VITEST_INCLUDE_MANUAL=1 npx vitest run \
               tests/flows/live.test.ts \
@@ -167,6 +176,10 @@ jobs:
           # --ignore-scripts skips ffmpeg-kit's ~57MB AAR download (429-prone &
           # only needed for EAS native builds, not typecheck/lint/vitest)
           command: cd mobile && npm ci --ignore-scripts
+      - run:
+          name: Build shared extractor package
+          command: |
+            (cd packages/extractors && npm run build)
       - run:
           name: Live extractor health checks
           command: |
