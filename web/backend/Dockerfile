@@ -35,7 +35,7 @@ RUN npm ci --ignore-scripts -w web/backend -w web/shared -w packages/extractors
 
 COPY web/shared/ ./web/shared/
 COPY packages/extractors/ ./packages/extractors/
-RUN (cd packages/extractors && npm run build)
+RUN npm run build -w packages/extractors
 
 WORKDIR /app/web/backend
 COPY web/backend/ ./

@@ -22,7 +22,7 @@ Phantom is a multi-target repo:
 Prerequisites and install steps live in [`docs/run-an-instance.md`](docs/run-an-instance.md). Short version:
 
 - Node 22+, `yt-dlp`, `ffmpeg`, Redis
-- `npm install` in `web/shared/`, `web/backend/`, `web/frontend/`
+- `npm install` at the repo root — npm workspaces pulls in `web/`, `mobile/`, and `packages/*` from the single root lockfile
 
 Once that's done:
 

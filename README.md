@@ -113,12 +113,12 @@ phantom/
 │   ├── backend/        # Express 5 + yt-dlp + ffmpeg + Redis + Turso
 │   └── shared/         # @phantom/shared (Zod schemas)
 ├── mobile/             # Expo SDK 56, RN 0.85, Hermes, New Arch
-│   ├── src/extractors/ # 13 pure-JS platform extractors
+│   ├── src/extractors/ # 15 pure-JS platform extractors
 │   ├── src/lib/        # download pipeline, social, net, notify
 │   └── src/components/ # UI, sheets, backgrounds, webviews
 ├── packages/
-│   ├── extractors/     # @phantom/extractors (prototype, WIP)
-│   └── web-mux/        # @phantom/web-mux (prototype, WIP)
+│   ├── extractors/     # @phantom/extractors (shared fb/threads/social)
+│   └── web-mux/        # @phantom/web-mux (shared media mux core)
 ├── remix/              # Python ML engine (Demucs, BTC, madmom, nnAudio)
 ├── scripts/            # termux install, tunnels, kaggle bundler
 └── docs/               # self-host, env, hardening, API, mobile, remix

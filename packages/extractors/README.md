@@ -1,4 +1,4 @@
-# @phantom/extractors (prototype)
+# @phantom/extractors
 
 pulls the JS extractors out of `web/backend` into a standalone, dependency-free
 package. it's the sibling to [`../web-mux`](../web-mux/README.md) — this
@@ -98,6 +98,4 @@ Vimeo's CDN.
 - no `getStream` proxy hardening (SSRF checks) in `defaultEnv` — intentional,
   keeps the lib dependency-free, but means server-side consumers should
   inject their own `streamUrl`.
-- license: **MIT** (deliberate) — repo root is AGPL-3.0, but this package is
-  permissively licensed so any project can adopt it; see root README.
-- prototype, not published — same status as `../web-mux`.
+- MIT — repo root is AGPL-3.0, but this package is permissively licensed so any project can adopt it; see root README.

@@ -32,8 +32,11 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (/node_modules\/(react|react-dom|react-router)/.test(id)) return 'react-vendor';
-          if (/node_modules\/(framer-motion|lucide-react)/.test(id)) return 'ui-vendor';
+          // skipcq: JS-0045
+          if (/node_modules\/(react|react-dom|react-router)/.test(id))
+            return 'react-vendor';
+          if (/node_modules\/(framer-motion|lucide-react)/.test(id))
+            return 'ui-vendor';
           if (/node_modules\/lottie/.test(id)) return 'lottie-vendor';
         },
       },

@@ -1,4 +1,4 @@
-# @phantom/web-mux (prototype)
+# @phantom/web-mux
 
 the browser-side muxing half of the app, pulled out of `web/frontend/src/lib` (`mux-core.ts`, `muxer.ts`, `mux.worker.ts`, `mux-codecs.ts`) into something standalone. it's the sibling to [`../extractors`](../extractors/README.md) — extractors resolve a URL into separate video/audio format URLs, this takes those two URLs and combines them into one mp4, entirely in the browser, no server transcode.
 
@@ -66,4 +66,3 @@ node run.mjs
 - OPFS + `createSyncAccessHandle` are worker-only APIs — the main-thread fallback is there for compatibility, not performance, and will struggle on very large files.
 - only remuxes copy-safe codecs; vp8/vorbis sources need a real transcode, which is out of scope here.
 - license: **MIT** (deliberate) — repo root is AGPL-3.0, but this package is permissively licensed so any project can adopt it; see root README.
-- prototype, not published — same status as `../extractors`.
