@@ -90,6 +90,14 @@ function classifyLiveFailure(error: unknown): {
 describe.skipIf(!RUN_LIVE)('live extractor health', () => {
   for (const testCase of cases as LiveCase[]) {
     it(testCase.name, { timeout: 45000, retry: 2 }, async (ctx) => {
+      // instagram authFetch needs a logged-in cookie to see media URLs
+      if (
+        testCase.extractor === 'instagram' &&
+        !process.env.EXPO_PUBLIC_IG_COOKIE
+      ) {
+        ctx.skip('EXPO_PUBLIC_IG_COOKIE not set');
+        return;
+      }
       const resolve = RESOLVERS[testCase.extractor];
       let info: VideoInfo | null;
       try {
