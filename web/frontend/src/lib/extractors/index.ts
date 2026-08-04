@@ -103,7 +103,7 @@ async function resolveSpotify(
     meta,
     proxyBase,
     async (ytUrl: string) => {
-      const info = await extractYouTube(ytUrl, undefined);
+      const info = await extractYouTube(ytUrl);
       if (!info) return null;
       const best = info.audioFormats?.[0] ?? info.formats?.[0];
       if (!best) return null;

@@ -125,8 +125,7 @@ async function makePoToken(
       globalName: challenge.globalName,
       bgConfig,
     });
-    const ttlSecs =
-      out.integrityTokenData && out.integrityTokenData.estimatedTtlSecs;
+    const ttlSecs = out.integrityTokenData?.estimatedTtlSecs;
     return {
       poToken: out.poToken,
       ttlMs: ttlSecs ? ttlSecs * 1000 : 0,
@@ -306,7 +305,7 @@ function buildFormats(sd: YtStreamInfo | undefined): {
   const ladder = new Map<number, Format>();
   muxed.forEach((fmt, i) => {
     const format = formatFromYt(fmt, 1000 + i);
-    if (format && format.height) ladder.set(format.height, format);
+    if (format?.height) ladder.set(format.height, format);
   });
 
   let index = 0;

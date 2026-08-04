@@ -46,7 +46,7 @@ function splitVideoAudio(
 ): StreamUrlsResponse {
   const allFormats = [...(info?.formats || []), ...(info?.audioFormats || [])];
   const fmt = allFormats.find((f) => String(f.formatId) === String(formatId));
-  if (fmt && fmt.url) {
+  if (fmt?.url) {
     const direct = proxyIfNeeded(fmt.url);
     if (direct) return { directUrl: direct };
   }

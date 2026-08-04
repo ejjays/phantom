@@ -44,7 +44,7 @@ export function proxyFetch(
   try {
     const { hostname } = new URL(url);
     if (
-      PROXIED_HOSTS.some((host) => host === hostname || hostname.endsWith(`.`))
+      PROXIED_HOSTS.some((host) => host === hostname || hostname.endsWith('.'))
     ) {
       target = `${PROXY_BASE}/proxy?u=${encodeURIComponent(url)}`;
     } else {

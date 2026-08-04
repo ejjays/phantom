@@ -228,7 +228,7 @@ export class OrchestratorService {
 
       // mp3: client-side audio transcoding via mediabunny
       if (finalFormatExtension === 'mp3') {
-        const { extractAudio } = await import('../lib/download.service');
+        const { extractAudio } = await import('./download.service');
         const info = useRemixStore.getState().videoData;
         if (!info) throw new Error('No media info loaded');
         const controller = new AbortController();
@@ -246,7 +246,7 @@ export class OrchestratorService {
         await streamBlobToDisk(blob, fileName, 'audio/mpeg');
       } else {
         // mp4/m4a/etc: stream from already-resolved format URLs
-        const { resolveStreamUrls } = await import('../lib/previewStream');
+        const { resolveStreamUrls } = await import('./previewStream');
         const { directUrl, videoUrl, audioUrl } = await resolveStreamUrls(
           backendUrl,
           cleanUrl,
