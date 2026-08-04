@@ -22,7 +22,6 @@ vi.mock('@libsql/client', () => ({
 }));
 
 import db from '../src/utils/infra/db.util.js';
-import { resetSSE } from '../src/utils/network/sse.util.js';
 import createRedisClient from '../src/utils/infra/redis.util.js';
 
 interface DBClient {
@@ -571,7 +570,6 @@ beforeAll(async () => {
 
 afterEach(async () => {
   server.resetHandlers();
-  resetSSE();
   await createRedisClient('security').del('media:active');
 });
 

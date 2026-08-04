@@ -33,37 +33,17 @@ Phantom boots without most of these — they enable optional features and degrad
 
 | Variable           | Default                  | Purpose                                                                                                                           |
 | ------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `REDIS_URL`        | `redis://127.0.0.1:6379` | Redis for metadata cache + job queue                                                                                              |
+| `REDIS_URL`        | `redis://127.0.0.1:6379` | Redis for locks + session/engine state                                                                                            |
 | `TURSO_URL`        | —                        | libSQL/Turso URL for persistent edge registry. Falls back to in-memory mock if unset (and on Termux where native lib unavailable) |
 | `TURSO_AUTH_TOKEN` | —                        | Auth token for Turso                                                                                                              |
 
-### Extraction
+### Metadata (Remix Lab extraction)
 
-| Variable             | Default | Purpose                                                                                                                                                                      |
-| -------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `COOKIES_URL`        | —       | URL to fetch Netscape `cookies.txt` on startup — improves YouTube reliability                                                                                                |
-| `YTDLP_COOKIES_FILE` | —       | Path to local cookies file (overrides default location)                                                                                                                      |
-| `BILIBILI_COOKIE`    | —       | Header-format cookie string (e.g. `SESSDATA=…; bili_jct=…`) from logged-in bilibili.tv session — unlocks 1080p+ on pure-JS Bilibili extractor. Unauthenticated caps at 720p. |
-| `ENABLE_POT_PLUGIN`  | `0`     | Set `1` to auto-spawn bgutil PO-token server. Off by default (bgutil's BotGuard step currently flaky)                                                                        |
-
-### Metadata & AI (Music Resolution)
-
-| Variable                                     | Default | Purpose                                                                                                 |
-| -------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | —       | Spotify Web API credentials for track metadata                                                          |
-| `SOUNDCHARTS_APP_ID`, `SOUNDCHARTS_API_KEY`  | —       | Soundcharts (ISRC-verified metadata)                                                                    |
-| `ACOUSTID_API_KEY`                           | —       | AcoustID audio-fingerprint lookup (clip → MusicBrainz recording → ISRC). Degrades to Shazam when unset. |
-| `GEMINI_API_KEY` (or `VERTEX_API_KEY`)       | —       | Gemini, used to synthesize search query when strict matches fail                                        |
-| `GROQ_API_KEY`                               | —       | Groq/Llama, same fallback role                                                                          |
-
-### Security (Set These for Public Instance)
-
-| Variable                | Default         | Purpose                                                                                                                                                                                                                                                                                                                                                |
-| ----------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `AUTH_MODE`             | inferred        | `open` (no auth), `apikey` (require key), or `deny` (block public). Unset → `apikey` if `API_KEY` set, else `deny` in production / `open` in dev. Localhost always allowed.                                                                                                                                                                            |
-| `API_KEY`               | —               | If set, required on `/info`, `/stream-urls`, `/convert`, `/proxy`, `/api/*`. `127.0.0.1` exempt.                                                                                                                                                                                                                                                       |
-| `PROXY_SIGNING_SECRET`  | random per boot | HMAC secret for signed proxy/stream URLs (stops `/proxy` open-relay abuse). Pin a fixed value (`openssl rand -hex 32`) so links survive restarts. **In hybrid/multi-backend setup (e.g. phone + Koyeb failover) every backend must use the _identical_ value** — otherwise a link signed by one box 403s on another and EME downloads fail mid-stream. |
-| `PROXY_URL_TTL_SECONDS` | `21600` (6h)    | Lifetime of a signed proxy/stream URL                                                                                                                                                                                                                                                                                                                  |
+| Variable                               | Default | Purpose                                                                     |
+| -------------------------------------- | ------- | --------------------------------------------------------------------------- |
+| `ACOUSTID_API_KEY`                     | —       | AcoustID fingerprint lookup (clip → MusicBrainz → ISRC). Degrades to Shazam |
+| `GEMINI_API_KEY` (or `VERTEX_API_KEY`) | —       | Gemini, synthesizes search query when strict matches fail                   |
+| `GROQ_API_KEY`                         | —       | Groq/Llama, same fallback role                                              |
 
 ### Remix Lab & Monitoring
 

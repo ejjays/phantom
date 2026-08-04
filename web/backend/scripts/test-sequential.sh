@@ -7,7 +7,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-PATTERN="${1:-tests/core/*.test.ts tests/api/*.test.ts}"
+PATTERN="${1:-tests/api/*.test.ts tests/security/*.test.ts tests/services/*.test.ts}"
 PASS=0
 FAIL=0
 FAILED_FILES=()

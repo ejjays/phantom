@@ -198,16 +198,14 @@ export class OrchestratorService {
       selectedOption,
       formatId,
       serverClientId,
-      targetUrl,
       selectedFormat,
       audioLang,
-      triggerMobileDownload,
       backendUrl: dynamicBackendUrl,
     } = params;
     const backendUrl = dynamicBackendUrl || BACKEND_URL;
 
     this.onLog(
-      `${OrchestratorService.getTS()} [System] Using Server-Side Turbo Engine...`
+      `${OrchestratorService.getTS()} [System] Client-side processing (cookie-less)...`
     );
 
     try {
@@ -218,58 +216,70 @@ export class OrchestratorService {
           : selectedOption?.extension || selectedFormat;
 
       const finalFormatId = selectedOption?.formatId || formatId;
-
-      const audioLangParam = audioLang
-        ? `&audioLang=${encodeURIComponent(audioLang)}`
-        : '';
-      const downloadUrl = `${backendUrl}/convert?url=${encodeURIComponent(cleanUrl)}&format=${finalFormatExtension}&formatId=${finalFormatId}${audioLangParam}&targetUrl=${encodeURIComponent(targetUrl || '')}&id=${serverClientId}&title=${encodeURIComponent(finalTitle)}&artist=${encodeURIComponent(artist)}&token=${serverClientId}`;
-
       const fileName = getSanitizedFilename(
         finalTitle,
         artist,
         finalFormatExtension,
-        url.includes('spotify.com')
+        cleanUrl.includes('spotify.com')
       );
 
-      const wasTriggered =
-        typeof triggerMobileDownload === 'function' &&
-        triggerMobileDownload({
-          url: downloadUrl,
-          filename: fileName,
-          title: finalTitle,
-          artist,
-          clientId: serverClientId,
+      this.onSubStatus('Processing your file...');
+      this.onProgress(10);
+
+      // mp3: client-side audio transcoding via mediabunny
+      if (finalFormatExtension === 'mp3') {
+        const { extractAudio } = await import('../lib/download.service');
+        const info = useRemixStore.getState().videoData;
+        if (!info) throw new Error('No media info loaded');
+        const controller = new AbortController();
+        if (this.muxController) this.muxController.abort();
+        this.muxController = controller;
+        const { blob } = await extractAudio({
+          info,
+          proxyBase: backendUrl,
+          abortSignal: controller.signal,
+          onProgress: (pct) => {
+            this.onProgress(pct);
+            this.onSubStatus(`Creating MP3 (${pct}%)...`);
+          },
         });
-
-      if (wasTriggered) {
-        setTimeout(() => this.onComplete(), 500);
+        await streamBlobToDisk(blob, fileName, 'audio/mpeg');
       } else {
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        // mp4/m4a/etc: stream from already-resolved format URLs
+        const { resolveStreamUrls } = await import('../lib/previewStream');
+        const { directUrl, videoUrl, audioUrl } = await resolveStreamUrls(
+          backendUrl,
+          cleanUrl,
+          String(finalFormatId),
+          serverClientId,
+          true,
+          audioLang
+        );
 
-        const syncInterval = setInterval(() => {
-          if (document.cookie.includes(`download_token=${serverClientId}`)) {
-            clearInterval(syncInterval);
-            this.onProgress(100);
-            this.onSubStatus('Successfully Sent to Device');
-            this.onComplete();
-            document.cookie = `download_token=${serverClientId}; Max-Age=0; Path=/`;
-          }
-        }, 150);
-
-        setTimeout(() => clearInterval(syncInterval), 20000);
+        if (directUrl) {
+          await streamToDisk(
+            directUrl,
+            fileName,
+            finalFormatExtension === 'mp4' ? 'video/mp4' : 'audio/mp4',
+            new AbortController().signal
+          );
+          this.onProgress(100);
+        } else if (videoUrl && audioUrl) {
+          const blob = await fetch(videoUrl).then((resp) => resp.blob());
+          await streamBlobToDisk(blob, fileName, 'video/mp4');
+        } else {
+          throw new Error('No downloadable stream found');
+        }
       }
-      await Promise.resolve();
+
+      this.onProgress(100);
+      this.onSubStatus('Successfully Sent to Device');
+      this.onComplete();
     } catch (err: unknown) {
       const error = err as Error;
       this.onError(error.message);
     }
   }
-
   async startEdgeMuxing(params: {
     url: string;
     clientId: string;

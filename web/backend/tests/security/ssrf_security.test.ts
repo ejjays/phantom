@@ -1,3 +1,4 @@
+/* eslint-disable sonarjs/no-hardcoded-ip */
 import { it, describe, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   resolveAndValidateHost,

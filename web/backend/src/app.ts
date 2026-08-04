@@ -1,9 +1,7 @@
 import './instrument.js';
 import 'dotenv/config';
 import dns from 'node:dns';
-import { startCipherRotation } from './utils/network/cipher.util.js';
 
-startCipherRotation();
 import express, { Request, Response, NextFunction } from 'express';
 import compression from 'compression';
 import helmet from 'helmet';
@@ -15,7 +13,6 @@ import { fileURLToPath } from 'node:url';
 import { traceContext } from './utils/infra/trace.util.js';
 import { randomUUID } from 'node:crypto';
 import db from './utils/infra/db.util.js';
-import videoRoutes from './routes/video.routes.js';
 import keyChangerRoutes from './routes/keychanger.routes.js';
 import remixRoutes from './routes/remix.routes.js';
 import {
@@ -28,7 +25,6 @@ import { setupGracefulShutdown } from './utils/infra/shutdown.util.js';
 import { configureServerTimeouts } from './utils/infra/server-timeouts.util.js';
 import { closeAllRedis } from './utils/infra/redis.util.js';
 import { startJanitor } from './utils/infra/janitor.util.js';
-import { warmUp } from './utils/infra/warmup.util.js';
 import {
   metricsMiddleware,
   getMetrics,
@@ -87,9 +83,7 @@ if (process.platform === 'android') {
     logger.info('[System] Mocked native modules for Termux compatibility');
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.warn(
-      `[System] Failed to mock @ffmpeg-installer/ffmpeg: ${message}`
-    );
+    logger.warn(`[System] Failed to mock @ffmpeg-installer/ffmpeg: ${message}`);
   }
 }
 
@@ -261,29 +255,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 logger.info('--- Environment Check ---');
 logger.info(`PORT: ${PORT}`);
 logger.info(
-  `COOKIES_URL: ${process.env.COOKIES_URL ? '✅ LOADED' : '❌ MISSING'}`
-);
-logger.info(
   `GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
 );
 logger.info(
   `GROQ_API_KEY: ${process.env.GROQ_API_KEY ? '✅ LOADED' : '❌ MISSING'}`
 );
 logger.info(
-  `BILIBILI_COOKIE: ${process.env.BILIBILI_COOKIE ? '✅ LOADED' : '➖ not set (720p cap)'}`
-);
-logger.info(
   `INFO CACHE: ${process.env.DISABLE_INFO_CACHE && process.env.DISABLE_INFO_CACHE !== '0' ? '🚫 DISABLED (testing)' : '✅ ENABLED'}`
 );
 
-dns.lookup('google.com', { family: 4 }, (err, addr) => {
-  const status = err ? '❌ FAILED' : `✅ ${addr}`;
-  logger.info(`DNS google.com: ${status}`);
-});
-dns.lookup('youtube.com', { family: 4 }, (err, addr) => {
-  const status = err ? '❌ FAILED' : `✅ ${addr}`;
-  logger.info(`DNS youtube.com: ${status}`);
-});
 logger.info('-------------------------');
 
 app.use((_req: Request, res: Response, next: NextFunction) => {
@@ -297,9 +277,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
 const TEMP_DIR = path.join(__dirname, 'temp');
-const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
-
-[TEMP_DIR, CACHE_DIR].forEach((dir) => {
+[TEMP_DIR].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -310,37 +288,8 @@ app.get('/ping', (_req: Request, res: Response) => {
   res.status(200).send('pong');
 });
 
-app.get('/api/get-url', async (_req: Request, res: Response) => {
-  try {
-    if (db) {
-      const result = (await db.execute({
-        sql: "SELECT value FROM configs WHERE key = 'BACKEND_URL' LIMIT 1",
-        args: [],
-      })) as unknown as { rows: Array<{ value: string }> };
-      if (result.rows.length > 0) {
-        res.json({ url: result.rows[0].value });
-        return;
-      }
-    }
-  } catch (error) {
-    logger.error('[Discovery] Error fetching URL:', error);
-  }
-  res.json({ url: null });
-});
-
 // opt-in auth; gated: localhost or API_KEY only
-app.use(
-  [
-    '/info',
-    '/stream-urls',
-    '/convert',
-    '/proxy',
-    '/api/remix',
-    '/api/key-changer',
-  ],
-  requireApiKey
-);
-app.use('/', videoRoutes);
+app.use(['/api/remix', '/api/key-changer'], requireApiKey);
 app.use('/api/key-changer', keyChangerRoutes);
 app.use('/api/remix', remixRoutes);
 logger.info('[System] Routes ready');
@@ -414,66 +363,6 @@ if (process.env.NODE_ENV !== 'test') {
     configureServerTimeouts(server);
 
     setupGracefulShutdown(server, { onClose: closeAllRedis });
-
-    import('./services/ytdlp/info.js').then(({ startPeerKeepWarm }) =>
-      startPeerKeepWarm()
-    );
-
-    import('./services/ytdlp/config.js').then(({ bootstrapCookies }) =>
-      bootstrapCookies()
-    );
-
-    import('node:child_process').then(({ exec, spawn: spawnChild }) => {
-      exec('yt-dlp --version', (err, stdout) => {
-        if (err) logger.error(`yt-dlp check failed: ${err.message}`);
-        else logger.info(`yt-dlp: ${stdout.trim()}`);
-      });
-
-      exec('ffmpeg -version', (err, stdout) => {
-        if (err) logger.error(`FFmpeg check failed: ${err.message}`);
-        else logger.info(`FFmpeg: ${stdout.split('\n')[0]}`);
-      });
-
-      // pot opt-in; bgutil currently fails botguard
-      const potEnabled = process.env.ENABLE_POT_PLUGIN === '1';
-      if (!potEnabled) {
-        logger.info('[PO Token] disabled; set ENABLE_POT_PLUGIN=1 to enable');
-      } else {
-        const potCandidates = [
-          process.env.HOME
-            ? path.resolve(
-                process.env.HOME,
-                'bgutil-ytdlp-pot-provider/server/build/main.js'
-              )
-            : null,
-          '/root/bgutil-ytdlp-pot-provider/server/build/main.js',
-          '/data/data/com.termux/files/home/bgutil-ytdlp-pot-provider/server/build/main.js',
-        ].filter((candidate): candidate is string => Boolean(candidate));
-        try {
-          const potScript = potCandidates.find((candidate) =>
-            fs.existsSync(candidate)
-          );
-          if (potScript) {
-            const pot = spawnChild('node', [potScript], {
-              stdio: 'ignore',
-              detached: true,
-            });
-            pot.unref();
-            logger.info(
-              `PO Token server started (pid: ${pot.pid}, port: 4416)`
-            );
-          } else {
-            logger.info(
-              `[PO Token] Server script not found in: ${potCandidates.join(', ')}`
-            );
-          }
-        } catch (error: unknown) {
-          logger.error('[PO Token] Spawn failed:', (error as Error).message);
-        }
-      }
-    });
-
-    warmUp();
 
     // log memory levers for resource tuning
     setTimeout(() => {

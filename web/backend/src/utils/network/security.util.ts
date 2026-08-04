@@ -1,15 +1,9 @@
 import path from 'node:path';
-import { logger } from '../infra/logger.util.js';
-import os from 'node:os';
 import { lookup } from 'node:dns/promises';
 import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { isIP } from 'node:net';
-import { randomUUID } from 'node:crypto';
 import { URL } from 'node:url';
 import { fetch as undiciFetch, Agent } from 'undici';
-import { createRedisClient } from '../infra/redis.util.js';
-
-const redis = createRedisClient('security');
 
 const PRIVATE_IP_RANGES = [
   /^127\./, // localhost
@@ -122,119 +116,6 @@ export async function secureFetch(
   return response as unknown as globalThis.Response;
 }
 
-export async function acquireLock(ip: string, limit = 2): Promise<boolean> {
-  const key = `lock:concurrency:${ip}`;
-  const current = await redis.incr(key);
-
-  if (current === 1) {
-    await redis.expire(key, 1800);
-  }
-
-  if (current > limit) {
-    await redis.decr(key);
-    return false;
-  }
-  return true;
-}
-
-export async function releaseLock(ip: string): Promise<void> {
-  const key = `lock:concurrency:${ip}`;
-  await redis.decr(key);
-  const val = await redis.get(key);
-  if (val && parseInt(val, 10) <= 0) {
-    await redis.del(key);
-  }
-}
-
-import { Request, Response, NextFunction } from 'express';
-import { sendEvent } from './sse.util.js';
-
-const MEDIA_ACTIVE_KEY = 'media:active';
-// stale slots self-heal after this
-const MEDIA_SLOT_TTL_MS = Number(process.env.MEDIA_SLOT_TTL_MS) || 1800000;
-
-interface MediaGuardOptions {
-  limit?: number;
-  key?: string;
-}
-
-// cap heavy media jobs across instances
-export const globalMediaGuard = (options: number | MediaGuardOptions = {}) => {
-  const opts = typeof options === 'number' ? { limit: options } : options;
-  // fallback to 4 if cpus undefined
-  const limit =
-    opts.limit ??
-    (Number(process.env.MAX_CONCURRENT_MEDIA) || os.cpus().length || 4);
-  const key = opts.key ?? MEDIA_ACTIVE_KEY;
-  return async (_req: Request, res: Response, next: NextFunction) => {
-    const jobId = randomUUID();
-    const now = Date.now();
-    try {
-      await redis.zremrangebyscore(key, 0, now - MEDIA_SLOT_TTL_MS);
-      await redis.zadd(key, now, jobId);
-      const active = await redis.zcard(key);
-      if (active > limit) {
-        await redis.zrem(key, jobId);
-        res.status(503).json({ error: 'Server busy, please retry shortly.' });
-        return;
-      }
-    } catch (error: unknown) {
-      // redis down; fail open
-      logger.warn('[MediaGuard] redis unavailable:', (error as Error).message);
-      next();
-      return;
-    }
-
-    let released = false;
-    const release = () => {
-      if (released) return;
-      released = true;
-      redis.zrem(key, jobId).catch(() => {});
-    };
-    res.on('finish', release);
-    res.on('close', release);
-    next();
-  };
-};
-
-export const concurrencyGuard = (limit = 2) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const clientIp = req.ip || 'unknown';
-    const clientId = (req.query?.id || req.body?.id) as string | undefined;
-
-    const hasLock = await acquireLock(clientIp, limit);
-    if (!hasLock) {
-      if (clientId) {
-        sendEvent(clientId, {
-          status: 'error',
-          message: 'Too many active operations. Please wait for one to finish.',
-        });
-      }
-      res.status(429).json({ error: 'Concurrency limit reached.' });
-      return;
-    }
-
-    let released = false;
-    const cleanup = () => {
-      if (!released) {
-        released = true;
-        releaseLock(clientIp).catch((error) =>
-          logger.error(
-            '[Security] Lock release error:',
-            (error as Error).message
-          )
-        );
-      }
-    };
-
-    res.on('finish', cleanup);
-    res.on('close', cleanup);
-
-    next();
-  };
-};
-
-// reject path traversal outside base
 export function resolveWithin(
   base: string,
   ...segments: string[]

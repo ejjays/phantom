@@ -1,11 +1,6 @@
-declare module 'spotify-url-info';
 declare module 'wav-decoder';
 declare module 'node-shazam';
 declare module 'ultimate-guitar';
 declare module 'fpcalc';
 declare module 'essentia.js';
-declare module 'jiti';
-declare module 'sucrase';
 declare module 'node:vm';
-declare module 'better-sse';
-declare module 'jsdom';

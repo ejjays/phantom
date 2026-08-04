@@ -91,7 +91,11 @@ const App = () => {
         'pathname:',
         location.pathname
       );
-      if (!backendUrl || !clientId) {
+      if (
+        !backendUrl ||
+        !clientId ||
+        !location.pathname.includes('/tools/remix-lab')
+      ) {
         console.log(
           '[App] SSE effect bailed — waiting for backendUrl + clientId'
         );

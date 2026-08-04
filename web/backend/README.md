@@ -1,6 +1,6 @@
 # Backend
 
-the Express 5 + TypeScript service that powers stream resolution, muxing, the Spotify resolution race, and the Remix Lab API. for the project overview see [`../../README.md`](../../README.md). for self-hosting see [`../../docs/run-an-instance.md`](../../docs/run-an-instance.md).
+the Express 5 + TypeScript service backing the **Remix Lab** and **Song Key Changer** tools. stream resolution, muxing, and media extraction moved client-side (see `web/frontend/src/lib/extractors`) — this backend no longer touches video pipelines. project overview in [`../../README.md`](../../README.md).
 
 ## Layout
 
@@ -10,60 +10,39 @@ backend/
 │   ├── app.ts              # Express setup, middleware, route wiring, lifecycle
 │   ├── instrument.ts       # Sentry instrumentation — must load before app.ts
 │   ├── controllers/
-│   │   ├── video.controller.ts       # /info, /convert, /stream-urls handlers
-│   │   └── keychanger.controller.ts  # pitch-shift / key-change uploads
+│   │   ├── remix.controller.ts      # Remix Lab kernel proxy + stems/chords/beats
+│   │   └── keychanger.controller.ts # pitch-shift / key-change uploads
 │   ├── routes/
-│   │   ├── video.routes.ts           # core video / stream endpoints
-│   │   ├── remix.routes.ts           # Remix Lab kernel proxy + results
-│   │   └── keychanger.routes.ts      # key-changer route
+│   │   ├── remix.routes.ts          # Remix Lab kernel proxy + results
+│   │   └── keychanger.routes.ts     # key-changer route
 │   ├── services/
-│   │   ├── spotify/        # ISRC race, Turso registry, AI query synthesis
-│   │   ├── ytdlp/          # yt-dlp integration: streamer, info, turbo-mux, config
-│   │   ├── extractors/     # pure-JS extractors (YouTube/FB/IG/TikTok/SoundCloud)
-│   │   ├── extract.service.ts        # generic metadata extractor
-│   │   ├── seeder.service.ts         # background catalog seeder
-│   │   ├── social.service.ts         # metascraper-based social-link metadata
-│   │   ├── ug-grounding.service.ts   # Ultimate Guitar tab lookup
-│   │   ├── spotify.service.ts        # Spotify facade
-│   │   └── ytdlp.service.ts          # yt-dlp facade
+│   │   ├── extract.service.ts       # audio fingerprint + metadata extraction
+│   │   ├── ug-grounding.service.ts  # Ultimate Guitar tab lookup
+│   │   └── sessionStore.ts          # remix engine session registry
 │   ├── utils/
-│   │   ├── api/            # controller, response helpers
-│   │   ├── infra/          # db (Turso), logger, queue, redis, trace
-│   │   ├── media/          # format, fsm, metadata, spotify, stream, video
-│   │   └── network/        # auth, cipher, cookie, proxy, secrets, security, sse, validation
-│   └── types/              # shared TS types
-├── tests/                  # Vitest suites + e2e helpers
-├── scripts/                # test orchestration, benchmarks, Termux shim
+│   │   ├── infra/          # db (Turso), logger, redis, trace, metrics
+│   │   └── network/        # auth, security (SSRF guard)
+│   └── types/              # ambient module declarations
+├── tests/                  # Vitest suites (remix, keychanger, auth)
+├── scripts/                # test orchestration, Termux shim
 └── Dockerfile              # container build (node:22-slim base)
 ```
 
 ## Routes
 
-`video.routes.ts`:
+`remix.routes.ts` proxies the Python Remix Lab kernel and serves stem/chord/beat results. `keychanger.routes.ts` handles pitch-shift uploads. Both are gated by `requireApiKey` (`utils/network/auth.util.ts`) on public instances.
 
-| Method | Path                 | Purpose                                 |
-| ------ | -------------------- | --------------------------------------- |
-| `GET`  | `/events`            | SSE telemetry stream.                   |
-| `GET`  | `/info`              | resolve a URL → metadata + format list. |
-| `GET`  | `/stream-urls`       | refresh CDN URLs for a known video.     |
-| `POST` | `/telemetry`         | frontend → backend telemetry ingest.    |
-| `ALL`  | `/convert`           | stream / download a chosen format.      |
-| `GET`  | `/proxy`             | authenticated stream proxy.             |
-| `GET`  | `/seed-intelligence` | trigger the background catalog seeder.  |
-
-`remix.routes.ts` proxies the Python Remix Lab kernel and serves stem/chord/beat results. `keychanger.routes.ts` handles pitch-shift uploads. `/convert` and `/proxy` are gated by `concurrencyGuard(2)` (`utils/network/security.util.ts`) to keep memory bounded on Termux and free-tier hosts.
-
-response shapes for `/info` and `/convert` are documented in [`../../docs/api.md`](../../docs/api.md).
+| Method | Path                 | Purpose                                                                 |
+| ------ | -------------------- | ----------------------------------------------------------------------- |
+| `POST` | `/api/remix/*`       | Remix Lab: register engine, process, wake, save, history, stems, export |
+| `GET`  | `/api/key-changer/*` | Key changer: upload → detect → download                                 |
 
 ## Environment
 
-configure via `web/backend/.env`. the full reference is in [`../../docs/env-variables.md`](../../docs/env-variables.md). the backend boots without most of these — they enable optional features and degrade gracefully when unset. minimum to get something useful:
+configure via `web/backend/.env`. full reference in [`../../docs/env-variables.md`](../../docs/env-variables.md). minimum to get something useful:
 
-- `REDIS_URL` — Redis for the metadata cache and BullMQ job queue (defaults to `redis://127.0.0.1:6379`).
-- `GEMINI_API_KEY` and/or `GROQ_API_KEY` — at least one for the AI fallback in Spotify resolution.
-- `SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET` — Spotify Web API for ISRC and metadata.
-- `TURSO_URL` + `TURSO_AUTH_TOKEN` — global edge registry. unset is fine for local dev (falls back to an in-memory mock).
-- `COOKIES_URL` — remote `yt-dlp` cookie sync. improves YouTube reliability.
+- `GEMINI_API_KEY` and/or `GROQ_API_KEY` — AI query synthesis fallback in metadata extraction.
+- `TURSO_URL` + `TURSO_AUTH_TOKEN` — persistent engine/session state (falls back to in-memory).
 - `API_ONLY=true` — disable serving the bundled `frontend/dist` (split deployments).
 
 ## Running
@@ -76,25 +55,13 @@ npm run dev          # tsc + node, listens on :5000 (or $PORT)
 other scripts:
 
 - `npm run build` — TypeScript compile to `dist/`.
-- `npm test` — full Vitest suite (sequential, Termux-friendly).
-- `npm run test:fast` — core regression tests only.
-- `npm run test:lite` — node `--test` lite suite (no transpile).
-- `npm run lint` — ESLint on changed files (`npm run lint:all` for the whole package).
-- `npm run bench:convert` — convert-pipeline benchmark.
+- `npm test` — Vitest suite (sequential, Termux-friendly).
+- `npm run lint:all` — ESLint over the package.
 
 ## Requirements
 
 - Node.js ≥ 22 — matches the Dockerfile and the project root.
-- `yt-dlp` and `ffmpeg` on `PATH`. `yt-dlp` is the fallback for sources without a native extractor; `ffmpeg` 7.x or 8.x handles muxing and audio transcoding.
-- Redis. an in-process mock is used in tests when none is reachable.
-
-## Notes
-
-- **YouTube player clients**: `services/ytdlp/turbo-mux.ts` passes `--extractor-args youtube:player-client=...` to obtain DASH manifests and bypass the 360p limit on the default web client. the client list is chosen per request based on the requested format.
-- **Concurrency**: `concurrencyGuard(limit)` (`utils/network/security.util.ts`) caps in-flight downloads at `limit=2` per process to prevent OOM on small hosts.
-- **Cookie sync**: `utils/network/cookie.util.ts` pulls `youtube_cookies.txt` and `facebook_cookies.txt` from `COOKIES_URL` at boot when the variable is set.
-- **MP3 transcoding**: `services/ytdlp/streamer.ts` pipes raw audio through `ffmpeg -vn -ab 192k -f mp3 pipe:1` straight to the client — no temp files.
-- **MP4 finalization**: `-movflags +faststart` is set on finalized MP4 downloads so playback can start before the file finishes.
-- **SSE**: `/events` is the canonical telemetry channel. resolvers, downloaders, and the seeder push progress through `utils/network/sse.util.ts`.
+- `ffmpeg` 7.x or 8.x on `PATH` — key changer audio processing.
+- Redis — locks + session state; an in-process mock is used in tests when none is reachable.
 
 before putting an instance on the public internet, read [`../../docs/protect-an-instance.md`](../../docs/protect-an-instance.md).

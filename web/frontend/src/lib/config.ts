@@ -38,3 +38,6 @@ export const getDynamicBackendUrl = async () => {
   }
   return BACKEND_URL;
 };
+
+// same-origin CORS proxy base (Pages Function)
+export const PROXY_BASE = window.location.origin;

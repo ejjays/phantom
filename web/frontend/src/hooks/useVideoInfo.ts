@@ -3,6 +3,8 @@ import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from '../lib/config';
 import { VideoInfo, FinalResponse } from '@shared/schemas/media.schema.js';
 import { filterUnsupportedCodecs } from '../lib/codec-support';
+import { resolve, initializeResolver } from '../lib/extractors';
+import { PROXY_BASE } from '../lib/config';
 
 // sanitize video metadata
 function _mapVideoMetadata(data: VideoInfo, backendUrl: string): VideoInfo {
@@ -48,6 +50,7 @@ const _handleFetchError = async (response: Response) => {
 export const useVideoInfo = () => {
   const backendUrl = useRemixStore((state) => state.backendUrl) || BACKEND_URL;
   const clientId = useRemixStore((state) => state.clientId);
+  initializeResolver(PROXY_BASE);
   const url = useRemixStore((state) => state.url);
   const setVideoData = useRemixStore((state) => state.setVideoData);
   const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
@@ -128,22 +131,40 @@ export const useVideoInfo = () => {
       setDesktopLogs(['[0:00] Initializing Phantom Core Engine...']);
 
       try {
-        const response = await fetch(
-          `${backendUrl}/info?url=${encodeURIComponent(cleanedUrl)}&id=${clientId}`,
-          {
-            headers: {
-              'ngrok-skip-browser-warning': 'true',
-              'bypass-tunnel-reminder': 'true',
-            },
+        const onPartial = (partial: Partial<VideoInfo>) => {
+          setVideoData((prev: VideoInfo | null) => {
+            const prevFormats = Array.isArray(prev?.formats)
+              ? (prev?.formats ?? [])
+              : [];
+            const prevAudio = Array.isArray(prev?.audioFormats)
+              ? (prev?.audioFormats ?? [])
+              : [];
+            return {
+              ...(prev || ({} as VideoInfo)),
+              ...partial,
+              formats: partial.formats || prevFormats,
+              audioFormats: partial.audioFormats || prevAudio,
+              isPartial:
+                partial.isPartial !== undefined
+                  ? partial.isPartial
+                  : (prev?.isPartial ?? false),
+              webpageUrl: partial.webpageUrl || cleanedUrl,
+              extractorKey: partial.extractorKey || prev?.extractorKey,
+            } as VideoInfo;
+          });
+          if (partial.title && partial.id) {
+            setIsPickerOpen(true);
           }
-        );
+        };
 
-        if (!response.ok) {
-          await _handleFetchError(response);
+        const resolved = await resolve(cleanedUrl, onPartial);
+        if (!resolved) {
+          throw new Error(
+            'Unsupported URL - only YouTube and Spotify are supported in the browser'
+          );
         }
 
-        const data = (await response.json()) as VideoInfo;
-        const updatedData = _mapVideoMetadata(data, backendUrl);
+        const updatedData = _mapVideoMetadata(resolved, backendUrl);
 
         setVideoData((prev: VideoInfo | null) => {
           const newFormats = Array.isArray(updatedData.formats)
@@ -158,23 +179,13 @@ export const useVideoInfo = () => {
           const prevAudioFormats = Array.isArray(prev?.audioFormats)
             ? (prev?.audioFormats ?? [])
             : [];
-
-          /**
-           * Keep whichever format list is fuller. The yt-dlp enhancement SSE
-           * event can arrive with the comprehensive list (e.g. 16 entries
-           * covering 4K -> 144p) before the second /info HTTP response lands
-           * with Innertube's limited subset; without this, the lean HTTP
-           * response would clobber the rich SSE payload.
-           */
           const finalFormats =
             newFormats.length >= prevFormats.length ? newFormats : prevFormats;
           const finalAudioFormats =
             newAudioFormats.length >= prevAudioFormats.length
               ? newAudioFormats
               : prevAudioFormats;
-
           const hasFormats = finalFormats.length > 0;
-
           return {
             ...prev,
             ...updatedData,
@@ -191,63 +202,8 @@ export const useVideoInfo = () => {
           } as VideoInfo;
         });
 
-        if (finalUrl.toLowerCase().includes('spotify.com')) {
-          _handleSpotifyPlayer(updatedData, finalUrl, data);
-        }
-
-        // open immediately
         if (updatedData.title && updatedData.title !== 'Unknown') {
           setIsPickerOpen(true);
-        }
-
-        // fallback hydration
-        if (updatedData.isPartial) {
-          fetch(
-            `${backendUrl}/info?url=${encodeURIComponent(cleanedUrl)}&id=${clientId}`,
-            {
-              headers: {
-                'ngrok-skip-browser-warning': 'true',
-                'bypass-tunnel-reminder': 'true',
-              },
-            }
-          )
-            .then((res) => res.json())
-            .then((hydrationData: VideoInfo) => {
-              if (hydrationData.formats && hydrationData.formats.length > 0) {
-                setVideoData((prev: VideoInfo | null) => {
-                  const hydrated = _mapVideoMetadata(hydrationData, backendUrl);
-                  const newFormats = hydrated.formats || [];
-                  const newAudioFormats = hydrated.audioFormats || [];
-                  const prevFormats = prev?.formats || [];
-                  const prevAudioFormats = prev?.audioFormats || [];
-
-                  /**
-                   * Keep the fuller list. By the time this hydration call
-                   * returns, the SSE channel may already have pushed the
-                   * comprehensive yt-dlp format set.
-                   */
-                  const finalFormats =
-                    newFormats.length >= prevFormats.length
-                      ? newFormats
-                      : prevFormats;
-                  const finalAudioFormats =
-                    newAudioFormats.length >= prevAudioFormats.length
-                      ? newAudioFormats
-                      : prevAudioFormats;
-
-                  return {
-                    ...prev,
-                    ...hydrated,
-                    formats: filterUnsupportedCodecs(finalFormats),
-                    audioFormats: finalAudioFormats,
-                    isPartial: false,
-                  } as VideoInfo;
-                });
-              }
-            })
-            .catch(() => {
-              /* silent fallback */
-            });
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : String(err));

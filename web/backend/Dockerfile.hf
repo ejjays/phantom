@@ -13,11 +13,10 @@ RUN set -ex; \
     python3 python3-pip python3-full ffmpeg curl unzip; \
     rm -rf /var/lib/apt/lists/*
 
-# yt-dlp toolchain in a world-readable venv
+# kaggle CLI for remix engine wake in a world-readable venv
 RUN python3 -m venv /opt/tool-venv \
     && /opt/tool-venv/bin/pip install --no-cache-dir --upgrade pip \
-    && /opt/tool-venv/bin/pip install --no-cache-dir --upgrade --pre \
-    yt-dlp kaggle yt-dlp-getpot-wpc
+    && /opt/tool-venv/bin/pip install --no-cache-dir --upgrade kaggle
 
 # reuse node user (uid 1000) hf expects
 RUN mkdir -p /home/node/app && chown node:node /home/node/app

@@ -32,6 +32,8 @@
     "react-router-dom": "^7.13.0",
     "styled-components": "^6.3.3",
     "tailwind-merge": "^3.4.0",
+    "youtubei.js": "^17.2.0",
+    "bgutils-js": "^3.2.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
