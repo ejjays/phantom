@@ -23,7 +23,7 @@
   },
   "keywords": [],
   "author": "ejjays",
-  "license": "AGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "type": "module",
   "dependencies": {
     "@google/genai": "^1.35.0",

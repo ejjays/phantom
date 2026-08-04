@@ -1,6 +1,7 @@
 {
   "name": "phantom-android",
   "version": "1.1.0",
+  "license": "Apache-2.0",
   "main": "index.ts",
   "scripts": {
     "start": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" npx expo start --dev-client",

@@ -133,7 +133,7 @@ function SupportCardContent({
         }
         bottomLeft={
           <Text style={[tw`font-sans text-[10px] text-white/50`, textOutline]}>
-            Licensed under AGPLv3
+            Licensed under Apache-2.0
           </Text>
         }
       >

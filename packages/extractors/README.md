@@ -98,4 +98,4 @@ Vimeo's CDN.
 - no `getStream` proxy hardening (SSRF checks) in `defaultEnv` — intentional,
   keeps the lib dependency-free, but means server-side consumers should
   inject their own `streamUrl`.
-- MIT — repo root is AGPL-3.0, but this package is permissively licensed so any project can adopt it; see root README.
+- MIT — repo root is Apache-2.0, but this package is permissively licensed so any project can adopt it; see root README.

@@ -376,7 +376,7 @@ const ArchitectureDeepDive = () => {
                   rel="noopener noreferrer"
                   className="text-cyan-400 hover:underline"
                 >
-                  AGPL-3.0
+                  Apache-2.0
                 </a>{' '}
                 — you&apos;re free to read, run, and modify the full source.
               </p>

@@ -2,6 +2,7 @@
   "name": "@phantom/shared",
   "version": "1.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "dependencies": {
     "zod": "^4.4.3"

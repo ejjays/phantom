@@ -65,4 +65,4 @@ node run.mjs
 - `mediabunny` is a real dependency, not optional — there's no "plain fetch" equivalent for WebCodecs muxing, so this isn't zero-dep like the extractors package.
 - OPFS + `createSyncAccessHandle` are worker-only APIs — the main-thread fallback is there for compatibility, not performance, and will struggle on very large files.
 - only remuxes copy-safe codecs; vp8/vorbis sources need a real transcode, which is out of scope here.
-- license: **MIT** (deliberate) — repo root is AGPL-3.0, but this package is permissively licensed so any project can adopt it; see root README.
+- license: **MIT** (deliberate) — repo root is Apache-2.0, but this package is permissively licensed so any project can adopt it; see root README.
