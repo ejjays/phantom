@@ -216,10 +216,12 @@ function SettingsSupport({
 function SettingsBody({
   isWide,
   support,
+  note,
   children,
 }: {
   isWide: boolean;
   support: ReactNode;
+  note?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -227,6 +229,7 @@ function SettingsBody({
       <Text style={tw`font-sans-bold text-[32px] tracking-tight text-white`}>
         Settings
       </Text>
+      {note}
       <View
         style={isWide ? [tw`flex-row items-start`, { gap: 72 }] : tw`w-full`}
       >
@@ -843,6 +846,17 @@ function SettingsScreen({
       >
         <SettingsBody
           isWide={isWide}
+          note={
+            isSupabaseConfigured && authReady && !account ? (
+              <View style={tw`mx-[-20px] mt-3 bg-cyan-500 px-5 py-2`}>
+                <Text style={tw`font-sans text-[13px] leading-5 text-white`}>
+                  <Text style={tw`font-sans-bold`}>Note: </Text>
+                  Sign-in is only for reactions and comments in Updates tab —
+                  it&apos;s not used in the actual downloads.
+                </Text>
+              </View>
+            ) : null
+          }
           support={
             <SettingsSupport
               isWide={isWide}
@@ -878,15 +892,6 @@ function SettingsScreen({
               {authError ? (
                 <Text style={tw`ml-1 mt-2 font-sans text-[12px] text-red-400`}>
                   {authError}
-                </Text>
-              ) : null}
-              {!account ? (
-                <Text
-                  style={tw`ml-1 mt-2 font-sans text-[12px] leading-5 text-slate-500`}
-                >
-                  <Text style={tw`font-sans-bold text-cyan-400`}>Note: </Text>
-                  Sign-in is only for reactions and comments in Updates tab —
-                  it&apos;s not used in the actual downloads.
                 </Text>
               ) : null}
             </>

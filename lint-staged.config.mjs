@@ -16,6 +16,7 @@ export default (files) => {
       .filter((file) => isCode(file) && file.startsWith(dir + path.sep));
     if (!picked.length) return [];
     const rel = picked.map((file) => path.relative(dir, file)).join(' ');
-    return `bash -c 'cd ${workspace} && npx --no-install eslint --no-warn-ignored ${rel}'`;
+    const eslint = path.join(root, 'node_modules/eslint/bin/eslint.js');
+    return `bash -c 'cd ${workspace} && node ${eslint} --no-warn-ignored ${rel}'`;
   });
 };

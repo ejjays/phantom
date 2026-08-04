@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { memo, useEffect } from 'react';
 import { Pressable, type GestureResponderEvent } from 'react-native';
 import {
   Canvas,
@@ -28,6 +28,15 @@ const SMILE_DELAY = 2000;
 const IDLE_OPEN_MS = 10000;
 const IDLE_CLOSE_MS = 1000;
 const MOUTH_EASE = Easing.inOut(Easing.ease);
+const GAZE_DOWN = 16;
+const GAZE_X = 15;
+const GAZE_START_DELAY_MS = 500;
+const GAZE_MOVE_MS = 500;
+const GAZE_HOLD_MS = 1600;
+const GAZE_UP_MS = 500;
+const GAZE_SWEEP_HOLD_MS = 300;
+const GAZE_SWEEP_MOVE_MS = 900;
+const GAZE_INNER = 0.3;
 
 const NEUTRAL_MOUTH = [
   187, 218, 195.67, 222.67, 204.33, 222.67, 213, 218, 204.33, 218.67, 195.67,
@@ -60,10 +69,14 @@ const SWEAT_PATH =
 const SWEAT_HIGHLIGHT =
   'M14,26c-3.3086,0-6-2.6914-6-6c0-0.5527,0.4478-1,1-1s1,0.4473,1,1c0,2.2061,1.7944,4,4,4c0.5522,0,1,0.4473,1,1S14.5522,26,14,26z';
 
-export default function PhantomHero({
+export default memo(function PhantomHero({
   amazeSignal = 0,
+  focusSignal = 0,
+  onQuip,
 }: {
   amazeSignal?: number;
+  focusSignal?: number;
+  onQuip?: () => void;
 }) {
   const floatY = useSharedValue(0);
   const shadowScale = useSharedValue(1);
@@ -77,6 +90,8 @@ export default function PhantomHero({
   const giggle = useSharedValue(0.85);
   const sweatAnim = useSharedValue(0);
   const amaze = useSharedValue(0);
+  const gazeX = useSharedValue(0);
+  const gazeY = useSharedValue(0);
 
   useEffect(() => {
     if (amazeSignal === 0) return;
@@ -86,6 +101,69 @@ export default function PhantomHero({
       withTiming(0, { duration: 1000, easing: Easing.inOut(Easing.ease) })
     );
   }, [amazeSignal, amaze]);
+
+  useEffect(() => {
+    if (focusSignal === 0) return;
+    const cycle = focusSignal % 3;
+    if (cycle === 0) return;
+    if (cycle === 2) {
+      const hold = withDelay(
+        GAZE_SWEEP_HOLD_MS,
+        withTiming(1, { duration: 0 })
+      );
+      gazeX.value = withSequence(
+        withDelay(
+          GAZE_START_DELAY_MS,
+          withTiming(1, {
+            duration: GAZE_MOVE_MS,
+            easing: Easing.out(Easing.cubic),
+          })
+        ),
+        hold,
+        withTiming(-1, {
+          duration: GAZE_SWEEP_MOVE_MS,
+          easing: Easing.inOut(Easing.cubic),
+        }),
+        withDelay(GAZE_SWEEP_HOLD_MS, withTiming(-1, { duration: 0 })),
+        withTiming(0, {
+          duration: GAZE_MOVE_MS,
+          easing: Easing.inOut(Easing.cubic),
+        })
+      );
+      gazeY.value = withSequence(
+        withDelay(
+          GAZE_START_DELAY_MS,
+          withTiming(1, {
+            duration: GAZE_MOVE_MS,
+            easing: Easing.out(Easing.cubic),
+          })
+        ),
+        withDelay(GAZE_SWEEP_HOLD_MS, withTiming(1, { duration: 0 })),
+        withDelay(GAZE_SWEEP_MOVE_MS, withTiming(1, { duration: 0 })),
+        withDelay(GAZE_SWEEP_HOLD_MS, withTiming(1, { duration: 0 })),
+        withTiming(0, {
+          duration: GAZE_MOVE_MS,
+          easing: Easing.inOut(Easing.cubic),
+        })
+      );
+      return;
+    }
+    gazeX.value = 0;
+    gazeY.value = withSequence(
+      withDelay(
+        GAZE_START_DELAY_MS,
+        withTiming(1, {
+          duration: GAZE_MOVE_MS,
+          easing: Easing.out(Easing.cubic),
+        })
+      ),
+      withDelay(GAZE_HOLD_MS, withTiming(1, { duration: 0 })),
+      withTiming(0, {
+        duration: GAZE_UP_MS,
+        easing: Easing.inOut(Easing.cubic),
+      })
+    );
+  }, [focusSignal, gazeX, gazeY]);
 
   useEffect(() => {
     const ease = Easing.inOut(Easing.ease);
@@ -138,6 +216,8 @@ export default function PhantomHero({
       cancelAnimation(giggle);
       cancelAnimation(sweatAnim);
       cancelAnimation(amaze);
+      cancelAnimation(gazeX);
+      cancelAnimation(gazeY);
     };
   }, []);
 
@@ -228,12 +308,12 @@ export default function PhantomHero({
     return blend * burst.value + (1 - blend) * blinkScale.value;
   });
   const faceTransform = useDerivedValue<Transforms3d>(() => [
-    { translateX: amaze.value * -20 },
-    { translateY: amaze.value * -30 },
+    { translateX: amaze.value * -20 + gazeX.value * GAZE_X },
+    { translateY: amaze.value * -30 + gazeY.value * GAZE_DOWN },
   ]);
   const pupilTransform = useDerivedValue<Transforms3d>(() => [
-    { translateX: amaze.value * -9 },
-    { translateY: amaze.value * -3 },
+    { translateX: amaze.value * -9 + gazeX.value * (GAZE_X * GAZE_INNER) },
+    { translateY: amaze.value * -3 + gazeY.value * (GAZE_DOWN * GAZE_INNER) },
   ]);
   const sweatDropTransform = useDerivedValue<Transforms3d>(() => [
     { translateY: sweatAnim.value * 14 },
@@ -279,7 +359,8 @@ export default function PhantomHero({
 
   return (
     <Pressable
-      onPressIn={laugh}
+      onPress={onQuip}
+      onLongPress={laugh}
       onPressOut={relax}
       style={{ width: '100%', height: '100%' }}
     >
@@ -357,4 +438,4 @@ export default function PhantomHero({
       </Canvas>
     </Pressable>
   );
-}
+});

@@ -25,7 +25,6 @@ import { Format, VideoInfo, ExtractorError } from './src/extractors/types';
 import PickerModal from './src/components/PickerModal';
 import SpotifyPickerModal from './src/components/SpotifyPickerModal';
 import NotificationPermissionSheet from './src/components/sheets/NotificationPermissionSheet';
-import DownloadSuccessSheet from './src/components/sheets/DownloadSuccessSheet';
 import ErrorSheet from './src/components/sheets/ErrorSheet';
 import { AppDialogProvider } from './src/components/AppDialog';
 import YouTubeExtractorWebView from './src/components/webviews/YouTubeExtractorWebView';
@@ -94,6 +93,7 @@ function AppRoot() {
     message: string;
     canRetry: boolean;
   } | null>(null);
+  const [invalidLink, setInvalidLink] = useState(false);
   const [info, setInfo] = useState<VideoInfo | null>(null);
   const [playlistInfo, setPlaylistInfo] = useState<VideoInfo | null>(null);
   const [playlistOpen, setPlaylistOpen] = useState(false);
@@ -102,14 +102,11 @@ function AppRoot() {
   const dismissedRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
-  const [successOpen, setSuccessOpen] = useState(false);
-  const [successInfo, setSuccessInfo] = useState<{
-    isAudio: boolean;
-    uri?: string;
-  }>({ isAudio: false });
   const successRef = useRef<{ isAudio: boolean; uri?: string }>({
     isAudio: false,
+    uri: undefined,
   });
+  const [successSignal, setSuccessSignal] = useState(0);
   const { paste, readClipboard } = useClipboardPaste(setLink);
   const notifPriming = useNotificationPriming(onboarded === true);
   useEffect(() => {
@@ -141,6 +138,7 @@ function AppRoot() {
   const onRefresh = async () => {
     setRefreshing(true);
     setError(null);
+    setInvalidLink(false);
     setInfo(null);
     setLink('');
     setLoading(false);
@@ -190,6 +188,7 @@ function AppRoot() {
     dismissedRef.current = false;
     setLoading(true);
     setError(null);
+    setInvalidLink(false);
     setInfo(null);
     clearDownloads();
     log('Resolve', url);
@@ -200,10 +199,7 @@ function AppRoot() {
       if (!result) {
         if (!dismissedRef.current) {
           setInfo(null);
-          setError({
-            message: 'No video found, or this link is not supported yet.',
-            canRetry: true,
-          });
+          setInvalidLink(true);
         }
         return;
       }
@@ -244,7 +240,6 @@ function AppRoot() {
       closePicker();
       const isAudio = format.isAudio && !format.isVideo;
       const target = { isAudio, uri: result.uri };
-      setSuccessInfo(target);
       successRef.current = target;
       void addHistory({
         id: `${info?.extractorKey}:${info?.id}:${format.formatId}`,
@@ -257,7 +252,10 @@ function AppRoot() {
         uri: result.uri,
         savedAt: Date.now(),
       });
-      setTimeout(() => setSuccessOpen(true), SUCCESS_HANDOFF_MS);
+      setTimeout(
+        () => setSuccessSignal((count) => count + 1),
+        SUCCESS_HANDOFF_MS
+      );
     }
   };
   const goTab = (next: 'home' | 'downloads' | 'settings' | 'updates') => {
@@ -303,7 +301,10 @@ function AppRoot() {
               >
                 <HomeScreen
                   link={link}
-                  onChangeLink={setLink}
+                  onChangeLink={(text) => {
+                    setLink(text);
+                    setInvalidLink(false);
+                  }}
                   loading={loading}
                   mode={mode}
                   setMode={setMode}
@@ -316,6 +317,9 @@ function AppRoot() {
                   focusSignal={homeFocus}
                   firstVisit={firstVisit}
                   bubbleTrigger={bubbleTrigger}
+                  active={tab === 'home'}
+                  invalidLink={invalidLink}
+                  successSignal={successSignal}
                 />
               </View>
               {visited.settings && (
@@ -360,15 +364,6 @@ function AppRoot() {
                   onDownload={onDownload}
                 />
               )}
-              <DownloadSuccessSheet
-                open={successOpen}
-                onClose={() => setSuccessOpen(false)}
-                isAudio={successInfo.isAudio}
-                onOpen={() => {
-                  void openSavedTarget(successInfo);
-                  setSuccessOpen(false);
-                }}
-              />
               <ErrorSheet
                 open={!!error}
                 message={error?.message ?? ''}

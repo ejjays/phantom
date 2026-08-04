@@ -154,7 +154,7 @@ function SupportCardContent({
             textOutline,
           ]}
         >
-          Phantom is fully free & open source
+          {"Phantom's source code is fully free & open source"}
         </Text>
       </HeroLottieCard>
     </Pressable>

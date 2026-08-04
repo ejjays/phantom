@@ -3,28 +3,45 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  Easing,
 } from 'react-native-reanimated';
+import { useEffect } from 'react';
 import tw from '../lib/tw';
 
 type Button3DProps = {
   label: string;
   loading?: boolean;
   disabled?: boolean;
+  retry?: boolean;
   onPress: () => void;
 };
 
 const LIFT = 5;
+const RETRY_FILL_MS = 400;
 
 export default function Button3D({
   label,
   loading,
   disabled,
+  retry,
   onPress,
 }: Button3DProps) {
   const down = useSharedValue(0);
+  const fill = useSharedValue(0);
+
+  useEffect(() => {
+    fill.value = withTiming(retry ? 1 : 0, {
+      duration: RETRY_FILL_MS,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [retry, fill]);
 
   const faceStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: -LIFT + down.value * LIFT }],
+  }));
+
+  const fillStyle = useAnimatedStyle(() => ({
+    opacity: fill.value,
   }));
 
   return (
@@ -42,9 +59,13 @@ export default function Button3D({
       <Animated.View
         style={[
           tw`w-full items-center justify-center rounded-full bg-cyan-500 py-3`,
+          { overflow: 'hidden' },
           faceStyle,
         ]}
       >
+        <Animated.View
+          style={[tw`absolute inset-0 rounded-full bg-red-500`, fillStyle]}
+        />
         {loading ? (
           <ActivityIndicator color="#ffffff" />
         ) : (

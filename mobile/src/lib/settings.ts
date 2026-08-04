@@ -43,15 +43,51 @@ export async function nextSpeechMsgIndex(count: number): Promise<number> {
   return next;
 }
 
-const FOLLOWUP_KEY = 'phantom.speech.followIdx';
+const QUIP_KEY = 'phantom.speech.quipIdx';
 
-export async function nextFollowupIndex(count: number): Promise<number> {
-  const last = await AsyncStorage.getItem(FOLLOWUP_KEY)
+export async function nextQuipIndex(count: number): Promise<number> {
+  const last = await AsyncStorage.getItem(QUIP_KEY)
     .then((v) => (v ? Number(v) : -1))
     .catch(() => -1);
   let pick = Math.floor(Math.random() * count);
   if (count > 1 && pick === last) pick = (pick + 1) % count;
-  await AsyncStorage.setItem(FOLLOWUP_KEY, String(pick)).catch(() => undefined);
+  await AsyncStorage.setItem(QUIP_KEY, String(pick)).catch(() => undefined);
+  return pick;
+}
+
+const IDLE_KEY = 'phantom.speech.idleIdx';
+
+export async function nextIdleIndex(count: number): Promise<number> {
+  const last = await AsyncStorage.getItem(IDLE_KEY)
+    .then((v) => (v ? Number(v) : -1))
+    .catch(() => -1);
+  let pick = Math.floor(Math.random() * count);
+  if (count > 1 && pick === last) pick = (pick + 1) % count;
+  await AsyncStorage.setItem(IDLE_KEY, String(pick)).catch(() => undefined);
+  return pick;
+}
+
+const BAD_LINK_KEY = 'phantom.speech.badLinkIdx';
+
+export async function nextBadLinkIndex(count: number): Promise<number> {
+  const last = await AsyncStorage.getItem(BAD_LINK_KEY)
+    .then((v) => (v ? Number(v) : -1))
+    .catch(() => -1);
+  let pick = Math.floor(Math.random() * count);
+  if (count > 1 && pick === last) pick = (pick + 1) % count;
+  await AsyncStorage.setItem(BAD_LINK_KEY, String(pick)).catch(() => undefined);
+  return pick;
+}
+
+const SUCCESS_KEY = 'phantom.speech.successIdx';
+
+export async function nextSuccessIndex(count: number): Promise<number> {
+  const last = await AsyncStorage.getItem(SUCCESS_KEY)
+    .then((v) => (v ? Number(v) : -1))
+    .catch(() => -1);
+  let pick = Math.floor(Math.random() * count);
+  if (count > 1 && pick === last) pick = (pick + 1) % count;
+  await AsyncStorage.setItem(SUCCESS_KEY, String(pick)).catch(() => undefined);
   return pick;
 }
 

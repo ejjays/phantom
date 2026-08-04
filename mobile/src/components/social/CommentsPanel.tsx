@@ -1645,6 +1645,16 @@ export default function CommentsPanel({
         ) : null}
       </View>
 
+      {!myName ? (
+        <View style={tw`bg-cyan-500 px-5 py-2`}>
+          <Text style={tw`font-sans text-[13px] leading-5 text-white`}>
+            <Text style={tw`font-sans-bold`}>Note: </Text>
+            Sign-in is only for reactions and comments here — it&apos;s not used
+            in the actual downloads.
+          </Text>
+        </View>
+      ) : null}
+
       <View ref={svWrapRef} style={tw`flex-1`}>
         <Animated.FlatList
           ref={scrollRef}
@@ -1869,13 +1879,6 @@ export default function CommentsPanel({
                   Sign in with Google
                 </Text>
               </Pressable>
-              <Text
-                style={tw`mt-3 text-center font-sans text-[11px] leading-4 text-slate-500`}
-              >
-                <Text style={tw`font-sans-bold text-cyan-400`}>Note: </Text>
-                Sign-in is only for reactions and comments here — it&apos;s not
-                used in the actual downloads.
-              </Text>
             </View>
           )}
         </View>

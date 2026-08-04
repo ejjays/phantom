@@ -4,7 +4,7 @@ import {
   TextInput,
   RefreshControl,
   ScrollView,
-  useWindowDimensions,
+  AppState,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -16,12 +16,86 @@ import Animated, {
 import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../lib/tw';
+import { useScreenSize } from '../hooks/useScreenSize';
 import PhantomHero, { PHANTOM_ASPECT } from '../components/PhantomHero';
 import SpeechBubble from '../components/SpeechBubble';
 import LinkPing from '../components/LinkPing';
 import Button3D from '../components/Button3D';
 import FormatBar, { type DownloadMode } from '../components/FormatBar';
 import { useBlurOnKeyboardHide } from '../hooks/useKeyboard';
+import {
+  nextQuipIndex,
+  nextIdleIndex,
+  nextBadLinkIndex,
+  nextSuccessIndex,
+} from '../lib/settings';
+
+const QUIP_COOLDOWN_MS = 8000;
+const IDLE_MS = 18000;
+const IDLE_BUFFER_MS = 8000;
+const IDLE_REPEAT_MS = 45000;
+const IDLE_CHECK_MS = 1000;
+
+const PHANTOM_QUIPS = [
+  'boo! ...just kidding, it\u2019s me',
+  'got a link? i\u2019m hungry',
+  'i dream in mp3 shuffles',
+  'youtube? spotify? surprise me',
+  'i\u2019d cross the internet for you',
+  'boop. i felt that',
+  'no link? we can still vibe',
+  'i\u2019ve seen so many urls. yours are my favorite',
+  'my magic is free \u2014 links aren\u2019t',
+  'you returned! i was about to haunt this screen solo',
+  'rawr,.. i mean.. boo',
+  'you can see me but i can\u2019t see you.. are you a ghost too?',
+];
+
+const PHANTOM_IDLE_LINES = [
+  'no rush. the magic can wait',
+  'just chilling... whenever you\u2019re ready',
+  'staring at me? should i strike a pose?',
+  'waiting mode: activated',
+  'sometimes i haunt, mostly i download',
+  'do ghosts get lonely? ...yes',
+  'i almost counted all the pixels in your screen',
+  'I\u2019ll just be here, floating',
+  'i once downloaded a video twice. it was that good',
+  'silence is my favorite playlist',
+  'i\u2019ve memorized every icon on this screen',
+  'stare all you want. i\u2019m used to being watched (ghost problems)',
+];
+
+const PHANTOM_BAD_LINK_LINES = [
+  'hmm, that doesn\u2019t look like a link to me..',
+  'that\u2019s not a link.. try pasting one?',
+  'did you mean to paste something else?',
+  'i can\u2019t read that. is it a url?',
+  'oops \u2014 that\u2019s not a valid link',
+  'i need a link, not just words. try again?',
+  'that link looks broken to me..',
+  'no magic can happen without a real link',
+];
+
+const PHANTOM_SUCCESS_LINES = [
+  'got it! saved to your device. i did a little ghost dance',
+  'caught it! it\u2019s all yours now',
+  'done! the magic worked.. again',
+  'saved! that one\u2019s worth keeping',
+  'download complete. my spook level: expert',
+  'it\u2019s yours now. handle with care',
+  'saved safely. my ghost duties: complete',
+];
+
+function looksLikeLink(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  const host = trimmed
+    .replace(/^https?:\/\//iu, '')
+    .split(/[/?#]/u)[0]
+    .toLowerCase();
+  return host.includes('.');
+}
 
 type Props = {
   link: string;
@@ -38,6 +112,9 @@ type Props = {
   focusSignal: number;
   firstVisit: boolean;
   bubbleTrigger: number;
+  active: boolean;
+  invalidLink: boolean;
+  successSignal: number;
 };
 
 export default function HomeScreen({
@@ -55,16 +132,159 @@ export default function HomeScreen({
   focusSignal,
   firstVisit,
   bubbleTrigger,
+  active,
+  invalidLink,
+  successSignal,
 }: Props) {
   const linkInputRef = useRef<TextInput>(null);
   useBlurOnKeyboardHide(linkInputRef);
-  const { width: screenW, height: screenH } = useWindowDimensions();
+  const { width: screenW, height: screenH } = useScreenSize();
   const insets = useSafeAreaInsets();
   const kb = useSharedValue(0);
   const inputBottom = useSharedValue(0);
   const moonX = useSharedValue(0);
   const [showSpinner, setShowSpinner] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  const [gazeTick, setGazeTick] = useState(0);
+  const [quip, setQuip] = useState<string | null>(null);
+  const [idleMsg, setIdleMsg] = useState<string | null>(null);
+  const [appActive, setAppActive] = useState(
+    AppState.currentState === 'active'
+  );
+
+  const lastActivity = useRef(Date.now());
+  const bumpActivity = () => {
+    lastActivity.current = Date.now();
+  };
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      setAppActive(state === 'active');
+      if (state === 'active') bumpActivity();
+    });
+    return () => sub.remove();
+  }, []);
+
+  const quipSeq = useRef(0);
+  const idleSeq = useRef(0);
+  const badLinkSeq = useRef(0);
+  const successSeq = useRef(0);
+  const quipVisible = useRef(false);
+  const idleVisible = useRef(false);
+  const badLinkVisible = useRef(false);
+  const successVisible = useRef(false);
+  const lastQuipAt = useRef(0);
+  const lastIdleAt = useRef(0);
+  const lastIdleStart = useRef(0);
+  const badLinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastBadLinkAt = useRef(0);
+  const [badLinkMsg, setBadLinkMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [greetDone, setGreetDone] = useState(false);
+
+  useEffect(() => {
+    setGreetDone(false);
+  }, [bubbleTrigger]);
+
+  const handleQuip = () => {
+    bumpActivity();
+    if (quipVisible.current) return;
+    if (Date.now() - lastQuipAt.current < QUIP_COOLDOWN_MS) return;
+    quipVisible.current = true;
+    idleVisible.current = false;
+    badLinkVisible.current = false;
+    successVisible.current = false;
+    setIdleMsg(null);
+    setBadLinkMsg(null);
+    setSuccessMsg(null);
+    setGreetDone(true);
+    void nextQuipIndex(PHANTOM_QUIPS.length).then((index) => {
+      quipSeq.current += 1;
+      setQuip(PHANTOM_QUIPS[index]);
+    });
+  };
+
+  const warnBadLink = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || looksLikeLink(trimmed)) return;
+    if (badLinkVisible.current) return;
+    if (Date.now() - lastBadLinkAt.current < QUIP_COOLDOWN_MS) return;
+    badLinkVisible.current = true;
+    idleVisible.current = false;
+    setIdleMsg(null);
+    void nextBadLinkIndex(PHANTOM_BAD_LINK_LINES.length).then((index) => {
+      badLinkSeq.current += 1;
+      setBadLinkMsg(PHANTOM_BAD_LINK_LINES[index]);
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (badLinkTimer.current) clearTimeout(badLinkTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (badLinkTimer.current) clearTimeout(badLinkTimer.current);
+    badLinkTimer.current = setTimeout(() => warnBadLink(link), 600);
+    return () => {
+      if (badLinkTimer.current) clearTimeout(badLinkTimer.current);
+    };
+  }, [link]);
+
+  useEffect(() => {
+    if (!badLinkMsg) return;
+    if (!link.trim() || looksLikeLink(link)) {
+      badLinkVisible.current = false;
+      setBadLinkMsg(null);
+    }
+  }, [link, badLinkMsg]);
+
+  useEffect(() => {
+    if (successSignal === 0) return;
+    if (successVisible.current) return;
+    successVisible.current = true;
+    badLinkVisible.current = false;
+    setBadLinkMsg(null);
+    void nextSuccessIndex(PHANTOM_SUCCESS_LINES.length).then((index) => {
+      successSeq.current += 1;
+      setSuccessMsg(PHANTOM_SUCCESS_LINES[index]);
+    });
+  }, [successSignal]);
+
+  useEffect(() => {
+    if (inputFocused) {
+      quipVisible.current = false;
+      idleVisible.current = false;
+    }
+  }, [inputFocused]);
+
+  useEffect(() => {
+    if (!active || !appActive || inputFocused || loading) return;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      if (now - lastActivity.current < IDLE_MS) return;
+      if (idleVisible.current) return;
+      if (
+        quipVisible.current ||
+        badLinkVisible.current ||
+        (!greetDone && bubbleTrigger > 0)
+      ) {
+        lastActivity.current = now;
+        return;
+      }
+      if (now - lastIdleAt.current < IDLE_BUFFER_MS) return;
+      const sinceStart = now - lastIdleStart.current;
+      if (sinceStart < IDLE_REPEAT_MS) return;
+      idleVisible.current = true;
+      lastIdleStart.current = now;
+      void nextIdleIndex(PHANTOM_IDLE_LINES.length).then((index) => {
+        idleSeq.current += 1;
+        setIdleMsg(PHANTOM_IDLE_LINES[index]);
+      });
+    }, IDLE_CHECK_MS);
+    return () => clearInterval(interval);
+  }, [active, appActive, inputFocused, loading, greetDone]);
 
   useEffect(() => {
     if (focusSignal === 0) return;
@@ -102,10 +322,8 @@ export default function HomeScreen({
 
   const ghostStyle = useAnimatedStyle(() => {
     const progress = Math.min(1, kb.value / 400);
-    const size = baseIconSize - progress * baseIconSize * 0.1;
     return {
-      width: size,
-      height: size * PHANTOM_ASPECT,
+      transform: [{ scale: 1 - progress * 0.05 }],
     };
   });
 
@@ -160,10 +378,14 @@ export default function HomeScreen({
         contentContainerStyle={tw`grow px-6 pb-16`}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        onTouchStart={bumpActivity}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => void onRefresh()}
+            onRefresh={() => {
+              bumpActivity();
+              void onRefresh();
+            }}
             tintColor="#22d3ee"
             colors={['#22d3ee']}
             progressBackgroundColor="#17324c"
@@ -175,17 +397,74 @@ export default function HomeScreen({
           style={[tw`flex-1 items-center justify-center`, liftStyle]}
         >
           <View style={tw`w-full max-w-md`}>
-            <View style={tw`items-center mb-2`}>
+            <View style={tw`items-center ${inputFocused ? 'mb-0' : 'mb-2'}`}>
               <View style={{ position: 'relative' }}>
-                {!inputFocused && bubbleTrigger > 0 && (
+                {!inputFocused && quip ? (
                   <SpeechBubble
-                    key={bubbleTrigger}
-                    variant={firstVisit ? 'welcome' : 'returning'}
+                    key={`quip-${quipSeq.current}`}
+                    variant="welcome"
+                    quip={quip}
+                    onFade={() => {
+                      quipVisible.current = false;
+                      lastQuipAt.current = Date.now();
+                      setQuip(null);
+                    }}
                   />
-                )}
-                <Animated.View style={ghostStyle}>
-                  {/* temprarily off (will use soon) — reenable w/ focusSignal */}
-                  <PhantomHero amazeSignal={0} />
+                ) : badLinkMsg ? (
+                  <SpeechBubble
+                    key={`badlink-${badLinkSeq.current}`}
+                    variant="welcome"
+                    quip={badLinkMsg}
+                    onFade={() => {
+                      badLinkVisible.current = false;
+                      lastBadLinkAt.current = Date.now();
+                      setBadLinkMsg(null);
+                    }}
+                  />
+                ) : successMsg ? (
+                  <SpeechBubble
+                    key={`success-${successSeq.current}`}
+                    variant="welcome"
+                    quip={successMsg}
+                    onFade={() => {
+                      successVisible.current = false;
+                      setSuccessMsg(null);
+                    }}
+                  />
+                ) : !inputFocused && !greetDone && bubbleTrigger > 0 ? (
+                  <SpeechBubble
+                    key={`greet-${bubbleTrigger}`}
+                    variant={firstVisit ? 'welcome' : 'returning'}
+                    onFade={() => setGreetDone(true)}
+                  />
+                ) : !inputFocused && idleMsg ? (
+                  <SpeechBubble
+                    key={`idle-${idleSeq.current}`}
+                    variant="welcome"
+                    quip={idleMsg}
+                    onFade={() => {
+                      idleVisible.current = false;
+                      lastIdleAt.current = Date.now();
+                      setIdleMsg(null);
+                    }}
+                  />
+                ) : null}
+                <Animated.View
+                  style={[
+                    {
+                      width: baseIconSize,
+                      height: baseIconSize * PHANTOM_ASPECT,
+                      transformOrigin: 'bottom center',
+                    },
+                    ghostStyle,
+                  ]}
+                >
+                  {/* reenable w/ focusSignal */}
+                  <PhantomHero
+                    amazeSignal={0}
+                    focusSignal={gazeTick}
+                    onQuip={handleQuip}
+                  />
                 </Animated.View>
               </View>
             </View>
@@ -203,12 +482,21 @@ export default function HomeScreen({
                 placeholder="paste your link here"
                 placeholderTextColor="#5b6472"
                 value={link}
-                onChangeText={onChangeLink}
-                onFocus={() => {
-                  setInputFocused(true);
-                  handleFocus();
+                onChangeText={(text) => {
+                  bumpActivity();
+                  onChangeLink(text);
                 }}
-                onBlur={() => setInputFocused(false)}
+                onFocus={() => {
+                  bumpActivity();
+                  setInputFocused(true);
+                  if (!link.trim()) setGazeTick((count) => count + 1);
+                  handleFocus();
+                  warnBadLink(link);
+                }}
+                onBlur={() => {
+                  bumpActivity();
+                  setInputFocused(false);
+                }}
                 autoCapitalize="none"
                 autoCorrect={false}
                 accessibilityLabel="Paste download link"
@@ -218,10 +506,12 @@ export default function HomeScreen({
             <FormatBar mode={mode} setMode={setMode} onPaste={onPaste} />
 
             <Button3D
-              label="Download"
+              label={invalidLink ? 'Retry' : 'Download'}
+              retry={invalidLink}
               loading={showSpinner}
               onPress={() => {
                 if (!link.trim()) return;
+                bumpActivity();
                 onResolve();
                 triggerDownload();
               }}

@@ -18,6 +18,7 @@
     ],
     "android": {
       "package": "com.phantom.app",
+      "softwareKeyboardLayoutMode": "pan",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",

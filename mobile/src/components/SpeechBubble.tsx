@@ -8,30 +8,49 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import tw from '../lib/tw';
-import { nextSpeechMsgIndex, nextFollowupIndex } from '../lib/settings';
+import { nextSpeechMsgIndex } from '../lib/settings';
 
 const WELCOME_MSG =
   'Hi, welcome I\u2019m Phantom, let\u2019s make some magic..';
-const RETURNING_MSGS = [
-  'hey, it\u2019s me again. glad you\u2019re here',
-  'hello, good to see you again',
-  'let\u2019s do some magic again?',
-];
-const FOLLOWUP_MSGS = [
-  'got a link? let\u2019s grab it',
-  'youtube, spotify, tiktok — your pick',
-  'what are we downloading today?',
-  'ready when you are',
+const RETURNING_PAIRS: [string, string][] = [
+  [
+    'hey, it\u2019s me again. glad you\u2019re here',
+    'got a link? let\u2019s grab it',
+  ],
+  ['hello, good to see you again', 'youtube, spotify, tiktok \u2014 your pick'],
+  ['let\u2019s do some magic again?', 'same spell, new link. paste it'],
+  [
+    'it\u2019s me. who else would haunt a downloader?',
+    'now. about that link..',
+  ],
+  [
+    'you\u2019re back! the media is waiting for us',
+    'are you ready for the show?',
+  ],
+  [
+    'good timing. i was just polishing my spook',
+    'so. where\u2019s the victim link?',
+  ],
+  [
+    'the internet is loud. let\u2019s grab someone.. i mean. something',
+    'paste it. let\u2019s make magic',
+  ],
 ];
 
 const TYPE_MS = 42;
+const QUIP_TYPE_MS = 20;
 const HOLD_MS = 6500;
 const FULL_HOLD_MS = 2500;
+const QUIP_HOLD_MS = 8000;
 
 export default function SpeechBubble({
   variant,
+  quip,
+  onFade,
 }: {
   variant: 'welcome' | 'returning';
+  quip?: string;
+  onFade?: () => void;
 }) {
   const [message, setMessage] = useState(WELCOME_MSG);
   const [followUp, setFollowUp] = useState('');
@@ -41,18 +60,22 @@ export default function SpeechBubble({
   const [cursorOn, setCursorOn] = useState(false);
   const [ready, setReady] = useState(false);
   const opacity = useSharedValue(1);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onFadeRef = useRef(onFade);
+
+  useEffect(() => {
+    onFadeRef.current = onFade;
+  }, [onFade]);
 
   useEffect(() => {
     let mounted = true;
-    if (variant === 'returning') {
-      void Promise.all([
-        nextSpeechMsgIndex(RETURNING_MSGS.length),
-        nextFollowupIndex(FOLLOWUP_MSGS.length),
-      ]).then(([msgIndex, followIndex]) => {
+    if (variant === 'returning' && !quip) {
+      setReady(false);
+      void nextSpeechMsgIndex(RETURNING_PAIRS.length).then((index) => {
         if (!mounted) return;
-        setMessage(RETURNING_MSGS[msgIndex]);
-        setFollowUp(FOLLOWUP_MSGS[followIndex]);
+        const [msg, follow] = RETURNING_PAIRS[index];
+        setMessage(msg);
+        setFollowUp(follow);
         setReady(true);
       });
     } else {
@@ -61,7 +84,7 @@ export default function SpeechBubble({
     return () => {
       mounted = false;
     };
-  }, [variant]);
+  }, [variant, quip]);
 
   useEffect(() => {
     if (!typing && !hold) return;
@@ -77,46 +100,54 @@ export default function SpeechBubble({
 
   useEffect(() => {
     if (!ready) return;
-    const lines = variant === 'returning' ? [message, followUp] : [WELCOME_MSG];
+    opacity.value = 1;
+    setHold(false);
+    setTyping(false);
+    const lines = quip
+      ? [quip]
+      : variant === 'returning'
+        ? [message, followUp]
+        : [WELCOME_MSG];
+    const typeMs = quip ? QUIP_TYPE_MS : TYPE_MS;
+    const holdMs = quip ? QUIP_HOLD_MS : HOLD_MS;
     let lineIndex = 0;
     let length = 0;
+    let chars = Array.from(lines[0]);
     const tick = () => {
-      const line = lines[lineIndex];
-      if (length < line.length) {
+      if (length < chars.length) {
         length += 1;
-        setText(line.slice(0, length));
+        setText(chars.slice(0, length).join(''));
         setTyping(true);
-        timers.current.push(setTimeout(tick, TYPE_MS));
+        timer.current = setTimeout(tick, typeMs);
       } else if (lineIndex < lines.length - 1) {
         setTyping(false);
         setHold(true);
-        timers.current.push(
-          setTimeout(() => {
-            setHold(false);
-            setText('');
-            lineIndex += 1;
-            length = 0;
-            timers.current.push(setTimeout(tick, 200));
-          }, FULL_HOLD_MS)
-        );
+        timer.current = setTimeout(() => {
+          setHold(false);
+          setText('');
+          lineIndex += 1;
+          length = 0;
+          chars = Array.from(lines[lineIndex]);
+          timer.current = setTimeout(tick, 200);
+        }, FULL_HOLD_MS);
       } else {
         setTyping(false);
-        timers.current.push(
-          setTimeout(() => {
-            opacity.value = withTiming(0, {
-              duration: 400,
-              easing: Easing.out(Easing.cubic),
-            });
-          }, HOLD_MS)
-        );
+        timer.current = setTimeout(() => {
+          opacity.value = withTiming(0, {
+            duration: 400,
+            easing: Easing.out(Easing.cubic),
+          });
+          timer.current = setTimeout(() => {
+            onFadeRef.current?.();
+          }, 400);
+        }, holdMs);
       }
     };
-    timers.current.push(setTimeout(tick, 350));
+    timer.current = setTimeout(tick, 350);
     return () => {
-      timers.current.forEach(clearTimeout);
-      timers.current = [];
+      if (timer.current) clearTimeout(timer.current);
     };
-  }, [message, followUp, variant, ready, opacity]);
+  }, [message, followUp, variant, ready, quip]);
 
   const bubbleStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
