@@ -17,9 +17,12 @@ Automated provisioning (system update + dependencies + build):
 curl -sL https://raw.githubusercontent.com/ejjays/phantom/main/scripts/setup/termux-install.sh | bash
 ```
 
+The automated script installs a C toolchain (`build-essential`, i.e. clang + make) plus `python` — required because native addons like `re2` compile from source on Android (`.npmrc` supplies the `android_ndk_path` gyp variable).
+
 ## Manual Setup
 
 ```bash
+pkg install -y build-essential   # Termux/Android only: native addons (re2) build from source
 git clone https://github.com/ejjays/phantom.git
 cd phantom
 
@@ -27,7 +30,7 @@ npm install          # root tooling (husky, prettier)
 npm run install:web  # installs frontend, backend & shared in one go
 ```
 
-> `install:web` is a convenience wrapper — it runs a **single root workspace install** (the root `package-lock.json` is authoritative) and then builds `@phantom/extractors`. npm workspaces pulls in `web/frontend`, `web/backend`, `web/shared`, `mobile`, and `packages/*` in one go. To add a package later, install it from the root — no per-folder `cd` needed. On **Termux/Android** the install adds `--force --ignore-scripts` — `libsql` is OS-restricted and native addons like `re2` have no Android prebuilt, but both are mocked / fall back at runtime, so the backend still boots.
+> `install:web` is a convenience wrapper — it runs a **single root workspace install** (the root `package-lock.json` is authoritative) and then builds `@phantom/extractors`. npm workspaces pulls in `web/frontend`, `web/backend`, `web/shared`, `mobile`, and `packages/*` in one go. To add a package later, install it from the root — no per-folder `cd` needed. On **Termux/Android** no special flags are needed: `re2` is built natively using the Termux clang toolchain (hence `build-essential` above), and `libsql` / `@libsql/android-arm64` are substituted via the root `package.json` overrides.
 
 Then create your env files — see [`env-variables.md`](env-variables.md) for the full reference and [where to get the API keys](env-variables.md#where-to-get-keys). At minimum set `VITE_API_URL` (frontend) to wherever the backend is reachable.
 

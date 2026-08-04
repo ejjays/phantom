@@ -16,9 +16,9 @@ fi
 BASE=$(pwd)
 
 # root tooling (also activates the git pre-commit hooks via `prepare`)
-# --force: libsql declares os darwin,linux,win32 — mocked at runtime on termux anyway
-# --ignore-scripts: re2 & other native addons have no android prebuilt/NDK; app falls back
-npm install --force --ignore-scripts --silent
+# native deps (e.g. re2) build from source — `.npmrc` supplies `android_ndk_path`,
+# the compiler comes from `build-essential` above; libsql is substituted via overrides
+npm install --silent
 
 # shared extractor package (backend imports resolve to its dist)
 (cd packages/extractors && npm run build --silent)
