@@ -31,8 +31,8 @@ export default defineConfig({
     modulePreload: { polyfill: false },
     rollupOptions: {
       output: {
+        // skipcq: JS-0045
         manualChunks(id) {
-          // skipcq: JS-0045
           if (/node_modules\/(react|react-dom|react-router)/.test(id))
             return 'react-vendor';
           if (/node_modules\/(framer-motion|lucide-react)/.test(id))

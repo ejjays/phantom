@@ -28,8 +28,7 @@ export default function PhantomHero({ isVisible = false }: Props) {
 
   const baseWidth = isVisible ? 'w-36 sm:w-36 md:w-44' : 'w-40 sm:w-40 md:w-44';
 
-  // skipcq: JS-0415
-  return (
+  return ( // skipcq: JS-0415
     <div className="relative flex flex-col items-center justify-center gap-4">
       <style>{`
         @keyframes ghost-float {
