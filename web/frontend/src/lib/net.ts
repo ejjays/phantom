@@ -7,11 +7,16 @@ const PROXIED_HOSTS = [
   'm.youtube.com',
   'youtu.be',
   'i.ytimg.com',
+  'ytimg.com',
   'www.gstatic.com',
   'gvt1.com',
+  'googlevideo.com',
   'cdn.syndication.twitter.com',
+  'twimg.com',
   'abs.twimg.com',
   'video.twimg.com',
+  'fbcdn.net',
+  'cdninstagram.com',
   'api.instagram.com',
   'www.instagram.com',
   'instagram.com',
@@ -44,7 +49,9 @@ export function proxyFetch(
   try {
     const { hostname } = new URL(url);
     if (
-      PROXIED_HOSTS.some((host) => host === hostname || hostname.endsWith('.'))
+      PROXIED_HOSTS.some(
+        (host) => host === hostname || hostname.endsWith(`.${host}`)
+      )
     ) {
       target = `${PROXY_BASE}/proxy?u=${encodeURIComponent(url)}`;
     } else {

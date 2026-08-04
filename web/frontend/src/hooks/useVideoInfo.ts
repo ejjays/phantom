@@ -1,27 +1,9 @@
 import { useCallback } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
-import { BACKEND_URL } from '../lib/config';
 import { VideoInfo, FinalResponse } from '@shared/schemas/media.schema.js';
 import { filterUnsupportedCodecs } from '../lib/codec-support';
 import { resolve, initializeResolver } from '../lib/extractors';
 import { PROXY_BASE } from '../lib/config';
-
-// sanitize video metadata
-function _mapVideoMetadata(data: VideoInfo, backendUrl: string): VideoInfo {
-  const result = { ...data };
-
-  if (result.thumbnail?.includes('localhost:5000')) {
-    result.thumbnail = result.thumbnail.replace(
-      /http:\/\/localhost:5000/g,
-      backendUrl
-    );
-  }
-  if (result.cover?.includes('localhost:5000')) {
-    result.cover = result.cover.replace(/http:\/\/localhost:5000/g, backendUrl);
-  }
-
-  return result;
-}
 
 const _getCleanedUrl = (url: string) => {
   let cleaned = url;
@@ -48,7 +30,6 @@ const _handleFetchError = async (response: Response) => {
 };
 
 export const useVideoInfo = () => {
-  const backendUrl = useRemixStore((state) => state.backendUrl) || BACKEND_URL;
   const clientId = useRemixStore((state) => state.clientId);
   initializeResolver(PROXY_BASE);
   const url = useRemixStore((state) => state.url);
@@ -160,11 +141,11 @@ export const useVideoInfo = () => {
         const resolved = await resolve(cleanedUrl, onPartial);
         if (!resolved) {
           throw new Error(
-            'Unsupported URL - only YouTube and Spotify are supported in the browser'
+            'Unsupported URL - only YouTube, Spotify and X are supported in the browser'
           );
         }
 
-        const updatedData = _mapVideoMetadata(resolved, backendUrl);
+        const updatedData = resolved;
 
         setVideoData((prev: VideoInfo | null) => {
           const newFormats = Array.isArray(updatedData.formats)
@@ -213,7 +194,6 @@ export const useVideoInfo = () => {
     },
     [
       url,
-      backendUrl,
       clientId,
       setStatus,
       setTargetProgress,

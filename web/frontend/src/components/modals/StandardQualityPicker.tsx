@@ -15,9 +15,6 @@ import {
 } from './SharedComponents';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import VideoPreviewOverlay from './VideoPreviewOverlay';
-import { useRemixStore } from '../../store/useRemixStore';
-import { BACKEND_URL } from '../../lib/config';
-import { prefetchStreamUrls } from '../../lib/previewStream';
 
 interface VideoFormat {
   formatId: string;
@@ -111,12 +108,10 @@ const ThumbnailSection = ({
   thumbnail,
   selectedFormat,
   onPlay,
-  onPrefetch,
 }: {
   thumbnail?: string;
   selectedFormat: string;
   onPlay?: () => void;
-  onPrefetch?: () => void;
 }) => {
   const canPlay = selectedFormat === 'mp4' && Boolean(onPlay);
   return (
@@ -146,8 +141,6 @@ const ThumbnailSection = ({
         <button
           type="button"
           onClick={onPlay}
-          onPointerEnter={onPrefetch}
-          onFocus={onPrefetch}
           aria-label="Play preview"
           className="absolute inset-0 z-10 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-inset"
         />
@@ -369,9 +362,6 @@ const StandardQualityPicker = ({
     return base;
   }, [selectedFormat, videoData, audioTracks, effectiveLang]);
 
-  const backendUrl = useRemixStore((state) => state.backendUrl) || BACKEND_URL;
-  const clientId = useRemixStore((state) => state.clientId);
-
   const [selectedQualityId, setSelectedQualityId] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -483,16 +473,6 @@ const StandardQualityPicker = ({
               thumbnail={videoData.thumbnail}
               selectedFormat={selectedFormat}
               onPlay={() => setIsPreviewOpen(true)}
-              onPrefetch={() => {
-                if (videoData.webpageUrl && effectiveQualityId) {
-                  prefetchStreamUrls(
-                    backendUrl,
-                    videoData.webpageUrl,
-                    effectiveQualityId,
-                    clientId
-                  );
-                }
-              }}
             />
 
             <div className="p-6 flex flex-col gap-4 overflow-y-visible relative">

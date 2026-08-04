@@ -164,8 +164,6 @@ async function armClient(proxyFetch: typeof fetch): Promise<ArmedClient> {
     client_type: ClientType.ANDROID_VR,
   });
 
-  const player = yt.session.player;
-  void player;
   const lifeMs = ttlMs > 0 ? ttlMs : DEFAULT_TTL_MS;
   return {
     yt,

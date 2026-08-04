@@ -80,13 +80,6 @@ export function resolveStreamUrls(
   return Promise.resolve(result);
 }
 
-export function prefetchStreamUrls(
-  _backendUrl: string,
-  _pageUrl: string | undefined,
-  _formatId: string | undefined,
-  _clientId: string | undefined
-): void {}
-
 export function clearPreviewCache(): void {
   cache.clear();
   cacheTs.clear();
