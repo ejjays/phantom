@@ -15,91 +15,113 @@ Remix Lab + Song Key Changer only.
 
 - PR: https://github.com/ejjays/phantom/pull/25
 - Commits so far: `1b51987c` (refactor) → `f6387602` (deepsource fixes) →
-  `bf70ed96` (harden proxy, net routing, nits)
+  `bf70ed96` (harden proxy, net routing, nits) → `bfa82893` (proxy body/encoding/
+  Request routing fixes + portable harness + Termux bindings)
 - `legacy/backend` branch holds the pre-strip backend archive.
 - `ASSESSMENT.md` (repo root, untracked) = external review; §3 blockers are done,
   §6 is the live checklist (PO token, mp3 transcode, large file), §7 one-PR shape.
 
-## 2. Session outcome: three real bugs found & fixed (uncommitted)
-
-All three are in the working tree, NOT yet committed. Frontend typecheck + build
-are green.
+## 2. Committed fixes (bfa82893, pushed)
 
 1. **`proxy.ts` POST body was `[object Request]`** — `body = request` stringified
    the incoming `Request`; YouTube answered "Invalid JSON payload … [object Request]".
-   Fixed to `body = request.body` + `duplex: 'half'`. This would have broken in
-   production too.
+   Fixed to `body = request.body` + `duplex: 'half'`.
 2. **content-encoding mismatch** — outbound fetch auto-negotiates `br`; CF runtime
    decompresses br, node undici does not → streamed bodies mismatched the header
    (`ERR_CONTENT_DECODING_FAILED`). Fixed by forcing `Accept-Encoding: identity`
    upstream and stripping `content-encoding`/forwarded `Accept-Encoding` from
-   responses. Deterministic everywhere.
+   responses.
 3. **`String(Request)` = `[object Request]`** in `createProxyFetch`/`proxyFetch`
    — youtubei.js's HTTPClient always calls our fetch with `(Request, {body,
    headers, redirect, credentials})`, so player/next requests bypassed the proxy
    and hit YouTube cross-origin (403). Fixed via new `urlOf()` helper in
-   `src/lib/net.ts` (Request → `.url`) + explicit method/headers/body extraction
-   (`{...init.headers}` on a Headers instance spreads to nothing — content-type
-   was also being dropped).
+   `src/lib/net.ts` + explicit method/headers/body extraction
+   (`new Headers(init?.headers)` — spreading a Headers instance yields nothing,
+   content-type was being dropped).
 
-### Files changed (working tree)
-- `web/frontend/functions/api/proxy.ts`
-- `web/frontend/src/lib/net.ts` (`urlOf`, proxyFetch, gatedFetch)
-- `web/frontend/src/lib/extractors/youtube.ts` (`createProxyFetch`)
-- `package.json` / `package-lock.json` — root devDeps:
-  `@rolldown/binding-android-arm64@^1.2.1`, `@rollup/rollup-android-arm64@^4.62.4`,
-  `lightningcss-android-arm64@^1.33.0` (Termux-native bindings so `npm ci` + build
-  work on Android; harmless elsewhere)
-- `scripts/e2e/server.cjs` + `scripts/e2e/run.cjs` — NEW portable E2E harness
-  (copied from `/data/data/com.termux/files/usr/tmp/opencode/e2e/`, paths made
-  relative). Chrome path/env overridable via `CHROME_BIN`, `E2E_PORT`.
+Also: `scripts/e2e/` portable harness (server.cjs + run.cjs), root devDeps
+Termux-native bindings (`@rolldown/binding-android-arm64`, `@rollup/rollup-android-arm64`,
+`lightningcss-android-arm64`).
 
-## 3. Where E2E stands right now
+## 3. YouTube extraction root cause: rolldown lazily wraps the parser registry
+
+**Symptom:** picker never opens; app error "Cannot read properties of null
+(reading 'as')" despite clean 200 player + next responses through the proxy.
+
+**Root cause (2 layers, both now fixed):**
+
+1. **Lazy export wrappers.** rolldown represents youtubei.js's ESM namespace
+   (`nodes.js` re-exports) as an object whose properties are `()=>Class` lazy
+   initializer functions. `new Map(Object.entries(YTNodes))` in `parser.js` then
+   stores the *wrappers*, not the classes — every `.type` validity check fails
+   (`wrapper.type === undefined`), nested parses return null, and
+   `VideoInfo`'s `next?.contents?.item().as(...)` crashes on null. Plain node is
+   unaffected (real ESM namespace; V8 namespaces are enumerable).
+   **Fix** (`web/frontend/src/lib/extractors/youtube.ts`): at module scope, iterate
+   `Object.entries(YTNodes)`, unwrap each `()=>Class` (guard: not already a class
+   via `Function.prototype.toString`), `Object.defineProperty` the real class
+   back onto the namespace (JIT-generated constructors read `YTNodes.X` from it),
+   and `addRuntimeParser(name, class)` into the parser's map. Relative imports
+   into `node_modules` (youtubei.js's exports map blocks deep paths); sonar
+   `no-internal-api-use` disabled per line.
+2. **youtubei.js 17.2.0 bugs on today's YouTube responses** (patched in
+   `scripts/patch-youtubei.cjs`, idempotent, wired into root `prepare`):
+   - `getParserByName` throws `MODULE_NOT_FOUND` for renderers YouTube renamed
+     after the release (`autonavEndpoint` → `AutonavEndpoint`,
+     `maybeHistoryEndpoint` → `MaybeHistoryEndpoint`). The throw happens inside
+     JIT class construction for the `autoplay` field of
+     `SingleColumnWatchNextResults`, killing the whole watch-page parse.
+     Patch: register a generic `YTNode` subclass with the same `static type`
+     instead of throwing (nested renderer lists only — top-level unknown
+     renderers keep the typed JIT path).
+   - `VideoInfo` casts `next?.contents?.item().as(TwoColumnWatchNextResults)`
+     unconditionally; the web client now serves `singleColumnWatchNextResults`.
+     Patch: tolerate both — metadata enrichment skips, but formats/streaming
+     data (player-derived) are unaffected.
+
+**Result:** `node scripts/e2e/run.cjs rick` → picker opens, formats listed
+(4K MP4 etc.) → `RESULT: PASS`. Remaining parser warnings
+(`SingleColumnWatchNextResults not found!` / `VideoMetadata not found!`) are
+informational JIT notices, not errors.
+
+## 4. Spotify extraction was also broken (fixed)
+
+`fetchSpotifyMeta` scraped the embed page for `data-testid="entity-name"`
+markup; Spotify's embed now ships a Next.js shell with the track data inside a
+JSON blob instead. Meta came back null → "Unsupported URL" alert.
+**Fix** (`web/frontend/src/lib/extractors/spotify.ts`): added JSON-blob regex
+fallbacks (`"title":"…"`, `"artists":[{"name":"…"}`, `"duration":N`,
+cover `src="https://image-cdn…"`). `run.cjs spotify` → PASS (oEmbed not
+needed; blob parsing keeps artist + duration).
+
+## 5. Where E2E stands right now
 
 Harness: `node scripts/e2e/server.cjs` serves `web/frontend/dist` on :8787 and
 mounts the REAL bundled `proxy.ts`; `node scripts/e2e/run.cjs <youtube|short|rick|spotify>`
 drives headless chromium against it (Termux chromium-browser 149, puppeteer-core 25).
 
-Status after the fixes:
-- `[proxy]` log shows config / iframe_api / base.js / **player / next** all flowing
-  through the proxy with bodies + content-type intact.
-- youtubei.js now gets real YouTube data and parses it
-  (`[YOUTUBEJS][Parser]: Q: SingleColumnWatchNextResults not found!`).
-- **Blocking issue:** extraction still fails after a successful player fetch:
-  - `BaW_jenozKc` → app error "YouTube extraction failed: This video is unavailable"
-  - `dQw4w9WgXcQ` (rick) → "Cannot read properties of null (reading 'as')"
-    (null deref inside youtubei.js parser)
-- Hypothesis (unverified): the player/next responses are error/bot-check payloads —
-  ANDROID_VR client, PO token may be silently failing (best-effort catch swallows
-  it), and the proxy drops youtubei's client headers (X-Youtube-Client-Version,
-  X-GOOG-API-FORMAT-VERSION, X-Youtube-Client-Name) — only Range/Accept/
-  Accept-Language/Content-Type are forwarded; platformHeaders then override UA.
+- `rick` (dQw4w9WgXcQ): **PASS** — picker opens with formats (4K, …).
+- `spotify` (open.spotify.com track): **PASS** — picker opens (1 audio format).
+- `short` (BaW_jenozKc): fails with "This video is unavailable" — that's
+  YouTube's own playabilityStatus for this dead video, not an app bug
+  (node `getInfo` behaves identically).
+- player responses are still limited (`formats=1` itag-18, no adaptive) — PO
+  token isn't landing; format lists come through anyway (muxed 360p–1080p +
+  4K itag appears on some responses).
+- harness tweaks: static responses are `no-store` (Chrome reused stale bundles
+  with `no-cache` + no validators); console handler captures warn-arg stacks.
 
-**Next step (in progress at handoff):** capture the raw player response —
-`run.cjs` already logs `PLAYER-RESP: <first 300 chars>` for player calls
-(decoded URL match was just fixed); the last run with that logging was aborted
-before output. Read the PLAYER-RESP line to see whether YouTube returns a
-playabilityStatus ERROR / bot check or a real format list.
+## 6. Follow-ups (not this PR)
 
-## 4. Continuation plan
+- **Mobile (`mobile/`):** uses `youtubei.js@17/bundle/browser.js` from CDN — no
+  rolldown wrapping (library's own bundle), but the same 17.2.0 JIT-throw +
+  VideoInfo-cast bugs apply if its watch-page flow reaches them. Verify mobile
+  youtube extraction separately; apply the same two patches there if needed.
+- PO token still unverified in the browser flow (best-effort catch is silent;
+  node bgutils needs browser globals). Check `formats=1` response later.
+- ASSESSMENT.md §6: mp3 transcode + ≥500 MB googlevideo stream still untested.
 
-1. Run `node scripts/e2e/run.cjs rick` and read the `PLAYER-RESP:` line in the
-   console tail → determine if YouTube rejects the request or if it's a client
-   header problem.
-2. If bot-check/ERROR: forward youtubei's client headers through the proxy
-   (`X-Youtube-Client-Version` etc. — add to the forwarded-header list, or better:
-   forward ALL request headers except the blocklist: host, cookie, origin,
-   accept-encoding, connection, etc.). Re-test.
-3. If PO token is the problem: confirm by logging the `makePoToken` catch
-   (currently silent). bgutils challenge runs on device; headless chromium +
-   `--no-sandbox` should support it — verify `po token` actually generates.
-4. Once the picker dialog opens (run.cjs prints `formats found: N` + button
-   labels) → run the rest of ASSESSMENT.md §6: mp3 transcode (mp3_synthetic),
-   spotify, a ≥500 MB googlevideo stream, real PO token.
-5. Commit the working tree changes (suggest: `fix: proxy request body, encoding, Request-object routing`),
-   update ASSESSMENT.md §6 with results, comment on PR #25.
-
-## 5. Termux environment gotchas (learned the hard way)
+## 7. Termux environment gotchas (learned the hard way)
 
 - **pkill self-match:** `pkill -f "e2e/server.cjs"` matches the shell's own
   cmdline → kills the tool shell → command hangs. Use
@@ -115,6 +137,9 @@ playabilityStatus ERROR / bot check or a real format list.
   `@rolldown/binding-android-arm64` (exact rolldown version!) + `lightningcss-android-arm64`
   (1.33.0). A timed-out `npm install` can silently delete them → reinstall with
   `--no-save` if missing.
+- **youtubei.js patch** (`scripts/patch-youtubei.cjs`) is idempotent and runs via
+  root `prepare`; if you rebuild from a fresh `npm ci`, verify it ran
+  (`node scripts/patch-youtubei.cjs` prints "already applied" or applies).
 - Old phone backend still runs on the LAN (192.168.1.45:5000); the app discovers
   it via `/api/get-url` (404 on the static harness) and tries SSE there — harmless,
   ignore in logs.

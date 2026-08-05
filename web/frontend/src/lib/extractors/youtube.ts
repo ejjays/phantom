@@ -1,5 +1,21 @@
 import Innertube, { ClientType } from 'youtubei.js';
 import { BG } from 'bgutils-js';
+// rolldown lazily wraps ESM re-exports, so `Object.entries(YTNodes)` in the
+// parser captures `()=>Class` wrappers instead of classes — every type check
+// then fails and watch-page parsing crashes. unwrap + register the real classes
+// (relative paths: youtubei.js exports map blocks deep imports)
+// eslint-disable-next-line sonarjs/no-internal-api-use
+import * as YTNodes from '../../../../../node_modules/youtubei.js/dist/src/parser/nodes.js';
+// eslint-disable-next-line sonarjs/no-internal-api-use
+import { addRuntimeParser } from '../../../../../node_modules/youtubei.js/dist/src/parser/parser.js';
+for (const [name, value] of Object.entries(YTNodes)) {
+  let real = value;
+  if (typeof value === 'function' && !/^class\s/.test(Function.prototype.toString.call(value))) {
+    real = (value as unknown as () => unknown)() as typeof value;
+    Object.defineProperty(YTNodes, name, { value: real, writable: true, enumerable: true, configurable: true });
+  }
+  addRuntimeParser(name, real);
+}
 import { urlOf } from '../net';
 import type { VideoInfo, Format } from '@shared/schemas/media.schema.js';
 

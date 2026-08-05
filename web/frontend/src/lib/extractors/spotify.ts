@@ -45,22 +45,38 @@ export async function fetchSpotifyMeta(
   const coverMatch = html.match(/"image"\s*:\s*"([^"]+)"/u);
   const isrcMatch = html.match(/"isrc"\s*:\s*"([^"]+)"/u);
 
+  // newer embed shells put the track in a JSON blob instead of entity markup
+  const titleJsonMatch = html.match(/"title":"([^"]+)"/u);
+  const artistJsonMatch = html.match(/"artists":\[[^\]]*?"name":"([^"]+)"/u);
+  const durationJsonMatch = html.match(/"duration":(\d+)/u);
+  const coverJsonMatch = html.match(/src="(https:\/\/image-cdn[^"]+)"/u);
+
   const titleFallback = html.match(/<title[^>]*>([^<]+)<\/title>/u);
   const title = titleMatch
     ? titleMatch[1].trim()
-    : titleFallback
-      ? titleFallback[1].split(' - ')[0].trim()
-      : null;
+    : titleJsonMatch
+      ? titleJsonMatch[1].trim()
+      : titleFallback
+        ? titleFallback[1].split(' - ')[0].trim()
+        : null;
 
   if (!title) return null;
 
   return {
     id,
     title,
-    artist: artistMatch ? artistMatch[1].trim() : '',
+    artist: artistMatch
+      ? artistMatch[1].trim()
+      : artistJsonMatch
+        ? artistJsonMatch[1].trim()
+        : '',
     album: albumMatch ? albumMatch[1].trim() : undefined,
-    cover: coverMatch ? coverMatch[1] : undefined,
-    durationMs: durationMatch ? Number(durationMatch[1]) : 0,
+    cover: coverMatch ? coverMatch[1] : coverJsonMatch ? coverJsonMatch[1] : undefined,
+    durationMs: durationMatch
+      ? Number(durationMatch[1])
+      : durationJsonMatch
+        ? Number(durationJsonMatch[1])
+        : 0,
     isrc: isrcMatch ? isrcMatch[1] : undefined,
   };
 }

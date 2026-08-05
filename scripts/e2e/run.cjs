@@ -90,9 +90,15 @@ async function resolveUrl(page, label, url) {
   });
   const page = await browser.newPage();
   page.setDefaultTimeout(60000);
-  page.on('console', (msg) => {
+  page.on('console', async (msg) => {
     const t = msg.text();
-    if (t && t.length < 300) logs.push(t);
+    if (t && t.length < 3000) logs.push(t);
+    for (const arg of msg.args()) {
+      try {
+        const v = await arg.jsonValue();
+        if (v && typeof v === 'object' && v.stack) logs.push('WARN-STACK: ' + String(v.stack).slice(0, 900));
+      } catch {}
+    }
   });
   page.on('pageerror', (err) => logs.push('PAGEERROR: ' + String(err).slice(0, 300)));
   page.on('requestfailed', (r) => logs.push('REQFAIL: ' + r.method() + ' ' + r.url().slice(0, 120) + ' -> ' + (r.failure()?.errorText || '?')));
@@ -103,10 +109,14 @@ async function resolveUrl(page, label, url) {
   });
   page.on('response', async (r) => {
     if (r.status() >= 400) logs.push('HTTP' + r.status() + ': ' + r.url().slice(0, 120));
-    if (decodeURIComponent(r.url()).includes('youtubei/v1/player')) {
+    if (decodeURIComponent(r.url()).includes('youtubei/v1/player') || decodeURIComponent(r.url()).includes('youtubei/v1/next')) {
       try {
         const txt = await r.text();
-        logs.push('PLAYER-RESP: ' + txt.slice(0, 300).replace(/\s+/g, ' '));
+        const name = decodeURIComponent(r.url()).includes('player') ? 'player' : 'next';
+        logs.push(name.toUpperCase() + '-RESP: HTTP' + r.status() + ' len=' + txt.length);
+        const dumpDir = path.join(os.tmpdir(), 'phantom-e2e');
+        fs.mkdirSync(dumpDir, { recursive: true });
+        fs.appendFileSync(path.join(dumpDir, name + '.json'), txt + '\n===EOF===\n');
       } catch {}
     }
   });

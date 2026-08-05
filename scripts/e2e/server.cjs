@@ -80,7 +80,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, {
       'content-type': MIME[path.extname(filePath)] || 'application/octet-stream',
       'content-length': stat.size,
-      'cache-control': 'no-cache',
+      'cache-control': 'no-store',
       'service-worker-allowed': '/',
     });
     fs.createReadStream(filePath).pipe(res);
