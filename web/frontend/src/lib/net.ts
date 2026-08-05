@@ -39,12 +39,21 @@ const PROXIED_HOSTS = [
   'twitch.tv',
 ];
 
+// youtubei.js passes Request objects; String(Request) is '[object Request]'
+export function urlOf(input: RequestInfo | URL): string {
+  return typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.href
+      : input.url;
+}
+
 // proxy external API/media fetches through same-origin Pages Function
 export function proxyFetch(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
-  const url = typeof input === 'string' ? input : String(input);
+  const url = urlOf(input);
   let target: string;
   try {
     const { hostname } = new URL(url);
@@ -60,13 +69,17 @@ export function proxyFetch(
   } catch {
     target = url;
   }
+  // Request inputs carry method/headers on the object, not in init
+  const method =
+    init?.method ?? (input instanceof Request ? input.method : undefined);
+  const hdrs = new Headers(init?.headers);
+  hdrs.set('ngrok-skip-browser-warning', 'true');
+  hdrs.set('bypass-tunnel-reminder', 'true');
   const merged = {
     ...init,
-    headers: {
-      'ngrok-skip-browser-warning': 'true',
-      'bypass-tunnel-reminder': 'true',
-      ...(init?.headers || {}),
-    },
+    method,
+    headers: hdrs,
+    body: init?.body ?? (input instanceof Request ? input.body : undefined),
   };
   return gatedFetch(target, merged);
 }
@@ -148,7 +161,7 @@ export async function gatedFetch(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
-  const url = typeof input === 'string' ? input : String(input);
+  const url = urlOf(input);
   const host = hostOf(url);
   const state = stateFor(host);
 

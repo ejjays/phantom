@@ -215,6 +215,10 @@ export const onRequest: PagesFunction<Env> = (ctx) => {
     ...platformHeaders(parsed.hostname),
   };
 
+  // force identity encoding: runtimes diverge on auto-decompression (CF decodes br,
+  // undici does not), which corrupts streamed responses — plain bytes always match
+  outHeaders['Accept-Encoding'] = 'identity';
+
   // forward custom headers copied from the incoming request
   const range = request.headers.get('Range');
   if (range) outHeaders['Range'] = range;
@@ -222,13 +226,15 @@ export const onRequest: PagesFunction<Env> = (ctx) => {
   if (accept) outHeaders['Accept'] = accept;
   const acceptLang = request.headers.get('Accept-Language');
   if (acceptLang) outHeaders['Accept-Language'] = acceptLang;
-  const acceptEnc = request.headers.get('Accept-Encoding');
-  if (acceptEnc) outHeaders['Accept-Encoding'] = acceptEnc;
+  // deliberately NOT forwarding Accept-Encoding: Cloudflare + our bridge re-encode,
+  // and mismatched content-encoding headers break streaming proxies
+  const contentType = request.headers.get('Content-Type');
+  if (contentType) outHeaders['Content-Type'] = contentType;
 
-  // for POST (youtubei), pipe the body through
+  // for POST (youtubei), pipe the request body stream through
   let body: BodyInit | undefined;
   if (customMethod !== 'GET' && customMethod !== 'HEAD') {
-    body = request;
+    body = request.body ?? undefined;
   }
 
   const corsHeaders = corsHeadersFor(origin ?? own);
@@ -239,6 +245,8 @@ export const onRequest: PagesFunction<Env> = (ctx) => {
     body,
     // don't forward cookies
     credentials: 'omit',
+    // stream the incoming body through (required for ReadableStream bodies)
+    duplex: 'half',
   }).catch((e: unknown) => {
     const msg = e instanceof Error ? e.message : String(e);
     return new Response(`Upstream error: ${msg}`, { status: 502 });
@@ -252,6 +260,8 @@ export const onRequest: PagesFunction<Env> = (ctx) => {
     }
     // don't leak set-cookie
     respHeaders.delete('set-cookie');
+    // belt-and-braces: body must match headers (identity) for streamed responses
+    respHeaders.delete('content-encoding');
 
     return new Response(upstreamRes.body, {
       status: upstreamRes.status,

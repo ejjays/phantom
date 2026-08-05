@@ -1,5 +1,6 @@
 import Innertube, { ClientType } from 'youtubei.js';
 import { BG } from 'bgutils-js';
+import { urlOf } from '../net';
 import type { VideoInfo, Format } from '@shared/schemas/media.schema.js';
 
 const PO_TOKEN_REQUEST_KEY = 'O43z0dpjhgX20SCx4KAo';
@@ -69,18 +70,21 @@ function shouldProxy(url: string): boolean {
 export function createProxyFetch(opts: ProxyFetchOptions): typeof fetch {
   const { proxyBase } = opts;
   return (input: RequestInfo | URL, init?: RequestInit) => {
-    const rawUrl = typeof input === 'string' ? input : String(input);
+    const rawUrl = urlOf(input);
     if (!rawUrl || !shouldProxy(rawUrl)) {
       return fetch(input, init);
     }
+    // youtubei's HTTPClient passes (Request, { body, headers, redirect, credentials });
+    // method lives on the Request, headers is a Headers instance (not spreadable)
+    const hdrs = new Headers(init?.headers);
+    hdrs.set('User-Agent', BOOTSTRAP_UA);
+    hdrs.set('Origin', YT_ORIGIN);
+    hdrs.set('Referer', `${YT_ORIGIN}/`);
     return fetch(`${proxyBase}/proxy?u=${encodeURIComponent(rawUrl)}`, {
-      ...init,
-      headers: {
-        ...(init?.headers || {}),
-        'User-Agent': BOOTSTRAP_UA,
-        Origin: YT_ORIGIN,
-        Referer: `${YT_ORIGIN}/`,
-      },
+      method: init?.method ?? (input instanceof Request ? input.method : undefined),
+      headers: hdrs,
+      body: init?.body ?? (input instanceof Request ? input.body : undefined),
+      redirect: init?.redirect ?? (input instanceof Request ? input.redirect : undefined),
       credentials: 'omit',
     });
   };
