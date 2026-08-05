@@ -18,7 +18,6 @@
     ],
     "android": {
       "package": "com.phantom.app",
-      "softwareKeyboardLayoutMode": "pan",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
@@ -106,9 +105,9 @@
         "style": "light"
       },
       "eas": {
-        "projectId": "ec1cf54b-dee4-4847-9897-c24e8bd5eb74"
+        "projectId": "0dfebd23-1818-47b6-ad3e-6aee03e9aad4"
       }
     },
-    "owner": "ejjayz"
+    "owner": "ejjays"
   }
 }
