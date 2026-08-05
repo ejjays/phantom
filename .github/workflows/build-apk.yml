@@ -33,6 +33,14 @@ jobs:
           echo "ANDROID_NDK_HOME=$SDK_ROOT/ndk/27.1.12297006" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_ROOT=$SDK_ROOT/ndk/27.1.12297006" >> "$GITHUB_ENV"
 
+      - name: Tune Gradle memory for CI
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=1024m
+          org.gradle.workers.max=4
+          EOF
+
       - name: Setup Expo and EAS
         uses: expo/expo-github-action@v8
         with:
