@@ -2,9 +2,6 @@ name: Build Android APK (EAS local)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - ci/apk-eas-local
 
 jobs:
   apk:
