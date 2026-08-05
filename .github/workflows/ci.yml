@@ -2,7 +2,7 @@ name: CI / CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, ci/apk-eas-local]
   pull_request:
     branches: [main]
   workflow_dispatch:
