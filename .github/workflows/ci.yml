@@ -1,0 +1,311 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: 24
+  CACHE_KEY: v3-root
+
+jobs:
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    if: ${{ steps.filter.outputs.backend == 'true' }}
+    timeout-minutes: 30
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            backend:
+              - 'web/backend/**'
+              - 'web/shared/**'
+              - 'packages/**'
+              - '.github/workflows/ci.yml'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ env.CACHE_KEY }}-${{ runner.os }}-
+
+      - name: Install FFmpeg, Python, yt-dlp
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg python3 python3-pip
+          sudo pip3 install --break-system-packages --upgrade yt-dlp
+
+      - name: Install dependencies (monorepo root)
+        run: npm ci --ignore-scripts
+
+      - name: Build shared extractor package
+        run: (cd packages/extractors && npm run build)
+
+      - name: Save cache
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules
+          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Typecheck, lint, and build
+        run: |
+          cd web/backend
+          npx tsc --noEmit
+          npx eslint .
+          npm run build
+
+      - name: Run core tests
+        run: |
+          cd web/backend
+          npx vitest run --environment node
+
+      - name: Store test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: web/backend/test-results.xml
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Store coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: web/backend/coverage
+          retention-days: 7
+          if-no-files-found: ignore
+
+  test-frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+    if: ${{ steps.filter.outputs.frontend == 'true' }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            frontend:
+              - 'web/frontend/**'
+              - 'web/shared/**'
+              - '.github/workflows/ci.yml'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ env.CACHE_KEY }}-${{ runner.os }}-
+
+      - name: Install dependencies (monorepo root)
+        run: npm ci --ignore-scripts
+
+      - name: Save cache
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules
+          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Typecheck and lint
+        run: |
+          cd web/frontend
+          npx tsc --noEmit
+          npx eslint .
+
+      - name: Run Frontend Tests
+        run: |
+          cd web/frontend
+          npx vitest run
+
+  test-mobile:
+    name: Test Mobile
+    runs-on: ubuntu-latest
+    if: ${{ steps.filter.outputs.mobile == 'true' }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            mobile:
+              - 'mobile/**'
+              - 'packages/**'
+              - '.github/workflows/ci.yml'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ env.CACHE_KEY }}-${{ runner.os }}-
+
+      - name: Install dependencies (monorepo root)
+        run: npm ci --ignore-scripts
+
+      - name: Build shared extractor package
+        run: (cd packages/extractors && npm run build)
+
+      - name: Save cache
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules
+          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Typecheck, lint, and test
+        run: |
+          cd mobile
+          npx tsc --noEmit
+          npx eslint .
+          npx vitest run
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies (monorepo root)
+        run: npm ci --ignore-scripts
+
+      - name: Dependency audit (npm)
+        run: |
+          npm audit --omit=dev --audit-level=critical
+
+      - name: Supply-chain scan (OSV-Scanner)
+        run: |
+          OSV_VERSION=2.3.5
+          URL="https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_${OSV_VERSION}_linux_amd64"
+          if curl -sSfL "$URL" -o /tmp/osv-scanner; then
+            chmod +x /tmp/osv-scanner
+            /tmp/osv-scanner --version
+            /tmp/osv-scanner scan source --lockfile=package-lock.json || true
+          else
+            echo "OSV-Scanner download failed; skipping"
+          fi
+
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            frontend:
+              - 'web/frontend/**'
+              - '.github/workflows/ci.yml'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            ~/.npm
+          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ env.CACHE_KEY }}-${{ runner.os }}-
+
+      - name: Build and Deploy Frontend
+        run: |
+          npm ci --ignore-scripts
+          cd web/frontend
+          npm run build
+          rm -rf dist/ffmpeg-core dist/libav
+          cp -r functions dist/
+          npx --yes wrangler@4.93.0 pages deploy dist --project-name c-phantom --branch main
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+
+      - name: Save cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            node_modules
+            ~/.npm
+          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
