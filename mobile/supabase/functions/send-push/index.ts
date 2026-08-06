@@ -354,6 +354,6 @@ Deno.serve(async (req: Request) => {
     return json({ ok: true });
   } catch (err) {
     console.error('[send-push]', err);
-    return json({ error: String(err) }, 500);
+    return json({ error: 'internal error' }, 500);
   }
 });

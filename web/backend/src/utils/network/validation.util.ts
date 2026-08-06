@@ -88,16 +88,15 @@ export function isValidProxyUrl(url: string | null | undefined): boolean {
 }
 
 export function decodeUrlIfNeeded(url: string): string {
-  if (url?.includes('%')) {
-    try {
-      const decoded = decodeURIComponent(url);
-      if (decoded.startsWith('http')) return decoded;
-    } catch (error: unknown) {
-      logger.debug(
-        '[VideoController] URL decode error:',
-        (error as Error).message
-      );
-    }
+  if (typeof url !== 'string' || !url.includes('%')) return url;
+  try {
+    const decoded = decodeURIComponent(url);
+    if (decoded.startsWith('http')) return decoded;
+  } catch (error: unknown) {
+    logger.debug(
+      '[VideoController] URL decode error:',
+      (error as Error).message
+    );
   }
   return url;
 }

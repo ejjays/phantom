@@ -65,7 +65,8 @@ export const getVideoInformation = async (
     'Cache-Control',
     'no-store, no-cache, must-revalidate, proxy-revalidate'
   );
-  let videoURL = decodeUrlIfNeeded(req.query.url as string);
+  const rawUrl = req.query.url;
+  let videoURL = decodeUrlIfNeeded(typeof rawUrl === 'string' ? rawUrl : '');
   const clientId = (req.query.id as string) || undefined;
 
   if (videoURL) {

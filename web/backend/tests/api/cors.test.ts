@@ -5,14 +5,12 @@ import app from '../../src/app.js';
 describe('cors hardening', () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it('does not send credentials with a reflected origin (open mode)', async () => {
+  it('sends literal * (no credentials) in open mode, never reflects origin', async () => {
     vi.stubEnv('ALLOWED_ORIGINS', '');
     const res = await request(app)
       .get('/ping')
       .set('Origin', 'https://evil.example');
-    expect(res.headers['access-control-allow-origin']).toBe(
-      'https://evil.example'
-    );
+    expect(res.headers['access-control-allow-origin']).toBe('*');
     expect(res.headers['access-control-allow-credentials']).toBeUndefined();
   });
 

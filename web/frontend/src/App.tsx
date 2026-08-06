@@ -6,7 +6,7 @@ import React, {
   lazy,
   Suspense,
 } from 'react';
-import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router';
 import { useRemixStore } from './store/useRemixStore';
 import { VideoInfo } from '@shared/schemas/media.schema.js';
 import { getDynamicBackendUrl } from './lib/config';

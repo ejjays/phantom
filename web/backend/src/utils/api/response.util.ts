@@ -62,6 +62,7 @@ function _mapFinalMetadata(
   isSpotify: boolean,
   videoURL: string
 ): FinalResponse {
+  videoURL = typeof videoURL === 'string' ? videoURL : '';
   const isPartial = Boolean(info.isPartial);
   const isIsrcMatch = Boolean(info.isIsrcMatch);
   const isJsInfo = Boolean(info.isJsInfo);

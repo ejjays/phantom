@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router';
 import * as Sentry from '@sentry/react'; // skipcq: JS-C1003
 import './index.css';
 import App from './App';

@@ -231,11 +231,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     .filter(Boolean);
   if (origin) {
     const openMode = allowlist.length === 0;
-    if (openMode || allowlist.includes(origin)) {
+    if (openMode) {
+      res.header('Access-Control-Allow-Origin', '*');
+    } else if (allowlist.includes(origin)) {
       res.header('Access-Control-Allow-Origin', origin);
       res.header('Vary', 'Origin');
-      // credentials unsafe with reflected origin
-      if (!openMode) res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Allow-Credentials', 'true');
     }
   }
   res.header(

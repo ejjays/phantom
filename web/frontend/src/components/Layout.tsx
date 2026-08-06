@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import Header from './Header';
 import TwinkleStars from './ui/TwinkleStars';
 import ShootingStars from './ui/ShootingStars';

@@ -1,15 +1,27 @@
 export function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&#x([0-9a-fA-F]+);/gu, (_match, hex) =>
-      String.fromCodePoint(parseInt(hex, 16))
-    )
-    .replace(/&#(\d+);/gu, (_match, dec) =>
-      String.fromCodePoint(parseInt(dec, 10))
-    )
-    .replace(/&amp;/gu, '&')
-    .replace(/&quot;/gu, '"')
-    .replace(/&lt;/gu, '<')
-    .replace(/&gt;/gu, '>');
+  return text.replace(
+    /&(#x[0-9a-fA-F]+|#\d+|amp|quot|lt|gt|apos);/gu,
+    (entity, code: string) => {
+      if (code.startsWith('#x')) {
+        return String.fromCodePoint(parseInt(code.slice(2), 16));
+      }
+      if (code.startsWith('#')) {
+        return String.fromCodePoint(parseInt(code.slice(1), 10));
+      }
+      switch (code) {
+        case 'amp':
+          return '&';
+        case 'quot':
+          return '"';
+        case 'lt':
+          return '<';
+        case 'gt':
+          return '>';
+        default:
+          return "'";
+      }
+    }
+  );
 }
 
 export function decode(text: string): string {
