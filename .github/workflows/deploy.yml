@@ -5,6 +5,10 @@ on:
     - cron: '0 * * * *'  # runs every hour
   workflow_dispatch:
 
+permissions:
+  contents: read
+  checks: write
+
 env:
   NODE_VERSION: 24
   CACHE_KEY: v3-root
@@ -54,8 +58,10 @@ jobs:
 
       - name: Publish test report
         if: always()
-        uses: dorny/test-reporter@v2
+        continue-on-error: true
+        uses: dorny/test-reporter@v3
         with:
-          name: Live Extractor Health
+          name: "Test Report: Live Extractor Health"
           path: mobile/test-results.xml
           reporter: jest-junit
+          use-actions-summary: false

@@ -7,6 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  checks: write
+
 env:
   NODE_VERSION: 24
   CACHE_KEY: v3-root
@@ -118,11 +122,13 @@ jobs:
 
       - name: Publish test report
         if: always()
-        uses: dorny/test-reporter@v2
+        continue-on-error: true
+        uses: dorny/test-reporter@v3
         with:
-          name: Backend Tests
+          name: "Test Report: Backend"
           path: web/backend/test-results.xml
           reporter: jest-junit
+          use-actions-summary: false
 
       - name: Store test results
         if: always()
@@ -191,11 +197,13 @@ jobs:
 
       - name: Publish test report
         if: always()
-        uses: dorny/test-reporter@v2
+        continue-on-error: true
+        uses: dorny/test-reporter@v3
         with:
-          name: Frontend Tests
+          name: "Test Report: Frontend"
           path: web/frontend/test-results.xml
           reporter: jest-junit
+          use-actions-summary: false
 
       - name: Store frontend test results
         if: always()
@@ -254,11 +262,13 @@ jobs:
 
       - name: Publish test report
         if: always()
-        uses: dorny/test-reporter@v2
+        continue-on-error: true
+        uses: dorny/test-reporter@v3
         with:
-          name: Mobile Tests
+          name: "Test Report: Mobile"
           path: mobile/test-results.xml
           reporter: jest-junit
+          use-actions-summary: false
 
       - name: Store mobile test results
         if: always()
@@ -309,11 +319,13 @@ jobs:
 
       - name: Publish test report
         if: always()
-        uses: dorny/test-reporter@v2
+        continue-on-error: true
+        uses: dorny/test-reporter@v3
         with:
-          name: Mobile E2E (live extractors)
+          name: "Test Report: Mobile E2E (live)"
           path: mobile/test-results.xml
           reporter: jest-junit
+          use-actions-summary: false
 
       - name: Store mobile E2E test results
         if: always()
