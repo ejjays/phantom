@@ -10,4 +10,4 @@ ios/
 .env
 .env*.local
 *service-account*.json
-serviceAccountKey.json
+serviceAccountKey.jsontest-results.xml
