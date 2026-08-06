@@ -30,6 +30,7 @@ jobs:
         id: filter
         uses: dorny/paths-filter@v4
         with:
+          base: ${{ github.event.before }}
           filters: |
             backend:
               - 'web/backend/**'
