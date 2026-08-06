@@ -82,10 +82,11 @@ jobs:
           restore-keys: |
             ${{ env.CACHE_KEY }}-${{ runner.os }}-
 
-      - name: Verify FFmpeg and Python (preinstalled on runner)
-        run: |
-          ffmpeg -version | head -1
-          python3 --version
+      - name: Install FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v3
+
+      - name: Verify FFmpeg
+        run: ffmpeg -version | head -1
 
       - name: Install yt-dlp
         run: pip3 install --break-system-packages --upgrade yt-dlp
