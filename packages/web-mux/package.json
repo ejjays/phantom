@@ -46,7 +46,7 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "mediabunny": "^1.50.8"
+    "mediabunny": "^1.52.3"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",
