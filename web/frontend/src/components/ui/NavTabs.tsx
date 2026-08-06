@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router';
 import styled from 'styled-components';
 import { HomeIcon } from '../../assets/icons/HomeIcon';
 import { UpdatesIcon } from '../../assets/icons/UpdatesIcon';

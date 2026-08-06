@@ -169,8 +169,9 @@ export function createVimeoExtractor(env: ExtractorEnv = defaultEnv) {
       const res = await env.fetch(page, { headers: { 'User-Agent': UA } });
       if (!res.ok) return undefined;
       const html = await res.text();
+      const escaped = id.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
       const re = new RegExp(
-        `player\\.vimeo\\.com/video/${id}\\?h=([a-z0-9]+)`,
+        `player\\.vimeo\\.com/video/${escaped}\\?h=([a-z0-9]+)`,
         'iu'
       );
       return html.match(re)?.[1];

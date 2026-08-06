@@ -83,9 +83,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       },
     });
   } catch (err: unknown) {
-    const error = err as Error;
+    console.error('[get-url]', err);
     return new Response(
-      JSON.stringify({ error: error.message || String(error) }),
+      JSON.stringify({ error: 'Internal server error' }),
       {
         status: 500,
         headers: { 'Content-Type': 'application/json' },

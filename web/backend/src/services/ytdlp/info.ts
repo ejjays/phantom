@@ -220,7 +220,9 @@ export async function getVideoInfo(
   const tid = getTraceId() || 'global';
   const t0 = Date.now();
   logger.info(`[Info] [${tid}] Starting getVideoInfo for:`, url);
-  if (!isSupportedUrl(url)) throw new Error('Unsupported or malicious URL');
+  if (typeof url !== 'string' || !isSupportedUrl(url)) {
+    throw new Error('Unsupported or malicious URL');
+  }
 
   const onProgress = (
     status: string,

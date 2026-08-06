@@ -117,6 +117,7 @@ export async function fetchMetadata(
   targetUrl: string
 ): Promise<Metadata | null> {
   try {
+    if (typeof targetUrl !== 'string' || !targetUrl) return null;
     // rewrite mobile URL
     let fetchUrl = targetUrl;
     if (

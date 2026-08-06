@@ -604,6 +604,8 @@ const RAW_HTML = `<!doctype html>
 </script>
 </body>
 </html>`;
+// RAW_HTML is a fixed local template, never attacker input
+// codeql-disable js/bad-tag-filter
 const SCRIPTS = [...RAW_HTML.matchAll(/<script>([\s\S]*?)<\/script>/gu)]
   .map((match) => match[1])
   .join('\n');

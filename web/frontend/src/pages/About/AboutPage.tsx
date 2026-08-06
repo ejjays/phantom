@@ -10,7 +10,7 @@ import {
   Coffee,
   Cpu,
 } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { GlassCard } from '../../components/ui/GlassCard';
 import SEO from '../../components/utils/SEO';
 import SocialMedia from '../../components/SocialMedia';

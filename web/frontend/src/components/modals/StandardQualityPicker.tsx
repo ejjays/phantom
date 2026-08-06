@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Music, SquarePen, ListMusic } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import FormatIcon from '../../assets/icons/FormatIcon';
 import ModalHeader from './ModalHeader';
 import {

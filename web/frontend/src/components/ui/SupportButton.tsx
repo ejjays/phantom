@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 const SteamEffect = () => (
   <div className="absolute -top-5 left-1/2 -translate-x-1/2 flex gap-1">

@@ -1,5 +1,5 @@
 import { DEMO_SONGS } from '../../components/remix/DemoSongsConfig';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import MixerControls from '../../components/remix/MixerControls';

@@ -40,18 +40,29 @@ interface PidgetsResponse {
 }
 
 function decodeEntities(text: string): string {
-  return text
-    .replace(/&#x([0-9a-f]+);/giu, (_, hex: string) =>
-      String.fromCodePoint(parseInt(hex, 16))
-    )
-    .replace(/&#(\d+);/gu, (_, dec: string) =>
-      String.fromCodePoint(Number(dec))
-    )
-    .replace(/&amp;/giu, '&')
-    .replace(/&quot;/giu, '"')
-    .replace(/&lt;/giu, '<')
-    .replace(/&gt;/giu, '>')
-    .replace(/&apos;/giu, "'");
+  return text.replace(
+    /&(#x[0-9a-fA-F]+|#\d+|amp|quot|lt|gt|apos);/giu,
+    (entity, code: string) => {
+      if (code.startsWith('#x')) {
+        return String.fromCodePoint(parseInt(code.slice(2), 16));
+      }
+      if (code.startsWith('#')) {
+        return String.fromCodePoint(parseInt(code.slice(1), 10));
+      }
+      switch (code.toLowerCase()) {
+        case 'amp':
+          return '&';
+        case 'quot':
+          return '"';
+        case 'lt':
+          return '<';
+        case 'gt':
+          return '>';
+        default:
+          return "'";
+      }
+    }
+  );
 }
 
 // descriptions double as titles; keep them one line and readable

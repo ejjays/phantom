@@ -12,7 +12,7 @@ export const YT_PROXY = process.env.YT_PROXY?.trim() || '';
 const PROXY_ALL = process.env.YT_PROXY_ALL === '1';
 
 export function isYouTubeUrl(url?: string): boolean {
-  if (!url) return false;
+  if (typeof url !== 'string' || !url) return false;
   return url.includes('youtube.com') || url.includes('youtu.be');
 }
 

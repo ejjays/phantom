@@ -149,6 +149,7 @@ export async function pipeWebStream(
   signal?: AbortSignal
 ): Promise<boolean> {
   if (redirectCount > 5) throw new Error('Too many redirects');
+  if (typeof url !== 'string' || !url) return false;
 
   const urlObj = new URL(url);
 
