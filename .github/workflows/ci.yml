@@ -2,7 +2,7 @@ name: Checks
 
 on:
   push:
-    branches: [main, ci/apk-eas-local]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
