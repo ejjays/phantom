@@ -1,4 +1,4 @@
-name: CI / CD
+name: Quality Checks
 
 on:
   push:
@@ -13,7 +13,7 @@ env:
 
 jobs:
   changes:
-    name: Detect Changed Paths
+    name: Detect Changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -227,7 +227,7 @@ jobs:
           npx vitest run
 
   security-scan:
-    name: Security Scan
+    name: Run Security Scan
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
