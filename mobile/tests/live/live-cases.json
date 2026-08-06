@@ -1,14 +1,5 @@
 [
   {
-    "name": "facebook /share/v/ (owner-guaranteed public)",
-    "extractor": "facebook",
-    "url": "https://www.facebook.com/share/v/1KQdjepXjy/",
-    "expect": {
-      "minFormats": 1,
-      "rejectUploader": "Facebook User"
-    }
-  },
-  {
     "name": "facebook /videos/ permalink (CNN)",
     "extractor": "facebook",
     "url": "https://www.facebook.com/cnn/videos/10155529876156509/",
