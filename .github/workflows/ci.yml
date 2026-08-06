@@ -1,4 +1,4 @@
-name: Quality Checks
+name: Checks
 
 on:
   push:
@@ -228,7 +228,7 @@ jobs:
           npx vitest run
 
   test-mobile-live:
-    name: Test Mobile Live
+    name: Test Mobile (E2E)
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.mobile == 'true'
@@ -266,7 +266,7 @@ jobs:
           VITEST_INCLUDE_LIVE=1 npx vitest run tests/live
 
   security-scan:
-    name: Run Security Scan
+    name: Security Scan
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
