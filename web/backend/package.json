@@ -64,7 +64,7 @@
     "metascraper-title": "^5.50.1",
     "metascraper-url": "^5.50.1",
     "metascraper-youtube": "^5.50.1",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.2.0",
     "node-shazam": "^1.2.7",
     "pino": "^10.3.1",
     "spotify-url-info": "^3.3.0",
