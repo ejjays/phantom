@@ -13,6 +13,13 @@ updates:
         update-types:
           - minor
           - patch
+    # v3 pinned until repo fully migrates to v4 CSS syntax (index.css, config-driven theme).
+    # nativewind avoided (its pinned lightningcss predates termux binary support).
+    ignore:
+      - dependency-name: tailwindcss
+        versions:
+          - '>=4.0.0'
+      - dependency-name: twrnc
     open-pull-requests-limit: 10
 
   - package-ecosystem: github-actions
