@@ -82,11 +82,13 @@ jobs:
           restore-keys: |
             ${{ env.CACHE_KEY }}-${{ runner.os }}-
 
-      - name: Install FFmpeg, Python, yt-dlp
+      - name: Verify FFmpeg and Python (preinstalled on runner)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg python3 python3-pip
-          sudo pip3 install --break-system-packages --upgrade yt-dlp
+          ffmpeg -version | head -1
+          python3 --version
+
+      - name: Install yt-dlp
+        run: pip3 install --break-system-packages --upgrade yt-dlp
 
       - name: Install dependencies (monorepo root)
         run: npm ci --ignore-scripts
