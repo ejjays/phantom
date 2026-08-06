@@ -51,3 +51,11 @@ jobs:
         run: |
           cd mobile
           VITEST_INCLUDE_LIVE=1 npx vitest run tests/live
+
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: Live Extractor Health
+          path: mobile/test-results.xml
+          reporter: jest-junit

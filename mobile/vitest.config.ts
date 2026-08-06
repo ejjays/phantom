@@ -9,5 +9,7 @@ export default defineConfig({
     maxWorkers: 1,
     fileParallelism: false,
     maxConcurrency: 1,
+    reporters: ['default', 'junit'],
+    outputFile: './test-results.xml',
   },
 });

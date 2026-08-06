@@ -2,7 +2,7 @@ name: Checks
 
 on:
   push:
-    branches: [main, ci/apk-eas-local]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -116,6 +116,14 @@ jobs:
           cd web/backend
           npx vitest run --environment node
 
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: Backend Tests
+          path: web/backend/test-results.xml
+          reporter: jest-junit
+
       - name: Store test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -181,6 +189,23 @@ jobs:
           cd web/frontend
           npx vitest run
 
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: Frontend Tests
+          path: web/frontend/test-results.xml
+          reporter: jest-junit
+
+      - name: Store frontend test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: web/frontend/test-results.xml
+          retention-days: 7
+          if-no-files-found: ignore
+
   test-mobile:
     name: Test Mobile
     runs-on: ubuntu-latest
@@ -227,6 +252,23 @@ jobs:
           npx eslint .
           npx vitest run
 
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: Mobile Tests
+          path: mobile/test-results.xml
+          reporter: jest-junit
+
+      - name: Store mobile test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-test-results
+          path: mobile/test-results.xml
+          retention-days: 7
+          if-no-files-found: ignore
+
   test-mobile-live:
     name: Test Mobile (E2E)
     runs-on: ubuntu-latest
@@ -264,6 +306,23 @@ jobs:
         run: |
           cd mobile
           VITEST_INCLUDE_LIVE=1 npx vitest run tests/live
+
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: Mobile E2E (live extractors)
+          path: mobile/test-results.xml
+          reporter: jest-junit
+
+      - name: Store mobile E2E test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-e2e-test-results
+          path: mobile/test-results.xml
+          retention-days: 7
+          if-no-files-found: ignore
 
   deploy-frontend:
     name: Deploy Frontend
