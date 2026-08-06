@@ -26,7 +26,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "dependencies": {
-    "@google/genai": "^1.35.0",
+    "@google/genai": "^2.15.0",
     "@libsql/client": "^0.17.3",
     "@phantom/extractors": "0.0.1",
     "@phantom/web-mux": "0.0.1",
