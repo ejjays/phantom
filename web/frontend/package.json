@@ -57,12 +57,13 @@
     "postcss": "^8.5.8",
     "prettier": "^3.8.3",
     "seo-analyzer": "^3.2.0",
-    "tailwindcss": "^3.4.19",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.59.4",
     "vite": "^7.2.4",
     "vite-plugin-sitemap": "^0.8.2",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.5",
+    "@tailwindcss/postcss": "^4.3.3"
   },
   "optionalDependencies": {
     "@esbuild/android-arm64": "^0.28.0",

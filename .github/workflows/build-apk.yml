@@ -1,0 +1,64 @@
+name: Build Android APK (EAS local)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install required NDK
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          SDKMGR="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMGR" --install "ndk;27.1.12297006"
+          echo "ANDROID_NDK_HOME=$SDK_ROOT/ndk/27.1.12297006" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$SDK_ROOT/ndk/27.1.12297006" >> "$GITHUB_ENV"
+
+      - name: Tune Gradle memory for CI
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=1024m
+          org.gradle.workers.max=4
+          EOF
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies (monorepo root)
+        run: npm ci
+
+      - name: Build Android APK locally with EAS
+        working-directory: mobile
+        run: |
+          eas build --platform android \
+            --profile preview \
+            --local \
+            --non-interactive \
+            --output ./app-release.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: phantom-preview-apk
+          path: mobile/app-release.apk
+          retention-days: 14
