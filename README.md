@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://dl.circleci.com/status-badge/redirect/circleci/9BjBRRbsXUjJueU2cq7uGg/YU36DWYQs3RevrR3a2o1CN/tree/main"><img src="https://dl.circleci.com/status-badge/img/circleci/9BjBRRbsXUjJueU2cq7uGg/YU36DWYQs3RevrR3a2o1CN/tree/main.svg?style=shield" alt="CircleCI" /></a>
+  <a href="https://github.com/ejjays/phantom/actions/workflows/ci.yml"><img src="https://github.com/ejjays/phantom/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://app.deepsource.com/gh/ejjays/phantom/"><img src="https://app.deepsource.com/gh/ejjays/phantom.svg/?label=active+issues&show_trend=true&token=AjSUM1LGBlY2Uzo6_spxrx9Q" alt="DeepSource" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-green?style=flat" alt="License: Apache 2.0" /></a>
 </p>
