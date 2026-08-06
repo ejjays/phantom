@@ -1,0 +1,51 @@
+name: Audit
+
+on:
+  push:
+    branches: [main, ci/apk-eas-local]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '15 4 * * 1'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: 24
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies (monorepo root)
+        run: npm ci --ignore-scripts
+
+      - name: Verify lockfile signatures
+        run: npm audit signatures
+
+      - name: Dependency audit (npm)
+        run: |
+          npm audit --omit=dev --audit-level=critical
+
+      - name: Supply-chain scan (OSV-Scanner)
+        run: |
+          OSV_VERSION=2.3.5
+          URL="https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_${OSV_VERSION}_linux_amd64"
+          if curl -sSfL "$URL" -o /tmp/osv-scanner; then
+            chmod +x /tmp/osv-scanner
+            /tmp/osv-scanner --version
+            /tmp/osv-scanner scan source --lockfile=package-lock.json || true
+          else
+            echo "OSV-Scanner download failed; skipping"
+          fi
