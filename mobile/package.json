@@ -36,7 +36,7 @@
     "expo-haptics": "~56.0.3",
     "expo-image": "~56.0.11",
     "expo-image-picker": "~56.0.22",
-    "expo-intent-launcher": "~56.0.4",
+    "expo-intent-launcher": "~57.0.1",
     "expo-linear-gradient": "~56.0.4",
     "expo-media-library": "~56.0.10",
     "expo-navigation-bar": "~56.0.3",
