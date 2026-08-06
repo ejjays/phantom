@@ -28,7 +28,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Restore cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: node_modules
           key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -42,7 +42,7 @@ jobs:
         run: (cd packages/extractors && npm run build)
 
       - name: Save cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: node_modules
           key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
