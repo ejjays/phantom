@@ -7,7 +7,7 @@ const TURSO_READ_TOKEN = (
   process.env.EXPO_PUBLIC_TURSO_READ_TOKEN ?? ''
 ).trim();
 
-export const isRegistryConfigured =
+const isRegistryConfigured =
   TURSO_URL.length > 0 && TURSO_READ_TOKEN.length > 0;
 
 export type SpotifyMapping = {

@@ -2,7 +2,7 @@ import { startActivityAsync } from 'expo-intent-launcher';
 
 const FLAG_GRANT_READ = 1;
 
-export async function openGallery(): Promise<void> {
+async function openGallery(): Promise<void> {
   try {
     await startActivityAsync('android.intent.action.MAIN', {
       category: 'android.intent.category.APP_GALLERY',
@@ -12,7 +12,7 @@ export async function openGallery(): Promise<void> {
   }
 }
 
-export async function openMusic(): Promise<void> {
+async function openMusic(): Promise<void> {
   try {
     await startActivityAsync('android.intent.action.MAIN', {
       category: 'android.intent.category.APP_MUSIC',

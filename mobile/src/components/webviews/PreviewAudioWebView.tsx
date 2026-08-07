@@ -1,9 +1,4 @@
-import {
-  forwardRef,
-  useCallback,
-  useImperativeHandle,
-  useRef,
-} from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react';
 import { View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
@@ -48,7 +43,7 @@ true;
 </body>
 </html>`;
 
-export type PreviewProgress = {
+type PreviewProgress = {
   currentTime: number;
   duration: number;
 };

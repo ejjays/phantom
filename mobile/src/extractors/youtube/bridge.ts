@@ -40,7 +40,7 @@ export interface RawYtResult {
   adaptive: RawYtFormat[];
 }
 
-export interface RawYtMeta {
+interface RawYtMeta {
   id: string;
   title?: string;
   author?: string;
@@ -55,7 +55,7 @@ export interface YtSearchResult {
   durationSec?: number;
 }
 
-export interface RawYtPlaylistEntry {
+interface RawYtPlaylistEntry {
   id: string;
   title?: string;
   channel?: string;

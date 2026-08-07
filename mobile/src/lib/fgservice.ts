@@ -99,7 +99,7 @@ export function isBatteryRestricted(): Promise<boolean> {
   return notifee.isBatteryOptimizationEnabled();
 }
 
-export async function openBatterySettings(): Promise<void> {
+async function openBatterySettings(): Promise<void> {
   await startActivityAsync(
     'android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS'
   ).catch(() => undefined);

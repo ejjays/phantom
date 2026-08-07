@@ -42,7 +42,7 @@ const PLATFORM_LOGOS: Record<string, number> = {
   dailymotion: dailymotionLogo,
 };
 
-export async function ensureNotificationPermission(): Promise<boolean> {
+async function ensureNotificationPermission(): Promise<boolean> {
   const settings = await notifee.requestPermission();
   return settings.authorizationStatus >= AuthorizationStatus.AUTHORIZED;
 }

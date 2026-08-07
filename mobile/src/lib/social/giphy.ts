@@ -62,7 +62,7 @@ async function fetchGifs(
   };
 }
 
-export function trendingGifs(offset = 0, signal?: AbortSignal): Promise<GifPage> {
+function trendingGifs(offset = 0, signal?: AbortSignal): Promise<GifPage> {
   return fetchGifs('trending', '', offset, signal);
 }
 

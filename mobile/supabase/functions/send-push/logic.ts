@@ -1,12 +1,12 @@
-/* 
-* pure logic: no Deno/network/npm imports — vitest-testable. constants mirror
-*  client's pushRender.logic.ts (separate runtimes, not shared). 
-*/
+/*
+ * pure logic: no Deno/network/npm imports — vitest-testable. constants mirror
+ *  client's pushRender.logic.ts (separate runtimes, not shared).
+ */
 
 export type SocialType = 'reply' | 'mention' | 'like' | 'comment';
 
 // android notification config subset accepted by notify-kit's buildNotifyKitPayload.
-export type AndroidConfig = {
+type AndroidConfig = {
   channelId: string;
   smallIcon: string;
   color: string;

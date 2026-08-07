@@ -18,7 +18,7 @@ import { type DownloadState, formatSize, extLabel } from '../../lib/format';
 
 const SHIMMER_BAND = 64;
 
-export function FooterProgress({ state }: { state: DownloadState }) {
+function FooterProgress({ state }: { state: DownloadState }) {
   const muxing = state.status === 'muxing';
   const saving = state.status === 'saving';
   const fill = useSharedValue(0);

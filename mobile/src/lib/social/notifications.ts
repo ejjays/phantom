@@ -1,13 +1,8 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import type { InboxItem, InboxType } from './notifications.logic';
 
-export type { InboxItem, InboxType } from './notifications.logic';
-export {
-  countUnread,
-  badgeLabel,
-  notificationAction,
-  applyAllRead,
-} from './notifications.logic';
+export type { InboxItem } from './notifications.logic';
+export { badgeLabel, notificationAction } from './notifications.logic';
 
 type Row = {
   id: string;

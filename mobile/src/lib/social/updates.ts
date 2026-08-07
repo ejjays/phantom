@@ -12,13 +12,11 @@ import {
 } from './updates.logic';
 
 export {
-  REACTION_EMOJIS,
   summarizeReactions,
   planReactionToggle,
   validateUsername,
   validateComment,
   suggestUsernameFrom,
-  generateGuestName,
   isGuestName,
   displayName,
   relativeTime,
@@ -108,7 +106,7 @@ export async function signInAsGuest(): Promise<string> {
 
 // idempotent: only creates the row when missing, so a stale session never
 // regenerates (and clobbers) an existing guest name.
-export async function ensureGuestProfile(userId: string): Promise<void> {
+async function ensureGuestProfile(userId: string): Promise<void> {
   const { data, error: readError } = await client()
     .from('profiles')
     .select('id')

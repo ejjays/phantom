@@ -27,29 +27,15 @@ function mimeFor(name: string): string {
   return 'video/mp4';
 }
 
-export function readSaveDir(): Promise<string | null> {
+function readSaveDir(): Promise<string | null> {
   return AsyncStorage.getItem(DIR_KEY).catch(() => null);
 }
 
-export async function pickSaveDir(): Promise<string | null> {
+async function pickSaveDir(): Promise<string | null> {
   const perm = await StorageAccessFramework.requestDirectoryPermissionsAsync();
   if (!perm.granted) return null;
   await AsyncStorage.setItem(DIR_KEY, perm.directoryUri).catch(() => undefined);
   return perm.directoryUri;
-}
-
-export function fullPath(uri: string | null): string {
-  if (!uri) return '';
-  try {
-    const tree = decodeURIComponent(uri).split('/tree/').pop() ?? '';
-    const [volume, ...rest] = tree.split(':');
-    const sub = rest.join(':');
-    const base =
-      volume === 'primary' ? '/storage/emulated/0' : `/storage/${volume}`;
-    return sub ? `${base}/${sub}` : base;
-  } catch {
-    return uri;
-  }
 }
 
 async function getSaveDir(): Promise<string | null> {

@@ -34,14 +34,9 @@ import ollie from '../../assets/avatars/ollie.webp';
 import zuri from '../../assets/avatars/zuri.webp';
 import { presetIdOf, presetMarker } from './avatars.logic';
 
-export {
-  PRESET_PREFIX,
-  presetMarker,
-  isPresetMarker,
-  presetIdOf,
-} from './avatars.logic';
+export { presetMarker, isPresetMarker, presetIdOf } from './avatars.logic';
 
-export type AvatarPreset = { id: string; name: string; source: number };
+type AvatarPreset = { id: string; name: string; source: number };
 export type AvatarCategory = {
   id: string;
   title: string;

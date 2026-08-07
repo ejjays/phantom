@@ -4,9 +4,15 @@ import type { Format, VideoInfo } from '../extractors/types';
 
 const INFLIGHT_KEY = 'phantom.download.inflight';
 
-export type DownloadInfoSubset = Pick<
+type DownloadInfoSubset = Pick<
   VideoInfo,
-  'title' | 'uploader' | 'album' | 'thumbnail' | 'duration' | 'extractorKey' | 'downloadHeaders'
+  | 'title'
+  | 'uploader'
+  | 'album'
+  | 'thumbnail'
+  | 'duration'
+  | 'extractorKey'
+  | 'downloadHeaders'
 >;
 
 export type InflightItem = {
@@ -61,32 +67,17 @@ function emit(): void {
   listeners.forEach((fn) => fn());
 }
 
-export function subscribeInflight(fn: () => void): () => void {
+function subscribeInflight(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }
 
 export async function upsertInflight(item: InflightItem): Promise<void> {
   const items = await read();
-  const next = [
-    item,
-    ...items.filter((it) => it.id !== item.id),
-  ].sort((x, y) => y.updatedAt - x.updatedAt);
+  const next = [item, ...items.filter((it) => it.id !== item.id)].sort(
+    (x, y) => y.updatedAt - x.updatedAt
+  );
   await write(next);
-  emit();
-}
-
-export async function updateInflightProgress(
-  id: string,
-  progress: number
-): Promise<void> {
-  const items = await read();
-  const idx = items.findIndex((it) => it.id === id);
-  if (idx < 0) return;
-  const pct = Math.max(0, Math.min(100, Math.round(progress)));
-  if (items[idx].progress === pct) return;
-  items[idx] = { ...items[idx], progress: pct, updatedAt: Date.now() };
-  await write(items);
   emit();
 }
 

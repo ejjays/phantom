@@ -7,6 +7,7 @@ ios/
 *.log
 *.apk
 .DS_Store
+knip-report.txt
 .env
 .env*.local
 *service-account*.json

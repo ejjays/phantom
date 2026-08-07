@@ -39,13 +39,12 @@ export type UpdateComment = {
 };
 
 export type Validation =
-  | { ok: true; value: string }
-  | { ok: false; error: string };
+  { ok: true; value: string } | { ok: false; error: string };
 
 export const REACTION_EMOJIS = ['🔥', '❤️', '🎉', '👍'] as const;
-export const USERNAME_MIN = 3;
-export const USERNAME_MAX = 20;
-export const COMMENT_MAX = 500;
+const USERNAME_MIN = 3;
+const USERNAME_MAX = 20;
+const COMMENT_MAX = 500;
 
 const USERNAME_PATTERN = /^\w+$/u;
 

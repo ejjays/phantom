@@ -54,7 +54,7 @@ function emit(): void {
   listeners.forEach((fn) => fn());
 }
 
-export function subscribeHistory(fn: () => void): () => void {
+function subscribeHistory(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }

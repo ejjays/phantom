@@ -13,7 +13,7 @@ export function getFeedCache(): FeedData | null {
   return memory;
 }
 
-export function readFeedCache(): Promise<FeedData | null> {
+function readFeedCache(): Promise<FeedData | null> {
   return AsyncStorage.getItem(FEED_KEY)
     .then((raw) => {
       if (!raw) return null;
