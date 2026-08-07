@@ -9,6 +9,9 @@ import { downloadPlaylistToFile } from './hls';
 import { DESKTOP_UA } from '../userAgents';
 import { log, warn as logWarn } from '../log';
 
+// ffmpeg-kit logs at verbose by default; only keep errors
+void FFmpegKitConfig.setLogLevel(Level.AV_LOG_ERROR);
+
 function fsPath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//u, ''));
 }
@@ -120,8 +123,6 @@ export function hlsToMp4(
   audioUrl?: string,
   keepAlive?: boolean
 ): Promise<boolean> {
-  // ffmpeg-kit echoes every segment fetch; floods dev console
-  void FFmpegKitConfig.setLogLevel(Level.AV_LOG_ERROR);
   // vimeo splits video & audio playlists; map both when present
   const inputs = audioUrl
     ? `-i "${url}" -i "${audioUrl}" -map 0:v:0 -map 1:a:0`
