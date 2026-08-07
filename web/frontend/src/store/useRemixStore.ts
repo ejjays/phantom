@@ -106,7 +106,9 @@ export const useRemixStore = create<RemixState>()(
       const newId =
         typeof crypto !== 'undefined' && crypto.randomUUID
           ? crypto.randomUUID().split('-')[0]
-          : Math.random().toString(36).substring(2, 10);
+          : (crypto.getRandomValues(new Uint32Array(1))[0] >>> 0)
+              .toString(36)
+              .slice(0, 8);
       if (typeof window !== 'undefined')
         localStorage.setItem('phantom_client_id', newId);
       return newId;

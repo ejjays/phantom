@@ -95,12 +95,23 @@ const ssrfSafeAgent = new Agent({
   },
 });
 
+function assertPublicTarget(url: URL): void {
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error(`[secureFetch] blocked scheme: ${url.protocol}`);
+  }
+  const host = url.hostname.toLowerCase();
+  if (host === 'localhost' || host.endsWith('.localhost') || host === '::1') {
+    throw new Error(`[secureFetch] blocked host: ${host}`);
+  }
+}
+
 export async function secureFetch(
   targetUrl: string | URL,
   options: RequestInit = {}
 ): Promise<globalThis.Response> {
   const parsedUrl =
     typeof targetUrl === 'string' ? new URL(targetUrl) : targetUrl;
+  assertPublicTarget(parsedUrl);
   const normalizedHeaders = new Headers(options.headers as HeadersInit);
 
   if (process.env.NODE_ENV === 'test' || process.env.VITEST) {

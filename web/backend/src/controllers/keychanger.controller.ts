@@ -177,6 +177,11 @@ const _handleAudioDecoding = (
     });
 };
 
+const cleanupUpload = (filePath: string) => {
+  const safe = resolveWithin(uploadDir, basename(filePath));
+  if (safe) unlink(safe, () => {});
+};
+
 const detectKeyFromFile = async (filePath: string): Promise<ChordsResult> => {
   const essentiaInstance = await getEssentia();
   if (!essentiaInstance) throw new Error('Essentia engine not available');
@@ -220,7 +225,7 @@ export const detectKey = async (req: Request, res: Response): Promise<void> => {
     logger.error('[KeyChanger] Detection Error:', error);
     res.status(500).json({ error: 'Audio analysis failed' });
   } finally {
-    unlink(req.file.path, (_error) => {});
+    cleanupUpload(req.file.path);
   }
 };
 
@@ -263,7 +268,7 @@ export const convertKey = (req: Request, res: Response): void => {
     keyMap[originalKey] === undefined ||
     keyMap[targetKey] === undefined
   ) {
-    unlink(req.file.path, (_error) => {});
+    cleanupUpload(req.file.path);
     res.status(400).json({ error: 'Invalid keys provided' });
     return;
   }
@@ -295,7 +300,7 @@ export const convertKey = (req: Request, res: Response): void => {
         filename: outputFilename,
         downloadUrl: `${protocol}://${host}/api/key-changer/download/${outputFilename}`,
       });
-      unlink(inputPath, (_error) => {});
+      cleanupUpload(inputPath);
     })
     .on('error', (error: unknown) => {
       const errorObj = error as Error;
@@ -304,7 +309,7 @@ export const convertKey = (req: Request, res: Response): void => {
         res
           .status(500)
           .json({ error: 'Conversion failed.', details: errorObj.message });
-      unlink(inputPath, (_error) => {});
+      cleanupUpload(inputPath);
     })
     .save(outputPath);
 };
