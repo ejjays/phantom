@@ -41,12 +41,12 @@ describe('inbound API key auth', () => {
     expect(res.status).toBe(403);
   });
 
-  it('accepts a correct ?key= query', async () => {
+  it('rejects a ?key= query (keys are header-only)', async () => {
     vi.stubEnv('API_KEY', 'secret');
     const res = await request(app)
       .get('/proxy?key=secret')
       .set('X-Forwarded-For', REMOTE);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
   });
 
   it('exempts localhost even with no key', async () => {

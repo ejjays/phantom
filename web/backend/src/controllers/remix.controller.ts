@@ -39,6 +39,10 @@ const EngineStatusResponseSchema = z
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const uploadDir = path.join(__dirname, '../../temp/uploads');
+const safeUploadPath = (filePath: string) =>
+  resolveWithin(uploadDir, path.basename(filePath)) ?? filePath;
+
 const STEMS_BASE_DIR = path.join(__dirname, '../../temp/remix_stems');
 if (!fs.existsSync(STEMS_BASE_DIR)) {
   fs.mkdirSync(STEMS_BASE_DIR, { recursive: true });
@@ -101,7 +105,7 @@ export const processAudio = async (
 
   try {
     const form = new FormData();
-    const fileBuffer = fs.readFileSync(req.file.path);
+    const fileBuffer = fs.readFileSync(safeUploadPath(req.file.path));
     const fileBlob = new Blob([fileBuffer], { type: req.file.mimetype });
     form.append('file', fileBlob, req.file.originalname);
     form.append('engine', engine || 'Demucs');
@@ -182,7 +186,8 @@ export const processAudio = async (
         error: `engine failed: ${error instanceof Error ? error.message : String(error)}`,
       });
   } finally {
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    if (req.file && fs.existsSync(safeUploadPath(req.file.path)))
+      fs.unlinkSync(safeUploadPath(req.file.path));
   }
 };
 

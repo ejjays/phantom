@@ -320,6 +320,16 @@ async function relayChunks(rawUrl, start, end, req, res) {
 async function fetchChunk(rawUrl, pos, sliceEnd, headers, aborted) {
   for (let attempt = 0; attempt < MAX_MEDIA_RETRIES; attempt += 1) {
     if (aborted) return null;
+    const target = new URL(rawUrl);
+    const isPrivateHost =
+      target.hostname === 'localhost' ||
+      target.hostname.endsWith('.local') ||
+      /^(127\.|0\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/u.test(
+        target.hostname
+      );
+    if (!/^https?:$/u.test(target.protocol) || isPrivateHost) {
+      return { status: 403 };
+    }
     try {
       const upstream = await fetch(rawUrl, {
         headers: { ...headers, range: `bytes=${pos}-${sliceEnd}` },

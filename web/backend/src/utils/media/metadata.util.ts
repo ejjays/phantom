@@ -1,5 +1,6 @@
 import metascraper from 'metascraper';
 import { logger } from '../infra/logger.util.js';
+import { isSupportedUrl } from '../network/validation.util.js';
 import metascraperAuthor from 'metascraper-author';
 import metascraperDescription from 'metascraper-description';
 import metascraperImage from 'metascraper-image';
@@ -133,6 +134,8 @@ export async function fetchMetadata(
     ) {
       fetchUrl = targetUrl.replace('www.instagram.com', 'm.instagram.com');
     }
+
+    if (!isSupportedUrl(fetchUrl)) return null;
 
     // set sneaky headers
     const isYouTube =

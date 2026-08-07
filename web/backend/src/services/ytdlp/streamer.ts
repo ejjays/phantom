@@ -619,9 +619,10 @@ export function streamDownload(
         } catch {
           // ignore mkdir failure
         }
+        const idPart = String(youtubeId || Date.now()).replace(/[^a-zA-Z0-9_-]/gu, '_');
         tempPath = path.join(
           tmpDir,
-          `${youtubeId || Date.now()}_${Math.random().toString(36).slice(2, 8)}.${options.format === 'webm' ? 'webm' : 'mp4'}`
+          `${idPart}_${Math.random().toString(36).slice(2, 8)}.${options.format === 'webm' ? 'webm' : 'mp4'}`
         );
       }
 
