@@ -1,3 +1,4 @@
+import { isHost } from '../../utils/network/host.util.js';
 import {
   ProxyAgent,
   Agent,
@@ -13,7 +14,7 @@ const PROXY_ALL = process.env.YT_PROXY_ALL === '1';
 
 export function isYouTubeUrl(url?: string): boolean {
   if (typeof url !== 'string' || !url) return false;
-  return url.includes('youtube.com') || url.includes('youtu.be');
+  return isHost(url, 'youtube.com') || isHost(url, 'youtu.be');
 }
 
 export function shouldProxyUrl(url?: string): boolean {

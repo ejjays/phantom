@@ -1,3 +1,4 @@
+import { isHost } from '../lib/utils';
 import { useCallback } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from '../lib/config';
@@ -191,7 +192,7 @@ export const useVideoInfo = () => {
           } as VideoInfo;
         });
 
-        if (finalUrl.toLowerCase().includes('spotify.com')) {
+        if (isHost(finalUrl, 'spotify.com')) {
           _handleSpotifyPlayer(updatedData, finalUrl, data);
         }
 

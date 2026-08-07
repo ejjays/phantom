@@ -1,3 +1,4 @@
+import { isHost } from '../../utils/network/host.util.js';
 import {
   getFromBrain,
   saveToBrain,
@@ -34,11 +35,11 @@ export async function refreshPreviewIfNeeded(
 ): Promise<void> {
   const currentPreview = brainData.previewUrl;
   const isExpiringCDN =
-    currentPreview?.includes('scdn.co') ||
-    currentPreview?.includes('spotify') ||
-    currentPreview?.includes('dzcdn.net') ||
-    currentPreview?.includes('mzstatic.com') ||
-    currentPreview?.includes('itunes.apple.com');
+    currentPreview != null && isHost(currentPreview, 'scdn.co') ||
+    currentPreview != null && isHost(currentPreview, 'spotify') ||
+    currentPreview != null && isHost(currentPreview, 'dzcdn.net') ||
+    currentPreview != null && isHost(currentPreview, 'mzstatic.com') ||
+    currentPreview != null && isHost(currentPreview, 'itunes.apple.com');
 
   if (currentPreview && !isExpiringCDN) return;
 
@@ -91,7 +92,7 @@ export async function resolveSpotifyToYoutube(
     /* noop */
   }
 ): Promise<SpotifyMetadata> {
-  if (!videoURL.includes('spotify.com')) {
+  if (!isHost(videoURL, 'spotify.com')) {
     return {
       id: videoURL,
       title: 'Direct Link',

@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export const isHost = (url: string, host: string) => {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return hostname === host || hostname.endsWith(`.${host}`);
+  } catch {
+    return false;
+  }
+};
+
 export const formatSize = (bytes?: number) => {
   if (!bytes) return 'Unknown size';
   const kiloBytes = bytes / 1000;

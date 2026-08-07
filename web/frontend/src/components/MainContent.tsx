@@ -1,3 +1,4 @@
+import { isHost } from '../lib/utils';
 import { lazy, Suspense, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link as LinkIcon } from 'lucide-react';
@@ -109,11 +110,11 @@ const FormatPicker = ({
       <FormatButton
         label="Video"
         active={selectedFormat === 'mp4'}
-        disabled={url.toLowerCase().includes('spotify.com')}
+        disabled={isHost(url, 'spotify.com')}
         onClick={() => setSelectedFormat('mp4')}
         icon={VideoIcon}
         aria-label={
-          url.toLowerCase().includes('spotify.com')
+          isHost(url, 'spotify.com')
             ? 'Video format (unavailable for Spotify links)'
             : selectedFormat === 'mp4'
               ? 'Video (MP4) format selected'

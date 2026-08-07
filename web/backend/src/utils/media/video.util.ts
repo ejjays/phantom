@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { logger } from '../infra/logger.util.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isHost } from '../network/host.util.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,18 +38,18 @@ export const normalizeUrl = (url: string): string => {
 
 export const detectService = (url: string): string => {
   const normalized = url.toLowerCase();
-  if (normalized.includes('youtube.com') || normalized.includes('youtu.be'))
+  if (isHost(normalized, 'youtube.com') || isHost(normalized, 'youtu.be'))
     return 'YouTube';
-  if (normalized.includes('facebook.com') || normalized.includes('fb.watch'))
+  if (isHost(normalized, 'facebook.com') || isHost(normalized, 'fb.watch'))
     return 'Facebook';
-  if (normalized.includes('instagram.com')) return 'Instagram';
-  if (normalized.includes('tiktok.com')) return 'TikTok';
-  if (normalized.includes('spotify.com')) return 'Spotify';
-  if (normalized.includes('soundcloud.com')) return 'SoundCloud';
+  if (isHost(normalized, 'instagram.com')) return 'Instagram';
+  if (isHost(normalized, 'tiktok.com')) return 'TikTok';
+  if (isHost(normalized, 'spotify.com')) return 'Spotify';
+  if (isHost(normalized, 'soundcloud.com')) return 'SoundCloud';
   if (
-    normalized.includes('bilibili.tv') ||
-    normalized.includes('biliintl.com') ||
-    normalized.includes('bili.im')
+    isHost(normalized, 'bilibili.tv') ||
+    isHost(normalized, 'biliintl.com') ||
+    isHost(normalized, 'bili.im')
   )
     return 'Bilibili';
   return 'Generic';

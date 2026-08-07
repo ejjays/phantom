@@ -1,11 +1,12 @@
 import { Redis, type RedisOptions } from 'ioredis';
 import { logger } from './logger.util.js';
+import { isHost } from '../network/host.util.js';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 
 const isExternal =
-  REDIS_URL.includes('upstash.io') ||
-  REDIS_URL.includes('aivencloud.com') ||
+  isHost(REDIS_URL, 'upstash.io') ||
+  isHost(REDIS_URL, 'aivencloud.com') ||
   REDIS_URL.includes('valkey');
 
 export const getRedisOptions = (overrides: Partial<RedisOptions> = {}) => {

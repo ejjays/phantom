@@ -1,6 +1,7 @@
 import { downloadImageToBuffer } from './ytdlp.service.js';
 import { logger } from '../utils/infra/logger.util.js';
 import type { RawSocialData } from '@phantom/extractors/social';
+import { isHost } from '../utils/network/host.util.js';
 
 export { normalizeTitle, normalizeArtist } from '@phantom/extractors/social';
 
@@ -34,20 +35,20 @@ export const proxyThumbnailIfNeeded = async (
 
   const isPermanentDomain =
     thumbnailUrl.includes('i.scdn.co') ||
-    thumbnailUrl.includes('spotifycdn.com') ||
-    thumbnailUrl.includes('ytimg.com') ||
-    thumbnailUrl.includes('googleusercontent.com') ||
-    thumbnailUrl.includes('ggpht.com');
+    isHost(thumbnailUrl, 'spotifycdn.com') ||
+    isHost(thumbnailUrl, 'ytimg.com') ||
+    isHost(thumbnailUrl, 'googleusercontent.com') ||
+    isHost(thumbnailUrl, 'ggpht.com');
 
   if (isPermanentDomain) {
     return thumbnailUrl;
   }
 
   const needsProxy =
-    videoUrl.includes('instagram.com') ||
-    videoUrl.includes('facebook.com') ||
-    videoUrl.includes('tiktok.com') ||
-    videoUrl.includes('twitter.com') ||
+    isHost(videoUrl, 'instagram.com') ||
+    isHost(videoUrl, 'facebook.com') ||
+    isHost(videoUrl, 'tiktok.com') ||
+    isHost(videoUrl, 'twitter.com') ||
     videoUrl.includes('bsky.app') ||
     /\/\/(?:www\.|mobile\.)?x\.com\//u.test(videoUrl);
 

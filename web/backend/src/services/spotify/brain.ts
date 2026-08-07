@@ -1,6 +1,7 @@
 import db from '../../utils/infra/db.util.js';
 import { logger } from '../../utils/infra/logger.util.js';
 import { SpotifyMetadata, Format } from '../../types/index.js';
+import { isHost } from '../../utils/network/host.util.js';
 
 interface RawMapping {
   url: string;
@@ -138,9 +139,9 @@ export function saveToBrain(spotifyUrl: string, data: SpotifyMetadata): void {
 
       if (
         data.previewUrl &&
-        (data.previewUrl.includes('scdn.co') ||
-          data.previewUrl.includes('dzcdn.net') ||
-          data.previewUrl.includes('itunes.apple.com'))
+        (isHost(data.previewUrl, 'scdn.co') ||
+          isHost(data.previewUrl, 'dzcdn.net') ||
+          isHost(data.previewUrl, 'itunes.apple.com'))
       ) {
         activeDb
           .execute({
@@ -193,9 +194,9 @@ export async function updatePreviewInBrain(
 
     if (
       previewUrl &&
-      (previewUrl.includes('scdn.co') ||
-        previewUrl.includes('dzcdn.net') ||
-        previewUrl.includes('itunes.apple.com'))
+      (isHost(previewUrl, 'scdn.co') ||
+        isHost(previewUrl, 'dzcdn.net') ||
+        isHost(previewUrl, 'itunes.apple.com'))
     ) {
       await activeDb.execute({
         sql: 'INSERT OR REPLACE INTO volatile_links (url, expires_at, provider) VALUES (?, ?, ?)',

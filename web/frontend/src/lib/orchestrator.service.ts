@@ -1,3 +1,4 @@
+import { isHost } from '../lib/utils';
 import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from './config';
 import { getSanitizedFilename } from './utils';
@@ -228,7 +229,7 @@ export class OrchestratorService {
         finalTitle,
         artist,
         finalFormatExtension,
-        url.includes('spotify.com')
+        isHost(url, 'spotify.com')
       );
 
       const wasTriggered =

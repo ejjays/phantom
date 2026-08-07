@@ -1,3 +1,4 @@
+import { isHost } from '../lib/utils';
 import { useCallback, useState, useEffect } from 'react';
 import { useProgress } from './useProgress';
 import { useNativeBridge } from './useNativeBridge';
@@ -73,7 +74,7 @@ export const useMediaConverter = (): MediaConverterHook => {
   } = useProgress();
 
   const isSpotifySession =
-    typeof url === 'string' && url.toLowerCase().includes('spotify.com');
+    typeof url === 'string' && isHost(url, 'spotify.com');
 
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 768 : false

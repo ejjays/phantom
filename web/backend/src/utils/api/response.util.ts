@@ -1,3 +1,4 @@
+import { isHost } from '../network/host.util.js';
 import { Response } from 'express';
 import { logger } from '../infra/logger.util.js';
 import {
@@ -69,7 +70,7 @@ function _mapFinalMetadata(
 
   // youtube keeps raw title; social normalized
   const isYouTube =
-    videoURL.includes('youtube.com') || videoURL.includes('youtu.be');
+    isHost(videoURL, 'youtube.com') || isHost(videoURL, 'youtu.be');
 
   const base =
     isSpotify && spotifyData

@@ -57,6 +57,7 @@ describe('Extract Service', () => {
     vi.spyOn(securityUtil, 'secureFetch').mockImplementation((url: unknown) => {
       const urlStr = String(url);
 
+// codeql-disable js/incomplete-url-substring-sanitization
       if (urlStr.includes('api.acoustid.org')) {
         return Promise.resolve({
           ok: true,
@@ -67,6 +68,7 @@ describe('Extract Service', () => {
         } as globalThis.Response);
       }
 
+// codeql-disable js/incomplete-url-substring-sanitization
       if (urlStr.includes('musicbrainz.org')) {
         return Promise.resolve({
           ok: true,
@@ -77,6 +79,7 @@ describe('Extract Service', () => {
         } as globalThis.Response);
       }
 
+// codeql-disable js/incomplete-url-substring-sanitization
       if (urlStr.includes('api.deezer.com')) {
         return Promise.resolve({
           ok: true,
@@ -206,6 +209,7 @@ describe('Extract Service', () => {
       const urlStr = String(url);
 
       // pass music pipeline
+// codeql-disable js/incomplete-url-substring-sanitization
       if (urlStr.includes('api.acoustid.org'))
         return Promise.resolve({
           ok: true,
@@ -214,11 +218,13 @@ describe('Extract Service', () => {
               results: [{ recordings: [{ id: 'mbid-123' }] }],
             }),
         } as globalThis.Response);
+// codeql-disable js/incomplete-url-substring-sanitization
       if (urlStr.includes('musicbrainz.org'))
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ isrcs: ['US1'] }),
         } as globalThis.Response);
+// codeql-disable js/incomplete-url-substring-sanitization
       if (urlStr.includes('api.deezer.com'))
         return Promise.resolve({
           ok: true,

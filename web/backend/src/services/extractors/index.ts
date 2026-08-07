@@ -1,3 +1,4 @@
+import { isHost } from '../../utils/network/host.util.js';
 import {
   getInfo as ytGetInfo,
   getStream as ytGetStream,
@@ -100,25 +101,25 @@ const genericExtractor: Extractor = {
 };
 
 export function getExtractor(url: string): Extractor | null {
-  if (url.includes('youtube.com') || url.includes('youtu.be')) return youtube;
-  if (url.includes('instagram.com')) return instagram;
-  if (url.includes('facebook.com') || url.includes('fb.watch')) return facebook;
-  if (url.includes('threads.net') || url.includes('threads.com'))
+  if (isHost(url, 'youtube.com') || isHost(url, 'youtu.be')) return youtube;
+  if (isHost(url, 'instagram.com')) return instagram;
+  if (isHost(url, 'facebook.com') || isHost(url, 'fb.watch')) return facebook;
+  if (isHost(url, 'threads.net') || isHost(url, 'threads.com'))
     return threads;
-  if (url.includes('tiktok.com')) return tiktok;
-  if (url.includes('spotify.com')) return spotify;
-  if (url.includes('soundcloud.com')) return soundcloud;
-  if (url.includes('vimeo.com')) return vimeo;
+  if (isHost(url, 'tiktok.com')) return tiktok;
+  if (isHost(url, 'spotify.com')) return spotify;
+  if (isHost(url, 'soundcloud.com')) return soundcloud;
+  if (isHost(url, 'vimeo.com')) return vimeo;
   if (
-    url.includes('twitter.com') ||
+    isHost(url, 'twitter.com') ||
     /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url)
   )
     return x;
-  if (url.includes('bsky.app')) return bluesky;
+  if (isHost(url, 'bsky.app')) return bluesky;
   if (
-    url.includes('bilibili.tv') ||
-    url.includes('biliintl.com') ||
-    url.includes('bili.im')
+    isHost(url, 'bilibili.tv') ||
+    isHost(url, 'biliintl.com') ||
+    isHost(url, 'bili.im')
   )
     return bilibili;
   return genericExtractor;
@@ -150,7 +151,7 @@ export async function getInfo(
   if (!extractor) return null;
 
   const getInfoStart = Date.now();
-  const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+  const isYouTube = isHost(url, 'youtube.com') || isHost(url, 'youtu.be');
 
   const metaFetcher = isYouTube ? fetchYoutubeOEmbed : fetchMetadata;
 
@@ -293,31 +294,31 @@ export async function getInfo(
 }
 
 export function shouldJSStream(url: string, quality: string, format: string) {
-  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+  if (isHost(url, 'youtube.com') || isHost(url, 'youtu.be')) {
     return false;
   }
 
   // dash: only audio is single-stream
   if (
-    url.includes('bilibili.tv') ||
-    url.includes('biliintl.com') ||
-    url.includes('bili.im')
+    isHost(url, 'bilibili.tv') ||
+    isHost(url, 'biliintl.com') ||
+    isHost(url, 'bili.im')
   ) {
     return ['mp3', 'm4a', 'audio'].includes(format);
   }
 
   if (
-    url.includes('facebook.com') ||
-    url.includes('instagram.com') ||
-    url.includes('threads.net') ||
-    url.includes('threads.com') ||
-    url.includes('spotify.com') ||
-    url.includes('soundcloud.com') ||
-    url.includes('vimeo.com')
+    isHost(url, 'facebook.com') ||
+    isHost(url, 'instagram.com') ||
+    isHost(url, 'threads.net') ||
+    isHost(url, 'threads.com') ||
+    isHost(url, 'spotify.com') ||
+    isHost(url, 'soundcloud.com') ||
+    isHost(url, 'vimeo.com')
   )
     return true;
 
-  if (url.includes('tiktok.com')) return false; // download issues
+  if (isHost(url, 'tiktok.com')) return false; // download issues
 
   if (['mp3', 'm4a', 'audio'].includes(format)) return true;
 
