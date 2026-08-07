@@ -129,6 +129,10 @@ export function presetSource(value: string | null | undefined): number | null {
 }
 
 export function randomPresetMarker(): string {
-  const index = crypto.getRandomValues(new Uint32Array(1))[0] % ALL_PRESETS.length;
-  return presetMarker(ALL_PRESETS[index].id);
+  const max = 0xffffffff - (0xffffffff % ALL_PRESETS.length);
+  let value = 0;
+  do {
+    value = crypto.getRandomValues(new Uint32Array(1))[0];
+  } while (value >= max);
+  return presetMarker(ALL_PRESETS[value % ALL_PRESETS.length].id);
 }

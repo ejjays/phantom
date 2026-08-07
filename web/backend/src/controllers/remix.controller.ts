@@ -40,8 +40,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const uploadDir = path.join(__dirname, '../../temp/uploads');
-const safeUploadPath = (filePath: string) =>
-  resolveWithin(uploadDir, path.basename(filePath)) ?? filePath;
+const safeUploadPath = (filePath: string): string => {
+  const safe = resolveWithin(uploadDir, path.basename(filePath));
+  if (!safe) throw new Error('upload path escaped uploads dir');
+  return safe;
+};
 
 const STEMS_BASE_DIR = path.join(__dirname, '../../temp/remix_stems');
 if (!fs.existsSync(STEMS_BASE_DIR)) {
