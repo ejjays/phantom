@@ -2,7 +2,7 @@ import path from 'node:path';
 import { logger } from '../infra/logger.util.js';
 import os from 'node:os';
 import { lookup } from 'node:dns/promises';
-import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
+import { lookup as dnsLookup, type LookupAddress, type LookupOptions } from 'node:dns';
 import { isIP } from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { URL } from 'node:url';
@@ -62,46 +62,60 @@ export async function resolveAndValidateHost(
   }
 }
 
+export function ssrfLookup(
+  hostname: string,
+  options: LookupOptions | number,
+  callback: (
+    err: NodeJS.ErrnoException | null,
+    address: string | LookupAddress[],
+    family?: number
+  ) => void
+): void {
+  return dnsLookup(hostname, options as LookupOptions, (error, address, family) => {
+    if (error) {
+      callback(error, address as unknown as string, family);
+      return;
+    }
+
+    const isArray = Array.isArray(address);
+    const addrsToCheck = isArray
+      ? (address as LookupAddress[])
+      : [{ address: address as unknown as string }];
+
+    for (const addr of addrsToCheck) {
+      if (!isSafeIp(addr.address)) {
+        callback(
+          new Error(
+            `[SSRF BLOCK] Resolution to internal IP blocked: ${addr.address}`
+          ),
+          address as unknown as string,
+          family
+        );
+        return;
+      }
+    }
+
+    callback(null, address as unknown as string, family);
+  });
+}
+
 const ssrfSafeAgent = new Agent({
   connect: {
-    lookup: (hostname, options, callback) => {
-      return dnsLookup(hostname, options, (error, address, family) => {
-        if (error) {
-          callback(error, address as unknown as string, family);
-          return;
-        }
-
-        const isArray = Array.isArray(address);
-        const addrsToCheck = isArray
-          ? (address as LookupAddress[])
-          : [{ address: address as unknown as string }];
-
-        for (const addr of addrsToCheck) {
-          if (!isSafeIp(addr.address)) {
-            callback(
-              new Error(
-                `[SSRF BLOCK] Resolution to internal IP blocked: ${addr.address}`
-              ),
-              address as unknown as string,
-              family
-            );
-            return;
-          }
-        }
-
-        callback(null, address as unknown as string, family);
-      });
-    },
+    lookup: (hostname, options, callback) =>
+      ssrfLookup(hostname, options, callback),
   },
 });
 
-function assertPublicTarget(url: URL): void {
+export function assertPublicTarget(url: URL): void {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new Error(`[secureFetch] blocked scheme: ${url.protocol}`);
   }
   const host = url.hostname.toLowerCase();
   if (host === 'localhost' || host.endsWith('.localhost') || host === '::1') {
     throw new Error(`[secureFetch] blocked host: ${host}`);
+  }
+  if (isIP(host) && !isSafeIp(host)) {
+    throw new Error(`[secureFetch] blocked ip: ${host}`);
   }
 }
 

@@ -50,6 +50,8 @@ web/backend/test_*.html
 web/frontend/public/ffmpeg-core/
 web/frontend/public/libav/
 web/backend/test-results.xml
+mobile/test-results.xml
+packages/extractors/test-results.xml
 scripts/eslint-plugin-nexstream.js
 scripts/setup/restore.sh
 scripts/setup

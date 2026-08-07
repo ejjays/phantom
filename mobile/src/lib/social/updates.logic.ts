@@ -82,7 +82,9 @@ const usedGuestNames = new Set<string>();
 export function generateGuestName(): string {
   let name: string;
   do {
-    name = `anonymous${Math.floor(10000 + Math.random() * 90000)}`;
+    name = `anonymous${
+      10000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 90000)
+    }`;
   } while (usedGuestNames.has(name));
   usedGuestNames.add(name);
   return name;

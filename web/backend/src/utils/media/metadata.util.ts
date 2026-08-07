@@ -13,8 +13,9 @@ import metascraperSpotify from 'metascraper-spotify';
 import metascraperInstagram from 'metascraper-instagram';
 import metascraperTiktok from 'metascraper-tiktok';
 import metascraperSoundcloud from 'metascraper-soundcloud';
-import got, { Got } from 'got';
+import got, { Got, type Options as GotOptions } from 'got';
 import { isHost } from '../network/host.util.js';
+import { assertPublicTarget, ssrfLookup } from '../network/security.util.js';
 
 const scraper = metascraper([
   metascraperAuthor(),
@@ -136,6 +137,7 @@ export async function fetchMetadata(
     }
 
     if (!isSupportedUrl(fetchUrl)) return null;
+    assertPublicTarget(new URL(fetchUrl));
 
     // set sneaky headers
     const isYouTube =
@@ -160,6 +162,7 @@ export async function fetchMetadata(
       timeout: 5000,
       retry: 1,
       followRedirect: true,
+      lookup: ssrfLookup as unknown as GotOptions['lookup'],
     });
 
     const html = response.body;
