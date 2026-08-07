@@ -13,7 +13,7 @@ Phantom is a multi-target repo:
 | Web backend    | `web/backend/`  | Express 5 + TS, yt-dlp, ffmpeg, Redis, Turso          |
 | Web frontend   | `web/frontend/` | React 19 + Vite, Tailwind + Styled Components         |
 | Shared schemas | `web/shared/`   | Zod schemas (`@phantom/shared`)                       |
-| Android app    | `mobile/`       | Expo SDK 56, RN 0.85, Hermes, New Architecture        |
+| Android app    | `mobile/`       | Expo SDK 57, RN 0.86, Hermes, New Architecture        |
 | Remix Lab      | `remix/`        | Python (Demucs, BTC, madmom, nnAudio) on Kaggle/Colab |
 | Packages       | `packages/`     | `@phantom/extractors`, `@phantom/web-mux` (both MIT)  |
 
@@ -38,7 +38,7 @@ npm run check:all # same across whole repo — run before opening a PR
 The backend suite is heavy for phones — on Termux, vitest gets OOM-killed (signal 9 by phantom killer), so there are two paths:
 
 - **Off Termux:** `cd web/backend && npm run test:single`
-- **On Termux:** `npm run test:ci` pushes a throwaway branch, runs the full suite on CircleCI, and pulls results back (needs `CIRCLECI_TOKEN`)
+- **On Termux:** `cd web/backend && npm test` — runs `scripts/test-sequential.sh`, which executes the suites one file at a time to keep memory under the killer's radar. Or push your branch and let CI run the full suite.
 
 Frontend tests: `cd web/frontend && npm test`. Mobile tests: `cd mobile && npm test`.
 
@@ -46,7 +46,7 @@ If you're fixing a bug or adding a feature, a test that covers it really helps �
 
 ## Continuous Integration
 
-CI runs on CircleCI — see [`.circleci/config.yml`](.circleci/config.yml). Every push triggers typecheck, lint, tests, and a security scan; nothing to configure locally beyond `npm run check`.
+CI runs on GitHub Actions — see [`.github/workflows/`](.github/workflows/). `ci.yml` ("Checks") path-filters by workspace and runs typecheck + lint + tests for backend/frontend/mobile, plus mobile live extractor checks and a Cloudflare Pages deploy on `main`. `audit.yml` scans dependencies (lockfile signature, `npm audit`, OSV-Scanner), `codeql.yml` runs CodeQL, and `build-apk.yml` builds Android APKs on demand via EAS. Nothing to configure locally beyond `npm run check`.
 
 ## Conventions
 

@@ -72,7 +72,7 @@ npm start       # Expo dev client
 eas build --profile development  # dev client APK
 ```
 
-Prebuilt APKs: GitHub Releases (built via EAS). Android only — iOS untested/unsupported.
+Prebuilt APKs: built via EAS on GitHub Actions (`build-apk.yml`, `eas build --local`, profiles development/preview/production) and downloadable from the workflow's artifacts. Android only — iOS untested/unsupported.
 
 ---
 
@@ -112,7 +112,7 @@ phantom/
 │   ├── frontend/       # React 19 + Vite + Tailwind + Styled Components
 │   ├── backend/        # Express 5 + yt-dlp + ffmpeg + Redis + Turso
 │   └── shared/         # @phantom/shared (Zod schemas)
-├── mobile/             # Expo SDK 56, RN 0.85, Hermes, New Arch
+├── mobile/             # Expo SDK 57, RN 0.86, Hermes, New Arch
 │   ├── src/extractors/ # 15 pure-JS platform extractors
 │   ├── src/lib/        # download pipeline, social, net, notify
 │   └── src/components/ # UI, sheets, backgrounds, webviews

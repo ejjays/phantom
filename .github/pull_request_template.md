@@ -8,7 +8,7 @@
 
 ## Testing
 
-<!-- how you verified: `npm run check`, tests (test:single / test:ci / frontend), manual steps -->
+<!-- how you verified: `npm run check`, tests (backend test:single / mobile & frontend npm test), manual steps -->
 
 ## Checklist
 

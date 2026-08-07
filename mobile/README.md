@@ -1,6 +1,6 @@
 # Phantom Android
 
-Standalone Expo/React Native app (SDK 56, RN 0.85, Hermes, New Architecture). Runs the full pipeline on-device: resolve → download → mux → save. No backend. Includes a small Updates tab (Supabase) for app news, reactions, comments.
+Standalone Expo/React Native app (SDK 57, RN 0.86, Hermes, New Architecture). Runs the full pipeline on-device: resolve → download → mux → save. No backend. Includes a small Updates tab (Supabase) for app news, reactions, comments.
 
 ## Why on-device
 
@@ -39,8 +39,9 @@ PickerModal → useDownload → downloadPipeline.ts
 | Platform                                                                                           | Implementation                                                                                                                                 |
 | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | YouTube                                                                                            | Hidden WebView (`YouTubeExtractorWebView`), same-origin `youtubei.js`, BotGuard PO token + sig/`n` decipher on device IP, `postMessage` bridge |
-| Spotify                                                                                            | Client-credentials API (`spotify/api.ts`), track/album/playlist → search YouTube                                                               |
+| Spotify                                                                                            | Token minted server-side by the `spotify-token` Supabase edge function; track/album/playlist → search YouTube                                  |
 | Bilibili, TikTok, Instagram, X, Threads, Facebook, Bluesky, Reddit, SoundCloud, Vimeo, Dailymotion | Pure JS: fetch page/API → parse embedded JSON (regex fallback) via `gatedFetch`                                                                |
+| Pinterest, Twitch                                                                                  | Pure JS via `gatedFetch`                                                                                                                        |
 
 All extractors return common `VideoInfo` / `Format[]` (`types.ts`). Pure-JS extractors use `gatedFetch` (`lib/net.ts`) — per-host concurrency + 429 backoff to avoid bot-blocks.
 
@@ -108,7 +109,7 @@ Two coexisting paths in `lib/social/googleAuth.ts` + `lib/social/updates.ts`:
 - **Extractor convention:** extractors **throw** typed `ExtractorError` on failure. Tests assert `await expect(getInfo(...)).rejects.toThrow(/.../iu)` — NOT `toBeNull()`. `null` = unsupported host.
 - **Resource discipline:** run only relevant test files — never full suite (Termux phantom killer).
 - Scripts: `typecheck` (`tsc --noEmit`), `test`, `lint` (changed), `lint:all` (`eslint .`).
-- **CI** (`.circleci/config.yml`, `test-mobile`, `cimg/node:22.12`): `npm ci` → `tsc --noEmit` → `npm run lint:all` → `npx vitest run`. Runs only when `mobile/` changes (`halt-unless-changed`).
+- **CI** (GitHub Actions, `.github/workflows/ci.yml`): `test-mobile` runs `tsc --noEmit` → `eslint .` → `npx vitest run`; `test-mobile-live` runs the live extractor suite (`VITEST_INCLUDE_LIVE=1 npx vitest run tests/live`). Both path-filtered — run only when `mobile/` changes.
 
 ---
 
@@ -118,11 +119,13 @@ Two coexisting paths in `lib/social/googleAuth.ts` + `lib/social/updates.ts`:
 | -------------------------------------------- | -------------------------------------------------------------------------- |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY`          | Updates tab                                                                |
 | `GOOGLE_WEB_CLIENT_ID`                       | Native Google sign-in (Web OAuth client ID)                                |
-| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | Spotify extraction                                                         |
-| `YT_COOKIE`, `BILIBILI_COOKIE`               | Personal cookies — **leave blank in public builds** (extractable from APK) |
+| `GIPHY_KEY`                                  | Giphy GIF picker in comments                                               |
+| `BILIBILI_COOKIE`, `IG_COOKIE`               | Personal cookies — **leave blank in public builds** (extractable from APK) |
 | `TURSO_URL`, `TURSO_READ_TOKEN`              | Read-only edge registry (Spotify→YouTube mappings)                         |
 | `SENTRY_DSN`                                 | Error tracking                                                             |
 | `DISABLE_FAST_RESOLVE`                       | Skip in-memory resolve cache                                               |
+
+Spotify client id/secret are **not** app env vars — they're secrets on the Supabase `spotify-token` edge function; the app gets short-lived tokens from it.
 
 Local `.env` is gitignored. Preview/prod builds need vars in `eas.json` `env`; dev client reads local `.env` via Metro.
 

@@ -10,7 +10,7 @@ This doesn't mean the server build is bad. With a capable host — enough RAM, p
 
 ## What It Does
 
-- **~13 platforms** resolve through dedicated on-device pure-JS extractors — no `yt-dlp`, no native subprocess.
+- **15 platforms** resolve through dedicated on-device pure-JS extractors — no `yt-dlp`, no native subprocess.
 - **YouTube** runs in a hidden WebView that generates a BotGuard **PO token** and deciphers streams on the device's residential IP.
 - **Downloads** pull `googlevideo` in parallel 4 MB ranged chunks to beat the playback-rate throttle.
 - **Muxing** stitches adaptive HD video + audio with `ffmpeg-kit` (`-c copy`, no re-encode) and saves straight to the gallery.

@@ -11,7 +11,6 @@ Clients can pass the key three ways:
 ```
 Authorization: Bearer <key>
 X-API-Key: <key>
-?key=<key>            # for browser-driven download links
 ```
 
 > A public **web** frontend can't keep a key secret — anyone can read it in the browser. For an open, human-facing instance, use a bot challenge (e.g. Cloudflare Turnstile) instead of / alongside `API_KEY`, and reserve `API_KEY` for programmatic / API-only access.

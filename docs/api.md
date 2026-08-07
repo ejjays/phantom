@@ -4,7 +4,7 @@ Phantom exposes a small HTTP API. Responses are validated against the shared Zod
 
 ## Auth
 
-If the instance sets `API_KEY`, the endpoints below (except `/ping` and `/health`) require it: pass `Authorization: Bearer <key>`, `X-API-Key: <key>`, or `?key=<key>`. Localhost is exempt. See [`protect-an-instance.md`](protect-an-instance.md).
+If the instance sets `API_KEY`, the endpoints below (except `/ping` and `/health`) require it: pass `Authorization: Bearer <key>` or `X-API-Key: <key>`. Localhost is exempt. See [`protect-an-instance.md`](protect-an-instance.md).
 
 ## `GET /info?url=<media-url>&id=<clientId>`
 
