@@ -98,6 +98,7 @@ export async function bootstrapCookies(): Promise<void> {
     if (!res.ok) res = await secureFetch(cleanUrl);
     if (!res.ok) return;
     let text = await res.text();
+// codeql-disable js/incomplete-url-substring-sanitization
     if (!text.includes('youtube.com')) return;
     // fix malformed header for yt-dlp compatibility
     if (!text.startsWith('# Netscape HTTP Cookie File')) {

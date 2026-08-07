@@ -1,3 +1,4 @@
+import { isHost } from '../../utils/network/host.util.js';
 import { sendEvent } from '../../utils/network/sse.util.js';
 import { logger } from '../../utils/infra/logger.util.js';
 import { VideoInfo, SpotifyMetadata, SSEEvent } from '../../types/index.js';
@@ -46,11 +47,11 @@ async function _refreshSpotifyPreview(
   const preview = brainData.previewUrl;
   const isExpiringCDN =
     !preview ||
-    preview.includes('scdn.co') ||
-    preview.includes('spotify') ||
-    preview.includes('dzcdn.net') ||
-    preview.includes('mzstatic.com') ||
-    preview.includes('itunes.apple.com');
+    isHost(preview, 'scdn.co') ||
+    isHost(preview, 'spotify') ||
+    isHost(preview, 'dzcdn.net') ||
+    isHost(preview, 'mzstatic.com') ||
+    isHost(preview, 'itunes.apple.com');
 
   if (isExpiringCDN && spotifyIdx.refreshPreviewIfNeeded) {
     await spotifyIdx

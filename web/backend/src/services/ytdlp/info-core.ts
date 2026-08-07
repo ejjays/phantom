@@ -1,3 +1,4 @@
+import { isHost } from '../../utils/network/host.util.js';
 import { spawn } from 'node:child_process';
 import { logger } from '../../utils/infra/logger.util.js';
 import { remoteYtdlpConfigured, runYtdlpRemote } from './remote-ytdlp.js';
@@ -402,9 +403,9 @@ export async function runYtdlpInfo(
 
   void persistInfoJsonToDisk(parsedData, stdout);
 
-  const ytdlpLabel = targetUrl.includes('tiktok.com')
+  const ytdlpLabel = isHost(targetUrl, 'tiktok.com')
     ? 'tiktok:ytdlp'
-    : targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')
+    : isHost(targetUrl, 'youtube.com') || isHost(targetUrl, 'youtu.be')
       ? 'youtube:ytdlp'
       : 'other:ytdlp';
   recordExtraction(ytdlpLabel, true, Date.now() - ytdlpStart);

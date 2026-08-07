@@ -1,3 +1,4 @@
+import { isHost } from '../utils/network/host.util.js';
 import { Request, Response } from 'express';
 import { logger } from '../utils/infra/logger.util.js';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
@@ -83,7 +84,7 @@ export const getVideoInformation = async (
 
   try {
     const cookieArgs = await getCookieArgs(videoURL, clientId);
-    const isSpotify = videoURL.includes('spotify.com');
+    const isSpotify = isHost(videoURL, 'spotify.com');
 
     // fail-fast cap so blocked platforms don't hang
     const info = await Promise.race([
@@ -351,7 +352,7 @@ export const proxyStream = async (
   }
 
   // fetch only the signature-bound url
-  const urlToFetch = rawUrl;
+  const urlToFetch = typeof rawUrl === 'string' ? rawUrl : '';
 
   // trace which client path fetched this
   logger.info(
@@ -468,7 +469,7 @@ export const convertVideo = (req: Request, res: Response): void => {
     res.setHeader('Set-Cookie', `download_token=${token}; Path=/; Max-Age=60`);
   }
 
-  const isSpotifyRequest = videoURL.includes('spotify.com');
+  const isSpotifyRequest = isHost(videoURL, 'spotify.com');
   const timestamp = new Date().toLocaleTimeString('en-US', {
     hour12: true,
     hour: 'numeric',

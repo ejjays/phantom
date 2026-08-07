@@ -1,3 +1,4 @@
+import { isHost } from '../../utils/network/host.util.js';
 import fs from 'node:fs';
 import { logger } from '../../utils/infra/logger.util.js';
 import { sendEvent } from '../../utils/network/sse.util.js';
@@ -31,7 +32,7 @@ async function runYtdlpEnhancement(
     fullInfo.isJsInfo = true;
     fullInfo.isPartial = false;
     fullInfo.isFullData = true;
-    fullInfo.extractorKey = targetUrl.includes('tiktok.com')
+    fullInfo.extractorKey = isHost(targetUrl, 'tiktok.com')
       ? 'tiktok'
       : 'youtube';
 
@@ -100,7 +101,7 @@ export async function handleYoutubeTiktokInfo(
 
     if (!hasFormats && !hasMetadata) return null;
 
-    const extractorKey = targetUrl.includes('tiktok.com')
+    const extractorKey = isHost(targetUrl, 'tiktok.com')
       ? 'tiktok'
       : 'youtube';
 
@@ -391,15 +392,15 @@ export async function handleSocialJSInfo(
   cookieArgs: string[],
   onProgress: ProgressCallback
 ): Promise<VideoInfo | null> {
-  const platform = targetUrl.includes('facebook.com')
+  const platform = isHost(targetUrl, 'facebook.com')
     ? 'Facebook'
-    : targetUrl.includes('instagram.com')
+    : isHost(targetUrl, 'instagram.com')
       ? 'Instagram'
-      : targetUrl.includes('tiktok.com')
+      : isHost(targetUrl, 'tiktok.com')
         ? 'TikTok'
-        : targetUrl.includes('bilibili.tv') ||
-            targetUrl.includes('biliintl.com') ||
-            targetUrl.includes('bili.im')
+        : isHost(targetUrl, 'bilibili.tv') ||
+            isHost(targetUrl, 'biliintl.com') ||
+            isHost(targetUrl, 'bili.im')
           ? 'Bilibili'
           : 'Social';
 

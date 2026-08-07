@@ -1,3 +1,4 @@
+import { isHost } from '../../utils/network/host.util.js';
 import { Request } from 'express';
 import { logger } from '../../utils/infra/logger.util.js';
 import { getCookieArgs } from '../../utils/api/controller.util.js';
@@ -174,7 +175,7 @@ export async function resolveManifests(
     if (full?.formats?.length) info = full;
   }
 
-  const isSpotify = videoURL.includes('spotify.com');
+  const isSpotify = isHost(videoURL, 'spotify.com');
   const resolvedTargetURL = isSpotify ? info.targetUrl || videoURL : videoURL;
 
   const audioLang = (req.query.audioLang as string) || undefined;

@@ -13,6 +13,7 @@ import metascraperInstagram from 'metascraper-instagram';
 import metascraperTiktok from 'metascraper-tiktok';
 import metascraperSoundcloud from 'metascraper-soundcloud';
 import got, { Got } from 'got';
+import { isHost } from '../network/host.util.js';
 
 const scraper = metascraper([
   metascraperAuthor(),
@@ -121,21 +122,21 @@ export async function fetchMetadata(
     // rewrite mobile URL
     let fetchUrl = targetUrl;
     if (
-      targetUrl.includes('facebook.com') &&
-      !targetUrl.includes('m.facebook.com')
+      isHost(targetUrl, 'facebook.com') &&
+      !isHost(targetUrl, 'm.facebook.com')
     ) {
       fetchUrl = targetUrl.replace('www.facebook.com', 'm.facebook.com');
     }
     if (
-      targetUrl.includes('instagram.com') &&
-      !targetUrl.includes('m.instagram.com')
+      isHost(targetUrl, 'instagram.com') &&
+      !isHost(targetUrl, 'm.instagram.com')
     ) {
       fetchUrl = targetUrl.replace('www.instagram.com', 'm.instagram.com');
     }
 
     // set sneaky headers
     const isYouTube =
-      targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
+      isHost(targetUrl, 'youtube.com') || isHost(targetUrl, 'youtu.be');
     const userAgent = isYouTube
       ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
       : 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1';

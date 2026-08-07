@@ -1,3 +1,4 @@
+import { isHost } from '../network/host.util.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { logger } from '../infra/logger.util.js';
 import { sendEvent } from '../network/sse.util.js';
@@ -136,11 +137,11 @@ export async function resolveConvertTarget(
 
   if (
     targetURL &&
-    (targetURL.includes('youtube.com') || targetURL.includes('youtu.be'))
+    (isHost(targetURL, 'youtube.com') || isHost(targetURL, 'youtu.be'))
   )
     return targetURL;
 
-  if (videoURL.includes('spotify.com')) {
+  if (isHost(videoURL, 'spotify.com')) {
     let info: VideoInfo | null = await getVideoInfo(videoURL, cookieArgs).catch(
       () => null
     );

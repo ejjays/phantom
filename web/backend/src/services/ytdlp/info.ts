@@ -1,3 +1,4 @@
+import { isHost } from '../../utils/network/host.util.js';
 import { isSupportedUrl } from '../../utils/network/validation.util.js';
 import { logger } from '../../utils/infra/logger.util.js';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
@@ -22,16 +23,16 @@ import { queryConfigWithMeta } from '../../utils/infra/db.util.js';
 // keep public API stable; native extractors avoid yt-dlp
 export { expandShortUrl, runYtdlpInfo } from './info-core.js';
 export function nativePlatform(url: string): string | null {
-  if (url.includes('youtube.com') || url.includes('youtu.be')) return 'YouTube';
-  if (url.includes('tiktok.com')) return 'TikTok';
-  if (url.includes('facebook.com') || url.includes('fb.watch'))
+  if (isHost(url, 'youtube.com') || isHost(url, 'youtu.be')) return 'YouTube';
+  if (isHost(url, 'tiktok.com')) return 'TikTok';
+  if (isHost(url, 'facebook.com') || isHost(url, 'fb.watch'))
     return 'Facebook';
-  if (url.includes('instagram.com')) return 'Instagram';
-  if (url.includes('soundcloud.com')) return 'SoundCloud';
+  if (isHost(url, 'instagram.com')) return 'Instagram';
+  if (isHost(url, 'soundcloud.com')) return 'SoundCloud';
   if (
-    url.includes('bilibili.tv') ||
-    url.includes('biliintl.com') ||
-    url.includes('bili.im')
+    isHost(url, 'bilibili.tv') ||
+    isHost(url, 'biliintl.com') ||
+    isHost(url, 'bili.im')
   )
     return 'Bilibili';
   return null;
@@ -172,13 +173,13 @@ const _handleUrlDecoding = (url: string) => {
 
 async function _expandIfShortLink(url: string, clientId: string | null) {
   const needsExpansion =
-    url.includes('bili.im') ||
-    url.includes('fb.watch') ||
+    isHost(url, 'bili.im') ||
+    isHost(url, 'fb.watch') ||
     url.includes('fb.gg') ||
-    url.includes('youtu.be') ||
+    isHost(url, 'youtu.be') ||
     url.includes('share/') ||
-    url.includes('vt.tiktok.com') ||
-    url.includes('on.soundcloud.com');
+    isHost(url, 'vt.tiktok.com') ||
+    isHost(url, 'on.soundcloud.com');
 
   if (needsExpansion) {
     logger.info('[Info] Expanding URL:', url);
@@ -276,14 +277,14 @@ export async function getVideoInfo(
     return cached;
   }
 
-  if (targetUrl.includes('spotify.com') && !forceRefresh) {
+  if (isHost(targetUrl, 'spotify.com') && !forceRefresh) {
     return handleSpotifyInfo(targetUrl, cacheKey, clientId, onProgress);
   }
 
   const isYouTube =
-    targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
+    isHost(targetUrl, 'youtube.com') || isHost(targetUrl, 'youtu.be');
 
-  if ((isYouTube || targetUrl.includes('tiktok.com')) && !forceRefresh) {
+  if ((isYouTube || isHost(targetUrl, 'tiktok.com')) && !forceRefresh) {
     const jsInfo = await handleYoutubeTiktokInfo(
       targetUrl,
       cacheKey,

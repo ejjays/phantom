@@ -1,3 +1,4 @@
+import { isHost } from '../../utils/network/host.util.js';
 import { spawn, ChildProcess } from 'node:child_process';
 import { logger } from '../../utils/infra/logger.util.js';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
@@ -154,24 +155,24 @@ async function handlePureJSStream(
 
 function getStreamMeta(info: VideoInfo | SpotifyMetadata, url: string) {
   // ensure correct extractor mapping
-  const inferredKey = url.includes('spotify.com')
+  const inferredKey = isHost(url, 'spotify.com')
     ? 'spotify'
-    : url.includes('youtube.com') || url.includes('youtu.be')
+    : isHost(url, 'youtube.com') || isHost(url, 'youtu.be')
       ? 'youtube'
-      : url.includes('tiktok.com')
+      : isHost(url, 'tiktok.com')
         ? 'tiktok'
-        : url.includes('facebook.com') || url.includes('fb.watch')
+        : isHost(url, 'facebook.com') || isHost(url, 'fb.watch')
           ? 'facebook'
-          : url.includes('instagram.com')
+          : isHost(url, 'instagram.com')
             ? 'instagram'
-            : url.includes('soundcloud.com')
+            : isHost(url, 'soundcloud.com')
               ? 'soundcloud'
               : 'youtube';
 
   const extractorKey =
     ('extractorKey' in info ? info.extractorKey : inferredKey) || inferredKey;
   const isSpotify =
-    url.includes('spotify.com') ||
+    isHost(url, 'spotify.com') ||
     info.type === 'spotify' ||
     extractorKey.toLowerCase() === 'spotify';
   const platform = isSpotify

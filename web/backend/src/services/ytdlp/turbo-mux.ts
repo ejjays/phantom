@@ -11,6 +11,7 @@ import { getTraceId } from '../../utils/infra/trace.util.js';
 import { destroyStream, gracefulKill } from './ytdlp-process.js';
 import { pickAudioLanguagePool } from '../../utils/media/stream.util.js';
 import type { StreamOptions, StreamerProcess, Extractor } from './streamer.js';
+import { isHost } from '../../utils/network/host.util.js';
 
 export async function handleTurboMux(
   url: string,
@@ -47,9 +48,9 @@ export async function handleTurboMux(
     if (!audioUrl) throw new Error('Turbo-mux requires audioUrl');
 
     const getReferer = (targetUrl: string) => {
-      if (targetUrl.includes('facebook.com'))
+      if (isHost(targetUrl, 'facebook.com'))
         return 'https://www.facebook.com/';
-      if (targetUrl.includes('instagram.com'))
+      if (isHost(targetUrl, 'instagram.com'))
         return 'https://www.instagram.com/';
       try {
         return `${new URL(targetUrl).origin}/`;

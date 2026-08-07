@@ -7,6 +7,7 @@ import { pipeline } from 'node:stream/promises';
 import { USER_AGENT } from '../../services/ytdlp/config.js';
 import { LRUCache } from 'lru-cache';
 import { resolveAndValidateHost } from './security.util.js';
+import { isHost, isHostname } from './host.util.js';
 
 const pools = new LRUCache<string, Pool>({
   max: 100, // max origins
@@ -94,34 +95,34 @@ export function getProxyHeaders(
   const hostname = urlObj.hostname;
 
   if (
-    hostname.includes('googlevideo.com') ||
-    hostname.includes('youtube.com')
+    isHostname(hostname, 'googlevideo.com') ||
+    isHostname(hostname, 'youtube.com')
   ) {
     headers.referer = 'https://www.youtube.com/';
     headers.origin = 'https://www.youtube.com';
   } else if (
-    hostname.includes('tiktok.com') ||
+    isHostname(hostname, 'tiktok.com') ||
     hostname.includes('tiktokcdn') ||
     hostname.includes('tiktokv')
   ) {
     headers.referer = 'https://www.tiktok.com/';
     headers.origin = 'https://www.tiktok.com';
   } else if (
-    hostname.includes('instagram.com') ||
-    hostname.includes('cdninstagram.com')
+    isHostname(hostname, 'instagram.com') ||
+    isHostname(hostname, 'cdninstagram.com')
   ) {
     headers.referer = 'https://www.instagram.com/';
   } else if (
-    hostname.includes('facebook.com') ||
-    hostname.includes('fbcdn.net')
+    isHostname(hostname, 'facebook.com') ||
+    isHostname(hostname, 'fbcdn.net')
   ) {
     headers.referer = 'https://www.facebook.com/';
-  } else if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
+  } else if (isHostname(hostname, 'twitter.com') || isHostname(hostname, 'x.com')) {
     headers.referer = 'https://twitter.com/';
   } else if (
-    hostname.includes('bilivideo.com') ||
-    hostname.includes('bstarstatic') ||
-    (hostname.includes('akamaized.net') && hostname.includes('bstar'))
+    isHostname(hostname, 'bilivideo.com') ||
+    isHostname(hostname, 'bstarstatic') ||
+    (isHostname(hostname, 'akamaized.net') && isHostname(hostname, 'bstar'))
   ) {
     // bilivideo mirrors 403 without referer
     headers.referer = 'https://www.bilibili.tv/';
@@ -224,7 +225,7 @@ export async function pipeWebStream(
       });
 
       if (
-        url.includes('googlevideo.com') &&
+        isHost(url, 'googlevideo.com') &&
         !localResponse.getHeader('content-type')
       ) {
         localResponse.setHeader(
