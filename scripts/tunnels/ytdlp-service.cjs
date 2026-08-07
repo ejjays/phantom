@@ -317,23 +317,38 @@ async function relayChunks(rawUrl, start, end, req, res) {
   }
 }
 
+function isPrivateTarget(rawUrl) {
+  const target = new URL(rawUrl);
+  if (!/^https?:$/u.test(target.protocol)) return true;
+  const host = target.hostname.toLowerCase();
+  if (host === 'localhost' || host.endsWith('.local') || host === '::1') {
+    return true;
+  }
+  return /^(127\.|0\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/u.test(host);
+}
+
 async function fetchChunk(rawUrl, pos, sliceEnd, headers, aborted) {
   for (let attempt = 0; attempt < MAX_MEDIA_RETRIES; attempt += 1) {
     if (aborted) return null;
-    const target = new URL(rawUrl);
-    const isPrivateHost =
-      target.hostname === 'localhost' ||
-      target.hostname.endsWith('.local') ||
-      /^(127\.|0\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/u.test(
-        target.hostname
-      );
-    if (!/^https?:$/u.test(target.protocol) || isPrivateHost) {
-      return { status: 403 };
-    }
     try {
-      const upstream = await fetch(rawUrl, {
-        headers: { ...headers, range: `bytes=${pos}-${sliceEnd}` },
-      });
+      let current = rawUrl;
+      let upstream = null;
+      for (let hop = 0; hop < 4; hop += 1) {
+        if (isPrivateTarget(current)) return { status: 403 };
+        const res = await fetch(current, {
+          headers: { ...headers, range: `bytes=${pos}-${sliceEnd}` },
+          redirect: 'manual',
+        });
+        if (res.status >= 300 && res.status < 400) {
+          const loc = res.headers.get('location');
+          if (!loc) return { status: 403 };
+          current = new URL(loc, current).toString();
+          continue;
+        }
+        upstream = res;
+        break;
+      }
+      if (!upstream) return { status: 403 };
       if (upstream.status === 403) return { status: 403 };
       if (upstream.status !== 200 && upstream.status !== 206) {
         throw new Error(`upstream status ${upstream.status}`);
