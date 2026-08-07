@@ -1,10 +1,19 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import sitemap from 'vite-plugin-sitemap';
+import { mkdirSync } from 'node:fs';
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    {
+      // rolldown creates outDir only during bundle write; sitemap plugin
+      // writes robots.txt in closeBundle, so pre-create it (registered first)
+      name: 'ensure-dist-dir',
+      closeBundle() {
+        mkdirSync('dist', { recursive: true });
+      },
+    },
     react(),
     sitemap({
       hostname: 'https://nex-stream.pages.dev',
