@@ -19,7 +19,20 @@ import {
   clearHistory,
   type HistoryItem,
 } from '../lib/downloadHistory';
+import {
+  resumeInflight,
+  discardInflight,
+} from '../lib/download/downloadPipeline';
+import { useInflight, type InflightItem } from '../lib/inflight';
 import { openSavedTarget } from '../lib/download/gallery';
+import {
+  setDownloadCancelHandler,
+  startDownloadService,
+  stopDownloadService,
+  updateDownloadProgress,
+} from '../lib/fgservice';
+import { notifyDownloadComplete } from '../lib/notify';
+import { getNotify } from '../lib/settings';
 import { tapSelection, tapImpact } from '../lib/haptics';
 import { useAppDialog } from '../components/AppDialog';
 import { PlatformLogo, type PlatformName } from '../components/logos';
@@ -130,8 +143,115 @@ function Row({
   );
 }
 
+function InflightRow({
+  item,
+  onChanged,
+}: {
+  item: InflightItem;
+  onChanged: () => void;
+}) {
+  const resume = useCallback(() => {
+    tapImpact();
+    const controller = new AbortController();
+    setDownloadCancelHandler(() => controller.abort());
+    void (async () => {
+      try {
+        await startDownloadService();
+        const outcome = await resumeInflight(
+          item,
+          (state) => updateDownloadProgress(state.progress),
+          controller.signal
+        );
+        if (outcome.status === 'saved' && (await getNotify())) {
+          await notifyDownloadComplete(
+            item.id,
+            item.thumbnail,
+            item.platform
+          ).catch(() => undefined);
+        }
+      } catch {
+        /* row stays for another attempt */
+      } finally {
+        setDownloadCancelHandler(null);
+        stopDownloadService().catch(() => undefined);
+        onChanged();
+      }
+    })();
+  }, [item, onChanged]);
+
+  const del = useCallback(() => {
+    tapSelection();
+    void discardInflight(item.id).then(onChanged);
+  }, [item.id, onChanged]);
+
+  const logo = LOGO_FOR[item.platform];
+  const pct = Math.max(0, Math.min(100, item.progress));
+
+  return (
+    <View style={tw`flex-row items-center gap-3 px-4 py-3`}>
+      <Pressable
+        onPress={resume}
+        style={tw`h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-white/5`}
+      >
+        {item.thumbnail ? (
+          <Image
+            source={{ uri: item.thumbnail }}
+            style={tw`h-full w-full`}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        ) : (
+          <Play size={20} color="#64748b" />
+        )}
+      </Pressable>
+
+      <Pressable onPress={resume} style={tw`flex-1`}>
+        <Text
+          style={tw`font-mono-semibold text-[13px] text-slate-100`}
+          numberOfLines={1}
+        >
+          {item.title}
+        </Text>
+        <View style={tw`mt-1 gap-1`}>
+          <View style={tw`flex-row items-center gap-1.5`}>
+            {logo && <PlatformLogo name={logo} size={13} />}
+            <Text style={tw`font-mono text-[11px] text-slate-400`}>
+              {[
+                item.platform,
+                item.ext.toUpperCase(),
+                item.isAudio ? 'Audio' : 'Video',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+            <Text style={tw`font-mono text-[11px] text-cyan-400`}>{pct}%</Text>
+          </View>
+          <View style={tw`ml-[19px] h-1 overflow-hidden rounded-full bg-white/10`}>
+            <View
+              style={[
+                tw`h-full rounded-full bg-cyan-400`,
+                { width: `${pct}%` },
+              ]}
+            />
+          </View>
+        </View>
+      </Pressable>
+
+      <Pressable
+        onPress={del}
+        accessibilityLabel="Discard download"
+        style={tw`rounded-lg p-2`}
+        hitSlop={8}
+      >
+        <Trash2 size={18} color="#64748b" />
+      </Pressable>
+    </View>
+  );
+}
+
 function DownloadsScreenInner({ visible }: Props) {
   const { items, loading, refresh } = useDownloadHistory();
+  const { items: inflight } = useInflight();
   const { showDialog } = useAppDialog();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -154,6 +274,8 @@ function DownloadsScreenInner({ visible }: Props) {
     });
   }, [items.length, showDialog, refresh]);
 
+  const empty = items.length === 0 && inflight.length === 0;
+
   return (
     <View
       style={[
@@ -161,7 +283,7 @@ function DownloadsScreenInner({ visible }: Props) {
         { opacity: visible ? 1 : 0, pointerEvents: visible ? 'auto' : 'none' },
       ]}
     >
-      {items.length === 0 && (
+      {empty && (
         <>
           <TwinkleStars />
           <ShootingStars />
@@ -174,7 +296,7 @@ function DownloadsScreenInner({ visible }: Props) {
         ]}
       >
         <Text style={tw`font-sans-bold text-[30px] tracking-tight text-white`}>
-          History
+          Downloads
         </Text>
         {items.length > 0 && (
           <Pressable
@@ -188,7 +310,7 @@ function DownloadsScreenInner({ visible }: Props) {
       </View>
 
       <ScrollView
-        contentContainerStyle={tw`pb-32 ${items.length ? 'pt-1' : 'flex-1'}`}
+        contentContainerStyle={tw`pb-32 ${empty ? 'flex-1' : 'pt-1'}`}
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -199,7 +321,7 @@ function DownloadsScreenInner({ visible }: Props) {
           />
         }
       >
-        {items.length === 0 ? (
+        {empty ? (
           <View style={tw`flex-1 items-center justify-center px-8`}>
             <LottieView
               source={ufo}
@@ -215,13 +337,48 @@ function DownloadsScreenInner({ visible }: Props) {
             <Text
               style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}
             >
-              Your saved media shows up here.
+              Downloads in progress show up here too.
             </Text>
           </View>
         ) : (
-          items.map((item) => (
-            <Row key={item.id} item={item} onChanged={() => void refresh()} />
-          ))
+          <>
+            {inflight.length > 0 && (
+              <>
+                <View style={tw`flex-row items-center justify-between px-4 pb-1 pt-2`}>
+                  <Text
+                    style={tw`font-sans-bold text-[15px] tracking-tight text-slate-300`}
+                  >
+                    In progress
+                  </Text>
+                </View>
+                {inflight.map((item) => (
+                  <InflightRow
+                    key={item.id}
+                    item={item}
+                    onChanged={() => void refresh()}
+                  />
+                ))}
+              </>
+            )}
+            {items.length > 0 && (
+              <>
+                <View style={tw`flex-row items-center justify-between px-4 pb-1 pt-2`}>
+                  <Text
+                    style={tw`font-sans-bold text-[15px] tracking-tight text-slate-300`}
+                  >
+                    Saved
+                  </Text>
+                </View>
+                {items.map((item) => (
+                  <Row
+                    key={item.id}
+                    item={item}
+                    onChanged={() => void refresh()}
+                  />
+                ))}
+              </>
+            )}
+          </>
         )}
       </ScrollView>
     </View>
