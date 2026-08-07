@@ -7,8 +7,17 @@ import { DESKTOP_UA } from '../../lib/userAgents';
 import { error as logError } from '../../lib/log';
 import { webviewFetch } from './bridge';
 
+function isInstagramHost(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return hostname === 'instagram.com' || hostname.endsWith('.instagram.com');
+  } catch {
+    return false;
+  }
+}
+
 const igFetch = (url: string, init?: RequestInit) => {
-  if (url.includes('instagram.com') && !process.env.VITEST) {
+  if (isInstagramHost(url) && !process.env.VITEST) {
     return webviewFetch(url, init);
   }
   return gatedFetch(url, init);

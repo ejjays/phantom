@@ -29,8 +29,7 @@ describe('Facebook Reel JS Extractor', () => {
     `;
 
     global.fetch = vi.fn().mockImplementation((url: string) => {
-// codeql-disable js/incomplete-url-substring-sanitization
-      if (url.includes('facebook.com')) {
+      if (/\bfacebook\.com\b/u.test(url)) {
         return Promise.resolve({
           ok: true,
           text: () => Promise.resolve(mockHtml),

@@ -39,8 +39,7 @@ vi.mock('../../src/services/extractors/index.js', () => {
   return {
     getInfo: vi.fn().mockImplementation((url: string) => {
       const isSpotify =
-// codeql-disable js/incomplete-url-substring-sanitization
-        url.includes('spotify.com') || url.includes('2zo9LbUgr');
+        /\bspotify\.com\b/u.test(url) || /\b2zo9LbUgr\b/u.test(url);
       return Promise.resolve({
         id: isSpotify ? 'sp_123' : 'yt_123',
         title: isSpotify ? 'Pag-ibig Na Kay Ganda' : 'Big Buck Bunny',

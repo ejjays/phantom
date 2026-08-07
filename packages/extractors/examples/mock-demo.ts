@@ -35,7 +35,7 @@ const mockEnv: ExtractorEnv = {
   // skipcq: JS-0116
   async fetch(url: string | URL | Request, init?: RequestInit) {
     const href = url.toString();
-    if (href.includes('cdn.syndication.twimg.com')) {
+    if (new URL(href).hostname.endsWith('cdn.syndication.twimg.com')) {
       return new Response(JSON.stringify(TWEET_JSON), {
         status: 200,
         headers: { 'content-type': 'application/json' },
