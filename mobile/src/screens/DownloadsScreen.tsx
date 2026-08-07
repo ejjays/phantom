@@ -59,6 +59,12 @@ const LOGO_FOR: Partial<Record<string, PlatformName>> = {
   youtube: 'youtube',
 };
 
+/**
+ * Renders a saved download with its metadata and actions to open or delete it.
+ *
+ * @param item - The saved download to display
+ * @param onChanged - Callback invoked after the download is deleted
+ */
 function Row({
   item,
   onChanged,
@@ -143,6 +149,12 @@ function Row({
   );
 }
 
+/**
+ * Renders an interrupted download with progress, resume, and discard actions.
+ *
+ * @param item - The interrupted download to display
+ * @param onChanged - Callback invoked after the download is resumed or discarded
+ */
 function InflightRow({
   item,
   onChanged,
@@ -249,6 +261,12 @@ function InflightRow({
   );
 }
 
+/**
+ * Displays saved and in-progress downloads with refresh and history-clearing controls.
+ *
+ * @param visible - Whether the downloads screen is visible
+ * @returns The downloads screen element
+ */
 function DownloadsScreenInner({ visible }: Props) {
   const { items, loading, refresh } = useDownloadHistory();
   const { items: inflight } = useInflight();

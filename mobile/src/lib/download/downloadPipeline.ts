@@ -36,6 +36,16 @@ const removeFile = (file: File): Promise<void> =>
 
 const mb = (bytes: number): string => (bytes / 1048576).toFixed(1);
 
+/**
+ * Builds resumable download metadata from media details and optional existing state.
+ *
+ * @param info - Media metadata used to populate the download state
+ * @param format - Media format selected for the download
+ * @param stem - Identifier used for the download
+ * @param tag - Optional audio metadata
+ * @param seed - Existing state whose values take precedence when provided
+ * @returns The initialized or updated inflight download metadata
+ */
 function buildInflight(
   info: VideoInfo,
   format: Format,
@@ -72,6 +82,13 @@ function buildInflight(
   };
 }
 
+/**
+ * Applies audio metadata and optional thumbnail artwork to a file in place.
+ *
+ * @param saveTarget - The audio file to tag and replace when tagging succeeds
+ * @param info - Media metadata used for the title, artist, album, and optional artwork
+ * @param tag - Optional metadata overrides for the title and artist
+ */
 async function tagAudioInPlace(
   saveTarget: File,
   stem: string,
@@ -117,6 +134,15 @@ type FetchMediaInput = {
   track: (file: File) => File;
 };
 
+/**
+ * Downloads media and converts, extracts, or combines streams according to the requested format.
+ *
+ * @param info - Media metadata and download settings.
+ * @param format - Format and stream configuration to use.
+ * @param stem - Base name for temporary and output files.
+ * @returns The downloaded media file.
+ * @throws An error if downloading, conversion, stream combination, or cancellation fails.
+ */
 async function fetchMedia({
   info,
   format,
@@ -285,6 +311,15 @@ async function fetchMedia({
   return destination;
 }
 
+/**
+ * Downloads, prepares, and saves media while tracking progress and resumable state.
+ *
+ * @param stem - Identifier and filename stem for the download
+ * @param tag - Optional metadata used when tagging audio
+ * @param seed - Previously persisted state used to resume an interrupted download
+ * @returns A saved result containing the device URI, or a denied result when saving is not permitted
+ * @throws Propagates errors encountered during downloading, processing, tagging, or saving
+ */
 export async function runDownload({
   info,
   format,
@@ -369,6 +404,14 @@ export async function runDownload({
   }
 }
 
+/**
+ * Resumes an interrupted media download using its stored metadata and progress state.
+ *
+ * @param item - The stored download state to resume
+ * @param onState - Callback invoked with download progress updates
+ * @param signal - Signal used to cancel the download
+ * @returns The outcome of the resumed download
+ */
 export function resumeInflight(
   item: InflightItem,
   onState: (state: DownloadState) => void,
@@ -396,6 +439,11 @@ export function resumeInflight(
   });
 }
 
+/**
+ * Discards inflight download state and removes matching cached partial files.
+ *
+ * @param id - The download identifier used to locate inflight state and cached files
+ */
 export async function discardInflight(id: string): Promise<void> {
   await removeInflight(id);
   try {

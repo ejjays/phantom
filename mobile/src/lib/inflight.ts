@@ -40,6 +40,11 @@ AsyncStorage.getItem(INFLIGHT_KEY)
     /* ignore */
   });
 
+/**
+ * Loads the persisted in-progress download items.
+ *
+ * @returns The stored in-progress download items, or an empty array if no valid data is available.
+ */
 function read(): Promise<InflightItem[]> {
   return AsyncStorage.getItem(INFLIGHT_KEY)
     .then((raw) => {
@@ -57,15 +62,29 @@ const write = (items: InflightItem[]): Promise<void> =>
 
 const listeners = new Set<() => void>();
 
+/**
+ * Notifies all registered listeners of an in-flight download change.
+ */
 function emit(): void {
   listeners.forEach((fn) => fn());
 }
 
+/**
+ * Subscribes to notifications when the in-flight download list changes.
+ *
+ * @param fn - The function to invoke when the list changes
+ * @returns A function that removes the subscription
+ */
 export function subscribeInflight(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }
 
+/**
+ * Adds or replaces an in-progress download and orders all items by most recent update.
+ *
+ * @param item - The in-progress download to add or replace
+ */
 export async function upsertInflight(item: InflightItem): Promise<void> {
   const items = await read();
   const next = [
@@ -76,6 +95,12 @@ export async function upsertInflight(item: InflightItem): Promise<void> {
   emit();
 }
 
+/**
+ * Updates the progress of an in-flight download.
+ *
+ * @param id - The download identifier
+ * @param progress - The progress value, clamped and rounded to a percentage from 0 to 100
+ */
 export async function updateInflightProgress(
   id: string,
   progress: number
@@ -90,6 +115,11 @@ export async function updateInflightProgress(
   emit();
 }
 
+/**
+ * Removes an in-progress download by its identifier.
+ *
+ * @param id - The identifier of the download to remove
+ */
 export async function removeInflight(id: string): Promise<void> {
   const items = await read();
   const next = items.filter((it) => it.id !== id);
@@ -98,6 +128,11 @@ export async function removeInflight(id: string): Promise<void> {
   emit();
 }
 
+/**
+ * Provides the current in-progress downloads and a function to refresh them from storage.
+ *
+ * @returns The current download items and a function that refreshes the items
+ */
 export function useInflight(): {
   items: InflightItem[];
   refresh: () => Promise<void>;

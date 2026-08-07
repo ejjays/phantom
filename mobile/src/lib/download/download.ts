@@ -18,6 +18,12 @@ type ResumeState = {
 const statePath = (file: File): File =>
   new File(Paths.cache, `${file.name}.state`);
 
+/**
+ * Reads the resumable download state associated with a file.
+ *
+ * @param file - The downloaded file whose resume state should be read
+ * @returns The parsed resume state, or `null` if the state file is missing or invalid
+ */
 async function readState(file: File): Promise<ResumeState | null> {
   const stateFile = statePath(file);
   if (!stateFile.exists) return null;
@@ -36,6 +42,18 @@ const clearState = (file: File): void => {
   if (stateFile.exists) stateFile.delete();
 };
 
+/**
+ * Downloads a resource to a file in parallel chunks with resumable progress.
+ *
+ * Existing download state is reused when it matches the requested resource and
+ * download configuration. Progress is reported for contiguous bytes written.
+ *
+ * @param url - The resource URL
+ * @param headers - Headers to include with each request
+ * @param file - The destination file
+ * @param onProgress - Callback receiving completed bytes and total bytes
+ * @param signal - Optional signal for cancelling the download
+ */
 export async function chunkedDownload(
   url: string,
   headers: Record<string, string>,
