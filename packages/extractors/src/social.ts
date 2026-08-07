@@ -1,3 +1,12 @@
+function hostIn(url: string, hosts: string[]): boolean {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return hosts.some((h) => hostname === h || hostname.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
+}
+
 export interface RawSocialData {
   title?: string;
   uploader?: string;
@@ -160,15 +169,11 @@ function guessAuthorFromTitle(title: string): string | undefined {
 }
 
 function getPlatformFallback(url: string, author?: string): string {
-  const lowerUrl = url.toLowerCase();
-  if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch'))
-    return author || 'Facebook';
-  if (lowerUrl.includes('instagram.com')) return author || 'Instagram';
-  if (lowerUrl.includes('threads.net') || lowerUrl.includes('threads.com'))
-    return author || 'Threads';
-  if (lowerUrl.includes('tiktok.com')) return author || 'TikTok';
-  if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com'))
-    return author || 'X';
+  if (hostIn(url, ['facebook.com', 'fb.watch'])) return author || 'Facebook';
+  if (hostIn(url, ['instagram.com'])) return author || 'Instagram';
+  if (hostIn(url, ['threads.net', 'threads.com'])) return author || 'Threads';
+  if (hostIn(url, ['tiktok.com'])) return author || 'TikTok';
+  if (hostIn(url, ['twitter.com', 'x.com'])) return author || 'X';
   return author || 'Social Media';
 }
 
@@ -234,9 +239,9 @@ const isJunkTitle = (value: string): boolean => {
 };
 
 export const normalizeArtist = (info: RawSocialData): string => {
-  const isYouTube =
-    info.webpageUrl?.includes('youtube.com') ||
-    info.webpageUrl?.includes('youtu.be');
+  const isYouTube = info.webpageUrl
+    ? hostIn(info.webpageUrl, ['youtube.com', 'youtu.be'])
+    : false;
 
   // trust uploader fields; skip title guessing on yt
   if (isYouTube) {

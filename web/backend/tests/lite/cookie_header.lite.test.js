@@ -30,7 +30,6 @@ test('cookie header: preserves cookie data after rewrite', () => {
   const input =
     '# Netscape NEW COKKIE\n.youtube.com\tTRUE\t/\tTRUE\t1814\tPREF\tx\n';
   const output = fixHeader(input);
-// codeql-disable js/incomplete-url-substring-sanitization
-  assert.ok(output.includes('.youtube.com'));
+  assert.match(output, /\.youtube\.com/u);
   assert.ok(output.includes('PREF'));
 });
