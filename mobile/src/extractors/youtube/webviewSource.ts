@@ -130,14 +130,30 @@ const RAW_HTML = `<!doctype html>
   async function ensureBG() {
     if (BG) return BG;
     try {
-      const bgMod = await importFirst(
-        [
-          'https://esm.sh/bgutils-js@3.2.0?bundle',
-          'https://cdn.jsdelivr.net/npm/bgutils-js@3.2.0/+esm',
-        ],
-        'bgutils'
-      );
-      BG = bgMod.BG;
+      const [botguard, webpo, utils] = await Promise.all([
+        importFirst(
+          [
+            'https://esm.sh/bgutils-js@4.0.3/botguard?bundle',
+            'https://cdn.jsdelivr.net/npm/bgutils-js@4.0.3/dist/exports/botguard.js/+esm',
+          ],
+          'bg-botguard'
+        ),
+        importFirst(
+          [
+            'https://esm.sh/bgutils-js@4.0.3/webpo?bundle',
+            'https://cdn.jsdelivr.net/npm/bgutils-js@4.0.3/dist/exports/webpo.js/+esm',
+          ],
+          'bg-webpo'
+        ),
+        importFirst(
+          [
+            'https://esm.sh/bgutils-js@4.0.3/utils?bundle',
+            'https://cdn.jsdelivr.net/npm/bgutils-js@4.0.3/dist/exports/utils.js/+esm',
+          ],
+          'bg-utils'
+        ),
+      ]);
+      BG = { ...botguard, ...webpo, ...utils };
       warn('import', 'bgutils ok');
     } catch (e) {
       warn('import', 'bgutils fail: ' + (e && e.message));
@@ -145,25 +161,35 @@ const RAW_HTML = `<!doctype html>
     return BG;
   }
   async function makePoToken(visitorData) {
-    const bgConfig = {
-      fetch: (...a) => fetch(...a),
-      globalObj: window,
-      identifier: visitorData,
+    const challenge = await BG.getChallenge({
+      fetchFunction: fetch,
       requestKey: REQUEST_KEY,
-    };
-    const challenge = await BG.Challenge.create(bgConfig);
+    });
     if (!challenge) throw new Error('challenge empty');
     const script =
+      challenge.interpreterJavascript &&
       challenge.interpreterJavascript.privateDoNotAccessOrElseSafeScriptWrappedValue;
     if (script) new Function(script)();
-    const out = await BG.PoToken.generate({
+    const botguard = await BG.BotGuardClient.create({
       program: challenge.program,
       globalName: challenge.globalName,
-      bgConfig,
+      globalObject: window,
     });
-    const ttlSecs =
-      out.integrityTokenData && out.integrityTokenData.estimatedTtlSecs;
-    return { poToken: out.poToken, ttlMs: ttlSecs ? ttlSecs * 1000 : 0 };
+    const webPoSignalOutput = [];
+    const botguardResponse = await botguard.snapshot({ webPoSignalOutput });
+    const itResponse = await fetch(BG.buildURL('GenerateIT', false), {
+      method: 'POST',
+      headers: BG.getHeaders(),
+      body: JSON.stringify([REQUEST_KEY, botguardResponse]),
+    });
+    const itJson = await itResponse.json();
+    const [integrityToken, estimatedTtlSecs] = itJson;
+    const minter = await BG.WebPoMinter.create(
+      { integrityToken, estimatedTtlSecs },
+      webPoSignalOutput
+    );
+    const poToken = await minter.mintAsWebsafeString(visitorData);
+    return { poToken, ttlMs: estimatedTtlSecs ? estimatedTtlSecs * 1000 : 0 };
   }
   function extractUrl(value) {
     if (typeof value === 'string') return value;

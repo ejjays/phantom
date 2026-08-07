@@ -1,12 +1,17 @@
 import { Innertube } from 'youtubei.js';
 import { logger } from '../../../utils/infra/logger.util.js';
-import { BG } from 'bgutils-js';
+import { BotGuardClient, getChallenge } from 'bgutils-js/botguard';
+import { WebPoMinter } from 'bgutils-js/webpo';
+import { buildURL, getHeaders } from 'bgutils-js/utils';
+import type { WebPoSignalOutput } from 'bgutils-js/shared-types';
 import { JSDOM } from 'jsdom';
 
 /*
-* poToken generation. without it youtube serves SABR-only (no stream urls);
-* with it ANDROID_VR returns real urls. token is bound to visitorData and
-* lives few hours, so generate once & cache.
+* poToken generation (bgutils-js v4). without it youtube serves SABR-only
+* (no stream urls); with it ANDROID_VR returns real urls. token is bound to
+* visitorData and lives few hours, so generate once & cache.
+* v4 split the old BG all-in-one into challenge fetch -> botguard VM ->
+* integrity token -> webpo minter, all composed here.
 */
 
 // well-known youtube web botguard request key
@@ -24,16 +29,24 @@ let cached: PoTokenBundle | null = null;
 let inflight: Promise<PoTokenBundle | null> | null = null;
 let domReady = false;
 
-// botguard's vm needs browser globals
+// botguard's vm needs browser globals; v4 wants navigator/origin too
 function ensureDom(): void {
   if (domReady) return;
   const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
     url: 'https://www.youtube.com/',
+    referrer: 'https://www.youtube.com/',
   });
   Object.assign(globalThis, {
     window: dom.window,
     document: dom.window.document,
+    location: dom.window.location,
+    origin: dom.window.origin,
   });
+  if (!Reflect.has(globalThis, 'navigator')) {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: dom.window.navigator,
+    });
+  }
   domReady = true;
 }
 
@@ -49,34 +62,54 @@ async function generate(): Promise<PoTokenBundle | null> {
     const visitorData = await fetchVisitorData();
     ensureDom();
 
-    const bgConfig = {
-      fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
-      globalObj: globalThis as unknown as Record<string, unknown>,
-      identifier: visitorData,
+    const challenge = await getChallenge({
+      fetchFunction: globalThis.fetch,
       requestKey: REQUEST_KEY,
-    } as Parameters<typeof BG.Challenge.create>[0];
-
-    const challenge = await BG.Challenge.create(bgConfig);
-    if (!challenge) throw new Error('challenge creation returned nothing');
-
+    });
     const script =
       challenge.interpreterJavascript
-        .privateDoNotAccessOrElseSafeScriptWrappedValue;
+        ?.privateDoNotAccessOrElseSafeScriptWrappedValue;
     if (!script) throw new Error('challenge missing interpreter script');
 
     // eslint-disable-next-line sonarjs/code-eval -- trusted botguard payload
     new Function(script)();
 
-    const result = await BG.PoToken.generate({
+    const botguard = await BotGuardClient.create({
       program: challenge.program,
       globalName: challenge.globalName,
-      bgConfig,
+      globalObject: globalThis as unknown as Record<string, unknown>,
     });
 
-    const ttlSecs = result.integrityTokenData?.estimatedTtlSecs;
-    const ttlMs = ttlSecs ? ttlSecs * 1000 : DEFAULT_TTL_MS;
+    const webPoSignalOutput = [] as unknown as WebPoSignalOutput;
+    const botguardResponse = await botguard.snapshot({ webPoSignalOutput });
+
+    const itResponse = await globalThis.fetch(
+      buildURL('GenerateIT', false),
+      {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify([REQUEST_KEY, botguardResponse]),
+      }
+    );
+    if (!itResponse.ok) {
+      throw new Error(`integrity token request failed: ${itResponse.status}`);
+    }
+    const [integrityToken, estimatedTtlSecs] = (await itResponse.json()) as [
+      string,
+      number,
+      number,
+      string
+    ];
+
+    const minter = await WebPoMinter.create(
+      { integrityToken, estimatedTtlSecs },
+      webPoSignalOutput
+    );
+    const poToken = await minter.mintAsWebsafeString(visitorData);
+
+    const ttlMs = estimatedTtlSecs ? estimatedTtlSecs * 1000 : DEFAULT_TTL_MS;
     const bundle: PoTokenBundle = {
-      poToken: result.poToken,
+      poToken,
       visitorData,
       expiresAt: Date.now() + Math.max(ttlMs - REFRESH_MARGIN_MS, 60_000),
     };
@@ -93,7 +126,7 @@ async function generate(): Promise<PoTokenBundle | null> {
   }
 }
 
-/* 
+/*
 * cached token; regenerates on expiry,
 * one in-flight gen at a time, null on failure
 */
