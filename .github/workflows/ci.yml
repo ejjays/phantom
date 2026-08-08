@@ -340,7 +340,7 @@ jobs:
     name: Deploy Frontend
     runs-on: ubuntu-latest
     needs: [changes, test-backend, test-frontend]
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && needs.test-frontend.result == 'success' && needs.test-backend.result != 'failure'
     timeout-minutes: 20
     steps:
       - name: Checkout
