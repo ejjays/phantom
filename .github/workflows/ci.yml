@@ -363,8 +363,7 @@ jobs:
         run: |
           npm ci --ignore-scripts
           VER=$(node -p "require('./node_modules/lightningcss/package.json').version")
-          curl -sL "https://registry.npmjs.org/lightningcss-linux-x64-gnu/-/lightningcss-linux-x64-gnu-$VER.tgz" | tar xz -C /tmp
-          cp /tmp/package/lightningcss.linux-x64-gnu.node node_modules/lightningcss/
+          npm install --no-save "lightningcss-linux-x64-gnu@$VER" --ignore-scripts
           cd web/frontend
           npm run build
           rm -rf dist/ffmpeg-core dist/libav
