@@ -77,6 +77,21 @@ export async function removeHistory(id: string): Promise<void> {
   emit();
 }
 
+export async function restoreHistory(
+  item: HistoryItem,
+  index: number
+): Promise<void> {
+  const items = await read();
+  const without = items.filter((it) => it.id !== item.id);
+  const at = Math.min(index, without.length);
+  const next = [...without.slice(0, at), item, ...without.slice(at)].slice(
+    0,
+    MAX_ITEMS
+  );
+  await write(next);
+  emit();
+}
+
 export async function clearHistory(): Promise<void> {
   await AsyncStorage.removeItem(HISTORY_KEY).catch(() => undefined);
   emit();

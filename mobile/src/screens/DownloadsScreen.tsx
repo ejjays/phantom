@@ -10,13 +10,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Play, FolderOpen, RotateCcw, X } from 'lucide-react-native';
+import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
+import { Play, FolderOpen, RotateCcw, UndoDot, X } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import tw from '../lib/tw';
 import ufo from '../../assets/UFO.json';
 import {
   useDownloadHistory,
   removeHistory,
+  restoreHistory,
   clearHistory,
   type HistoryItem,
 } from '../lib/downloadHistory';
@@ -64,11 +66,11 @@ const LOGO_FOR: Partial<Record<string, PlatformName>> = {
 function Row({
   item,
   missing,
-  onChanged,
+  onDelete,
 }: {
   item: HistoryItem;
   missing?: boolean;
-  onChanged: () => void;
+  onDelete: (item: HistoryItem) => void;
 }) {
   const open = useCallback(() => {
     if (missing) return;
@@ -78,8 +80,8 @@ function Row({
 
   const del = useCallback(() => {
     tapSelection();
-    void removeHistory(item.id).then(onChanged);
-  }, [item.id, onChanged]);
+    onDelete(item);
+  }, [item, onDelete]);
 
   const logo = LOGO_FOR[item.platform];
   const when = new Date(item.savedAt).toLocaleDateString(undefined, {
@@ -282,6 +284,38 @@ function DownloadsScreenInner({ visible }: Props) {
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
+  const [undoItem, setUndoItem] = useState<{
+    item: HistoryItem;
+    index: number;
+  } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearUndo = useCallback(() => {
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undoTimer.current = null;
+    setUndoItem(null);
+  }, []);
+
+  const undoDelete = useCallback(() => {
+    tapImpact();
+    if (!undoItem) return;
+    void restoreHistory(undoItem.item, undoItem.index);
+    clearUndo();
+  }, [undoItem, clearUndo]);
+
+  const onDelete = useCallback(
+    (item: HistoryItem) => {
+      const index = itemsRef.current.findIndex((it) => it.id === item.id);
+      void removeHistory(item.id).then(refresh);
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+      setUndoItem({ item, index: Math.max(0, index) });
+      undoTimer.current = setTimeout(() => setUndoItem(null), 4000);
+    },
+    [refresh]
+  );
+
+  useEffect(() => () => clearUndo(), [clearUndo]);
+
   // batch-verify saved files against android's media db; dims rows whose
   // file was deleted behind our back (gallery/file manager)
   const recheck = useCallback((list: HistoryItem[]) => {
@@ -422,7 +456,7 @@ function DownloadsScreenInner({ visible }: Props) {
                     key={item.id}
                     item={item}
                     missing={missing[item.id]}
-                    onChanged={() => void refresh()}
+                    onDelete={onDelete}
                   />
                 ))}
               </>
@@ -430,6 +464,28 @@ function DownloadsScreenInner({ visible }: Props) {
           </>
         )}
       </ScrollView>
+      {undoItem && (
+        <Animated.View
+          entering={FadeInUp.duration(200)}
+          exiting={FadeOutDown.duration(200)}
+          style={[
+            tw`absolute right-4 flex-row items-center gap-3 rounded-full border border-white/10 bg-slate-900/95 px-4 py-2.5`,
+            { bottom: 98 + insets.bottom + 12 },
+          ]}
+        >
+          <Pressable
+            onPress={undoDelete}
+            hitSlop={8}
+            style={tw`flex-row items-center gap-1.5`}
+            accessibilityLabel="Undo delete"
+          >
+            <UndoDot size={14} color="#22d3ee" strokeWidth={2.5} />
+            <Text style={tw`font-mono text-[12px] font-semibold text-cyan-400`}>
+              Undo
+            </Text>
+          </Pressable>
+        </Animated.View>
+      )}
     </View>
   );
 }

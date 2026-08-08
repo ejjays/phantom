@@ -135,7 +135,7 @@ export async function notifyDownloadComplete(
         ? [
             {
               title: primaryLabel,
-              pressAction: { id: OPEN_ACTION },
+              pressAction: { id: OPEN_ACTION, launchActivity: 'default' },
             },
             {
               title: 'Share',
@@ -178,11 +178,17 @@ async function handleFileAction(
   };
   try {
     if (id === OPEN_ACTION) {
-      await ReactNativeBlobUtil.android.actionViewIntent(uri, mimeFor(data.ext ?? ''));
+      await ReactNativeBlobUtil.android.actionViewIntent(
+        uri,
+        mimeFor(data.ext ?? '')
+      );
       return;
     }
     if (id !== SHARE_ACTION) return;
-    const tmp = new File(Paths.cache, `share-${Date.now()}.${data.ext ?? 'bin'}`);
+    const tmp = new File(
+      Paths.cache,
+      `share-${Date.now()}.${data.ext ?? 'bin'}`
+    );
     try {
       await copyAsync({ from: uri, to: tmp.uri });
       if (await Sharing.isAvailableAsync()) {
