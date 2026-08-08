@@ -368,6 +368,7 @@ jobs:
       - name: Build and Deploy Frontend
         run: |
           npm ci --ignore-scripts
+          npm rebuild lightningcss --foreground-scripts
           cd web/frontend
           npm run build
           rm -rf dist/ffmpeg-core dist/libav
