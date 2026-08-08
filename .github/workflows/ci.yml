@@ -362,7 +362,9 @@ jobs:
       - name: Build and Deploy Frontend
         run: |
           npm ci --ignore-scripts
-          npm rebuild lightningcss --foreground-scripts
+          VER=$(node -p "require('./node_modules/lightningcss/package.json').version")
+          curl -sL "https://registry.npmjs.org/lightningcss-linux-x64-gnu/-/lightningcss-linux-x64-gnu-$VER.tgz" | tar xz -C /tmp
+          cp /tmp/package/lightningcss.linux-x64-gnu.node node_modules/lightningcss/
           cd web/frontend
           npm run build
           rm -rf dist/ffmpeg-core dist/libav
