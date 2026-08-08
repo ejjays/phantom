@@ -420,7 +420,9 @@ export default function PlaylistScreen({ info, visible, onClose }: Props) {
             await notifyDownloadComplete(
               stem,
               perInfo.thumbnail,
-              'youtube'
+              'youtube',
+              fmt.extension || 'mp4',
+              outcome.uri
             ).catch(() => undefined);
           }
         } else {

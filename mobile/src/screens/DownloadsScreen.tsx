@@ -166,7 +166,9 @@ function InflightRow({
           await notifyDownloadComplete(
             item.id,
             item.thumbnail,
-            item.platform
+            item.platform,
+            item.ext,
+            outcome.uri
           ).catch(() => undefined);
         }
       } catch {
