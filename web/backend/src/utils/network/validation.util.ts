@@ -20,6 +20,7 @@ const SUPPORTED_DOMAINS: string[] = [
   'bilibili.tv',
   'biliintl.com',
   'bili.im',
+  'vimeo.com',
 ];
 
 export function isSupportedUrl(url: string | null | undefined): boolean {
