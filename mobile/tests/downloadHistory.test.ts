@@ -18,6 +18,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 import {
   addHistory,
   removeHistory,
+  restoreHistory,
   clearHistory,
 } from '../src/lib/downloadHistory';
 
@@ -73,5 +74,44 @@ describe('downloadHistory', () => {
       await import('@react-native-async-storage/async-storage')
     ).default.getItem('phantom.download.history');
     expect(raw).toBeNull();
+  });
+
+  it('restoreHistory reinserts at the original index', async () => {
+    await addHistory(item('c'));
+    await addHistory(item('b'));
+    await addHistory(item('a'));
+    await removeHistory('b');
+    const restored = item('b');
+    await restoreHistory(restored, 1);
+    const raw = await (
+      await import('@react-native-async-storage/async-storage')
+    ).default.getItem('phantom.download.history');
+    const parsed = JSON.parse(raw ?? '[]') as { id: string }[];
+    expect(parsed.map((x) => x.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('restoreHistory clamps out-of-range indices', async () => {
+    await addHistory(item('b'));
+    await addHistory(item('a'));
+    await removeHistory('b');
+    await restoreHistory(item('b'), 99);
+    await removeHistory('b');
+    await restoreHistory(item('b'), -5);
+    const raw = await (
+      await import('@react-native-async-storage/async-storage')
+    ).default.getItem('phantom.download.history');
+    const parsed = JSON.parse(raw ?? '[]') as { id: string }[];
+    expect(parsed.map((x) => x.id)).toEqual(['b', 'a']);
+  });
+
+  it('restoreHistory dedupes when id already present', async () => {
+    await addHistory(item('a'));
+    await addHistory(item('b'));
+    await restoreHistory(item('b'), 0);
+    const raw = await (
+      await import('@react-native-async-storage/async-storage')
+    ).default.getItem('phantom.download.history');
+    const parsed = JSON.parse(raw ?? '[]') as { id: string }[];
+    expect(parsed.map((x) => x.id)).toEqual(['b', 'a']);
   });
 });

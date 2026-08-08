@@ -84,7 +84,9 @@ export function useDownload(info: VideoInfo | null) {
         await notifyDownloadComplete(
           stem,
           info.thumbnail,
-          info.extractorKey
+          info.extractorKey,
+          format.extension || 'mp4',
+          outcome.uri
         ).catch(() => undefined);
       }
       return { status: 'saved', uri: outcome.uri };

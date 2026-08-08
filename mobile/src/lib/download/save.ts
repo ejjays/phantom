@@ -15,7 +15,8 @@ import { error as logError, log, warn as logWarn } from '../log';
 
 const DIR_KEY = 'phantom.saf.dir';
 const MEDIA_SUBFOLDER = 'Phantom';
-const AUDIO_EXT = new Set(['mp3', 'm4a', 'aac', 'opus', 'ogg']);
+export const AUDIO_EXT = new Set(['mp3', 'm4a', 'aac', 'opus', 'ogg']);
+const IMAGE_EXT = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']);
 // bigger slices = fewer saf round-trips
 const CHUNK = 12 * 1024 * 1024;
 
@@ -24,6 +25,10 @@ function mimeFor(name: string): string {
   if (ext === 'mp3') return 'audio/mpeg';
   if (ext === 'm4a' || ext === 'aac') return 'audio/mp4';
   if (ext === 'webm') return 'video/webm';
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'gif') return 'image/gif';
   return 'video/mp4';
 }
 
@@ -101,7 +106,11 @@ async function saveToFolder(
 // native mediastore copy; no base64, no bridge -> gallery speed
 async function saveViaMediaStore(source: File): Promise<string> {
   const ext = source.name.split('.').pop()?.toLowerCase() ?? '';
-  const collection: Mediatype = AUDIO_EXT.has(ext) ? 'Audio' : 'Video';
+  const collection: Mediatype = AUDIO_EXT.has(ext)
+    ? 'Audio'
+    : IMAGE_EXT.has(ext)
+      ? 'Image'
+      : 'Video';
   // blob-util .d.ts says path but native reads name
   const fd = {
     name: source.name,
