@@ -848,8 +848,8 @@ function SettingsScreen({
           isWide={isWide}
           note={
             isSupabaseConfigured && authReady && !account ? (
-              <View style={tw`mx-[-20px] mt-3 bg-cyan-500 px-5 py-2`}>
-                <Text style={tw`font-sans text-[13px] leading-5 text-white`}>
+              <View style={tw`mx-[-20px] mt-3 bg-cyan-500 px-5 py-1.5`}>
+                <Text style={tw`font-sans text-[12px] leading-4 text-white`}>
                   <Text style={tw`font-sans-bold`}>Note: </Text>
                   Sign-in is only for reactions and comments in Updates tab —
                   it&apos;s not used in the actual downloads.
