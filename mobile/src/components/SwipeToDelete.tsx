@@ -60,7 +60,9 @@ export default function SwipeToDelete({
         slotHeight.value = withTiming(
           0,
           { duration: 200, easing: Easing.inOut(Easing.cubic) },
-          () => runOnJS(onDelete)()
+          (finished) => {
+            if (finished) runOnJS(onDelete)();
+          }
         );
       } else {
         tx.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) });

@@ -83,7 +83,7 @@ export async function restoreHistory(
 ): Promise<void> {
   const items = await read();
   const without = items.filter((it) => it.id !== item.id);
-  const at = Math.min(index, without.length);
+  const at = Math.min(Math.max(0, index), without.length);
   const next = [...without.slice(0, at), item, ...without.slice(at)].slice(
     0,
     MAX_ITEMS

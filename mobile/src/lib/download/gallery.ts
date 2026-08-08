@@ -17,7 +17,7 @@ export async function fileStillExists(uri?: string): Promise<boolean | null> {
   }
   try {
     await readAsStringAsync(uri, {
-      encoding: EncodingType.UTF8,
+      encoding: EncodingType.Base64,
       position: 0,
       length: 1,
     });

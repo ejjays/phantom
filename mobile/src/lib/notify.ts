@@ -164,36 +164,39 @@ function isCancelPress(event: Event): boolean {
 const handled = new Set<string>();
 
 async function handleFileAction(
-  id: string,
+  notificationId: string | undefined,
+  pressId: string,
   data: { uri?: string; ext?: string }
 ): Promise<void> {
   const uri = data.uri;
   if (!uri) return;
-  const key = `${id}:${uri}`;
+  const key = `${notificationId}:${pressId}:${uri}`;
   if (handled.has(key)) return;
   handled.add(key);
   // file deleted from gallery since download — drop stale card, no error spam
   const fail = (): void => {
-    notifee.cancelNotification(id).catch(() => undefined);
+    if (notificationId) notifee.cancelNotification(notificationId).catch(() => undefined);
   };
   try {
-    if (id === OPEN_ACTION) {
+    if (pressId === OPEN_ACTION) {
       await ReactNativeBlobUtil.android.actionViewIntent(
         uri,
         mimeFor(data.ext ?? '')
       );
       return;
     }
-    if (id !== SHARE_ACTION) return;
+    if (pressId !== SHARE_ACTION) return;
     const tmp = new File(
       Paths.cache,
       `share-${Date.now()}.${data.ext ?? 'bin'}`
     );
     try {
       await copyAsync({ from: uri, to: tmp.uri });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(tmp.uri);
+      if (!(await Sharing.isAvailableAsync())) {
+        fail();
+        return;
       }
+      await Sharing.shareAsync(tmp.uri);
     } finally {
       if (tmp.exists) tmp.delete();
     }
@@ -210,7 +213,7 @@ export function addDownloadTapListener(handler: () => void): () => void {
       const id = initial.pressAction?.id;
       const data = initial.notification?.data ?? {};
       if (id === SHARE_ACTION || id === OPEN_ACTION) {
-        void handleFileAction(id, data);
+        void handleFileAction(initial.notification?.id, id, data);
         return;
       }
       if (data.type === TAP_TYPE) handler();
@@ -224,7 +227,11 @@ export function addDownloadTapListener(handler: () => void): () => void {
     }
     if (event.type === EventType.ACTION_PRESS) {
       const id = event.detail.pressAction?.id ?? '';
-      void handleFileAction(id, event.detail.notification?.data ?? {});
+      void handleFileAction(
+        event.detail.notification?.id,
+        id,
+        event.detail.notification?.data ?? {}
+      );
       return;
     }
     if (
@@ -244,7 +251,11 @@ export function registerNotificationBackgroundHandler(): void {
     }
     if (event.type === EventType.ACTION_PRESS) {
       const id = event.detail.pressAction?.id ?? '';
-      return handleFileAction(id, event.detail.notification?.data ?? {});
+      return handleFileAction(
+        event.detail.notification?.id,
+        id,
+        event.detail.notification?.data ?? {}
+      );
     }
     return Promise.resolve();
   });

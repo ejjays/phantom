@@ -319,13 +319,11 @@ function DownloadsScreenInner({ visible }: Props) {
   // batch-verify saved files against android's media db; dims rows whose
   // file was deleted behind our back (gallery/file manager)
   const recheck = useCallback((list: HistoryItem[]) => {
-    const ids = new Set(list.map((it) => it.id));
     void Promise.all(
       list.map(async (it) => ({ id: it.id, ok: await fileStillExists(it.uri) }))
     ).then((res) => {
-      setMissing((prev) => {
+      setMissing(() => {
         const next: Record<string, boolean> = {};
-        for (const key of Object.keys(prev)) if (ids.has(key)) next[key] = true;
         for (const result of res) if (result.ok === false) next[result.id] = true;
         return next;
       });
