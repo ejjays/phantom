@@ -363,7 +363,9 @@ jobs:
         run: |
           npm ci --ignore-scripts
           VER=$(node -p "require('./node_modules/lightningcss/package.json').version")
-          npm install --no-save "lightningcss-linux-x64-gnu@$VER" --ignore-scripts
+          OXVER=$(node -p "require('./node_modules/@tailwindcss/oxide/package.json').version")
+          RVER=$(node -p "require('./node_modules/@rolldown/binding/package.json').version")
+          npm install --no-save "lightningcss-linux-x64-gnu@$VER" "@tailwindcss/oxide-linux-x64-gnu@$OXVER" "@rolldown/binding-linux-x64-gnu@$RVER" --ignore-scripts
           cd web/frontend
           npm run build
           rm -rf dist/ffmpeg-core dist/libav
