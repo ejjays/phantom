@@ -362,9 +362,9 @@ jobs:
       - name: Build and Deploy Frontend
         run: |
           npm ci --ignore-scripts
-          VER=$(node -p "require('./node_modules/lightningcss/package.json').version")
-          OXVER=$(node -p "require('./node_modules/@tailwindcss/oxide/package.json').version")
-          RVER=$(node -p "require('./node_modules/@rolldown/binding/package.json').version")
+          VER=$(python3 -c "import json; print(json.load(open('package-lock.json'))['packages']['node_modules/lightningcss']['version'])")
+          OXVER=$(python3 -c "import json; print(json.load(open('package-lock.json'))['packages']['node_modules/@tailwindcss/oxide']['version'])")
+          RVER=$(python3 -c "import json; print(json.load(open('package-lock.json'))['packages']['node_modules/@rolldown/binding']['version'])")
           npm install --no-save "lightningcss-linux-x64-gnu@$VER" "@tailwindcss/oxide-linux-x64-gnu@$OXVER" "@rolldown/binding-linux-x64-gnu@$RVER" --ignore-scripts
           cd web/frontend
           npm run build
