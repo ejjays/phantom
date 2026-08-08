@@ -233,7 +233,7 @@ export function buildYtdlpArgs(
  * abort from child is expected (no log).
  */
 export function handleYtdlpOutput(
-  childProcess: ChildProcess,
+  childProcess: ChildProcess | null | undefined,
   format: string,
   combinedStdout: StreamerProcess,
   wasUsingCache: boolean,
@@ -241,6 +241,11 @@ export function handleYtdlpOutput(
   tempFile: string | null = null,
   metaArgs: string[] = []
 ) {
+  if (!childProcess) {
+    logger.warn('[Streamer] yt-dlp process failed to start; ending stream');
+    if (!combinedStdout.writableEnded) combinedStdout.end();
+    return;
+  }
   if (tempFile) {
     // file mode: native dl, pipe after; cleanup temp+partials once
     let capturedStderr = '';
@@ -433,7 +438,7 @@ export function handleYtdlpOutput(
       if (originalKill) originalKill();
     };
 
-    if (childProcess.stdout) {
+    if (ffmpeg.stdio[0] && ffmpeg.stdio[1] && childProcess.stdout) {
       import('node:stream/promises').then(({ pipeline }) => {
         Promise.all([
           pipeline(

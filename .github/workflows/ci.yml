@@ -87,14 +87,11 @@ jobs:
           restore-keys: |
             ${{ env.CACHE_KEY }}-${{ runner.os }}-
 
-      - name: Install FFmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v3
-
-      - name: Verify FFmpeg
-        run: ffmpeg -version | head -1
-
       - name: Install yt-dlp
         run: pip3 install --break-system-packages --upgrade yt-dlp
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Install dependencies (monorepo root)
         run: npm ci --ignore-scripts
@@ -339,8 +336,8 @@ jobs:
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
-    needs: [changes, test-backend, test-frontend]
-    if: github.ref == 'refs/heads/main'
+    needs: [changes, test-frontend]
+    if: github.ref == 'refs/heads/main' && needs.test-frontend.result == 'success'
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -368,6 +365,10 @@ jobs:
       - name: Build and Deploy Frontend
         run: |
           npm ci --ignore-scripts
+          VER=$(python3 -c "import json; print(json.load(open('package-lock.json'))['packages']['node_modules/lightningcss']['version'])")
+          OXVER=$(python3 -c "import json; print(json.load(open('package-lock.json'))['packages']['node_modules/@tailwindcss/oxide']['version'])")
+          RVER=$(python3 -c "import json; print(json.load(open('package-lock.json'))['packages']['node_modules/rolldown']['version'])")
+          npm install --no-save "lightningcss-linux-x64-gnu@$VER" "@tailwindcss/oxide-linux-x64-gnu@$OXVER" "@rolldown/binding-linux-x64-gnu@$RVER" --ignore-scripts
           cd web/frontend
           npm run build
           rm -rf dist/ffmpeg-core dist/libav

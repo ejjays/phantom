@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "TURSO_URL": "libsql://nexstream-ejjays.aws-ap-northeast-1.turso.io",
-    "VITE_API_URL": "https://ej-nexstream.koyeb.app",
+    "VITE_API_URL": "https://phantom-vm.tailf8c149.ts.net",
     "VITE_SENTRY_DSN": "https://7110e6740bbf4eff1a453e492839d5d8@o4511417359728640.ingest.us.sentry.io/4511417398591488"
   },
   "r2_buckets": [
