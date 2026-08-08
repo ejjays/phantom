@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,11 @@ import {
   Pressable,
   RefreshControl,
   useWindowDimensions,
+  AppState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Trash2, Play, FolderOpen } from 'lucide-react-native';
+import { Play, FolderOpen, RotateCcw, X } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import tw from '../lib/tw';
 import ufo from '../../assets/UFO.json';
@@ -24,7 +25,7 @@ import {
   discardInflight,
 } from '../lib/download/downloadPipeline';
 import { useInflight, type InflightItem } from '../lib/inflight';
-import { openSavedTarget } from '../lib/download/gallery';
+import { openSavedTarget, fileStillExists } from '../lib/download/gallery';
 import {
   setDownloadCancelHandler,
   startDownloadService,
@@ -38,6 +39,7 @@ import { useAppDialog } from '../components/AppDialog';
 import { PlatformLogo, type PlatformName } from '../components/logos';
 import TwinkleStars from '../components/backgrounds/TwinkleStars';
 import ShootingStars from '../components/backgrounds/ShootingStars';
+import SwipeToDelete from '../components/SwipeToDelete';
 
 type Props = {
   visible: boolean;
@@ -61,15 +63,18 @@ const LOGO_FOR: Partial<Record<string, PlatformName>> = {
 
 function Row({
   item,
+  missing,
   onChanged,
 }: {
   item: HistoryItem;
+  missing?: boolean;
   onChanged: () => void;
 }) {
   const open = useCallback(() => {
+    if (missing) return;
     tapImpact();
     void openSavedTarget({ isAudio: item.isAudio, uri: item.uri });
-  }, [item.isAudio, item.uri]);
+  }, [item.isAudio, item.uri, missing]);
 
   const del = useCallback(() => {
     tapSelection();
@@ -86,10 +91,12 @@ function Row({
   });
 
   return (
-    <View style={tw`flex-row items-center gap-3 px-4 py-3`}>
+    <SwipeToDelete onDelete={del}>
+      <View style={tw`flex-row items-center gap-3 px-4 py-3`}>
       <Pressable
         onPress={open}
-        style={tw`h-14 w-14 overflow-hidden rounded-xl bg-white/5`}
+        disabled={missing}
+        style={tw`h-14 w-14 overflow-hidden rounded-xl bg-white/5 ${missing ? 'opacity-40' : ''}`}
       >
         {item.thumbnail ? (
           <Image
@@ -105,9 +112,9 @@ function Row({
         )}
       </Pressable>
 
-      <Pressable onPress={open} style={tw`flex-1`}>
+      <Pressable onPress={open} disabled={missing} style={tw`flex-1`}>
         <Text
-          style={tw`font-mono-semibold text-[13px] text-slate-100`}
+          style={tw`font-mono-semibold text-[13px] ${missing ? 'text-slate-500' : 'text-slate-100'}`}
           numberOfLines={1}
         >
           {item.title}
@@ -125,21 +132,19 @@ function Row({
                 .join(' · ')}
             </Text>
           </View>
-          <Text style={tw`pl-[19px] font-mono text-[10px] text-slate-500`}>
-            {when}
-          </Text>
+          {missing ? (
+            <Text style={tw`pl-[19px] font-mono text-[10px] text-red-400/90`}>
+              file no longer exists
+            </Text>
+          ) : (
+            <Text style={tw`pl-[19px] font-mono text-[10px] text-slate-500`}>
+              {when}
+            </Text>
+          )}
         </View>
       </Pressable>
-
-      <Pressable
-        onPress={del}
-        accessibilityLabel="Delete download"
-        style={tw`rounded-lg p-2`}
-        hitSlop={8}
-      >
-        <Trash2 size={18} color="#64748b" />
-      </Pressable>
-    </View>
+      </View>
+    </SwipeToDelete>
   );
 }
 
@@ -150,17 +155,23 @@ function InflightRow({
   item: InflightItem;
   onChanged: () => void;
 }) {
+  const [running, setRunning] = useState(false);
+  const controller = useRef<AbortController | null>(null);
+
   const resume = useCallback(() => {
+    if (running) return;
     tapImpact();
-    const controller = new AbortController();
-    setDownloadCancelHandler(() => controller.abort());
+    setRunning(true);
+    const ctrl = new AbortController();
+    controller.current = ctrl;
+    setDownloadCancelHandler(() => ctrl.abort());
     void (async () => {
       try {
         await startDownloadService();
         const outcome = await resumeInflight(
           item,
           (state) => updateDownloadProgress(state.progress),
-          controller.signal
+          ctrl.signal
         );
         if (outcome.status === 'saved' && (await getNotify())) {
           await notifyDownloadComplete(
@@ -176,14 +187,16 @@ function InflightRow({
       } finally {
         setDownloadCancelHandler(null);
         stopDownloadService().catch(() => undefined);
+        setRunning(false);
         onChanged();
       }
     })();
-  }, [item, onChanged]);
+  }, [item, onChanged, running]);
 
-  const del = useCallback(() => {
+  const cancel = useCallback(() => {
     tapSelection();
-    void discardInflight(item.id).then(onChanged);
+    controller.current?.abort();
+    if (!controller.current) void discardInflight(item.id).then(onChanged);
   }, [item.id, onChanged]);
 
   const logo = LOGO_FOR[item.platform];
@@ -191,10 +204,7 @@ function InflightRow({
 
   return (
     <View style={tw`flex-row items-center gap-3 px-4 py-3`}>
-      <Pressable
-        onPress={resume}
-        style={tw`h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-white/5`}
-      >
+      <View style={tw`h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-white/5`}>
         {item.thumbnail ? (
           <Image
             source={{ uri: item.thumbnail }}
@@ -205,9 +215,9 @@ function InflightRow({
         ) : (
           <Play size={20} color="#64748b" />
         )}
-      </Pressable>
+      </View>
 
-      <Pressable onPress={resume} style={tw`flex-1`}>
+      <View style={tw`flex-1`}>
         <Text
           style={tw`font-mono-semibold text-[13px] text-slate-100`}
           numberOfLines={1}
@@ -236,17 +246,27 @@ function InflightRow({
               ]}
             />
           </View>
+          <View style={tw`ml-[19px] mt-0.5 flex-row items-center gap-2`}>
+            <Pressable
+              onPress={resume}
+              disabled={running}
+              accessibilityLabel="Resume download"
+              style={tw`flex-row items-center gap-1 rounded-lg border border-white/10 px-2 py-1 ${running ? 'opacity-40' : ''}`}
+            >
+              <RotateCcw size={12} color="#67e8f9" />
+              <Text style={tw`font-mono text-[10px] text-cyan-300`}>Resume</Text>
+            </Pressable>
+            <Pressable
+              onPress={cancel}
+              accessibilityLabel="Cancel download"
+              style={tw`flex-row items-center gap-1 rounded-lg border border-white/10 px-2 py-1`}
+            >
+              <X size={12} color="#f87171" />
+              <Text style={tw`font-mono text-[10px] text-red-300`}>Cancel</Text>
+            </Pressable>
+          </View>
         </View>
-      </Pressable>
-
-      <Pressable
-        onPress={del}
-        accessibilityLabel="Discard download"
-        style={tw`rounded-lg p-2`}
-        hitSlop={8}
-      >
-        <Trash2 size={18} color="#64748b" />
-      </Pressable>
+      </View>
     </View>
   );
 }
@@ -258,10 +278,36 @@ function DownloadsScreenInner({ visible }: Props) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const ufoSize = Math.min(320, Math.max(200, width * 0.6));
+  const [missing, setMissing] = useState<Record<string, boolean>>({});
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  // batch-verify saved files against android's media db; dims rows whose
+  // file was deleted behind our back (gallery/file manager)
+  const recheck = useCallback((list: HistoryItem[]) => {
+    const ids = new Set(list.map((it) => it.id));
+    void Promise.all(
+      list.map(async (it) => ({ id: it.id, ok: await fileStillExists(it.uri) }))
+    ).then((res) => {
+      setMissing((prev) => {
+        const next: Record<string, boolean> = {};
+        for (const key of Object.keys(prev)) if (ids.has(key)) next[key] = true;
+        for (const result of res) if (result.ok === false) next[result.id] = true;
+        return next;
+      });
+    });
+  }, []);
 
   useEffect(() => {
-    if (visible) void refresh();
-  }, [visible, refresh]);
+    if (!visible) return;
+    void refresh().then(() => recheck(itemsRef.current));
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void refresh().then(() => recheck(itemsRef.current));
+      }
+    });
+    return () => sub.remove();
+  }, [visible, refresh, recheck]);
 
   const clearAll = useCallback(() => {
     if (items.length === 0) return;
@@ -375,6 +421,7 @@ function DownloadsScreenInner({ visible }: Props) {
                   <Row
                     key={item.id}
                     item={item}
+                    missing={missing[item.id]}
                     onChanged={() => void refresh()}
                   />
                 ))}

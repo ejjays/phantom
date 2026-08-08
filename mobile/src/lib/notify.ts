@@ -172,19 +172,27 @@ async function handleFileAction(
   const key = `${id}:${uri}`;
   if (handled.has(key)) return;
   handled.add(key);
-  if (id === OPEN_ACTION) {
-    await ReactNativeBlobUtil.android.actionViewIntent(uri, mimeFor(data.ext ?? ''));
-    return;
-  }
-  if (id !== SHARE_ACTION) return;
-  const tmp = new File(Paths.cache, `share-${Date.now()}.${data.ext ?? 'bin'}`);
+  // file deleted from gallery since download — drop stale card, no error spam
+  const fail = (): void => {
+    notifee.cancelNotification(id).catch(() => undefined);
+  };
   try {
-    await copyAsync({ from: uri, to: tmp.uri });
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(tmp.uri);
+    if (id === OPEN_ACTION) {
+      await ReactNativeBlobUtil.android.actionViewIntent(uri, mimeFor(data.ext ?? ''));
+      return;
     }
-  } finally {
-    if (tmp.exists) tmp.delete();
+    if (id !== SHARE_ACTION) return;
+    const tmp = new File(Paths.cache, `share-${Date.now()}.${data.ext ?? 'bin'}`);
+    try {
+      await copyAsync({ from: uri, to: tmp.uri });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(tmp.uri);
+      }
+    } finally {
+      if (tmp.exists) tmp.delete();
+    }
+  } catch {
+    fail();
   }
 }
 

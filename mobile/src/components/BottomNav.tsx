@@ -13,6 +13,7 @@ import Animated, {
   withTiming,
   withSpring,
   withSequence,
+  withRepeat,
   Easing,
 } from 'react-native-reanimated';
 import Svg, {
@@ -24,6 +25,7 @@ import Svg, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../lib/tw';
+import { useInflight } from '../lib/inflight';
 import {
   HomeIcon,
   SettingsIcon,
@@ -110,7 +112,40 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#3b466b',
   },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -5,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: '#ef4444',
+    borderWidth: 1.5,
+    borderColor: '#0b132e',
+  },
 });
+
+function BadgeDot({ show }: { show: boolean }) {
+  const pulse = useSharedValue(1);
+
+  useEffect(() => {
+    if (show) {
+      pulse.value = withRepeat(
+        withSequence(withTiming(1.35, { duration: 700 }), withTiming(1, { duration: 700 })),
+        -1
+      );
+    } else {
+      pulse.value = withTiming(1, { duration: 200 });
+    }
+  }, [show, pulse]);
+
+  const badgeStyle = useAnimatedStyle(() => ({
+    opacity: show ? 1 : 0,
+    transform: [{ scale: pulse.value }],
+  }));
+
+  return <Animated.View style={[styles.badge, badgeStyle]} pointerEvents="none" />;
+}
 function BottomNav({
   onChange,
   hidden = false,
@@ -120,6 +155,7 @@ function BottomNav({
 }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const { items: inflight } = useInflight();
   const totalH = CANOPY_H + insets.bottom;
   const tabW = width / TABS.length;
   const centerOf = (i: number) => tabW * (i + 0.5);
@@ -227,7 +263,12 @@ function BottomNav({
               >
                 {!isActive && (
                   <>
-                    <Icon size={22} color={INACTIVE} />
+                    <View style={tw`relative`}>
+                      <Icon size={22} color={INACTIVE} />
+                      <BadgeDot
+                        show={id === 'downloads' && inflight.length > 0 && !isActive}
+                      />
+                    </View>
                     <Text
                       style={[
                         tw`text-[10px] font-mono-semibold`,
