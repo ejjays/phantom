@@ -20,7 +20,7 @@
     "@sentry/react": "^10.53.1",
     "@supabase/supabase-js": "2.110.9",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.24.12",
+    "framer-motion": "^13.0.0",
     "jszip": "^3.10.1",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.577.0",
