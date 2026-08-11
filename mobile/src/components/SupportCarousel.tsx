@@ -255,6 +255,7 @@ function StackCard({
   const progress = useSharedValue(0);
   useEffect(() => {
     progress.value = 0;
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- stack card entrance anim gated on visible
     if (!visible) return;
     progress.value = withDelay(
       index * 90,

@@ -65,10 +65,12 @@ export default function ImageFocusOverlay({
   const open = uri !== null && origin !== null;
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- open transition drives anim + haptic
     if (!open) return;
     tapSelection();
     dragX.value = 0;
     dragY.value = 0;
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- modal mounts on open transition
     setMounted(true);
     focus.value = withTiming(1, {
       duration: FOCUS_MS,

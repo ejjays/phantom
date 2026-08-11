@@ -30,6 +30,9 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Guard against platform-pinned bindings
+        run: bash scripts/guard-platform-bindings.sh
+
       - name: install deps
         run: npm ci
 

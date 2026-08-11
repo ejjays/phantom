@@ -1,10 +1,12 @@
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Pressable, type GestureResponderEvent } from 'react-native';
 import {
   Canvas,
   Group,
   Path,
   Oval,
+  Line,
+  Circle,
   Shadow,
   LinearGradient,
   Skia,
@@ -20,6 +22,8 @@ import {
   withDelay,
   cancelAnimation,
   Easing,
+  interpolate,
+  runOnJS,
 } from 'react-native-reanimated';
 
 export const PHANTOM_ASPECT = 430 / 400;
@@ -69,13 +73,26 @@ const SWEAT_PATH =
 const SWEAT_HIGHLIGHT =
   'M14,26c-3.3086,0-6-2.6914-6-6c0-0.5527,0.4478-1,1-1s1,0.4473,1,1c0,2.2061,1.7944,4,4,4c0.5522,0,1,0.4473,1,1S14.5522,26,14,26z';
 
+const FLAG_POLE_X = 295;
+const FLAG_BANNER_PATH =
+  'M 295 90 C 331 78, 356 102, 392 90 L 392 160 C 356 172, 331 148, 295 160 Z';
+const FLAG_CHECK_PATH = 'M46 14L25 35.6l-7-7.2l-7 7.2L25 50l28-28.8z';
+const FLAG_ORIGIN_X = 285;
+const FLAG_ORIGIN_Y = 150;
+const FLAG_TILT_DEG = 10;
+const FLUTTER_MS = 2400;
+const FLAG_IN_MS = 450;
+const FLAG_FADE_MS = 450;
+
 export default memo(function PhantomHero({
   amazeSignal = 0,
   focusSignal = 0,
+  flagVisible = false,
   onQuip,
 }: {
   amazeSignal?: number;
   focusSignal?: number;
+  flagVisible?: boolean;
   onQuip?: () => void;
 }) {
   const floatY = useSharedValue(0);
@@ -92,6 +109,9 @@ export default memo(function PhantomHero({
   const amaze = useSharedValue(0);
   const gazeX = useSharedValue(0);
   const gazeY = useSharedValue(0);
+  const flag = useSharedValue(0);
+  const flutter = useSharedValue(0);
+  const [flagMounted, setFlagMounted] = useState(false);
 
   useEffect(() => {
     if (amazeSignal === 0) return;
@@ -166,6 +186,25 @@ export default memo(function PhantomHero({
   }, [focusSignal, gazeX, gazeY]);
 
   useEffect(() => {
+    if (flagVisible) {
+      setFlagMounted(true);
+      flag.value = withTiming(1, {
+        duration: FLAG_IN_MS,
+        easing: Easing.out(Easing.cubic),
+      });
+      return;
+    }
+    flag.value = withTiming(
+      0,
+      { duration: FLAG_FADE_MS, easing: Easing.in(Easing.ease) },
+      (finished) => {
+        'worklet';
+        if (finished) runOnJS(setFlagMounted)(false);
+      }
+    );
+  }, [flagVisible, flag]);
+
+  useEffect(() => {
     const ease = Easing.inOut(Easing.ease);
     floatY.value = withRepeat(
       withTiming(-15, { duration: FLOAT_DURATION, easing: ease }),
@@ -203,6 +242,13 @@ export default memo(function PhantomHero({
       withDelay(SMILE_DELAY, withTiming(1, { duration: 300, easing: ease })),
       idleMouthCycle()
     );
+    flutter.value = withRepeat(
+      withTiming(1, {
+        duration: FLUTTER_MS,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1
+    );
     return () => {
       cancelAnimation(floatY);
       cancelAnimation(shadowScale);
@@ -218,8 +264,27 @@ export default memo(function PhantomHero({
       cancelAnimation(amaze);
       cancelAnimation(gazeX);
       cancelAnimation(gazeY);
+      cancelAnimation(flag);
+      cancelAnimation(flutter);
     };
-  }, []);
+  }, [
+    floatY,
+    shadowScale,
+    shadowOpacity,
+    blinkScale,
+    mouthX,
+    mouthY,
+    mouthAnim,
+    pressBlend,
+    burst,
+    giggle,
+    sweatAnim,
+    amaze,
+    gazeX,
+    gazeY,
+    flag,
+    flutter,
+  ]);
 
   const canvasSize = useSharedValue<SkSize>({ width: 0, height: 0 });
   const fitTransform = useDerivedValue<Transforms3d>(() => [
@@ -352,6 +417,33 @@ export default memo(function PhantomHero({
     { translateY: -220 },
   ]);
 
+  const flagRise = useDerivedValue<Transforms3d>(() => [
+    { translateY: (1 - flag.value) * 10 },
+  ]);
+
+  const flutterTransform = useDerivedValue<Transforms3d>(() => {
+    const progress = flutter.value;
+    const rot = interpolate(
+      progress,
+      [0, 0.25, 0.5, 0.75, 1],
+      [0, 3, -2, 2, 0]
+    );
+    const skew = interpolate(
+      progress,
+      [0, 0.25, 0.5, 0.75, 1],
+      [0, 2, -2, 1, 0]
+    );
+    const rad = Math.PI / 180;
+    return [
+      { translateX: FLAG_ORIGIN_X },
+      { translateY: FLAG_ORIGIN_Y },
+      { rotate: rot * rad },
+      { skewY: skew * rad },
+      { translateX: -FLAG_ORIGIN_X },
+      { translateY: -FLAG_ORIGIN_Y },
+    ];
+  });
+
   const bodyPath =
     'M 80 170 C 80 103.7, 133.7 50, 200 50 C 266.3 50, 320 103.7, 320 170 L 320 330 Q 290 352, 260 330 Q 230 352, 200 330 Q 170 352, 140 330 Q 110 352, 80 330 Z';
   const foldPath =
@@ -433,6 +525,43 @@ export default memo(function PhantomHero({
                 <Path path={mouthPath} color="#083344" />
               </Group>
             </Group>
+            {flagMounted ? (
+              <Group opacity={flag} transform={flagRise}>
+                <Shadow dx={0} dy={8} blur={6} color="rgba(6, 182, 212, 0.3)" />
+                <Group
+                  transform={[
+                    { translateX: FLAG_ORIGIN_X },
+                    { translateY: FLAG_ORIGIN_Y },
+                    { rotate: (FLAG_TILT_DEG * Math.PI) / 180 },
+                    { translateX: -FLAG_ORIGIN_X },
+                    { translateY: -FLAG_ORIGIN_Y },
+                  ]}
+                >
+                  <Line
+                    p1={{ x: FLAG_POLE_X, y: 80 }}
+                    p2={{ x: FLAG_POLE_X, y: 340 }}
+                    color="#E0F7FA"
+                    strokeWidth={4.5}
+                    strokeCap="round"
+                  />
+                  <Circle cx={FLAG_POLE_X} cy={76} r={6} color="#FBBF24" />
+                  <Group transform={flutterTransform}>
+                    <Path path={FLAG_BANNER_PATH} color="#4BD37B" />
+                    <Group
+                      transform={[
+                        { translateX: 344 },
+                        { translateY: 125 },
+                        { scale: 0.5 },
+                        { translateX: -32 },
+                        { translateY: -32 },
+                      ]}
+                    >
+                      <Path path={FLAG_CHECK_PATH} color="#FFFFFF" />
+                    </Group>
+                  </Group>
+                </Group>
+              </Group>
+            ) : null}
           </Group>
         </Group>
       </Canvas>

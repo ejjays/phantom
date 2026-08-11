@@ -1,6 +1,30 @@
 import { startActivityAsync } from 'expo-intent-launcher';
+import { File } from 'expo-file-system';
+import {
+  readAsStringAsync,
+  EncodingType,
+} from 'expo-file-system/legacy';
 
 const FLAG_GRANT_READ = 1;
+
+export async function fileStillExists(uri?: string): Promise<boolean | null> {
+  if (!uri) return null;
+  try {
+    if (new File(uri).exists) return true;
+  // eslint-disable-next-line no-empty -- unsupported scheme, probe below
+  } catch {
+  }
+  try {
+    await readAsStringAsync(uri, {
+      encoding: EncodingType.Base64,
+      position: 0,
+      length: 1,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function openGallery(): Promise<void> {
   try {

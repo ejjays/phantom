@@ -170,7 +170,7 @@ function handleRnFetch(req: RnFetchRequest): void {
     logWarn('bridge', `[YT-DIAG] headers=${JSON.stringify(finalHeaders)}`);
     logWarn('bridge', `[YT-DIAG] body=${bodyOut}`);
   }
-  fetch(req.url, {
+  void fetch(req.url, {
     method: req.method,
     headers: {
       ...req.headers,

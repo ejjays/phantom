@@ -44,7 +44,7 @@ function ReactionPill({
         <Animated.View
           style={[tw`flex-row items-center rounded-full px-2.5 py-1`, bgStyle]}
         >
-          <ReactionEmoji emoji={tally.emoji} size={15} />
+          <ReactionEmoji emoji={tally.emoji} size={23} />
           <AnimatedCount
             value={tally.count}
             style={[
@@ -67,6 +67,7 @@ function ReactionPill({
   );
 }
 
+export { ReactionPlayContext } from './ReactionEmoji';
 export default function ReactionBar({
   tallies,
   onReact,

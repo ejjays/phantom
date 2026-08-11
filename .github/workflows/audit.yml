@@ -28,6 +28,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
+      - name: Guard against platform-pinned bindings
+        run: bash scripts/guard-platform-bindings.sh
+
       - name: Install dependencies (monorepo root)
         run: npm ci --ignore-scripts
 

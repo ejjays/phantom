@@ -131,8 +131,9 @@ export function hlsToMp4(
   const persistent = keepAlive ? '1' : '0';
   const cmd = `-hide_banner -loglevel error -y -http_persistent ${persistent} -user_agent "${HLS_UA}" ${inputs} -c copy -bsf:a aac_adtstoasc -movflags +faststart "${fsPath(out.uri)}"`;
   return new Promise((resolve) => {
-    FFmpegKit.executeAsync(
+    void FFmpegKit.executeAsync(
       cmd,
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises -- ffmpeg-kit ignores callback promise
       async (session) => {
         const code = await session.getReturnCode();
         if (ReturnCode.isSuccess(code)) {

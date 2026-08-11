@@ -584,6 +584,7 @@ export default function PickerModal({
 
   useEffect(() => {
     if (info) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- keep content mounted during fade-out
       setMounted(true);
       // dim fast, card glides in
       dim.value = withTiming(1, {

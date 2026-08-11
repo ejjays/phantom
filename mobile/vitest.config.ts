@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    setupFiles: ['./tests/setup.ts'],
     // termux phantom-killer: one worker, sequential
     pool: 'forks',
     maxWorkers: 1,

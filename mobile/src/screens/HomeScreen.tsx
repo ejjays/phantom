@@ -29,11 +29,9 @@ import {
   nextBadLinkIndex,
   nextSuccessIndex,
 } from '../lib/settings';
+import { idleTick } from '../lib/idle.logic';
 
 const QUIP_COOLDOWN_MS = 8000;
-const IDLE_MS = 18000;
-const IDLE_BUFFER_MS = 8000;
-const IDLE_REPEAT_MS = 45000;
 const IDLE_CHECK_MS = 1000;
 
 const PHANTOM_QUIPS = [
@@ -113,6 +111,7 @@ type Props = {
   firstVisit: boolean;
   bubbleTrigger: number;
   active: boolean;
+  muted: boolean;
   invalidLink: boolean;
   successSignal: number;
 };
@@ -133,6 +132,7 @@ export default function HomeScreen({
   firstVisit,
   bubbleTrigger,
   active,
+  muted,
   invalidLink,
   successSignal,
 }: Props) {
@@ -157,14 +157,6 @@ export default function HomeScreen({
     lastActivity.current = Date.now();
   };
 
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      setAppActive(state === 'active');
-      if (state === 'active') bumpActivity();
-    });
-    return () => sub.remove();
-  }, []);
-
   const quipSeq = useRef(0);
   const idleSeq = useRef(0);
   const badLinkSeq = useRef(0);
@@ -180,14 +172,37 @@ export default function HomeScreen({
   const lastBadLinkAt = useRef(0);
   const [badLinkMsg, setBadLinkMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [flagVisible, setFlagVisible] = useState(false);
   const [greetDone, setGreetDone] = useState(false);
 
+  const flagWasShowing = useRef(false);
+  const flagVisibleRef = useRef(false);
   useEffect(() => {
+    flagVisibleRef.current = flagVisible;
+  }, [flagVisible]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      setAppActive(state === 'active');
+      if (state === 'active') {
+        bumpActivity();
+        if (flagWasShowing.current) setFlagVisible(true);
+      } else if (state === 'background') {
+        flagWasShowing.current = flagVisibleRef.current;
+        if (flagVisibleRef.current) setFlagVisible(false);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- resets bubble on new trigger
     setGreetDone(false);
   }, [bubbleTrigger]);
 
   const handleQuip = () => {
     bumpActivity();
+    if (muted) return;
     if (quipVisible.current) return;
     if (Date.now() - lastQuipAt.current < QUIP_COOLDOWN_MS) return;
     quipVisible.current = true;
@@ -207,6 +222,7 @@ export default function HomeScreen({
   const warnBadLink = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || looksLikeLink(trimmed)) return;
+    if (muted) return;
     if (badLinkVisible.current) return;
     if (Date.now() - lastBadLinkAt.current < QUIP_COOLDOWN_MS) return;
     badLinkVisible.current = true;
@@ -230,21 +246,33 @@ export default function HomeScreen({
     return () => {
       if (badLinkTimer.current) clearTimeout(badLinkTimer.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- warnBadLink recreated each render, would reset debounce timer
   }, [link]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- warning cleared post-debounce
     if (!badLinkMsg) return;
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- link validity checked post-debounce
     if (!link.trim() || looksLikeLink(link)) {
       badLinkVisible.current = false;
+      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-chain-state-updates, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- clears warning once link becomes valid
       setBadLinkMsg(null);
     }
   }, [link, badLinkMsg]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- parent success signal, one-shot
     if (successSignal === 0) return;
+    bumpActivity();
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- raises flag on success signal
+    setFlagVisible(true);
     if (successVisible.current) return;
     successVisible.current = true;
+    idleVisible.current = false;
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- clears speech for success banner
+    setIdleMsg(null);
     badLinkVisible.current = false;
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- clears warning for success banner
     setBadLinkMsg(null);
     void nextSuccessIndex(PHANTOM_SUCCESS_LINES.length).then((index) => {
       successSeq.current += 1;
@@ -253,6 +281,7 @@ export default function HomeScreen({
   }, [successSignal]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- keyboard focus edge, ref-gated
     if (inputFocused) {
       quipVisible.current = false;
       idleVisible.current = false;
@@ -260,22 +289,27 @@ export default function HomeScreen({
   }, [inputFocused]);
 
   useEffect(() => {
-    if (!active || !appActive || inputFocused || loading) return;
+    if (!active || !appActive || inputFocused || loading || muted) return;
     const interval = setInterval(() => {
       const now = Date.now();
-      if (now - lastActivity.current < IDLE_MS) return;
-      if (idleVisible.current) return;
-      if (
+      const bubbleUp =
         quipVisible.current ||
         badLinkVisible.current ||
-        (!greetDone && bubbleTrigger > 0)
-      ) {
+        successVisible.current ||
+        idleVisible.current ||
+        (!greetDone && bubbleTrigger > 0);
+      const decision = idleTick({
+        now,
+        lastActivity: lastActivity.current,
+        lastIdleAt: lastIdleAt.current,
+        lastIdleStart: lastIdleStart.current,
+        bubbleUp,
+      });
+      if (decision === 'pause') {
         lastActivity.current = now;
         return;
       }
-      if (now - lastIdleAt.current < IDLE_BUFFER_MS) return;
-      const sinceStart = now - lastIdleStart.current;
-      if (sinceStart < IDLE_REPEAT_MS) return;
+      if (decision === 'wait') return;
       idleVisible.current = true;
       lastIdleStart.current = now;
       void nextIdleIndex(PHANTOM_IDLE_LINES.length).then((index) => {
@@ -284,9 +318,28 @@ export default function HomeScreen({
       });
     }, IDLE_CHECK_MS);
     return () => clearInterval(interval);
-  }, [active, appActive, inputFocused, loading, greetDone]);
+  }, [
+    active,
+    appActive,
+    inputFocused,
+    loading,
+    greetDone,
+    muted,
+    bubbleTrigger,
+  ]);
 
   useEffect(() => {
+    bumpActivity();
+    quipVisible.current = false;
+    idleVisible.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- clears speech when muted toggles
+    setIdleMsg(null);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- clears quip when muted toggles
+    setQuip(null);
+  }, [muted]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- focus signal drives reanimated moon wipe
     if (focusSignal === 0) return;
     moonX.value = withSequence(
       withTiming(-260, { duration: 0 }),
@@ -334,6 +387,7 @@ export default function HomeScreen({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- spinner 2s dwell after resolve ends
     if (!loading) {
       const timer = setTimeout(() => {
         setShowSpinner(false);
@@ -343,7 +397,9 @@ export default function HomeScreen({
   }, [loading]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- parent reset signal, one-shot
     if (resetSignal === 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset signal cancels spinner
     setShowSpinner(false);
   }, [resetSignal]);
 
@@ -378,12 +434,16 @@ export default function HomeScreen({
         contentContainerStyle={tw`grow px-6 pb-16`}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        onTouchStart={bumpActivity}
+        onTouchStart={() => {
+          bumpActivity();
+          setFlagVisible(false);
+        }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => {
               bumpActivity();
+              setFlagVisible(false);
               void onRefresh();
             }}
             tintColor="#22d3ee"
@@ -445,6 +505,7 @@ export default function HomeScreen({
                     onFade={() => {
                       idleVisible.current = false;
                       lastIdleAt.current = Date.now();
+                      lastIdleStart.current = Date.now();
                       setIdleMsg(null);
                     }}
                   />
@@ -463,6 +524,7 @@ export default function HomeScreen({
                   <PhantomHero
                     amazeSignal={0}
                     focusSignal={gazeTick}
+                    flagVisible={flagVisible}
                     onQuip={handleQuip}
                   />
                 </Animated.View>

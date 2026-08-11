@@ -70,6 +70,7 @@ export default function SpeechBubble({
   useEffect(() => {
     let mounted = true;
     if (variant === 'returning' && !quip) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- resets ready while async message loads
       setReady(false);
       void nextSpeechMsgIndex(RETURNING_PAIRS.length).then((index) => {
         if (!mounted) return;
@@ -79,6 +80,7 @@ export default function SpeechBubble({
         setReady(true);
       });
     } else {
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- prop change restarts speech sequence
       setReady(true);
     }
     return () => {
@@ -88,6 +90,7 @@ export default function SpeechBubble({
 
   useEffect(() => {
     if (!typing && !hold) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-external-store-subscription -- cursor blink interval while typing
     setCursorOn(true);
     const interval = setInterval(() => {
       setCursorOn((on) => !on);
@@ -101,8 +104,12 @@ export default function SpeechBubble({
   useEffect(() => {
     if (!ready) return;
     opacity.value = 1;
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- resets typing state, re-run per message
     setHold(false);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- resets typing state per message
     setTyping(false);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- clears stale text when a chain restarts mid-message
+    setText('');
     const lines = quip
       ? [quip]
       : variant === 'returning'
@@ -113,41 +120,44 @@ export default function SpeechBubble({
     let lineIndex = 0;
     let length = 0;
     let chars = Array.from(lines[0]);
+    const schedule = (fn: () => void, ms: number) => {
+      timer.current = setTimeout(fn, ms);
+    };
     const tick = () => {
       if (length < chars.length) {
         length += 1;
         setText(chars.slice(0, length).join(''));
         setTyping(true);
-        timer.current = setTimeout(tick, typeMs);
+        schedule(tick, typeMs);
       } else if (lineIndex < lines.length - 1) {
         setTyping(false);
         setHold(true);
-        timer.current = setTimeout(() => {
+        schedule(() => {
           setHold(false);
           setText('');
           lineIndex += 1;
           length = 0;
           chars = Array.from(lines[lineIndex]);
-          timer.current = setTimeout(tick, 200);
+          schedule(tick, 200);
         }, FULL_HOLD_MS);
       } else {
         setTyping(false);
-        timer.current = setTimeout(() => {
+        schedule(() => {
           opacity.value = withTiming(0, {
             duration: 400,
             easing: Easing.out(Easing.cubic),
           });
-          timer.current = setTimeout(() => {
+          schedule(() => {
             onFadeRef.current?.();
           }, 400);
         }, holdMs);
       }
     };
-    timer.current = setTimeout(tick, 350);
+    schedule(tick, 350);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [message, followUp, variant, ready, quip]);
+  }, [message, followUp, variant, ready, quip, opacity]);
 
   const bubbleStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 

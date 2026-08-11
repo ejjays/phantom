@@ -12,7 +12,7 @@
     "test": "npx vitest run",
     "test:live": "VITEST_INCLUDE_LIVE=1 npx vitest run tests/live",
     "lint": "bash ../scripts/lint-changed.sh",
-    "lint:all": "eslint ."
+    "lint:all": "eslint . --cache"
   },
   "dependencies": {
     "@nikhil-cephei/ffmpeg-kit-react-native": "6.0.12",
@@ -27,6 +27,7 @@
     "event-target-shim": "^6.0.2",
     "expo": "^57.0.0",
     "expo-asset": "~57.0.9",
+    "expo-blur": "~57.0.2",
     "expo-clipboard": "~57.0.1",
     "expo-crypto": "~57.0.1",
     "expo-dev-client": "~57.0.10",
@@ -52,7 +53,7 @@
     "react-native-keyboard-controller": "1.21.9",
     "react-native-nitro-google-signin": "0.8.0",
     "react-native-notify-kit": "^10.4.4",
-    "react-native-qrcode-svg": "6.3.21",
+    "react-native-qrcode-styled": "^0.4.0",
     "react-native-reanimated": "4.5.1",
     "react-native-reanimated-carousel": "4.0.3",
     "react-native-safe-area-context": "~5.7.0",
@@ -65,16 +66,20 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@react-native/codegen": "0.86.2",
     "@types/react": "~19.2.14",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import-x": "^4.17.1",
     "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-you-might-not-need-an-effect": "^1.0.1",
     "eslint-plugin-sonarjs": "^4.0.3",
     "globals": "^16.5.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.59.4",
-    "vitest": "^4.1.9",
-    "@react-native/codegen": "0.86.2"
+    "vitest": "^4.1.9"
   },
   "expo": {
     "install": {

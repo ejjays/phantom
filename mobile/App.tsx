@@ -38,7 +38,6 @@ import { initPush } from './src/lib/social/push';
 import { addSocialTapListener } from './src/lib/social/pushRender';
 import { type SocialDeepLink } from './src/lib/social/notificationTap.logic';
 import { openSavedTarget } from './src/lib/download/gallery';
-import { addHistory } from './src/lib/downloadHistory';
 import { useDownload } from './src/hooks/useDownload';
 import { useClipboardPaste } from './src/hooks/useClipboardPaste';
 import { useNotificationPriming } from './src/hooks/useNotificationPriming';
@@ -57,7 +56,6 @@ import RubikSemiBold from './assets/fonts/Rubik-SemiBold.ttf';
 import RubikBold from './assets/fonts/Rubik-Bold.ttf';
 const queryClient = new QueryClient();
 void SplashScreen.preventAutoHideAsync();
-const SUCCESS_HANDOFF_MS = 280;
 function cleanUrl(raw: string): string {
   return raw.trim().replace(/^['"\s]+|['"\s]+$/gu, '');
 }
@@ -80,13 +78,15 @@ function AppRoot() {
     settings: false,
     updates: false,
   });
-  const [homeFocus, setHomeFocus] = useState(0);
+  const [homeFocus] = useState(1);
   const [deepLink, setDeepLink] = useState<SocialDeepLink | null>(null);
   const [navHidden, setNavHidden] = useState(false);
   const [bgReady, setBgReady] = useState(false);
   const [onboarded, setOnboardedState] = useState<boolean | null>(null);
   const [firstVisit, setFirstVisit] = useState(false);
   const [bubbleTrigger, setBubbleTrigger] = useState(0);
+  const [greetPending, setGreetPending] = useState(true);
+  const [primingSeen, setPrimingSeen] = useState(false);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{
@@ -116,12 +116,24 @@ function AppRoot() {
     });
   }, []);
   useEffect(() => {
-    setHomeFocus(1);
-  }, [setHomeFocus]);
-  useEffect(() => {
-    if (firstVisit) return;
-    setBubbleTrigger((count) => count + 1);
-  }, [firstVisit]);
+    if (!greetPending) return undefined;
+    if (notifPriming.visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- records sheet visit once shown
+      setPrimingSeen(true);
+      return undefined;
+    }
+    if (primingSeen) {
+      setGreetPending(false);
+      setBubbleTrigger((count) => count + 1);
+      return undefined;
+    }
+    if (onboarded !== true) return undefined;
+    const timer = setTimeout(() => {
+      setGreetPending(false);
+      setBubbleTrigger((count) => count + 1);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [greetPending, primingSeen, notifPriming.visible, onboarded]);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
@@ -151,8 +163,8 @@ function AppRoot() {
     setRefreshing(false);
   };
   useEffect(() => {
-    registerDownloadService();
-    loadHaptics();
+    void registerDownloadService();
+    void loadHaptics();
     prewarmClientId();
     void initPush();
     const unsubscribe = addDownloadTapListener(() => {
@@ -241,21 +253,7 @@ function AppRoot() {
       const isAudio = format.isAudio && !format.isVideo;
       const target = { isAudio, uri: result.uri };
       successRef.current = target;
-      void addHistory({
-        id: `${info?.extractorKey}:${info?.id}:${format.formatId}`,
-        title: meta?.title?.trim() || info?.title || 'Download',
-        author: meta?.author?.trim() || info?.uploader,
-        platform: info?.extractorKey || 'unknown',
-        ext: format.extension || (isAudio ? 'm4a' : 'mp4'),
-        isAudio,
-        thumbnail: info?.thumbnail,
-        uri: result.uri,
-        savedAt: Date.now(),
-      });
-      setTimeout(
-        () => setSuccessSignal((count) => count + 1),
-        SUCCESS_HANDOFF_MS
-      );
+      setSuccessSignal((count) => count + 1);
     }
   };
   const goTab = (next: 'home' | 'downloads' | 'settings' | 'updates') => {
@@ -308,16 +306,17 @@ function AppRoot() {
                   loading={loading}
                   mode={mode}
                   setMode={setMode}
-                  onResolve={handleResolve}
-                  onPaste={paste}
+                  onResolve={() => void handleResolve()}
+                  onPaste={() => void paste()}
                   onInputFocus={() => {}}
                   refreshing={refreshing}
-                  onRefresh={onRefresh}
+                  onRefresh={() => void onRefresh()}
                   resetSignal={resetSignal}
                   focusSignal={homeFocus}
                   firstVisit={firstVisit}
                   bubbleTrigger={bubbleTrigger}
                   active={tab === 'home'}
+                  muted={notifPriming.visible}
                   invalidLink={invalidLink}
                   successSignal={successSignal}
                 />
@@ -353,7 +352,7 @@ function AppRoot() {
                   visible={!!info}
                   downloads={downloads}
                   onClose={closePicker}
-                  onDownload={onDownload}
+                  onDownload={(format, meta) => void onDownload(format, meta)}
                 />
               ) : (
                 <PickerModal
@@ -361,7 +360,7 @@ function AppRoot() {
                   downloads={downloads}
                   preferAudio={mode === 'mp3'}
                   onClose={closePicker}
-                  onDownload={onDownload}
+                  onDownload={(format, meta) => void onDownload(format, meta)}
                 />
               )}
               <ErrorSheet
@@ -377,8 +376,8 @@ function AppRoot() {
               <InstagramExtractorWebView />
               <NotificationPermissionSheet
                 visible={notifPriming.visible}
-                onAllow={notifPriming.allow}
-                onDismiss={notifPriming.dismiss}
+                onAllow={() => void notifPriming.allow()}
+                onDismiss={() => void notifPriming.dismiss()}
               />
             </SafeAreaView>
             {onboarded === false && (
@@ -390,7 +389,6 @@ function AppRoot() {
                   onDone={() => {
                     setOnboardedState(true);
                     void setOnboarded(true);
-                    setBubbleTrigger((count) => count + 1);
                   }}
                 />
               </Animated.View>

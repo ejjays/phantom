@@ -30,6 +30,7 @@ import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
 import BottomSheet from '../components/sheets/BottomSheet';
+import ShareAppSheet from '../components/sheets/ShareAppSheet';
 import QrView from '../components/QrView';
 import { buildGotymeQr, buildGcashQr } from '../lib/qrph';
 import AvatarPicker from '../components/AvatarPicker';
@@ -62,6 +63,7 @@ import {
   PrivacyIcon,
   VersionIcon,
   GoogleIcon,
+  ShareAppIcon,
 } from '../components/icons';
 import {
   getFilenameFormat,
@@ -513,7 +515,7 @@ function SettingsScreen({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [notifs, setNotifs] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(true);
-  const [cacheBytes, setCacheBytes] = useState(0);
+  const [cacheBytes, setCacheBytes] = useState(() => cacheSize());
   const [batteryRestricted, setBatteryRestricted] = useState<boolean | null>(
     null
   );
@@ -526,6 +528,7 @@ function SettingsScreen({
   const [nameBusy, setNameBusy] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [signOutOpen, setSignOutOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // sub-screen hooks cut animation boilerplate
   const accountScreen = useSubScreen(visible);
@@ -546,6 +549,7 @@ function SettingsScreen({
   const qrProgress = useSharedValue(0);
   useEffect(() => {
     const opening = qrOpen;
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-event-handler, react-you-might-not-need-an-effect/no-chain-state-updates -- mounted gates qr enter animation
     if (opening) setQrMounted(true);
     qrProgress.value = withTiming(
       opening ? 1 : 0,
@@ -571,26 +575,40 @@ function SettingsScreen({
 
   // reset scroll on tab exit
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- tab-exit reset incl scroll side effect
     if (visible) return;
     scrollRef.current?.scrollTo({ y: 0, animated: false });
     accountScreen.setOpen(false);
     avatarScreen.setOpen(false);
     supportScreen.setOpen(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset overlays on tab exit
     setQrOpen(false);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset overlays on tab exit
     setPickerOpen(false);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset overlays on tab exit
     setSignOutOpen(false);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset overlays on tab exit
+    setShareOpen(false);
   }, [visible, accountScreen, avatarScreen, supportScreen]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-pass-data-to-parent -- prop-sync parent fullscreen, lift too invasive
     onFullScreen?.(avatarScreen.open || supportScreen.open);
   }, [avatarScreen.open, supportScreen.open, onFullScreen]);
 
   useEffect(() => {
-    getFilenameFormat().then(setFormat);
-    getAutoPaste().then(setAutopaste);
-    getNotify().then(setNotifs);
-    getHaptics().then(setHapticsOn);
-    setCacheBytes(cacheSize());
+    getFilenameFormat()
+      .then(setFormat)
+      .catch(() => undefined);
+    getAutoPaste()
+      .then(setAutopaste)
+      .catch(() => undefined);
+    getNotify()
+      .then(setNotifs)
+      .catch(() => undefined);
+    getHaptics()
+      .then(setHapticsOn)
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -608,6 +626,7 @@ function SettingsScreen({
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-initialize-state -- ready gated by async auth load
       setAuthReady(true);
       return undefined;
     }
@@ -632,6 +651,7 @@ function SettingsScreen({
 
   const wasVisible = useRef(visible);
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- tab-show ref edge, async fetch
     if (visible && !wasVisible.current && isSupabaseConfigured) {
       getAccount()
         .then((acc) => setAccount(acc))
@@ -641,6 +661,7 @@ function SettingsScreen({
   }, [visible]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- prefetch once account known, async
     if (account?.username) {
       getSocialNotify()
         .then(setSocialNotifyState)
@@ -656,27 +677,29 @@ function SettingsScreen({
   const choose = (f: FilenameFormat) => {
     tapSelection();
     setFormat(f);
-    setFilenameFormat(f);
+    setFilenameFormat(f).catch(() => undefined);
     setTimeout(() => setPickerOpen(false), 150);
   };
 
   const toggleAutopaste = (v: boolean) => {
     setAutopaste(v);
-    setAutoPaste(v);
+    setAutoPaste(v).catch(() => undefined);
   };
 
   const toggleNotify = (v: boolean) => {
     if (!v) {
       setNotifs(false);
-      setNotify(false);
+      setNotify(false).catch(() => undefined);
       return;
     }
-    enableNotifications().then(setNotifs);
+    enableNotifications()
+      .then(setNotifs)
+      .catch(() => undefined);
   };
 
   const toggleHaptics = (v: boolean) => {
     setHapticsOn(v);
-    setHaptics(v);
+    setHaptics(v).catch(() => undefined);
     setHapticsEnabled(v);
     if (v) tapSelection();
   };
@@ -848,8 +871,8 @@ function SettingsScreen({
           isWide={isWide}
           note={
             isSupabaseConfigured && authReady && !account ? (
-              <View style={tw`mx-[-20px] mt-3 bg-cyan-500 px-5 py-2`}>
-                <Text style={tw`font-sans text-[13px] leading-5 text-white`}>
+              <View style={tw`mx-[-20px] mt-3 bg-cyan-500 px-5 py-1.5`}>
+                <Text style={tw`font-sans text-[12px] leading-4 text-white`}>
                   <Text style={tw`font-sans-bold`}>Note: </Text>
                   Sign-in is only for reactions and comments in Updates tab —
                   it&apos;s not used in the actual downloads.
@@ -917,6 +940,15 @@ function SettingsScreen({
               iconSize={26}
             />
             <ToggleRow
+              Icon={NotificationIcon}
+              label="Download alerts"
+              hint="Notify when a download finishes"
+              value={notifs}
+              onValueChange={toggleNotify}
+              tile={false}
+              iconSize={26}
+            />
+            <ToggleRow
               Icon={PasteIcon}
               label="Auto-detect clipboard"
               hint="Fill copied link when you return"
@@ -930,15 +962,6 @@ function SettingsScreen({
 
           <SectionLabel>App</SectionLabel>
           <Card>
-            <ToggleRow
-              Icon={NotificationIcon}
-              label="Download alerts"
-              hint="Notify when a download finishes"
-              value={notifs}
-              onValueChange={toggleNotify}
-              tile={false}
-              iconSize={26}
-            />
             {account ? (
               <ToggleRow
                 Icon={SocialIcon}
@@ -973,6 +996,17 @@ function SettingsScreen({
               tile={false}
             />
             <LinkRow
+              Icon={ShareAppIcon}
+              label="Share app"
+              hint="Send Phantom to a friend"
+              onPress={() => {
+                tapSelection();
+                setShareOpen(true);
+              }}
+              tile={false}
+              iconSize={26}
+            />
+            <LinkRow
               Icon={ClearCacheIcon}
               label="Clear cache"
               value={cacheBytes > 0 ? formatBytes(cacheBytes) : 'Empty'}
@@ -992,14 +1026,15 @@ function SettingsScreen({
               tile={false}
               iconSize={26}
             />
-            <LinkRow
+            <RowShell
               Icon={VersionIcon}
               label="Version"
-              value="1.1.0"
               tile={false}
               last
               iconSize={24}
-            />
+            >
+              <ValueLabel value="1.1.0" />
+            </RowShell>
           </Card>
         </SettingsBody>
       </ScrollView>
@@ -1195,6 +1230,10 @@ function SettingsScreen({
             </Text>
           </Pressable>
         </View>
+      </BottomSheet>
+
+      <BottomSheet open={shareOpen} onClose={() => setShareOpen(false)}>
+        <ShareAppSheet />
       </BottomSheet>
 
       <Animated.View

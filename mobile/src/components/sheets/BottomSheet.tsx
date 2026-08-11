@@ -30,8 +30,8 @@ const BOUNCE_SPRING = { damping: 15, stiffness: 220, mass: 0.6 };
 const CLOSE_DURATION = 300;
 const BACKDROP = 0.62;
 const TAIL = 60;
-const OVERMAX = 100;
-const FULL_RATIO = 0.88;
+const OVERMAX = TAIL;
+const FULL_RATIO = 1.0;
 const REST_RATIO = 0.5;
 
 export default function BottomSheet({
@@ -43,6 +43,7 @@ export default function BottomSheet({
   restRatio = REST_RATIO,
   stars = false,
   border = 'cyanTop',
+  radius = 60,
 }: {
   open: boolean;
   onClose: () => void;
@@ -52,6 +53,7 @@ export default function BottomSheet({
   restRatio?: number;
   stars?: boolean;
   border?: 'cyan' | 'subtle' | 'cyanTop';
+  radius?: number;
 }) {
   const insets = useSafeAreaInsets();
   const { height: screenH, width: screenW } = useWindowDimensions();
@@ -86,6 +88,7 @@ export default function BottomSheet({
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-event-handler, react-you-might-not-need-an-effect/no-derived-state -- keep mounted through exit anim
     if (open) setMounted(true);
   }, [open]);
 
@@ -96,8 +99,10 @@ export default function BottomSheet({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- open/close anim gated on mount
     if (!mounted) return;
     if (open) {
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- spring waits for layout-ready gate
       if (ready) {
         reveal.value = 1;
         progress.value = withSpring(1, OPEN_SPRING);
@@ -202,7 +207,13 @@ export default function BottomSheet({
             <Animated.View
               onLayout={onSheetLayout}
               style={[
-                tw`overflow-hidden rounded-t-[28px] px-4 pt-2`,
+                tw`overflow-hidden px-4 pt-2`,
+                {
+                  borderTopLeftRadius: radius,
+                  borderTopRightRadius: radius,
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0,
+                },
                 {
                   alignSelf: 'center',
                   width: screenW + 4,
@@ -214,18 +225,18 @@ export default function BottomSheet({
                     ? {
                         borderWidth: 1,
                         borderColor: 'rgba(34,211,238,0.4)',
-                        boxShadow: '0px 0px 16px 1px rgba(34,211,238,0.35)',
+                        boxShadow: '0px 0px 12px 2px rgba(34,211,238,0.55)',
                         shadowColor: '#06b6d4',
-                        shadowOpacity: 0.3,
-                        shadowRadius: 28,
-                        shadowOffset: { width: 0, height: -6 },
+                        shadowOpacity: 0.5,
+                        shadowRadius: 16,
+                        shadowOffset: { width: 0, height: -2 },
                         elevation: 20,
                       }
                     : tw`border border-primary/40`,
                 {
                   backgroundColor: '#0b1526',
                   paddingBottom: insets.bottom + 20 + TAIL,
-                  maxHeight: screenH * 0.92 + TAIL,
+                  maxHeight: screenH + TAIL,
                   maxWidth: 560,
                 },
                 expandStyle,

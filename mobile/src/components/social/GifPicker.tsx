@@ -101,9 +101,12 @@ export default function GifPicker({
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- gates reset & trending fetch on open
     if (!open) return;
     // load trending on open; typed queries only fire on submit (below)
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset before trending fetch on open
     setQuery('');
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset before trending fetch on open
     setGifs([]);
     void load('', 'fresh');
   }, [open, load]);

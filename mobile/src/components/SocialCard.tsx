@@ -222,6 +222,7 @@ export default function SocialCard({
       if (state === 'active') dismiss();
     });
     return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dismiss recreated each render, mount-only subscription
   }, []);
 
   const float = useSharedValue(0);

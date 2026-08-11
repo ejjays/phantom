@@ -1,3 +1,5 @@
+import { getRandomValues } from 'expo-crypto';
+
 export type UpdateCategory = 'feature' | 'optimization' | 'fix';
 
 export type Update = {
@@ -42,6 +44,30 @@ export type Validation =
   { ok: true; value: string } | { ok: false; error: string };
 
 export const REACTION_EMOJIS = ['🔥', '❤️', '🎉', '👍'] as const;
+
+const REACTION_SLUGS: Record<string, string> = {
+  '🔥': 'star-struck',
+  '❤️': 'smiling-face-with-hearts',
+  '🎉': 'partying-face',
+  '👍': 'grinning-face',
+};
+
+export function reactionImageUrl(emoji: string): string | null {
+  const slug = REACTION_SLUGS[emoji];
+  return slug ? `https://c-phantom.pages.dev/i/smileys/${slug}.webp` : null;
+}
+
+const REACTION_PLAY_MS: Record<string, number> = {
+  'star-struck': 2970,
+  'smiling-face-with-hearts': 2407,
+  'partying-face': 2970,
+  'grinning-face': 2970,
+};
+
+export function reactionPlayMs(emoji: string): number | null {
+  const slug = REACTION_SLUGS[emoji];
+  return slug ? (REACTION_PLAY_MS[slug] ?? 0) : null;
+}
 const USERNAME_MIN = 3;
 const USERNAME_MAX = 20;
 const COMMENT_MAX = 500;
@@ -85,7 +111,7 @@ export function generateGuestName(): string {
   do {
     let value = 0;
     do {
-      value = crypto.getRandomValues(new Uint32Array(1))[0];
+      value = getRandomValues(new Uint32Array(1))[0];
     } while (value >= max);
     name = `anonymous${10000 + (value % span)}`;
   } while (usedGuestNames.has(name));

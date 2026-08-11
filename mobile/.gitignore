@@ -12,3 +12,4 @@ knip-report.txt
 .env*.local
 *service-account*.json
 serviceAccountKey.jsontest-results.xml
+.eslintcache

@@ -1,6 +1,7 @@
 // preset cartoon avatars grouped by show. each avatar id is stored in the
 // profile as `preset:<id>` (see avatars.logic). ids must be unique across all
 // categories. to add a set: import its images, then push a new category below.
+import { getRandomValues } from 'expo-crypto';
 import baljeet from '../../assets/avatars/baljeet.webp';
 import jake from '../../assets/avatars/jake.webp';
 import princessBubblegum from '../../assets/avatars/princess-bubblegum.webp';
@@ -127,7 +128,7 @@ export function randomPresetMarker(): string {
   const max = 0xffffffff - (0xffffffff % ALL_PRESETS.length);
   let value = 0;
   do {
-    value = crypto.getRandomValues(new Uint32Array(1))[0];
+    value = getRandomValues(new Uint32Array(1))[0];
   } while (value >= max);
   return presetMarker(ALL_PRESETS[value % ALL_PRESETS.length].id);
 }

@@ -57,12 +57,7 @@ type Props = {
 };
 
 type RowStatus =
-  | 'idle'
-  | 'queued'
-  | 'resolving'
-  | 'downloading'
-  | 'saved'
-  | 'error';
+  'idle' | 'queued' | 'resolving' | 'downloading' | 'saved' | 'error';
 
 type DownloadMode = 'audio' | 'video';
 
@@ -105,6 +100,7 @@ function SearchHighlight({
 }) {
   const glow = useSharedValue(active ? 1 : 0);
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- highlight glow anim gated on prop
     if (!active) return;
     glow.value = 1;
     glow.value = withDelay(
@@ -270,7 +266,7 @@ export default function PlaylistScreen({ info, visible, onClose }: Props) {
       if (matched.length > 0) setFocusEntryId(matched[0].id);
     }
     setSearchQuery('');
-  }, [searchQuery, playlist]);
+  }, [searchQuery, playlist, searchFade]);
 
   const toggleEntry = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -317,7 +313,7 @@ export default function PlaylistScreen({ info, visible, onClose }: Props) {
       return true;
     });
     return () => sub.remove();
-  }, [visible, onClose, batchRunning, showSearch]);
+  }, [visible, onClose, batchRunning, showSearch, closeSearch]);
 
   useEffect(() => {
     if (!focusEntryId) return;
@@ -420,7 +416,9 @@ export default function PlaylistScreen({ info, visible, onClose }: Props) {
             await notifyDownloadComplete(
               stem,
               perInfo.thumbnail,
-              'youtube'
+              'youtube',
+              fmt.extension || 'mp4',
+              outcome.uri
             ).catch(() => undefined);
           }
         } else {
@@ -635,7 +633,7 @@ export default function PlaylistScreen({ info, visible, onClose }: Props) {
               style={tw`ml-auto h-11 flex-row items-center justify-center gap-1.5 rounded-full px-5 ${
                 batchRunning || selectedCount === 0 ? 'bg-white/30' : 'bg-white'
               }`}
-              onPress={runBatch}
+              onPress={() => void runBatch()}
               accessibilityLabel={
                 selectedCount === 0 ? 'Select items first' : 'Download selected'
               }

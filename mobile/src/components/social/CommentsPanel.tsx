@@ -251,6 +251,7 @@ function NewGlow({
 }) {
   const glow = useSharedValue(active ? 1 : 0);
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- one-shot reanimated glow fade on activate
     if (!active) return;
     glow.value = withDelay(
       800,
@@ -509,6 +510,7 @@ function BadgeCircle({
 }) {
   const pulse = useSharedValue(0);
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- restarts ping loop each time prop toggles
     if (!ping) return;
     pulse.value = 0;
     pulse.value = withRepeat(
@@ -956,16 +958,27 @@ export default function CommentsPanel({
   });
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- gates reset & fetch on panel open
     if (!visible || !updateId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset comment ui when target change opens
     setError(null);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset comment ui when target change opens
     setInput('');
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset comment ui when target change opens
     setExpanded({});
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset comment ui when target change opens
     setReplyShown({});
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset comment ui when target change opens
     setRootLimit(ROOT_BATCH);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset comment ui when target change opens
     setReplyTarget(null);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset comment ui when target change opens
     setEditTarget(null);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset comment ui when target change opens
     setOptions(null);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset comment ui when target change opens
     setPendingGif(null);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset comment ui when target change opens
     setPendingImage(null);
     listComments(updateId)
       .then((list) => {
@@ -979,6 +992,7 @@ export default function CommentsPanel({
   }, [visible, updateId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- writes comment cache on change
     if (updateId) cacheComments(updateId, comments);
     commentsRef.current = comments;
   }, [comments, updateId]);
@@ -1052,6 +1066,7 @@ export default function CommentsPanel({
 
   useEffect(() => {
     if (!focusCommentId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- focus id resets when prop clears
       setFocusId(null);
       return undefined;
     }
@@ -1082,7 +1097,7 @@ export default function CommentsPanel({
       clearTimeout(scrollTimer);
       clearTimeout(clearTimer);
     };
-  }, [focusCommentId, smoothScrollTo]);
+  }, [focusCommentId, smoothScrollTo, scrollTop]);
 
   const reload = async () => {
     if (updateId) setComments(await listComments(updateId));
@@ -1369,7 +1384,7 @@ export default function CommentsPanel({
             <NewGlow active={rootNew || rootFocused}>
               <CommentRow
                 comment={root}
-                onToggleLike={toggleLike}
+                onToggleLike={(target) => void toggleLike(target)}
                 onReply={startReply}
                 onOptions={setOptions}
                 onImageOpen={openImageFocus}
@@ -1424,7 +1439,7 @@ export default function CommentsPanel({
                           replyIndex === visibleReplies.length - 1 &&
                           moreCount <= 0
                         }
-                        onToggleLike={toggleLike}
+                        onToggleLike={(target) => void toggleLike(target)}
                         onReply={startReply}
                         onOptions={setOptions}
                         onImageOpen={openImageFocus}
@@ -1529,6 +1544,7 @@ export default function CommentsPanel({
         </Animated.View>
       );
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- repliesFor inline fn recreated per render re-render unstable
     [
       comments,
       expanded,
@@ -1646,8 +1662,8 @@ export default function CommentsPanel({
       </View>
 
       {!myName ? (
-        <View style={tw`bg-cyan-500 px-5 py-2`}>
-          <Text style={tw`font-sans text-[13px] leading-5 text-white`}>
+        <View style={tw`bg-cyan-500 px-5 py-1.5`}>
+          <Text style={tw`font-sans text-[12px] leading-4 text-white`}>
             <Text style={tw`font-sans-bold`}>Note: </Text>
             Sign-in is only for reactions and comments here — it&apos;s not used
             in the actual downloads.

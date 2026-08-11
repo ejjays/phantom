@@ -39,6 +39,9 @@ jobs:
           restore-keys: |
             ${{ env.CACHE_KEY }}-${{ runner.os }}-
 
+      - name: Guard against platform-pinned bindings
+        run: bash scripts/guard-platform-bindings.sh
+
       - name: Install dependencies (monorepo root)
         run: npm ci --ignore-scripts
 

@@ -17,6 +17,7 @@ export function useSubScreen(parentVisible: boolean) {
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-chain-state-updates -- mounted gates delayed-unmount animation
       setMounted(true);
       progress.value = withTiming(1, {
         duration: 260,

@@ -3,6 +3,9 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import sonarjs from 'eslint-plugin-sonarjs';
 import react from 'eslint-plugin-react';
+import reactHooks from 'eslint-plugin-react-hooks';
+import youMightNotNeedAnEffect from 'eslint-plugin-react-you-might-not-need-an-effect';
+import importX from 'eslint-plugin-import-x';
 import prettierConfig from 'eslint-config-prettier';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -18,6 +21,12 @@ const phantomPlugin = hasPlugin
 // no-op stubs so inline phantom/* disable directives resolve (else eslint
 // errors "definition not found" & fails lint)
 const noopRule = { create: () => ({}) };
+
+const sonarTypeAwareOff = Object.fromEntries(
+  Object.entries(sonarjs.rules)
+    .filter(([, rule]) => rule.meta?.docs?.requiresTypeChecking)
+    .map(([name]) => [`sonarjs/${name}`, 'off'])
+);
 const phantomPluginOrStub = phantomPlugin ?? {
   rules: { 'no-inline-svg': noopRule, 'phantom-comments': noopRule },
 };
@@ -46,6 +55,9 @@ export default tseslint.config(
   {
     plugins: {
       phantom: phantomPluginOrStub,
+      'react-hooks': reactHooks,
+      'react-you-might-not-need-an-effect': youMightNotNeedAnEffect,
+      'import-x': importX,
     },
     languageOptions: {
       ecmaVersion: 2022,
@@ -53,10 +65,17 @@ export default tseslint.config(
       globals: {
         ...globals.browser,
       },
+      parserOptions: {
+        projectService: true,
+        jsDocParsingMode: 'none',
+      },
     },
     settings: {
       react: {
         version: 'detect',
+      },
+      'import-x/resolver': {
+        typescript: true,
       },
     },
     rules: {
@@ -139,6 +158,7 @@ export default tseslint.config(
       'sonarjs/no-duplicated-branches': 'off',
       'sonarjs/link-with-target-blank': 'off',
       'sonarjs/void-use': 'off',
+      ...sonarTypeAwareOff,
       'react/jsx-max-depth': ['error', { max: 12 }],
       'react/no-array-index-key': 'error',
       'react/jsx-boolean-value': ['error', 'never'],
@@ -171,6 +191,14 @@ export default tseslint.config(
         },
       ],
       'spaced-comment': ['error', 'always'],
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/set-state-in-render': 'warn',
+      ...youMightNotNeedAnEffect.configs.recommended.rules,
+      'import-x/no-cycle': 'error',
     },
   }
 );

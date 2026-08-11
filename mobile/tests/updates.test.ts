@@ -5,6 +5,7 @@ import {
   suggestUsernameFrom,
   summarizeReactions,
   planReactionToggle,
+  reactionImageUrl,
   relativeTime,
   generateGuestName,
   isGuestName,
@@ -132,6 +133,18 @@ describe('summarizeReactions', () => {
     expect(summarizeReactions([], 'u1', null)).toHaveLength(
       REACTION_EMOJIS.length
     );
+  });
+});
+
+describe('reactionImageUrl', () => {
+  it.each(REACTION_EMOJIS)('maps %s to an animated smiley url', (emoji) => {
+    expect(reactionImageUrl(emoji)).toMatch(
+      /^https:\/\/c-phantom\.pages\.dev\/i\/smileys\/[\w-]+\.webp$/u
+    );
+  });
+
+  it('returns null for unknown emoji', () => {
+    expect(reactionImageUrl('😳')).toBeNull();
   });
 });
 

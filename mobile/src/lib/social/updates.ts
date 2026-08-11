@@ -83,14 +83,10 @@ export async function getExistingUserId(): Promise<string | null> {
   return data.session?.user.id ?? null;
 }
 
-// guest = anonymous session + auto profile row (generated unique username),
-// so reactions/comments/device_tokens FKs never trip a write. stale sessions
-// (created before the profile upsert finished, or a failed first setup) get
-// repaired on any write.
 export async function ensureSession(): Promise<string> {
   const { data } = await client().auth.getSession();
   const user = data.session?.user;
-  if (!user) return signInAsGuest();
+  if (!user) throw new Error('Sign in to react or comment');
   if (user.is_anonymous) await ensureGuestProfile(user.id);
   return user.id;
 }

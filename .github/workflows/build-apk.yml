@@ -31,7 +31,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-          cache: gradle
 
       - name: Install required NDK
         run: |
@@ -55,11 +54,21 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      - name: Guard against platform-pinned bindings
+        run: bash scripts/guard-platform-bindings.sh
+
       - name: Install dependencies (monorepo root)
         run: npm ci
 
       - name: Build Android APK locally with EAS
         working-directory: mobile
+        env:
+          EXPO_PUBLIC_GIPHY_KEY: ${{ secrets.EXPO_PUBLIC_GIPHY_KEY }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID }}
+          EXPO_PUBLIC_SPOTIFY_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_SPOTIFY_CLIENT_ID }}
+          EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET: ${{ secrets.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
         run: |
           eas build --platform android \
             --profile "${{ inputs.profile }}" \

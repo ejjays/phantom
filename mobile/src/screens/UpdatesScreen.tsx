@@ -19,7 +19,7 @@ import Animated, {
   withRepeat,
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
-import { Inbox, CloudOff, AlertCircle, Bell } from 'lucide-react-native';
+import { Inbox, CloudOff, AlertCircle, Bell, Ghost } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import tw from '../lib/tw';
 import { tapSelection, tapSuccess } from '../lib/haptics';
@@ -28,9 +28,11 @@ import UpdateDetailSheet from '../components/sheets/UpdateDetailSheet';
 import PostDetailScreen from './PostDetailScreen';
 import NotificationsPanel from '../components/social/NotificationsPanel';
 import Avatar from '../components/Avatar';
-import { CommentIcon } from '../components/icons';
+import { CommentIcon, GoogleIcon } from '../components/icons';
 import AnimatedCount from '../components/social/AnimatedCount';
-import ReactionBar from '../components/social/ReactionBar';
+import ReactionBar, {
+  ReactionPlayContext,
+} from '../components/social/ReactionBar';
 import {
   isSupabaseConfigured,
   listUpdates,
@@ -328,8 +330,11 @@ function UsernameSheet({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- sheet-open reset, keeps typing
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-derived-state -- reset username form on sheet open
       setValue(suggestion);
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- clears form error on sheet open
       setError(null);
     }
   }, [open, suggestion]);
@@ -574,8 +579,15 @@ function UpdatesScreen({
   const [nameSuggestion, setNameSuggestion] = useState('');
   const [cat, setCat] = useState<FilterKey>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
+  const pendingReact = useRef<{ update: Update; emoji: string } | null>(null);
   const usernameResolver = useRef<((ok: boolean) => void) | null>(null);
   const localReactAt = useRef(0);
+  const [reactionTick, setReactionTick] = useState(0);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-event-handler, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- bump reaction animation tick on tab show
+    if (visible) setReactionTick((t) => t + 1);
+  }, [visible]);
 
   const feedQuery = useQuery({
     queryKey: ['updatesFeed'],
@@ -636,6 +648,7 @@ function UpdatesScreen({
 
   useEffect(() => {
     if (!isSupabaseConfigured || !visible || !userId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset unread when feed hidden
       setUnread(0);
       return undefined;
     }
@@ -668,17 +681,7 @@ function UpdatesScreen({
     mode: 'google' | 'guest' | 'auto' = 'auto'
   ): Promise<boolean> => {
     if (mode === 'auto') {
-      const existing =
-        queryClient.getQueryData<FeedData>(['updatesFeed'])?.userId ?? null;
-      if (existing) return true;
-      try {
-        await signInAsGuest();
-        void queryClient.invalidateQueries({ queryKey: ['updatesFeed'] });
-        return true;
-      } catch (err) {
-        setError(messageOf(err));
-        return false;
-      }
+      return !!queryClient.getQueryData<FeedData>(['updatesFeed'])?.userId;
     }
     setError(null);
     if (mode === 'guest') {
@@ -760,11 +763,37 @@ function UpdatesScreen({
     });
   };
 
-  const onReact = async (update: Update, emoji: string) => {
-    if (!(await ensureIdentity())) return;
+  const commitReact = (update: Update, emoji: string) => {
     const uid =
       queryClient.getQueryData<FeedData>(['updatesFeed'])?.userId ?? null;
     if (uid) doReact(update.id, emoji, uid);
+  };
+
+  const onReact = async (update: Update, emoji: string) => {
+    if (!(await ensureIdentity())) {
+      pendingReact.current = { update, emoji };
+      setSignInOpen(true);
+      return;
+    }
+    commitReact(update, emoji);
+  };
+
+  const chooseGuest = async () => {
+    if (!(await ensureIdentity('guest'))) return;
+    setSignInOpen(false);
+    await feedQuery.refetch().catch(() => undefined);
+    const pending = pendingReact.current;
+    pendingReact.current = null;
+    if (pending) commitReact(pending.update, pending.emoji);
+  };
+
+  const chooseGoogle = async () => {
+    if (!(await ensureIdentity('google'))) return;
+    setSignInOpen(false);
+    await feedQuery.refetch().catch(() => undefined);
+    const pending = pendingReact.current;
+    pendingReact.current = null;
+    if (pending) commitReact(pending.update, pending.emoji);
   };
 
   const openDetail = (update: Update) => {
@@ -804,12 +833,16 @@ function UpdatesScreen({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- deep link waits async feed load
     if (!deepLink || !visible || updates.length === 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-derived-state, react-you-might-not-need-an-effect/no-pass-data-to-parent -- deep link opens post once feed loaded
     openUpdateComments(deepLink.updateId, deepLink.commentId);
     onDeepLinkHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- inline callbacks recreated per render re-render unstable
   }, [deepLink, visible, updates.length]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-pass-live-state-to-parent, react-you-might-not-need-an-effect/no-pass-data-to-parent -- prop-sync parent fullscreen, live state
     onFullScreen?.(postUpdate !== null || inbox.open);
   }, [postUpdate, inbox.open, onFullScreen]);
 
@@ -874,152 +907,212 @@ function UpdatesScreen({
 
   return (
     // skipcq: JS-0415
-    <Animated.View
-      pointerEvents={visible ? 'auto' : 'none'}
-      style={[
-        StyleSheet.absoluteFill,
-        { backgroundColor: '#080d1a' },
-        fadeStyle,
-      ]}
-    >
-      <View style={tw`flex-1`}>
-        <ScrollView
-          style={tw`flex-1`}
-          contentContainerStyle={[
-            tw`items-center px-4 pb-36`,
-            { paddingTop: insets.top + 14 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                feedQuery.refetch().finally(() => setRefreshing(false));
-              }}
-              tintColor="#22d3ee"
-              colors={['#22d3ee']}
-              progressBackgroundColor="#17324c"
-              progressViewOffset={insets.top}
-            />
-          }
-        >
-          <View
-            style={[tw`w-full`, contentMax ? { maxWidth: contentMax } : null]}
-          >
-            <View
-              style={tw`mb-4 ml-1 mr-1 flex-row items-center justify-between`}
-            >
-              <Text
-                style={tw`font-sans-bold text-[30px] tracking-tight text-white`}
-              >
-                Updates
-              </Text>
-              {isSupabaseConfigured && userId ? (
-                <Pressable onPress={openInbox} hitSlop={10} style={tw`p-1`}>
-                  <Bell size={24} color="#cbd5e1" strokeWidth={2} />
-                  {unread > 0 ? (
-                    <View
-                      style={[
-                        tw`absolute items-center justify-center rounded-full px-1`,
-                        {
-                          top: -3,
-                          right: -5,
-                          minWidth: 18,
-                          height: 18,
-                          backgroundColor: '#ef4444',
-                        },
-                      ]}
-                    >
-                      <Text style={tw`font-sans-bold text-[10px] text-white`}>
-                        {badgeLabel(unread)}
-                      </Text>
-                    </View>
-                  ) : null}
-                </Pressable>
-              ) : null}
-            </View>
-            {isSupabaseConfigured && updates.length > 0 ? (
-              <View style={tw`mb-6 -mx-4`}>
-                <CategoryChips active={cat} onSelect={selectCat} />
-              </View>
-            ) : null}
-            {error && updates.length > 0 ? (
-              <Text style={tw`mb-3 px-1 font-sans text-[12px] text-red-400`}>
-                {error}
-              </Text>
-            ) : null}
-            {renderBody()}
-          </View>
-        </ScrollView>
-      </View>
-
-      {postUpdate ? (
-        <PostDetailScreen
-          update={postUpdate}
-          tallies={summarizeReactions(reactionRows, postUpdate.id, userId)}
-          myName={myName}
-          myAvatar={myAvatar}
-          ensureIdentity={ensureIdentity}
-          focusCommentId={focusComment}
-          onReact={(emoji) => void onReact(postUpdate, emoji)}
-          onClose={closePost}
-        />
-      ) : null}
-
+    <ReactionPlayContext.Provider value={reactionTick}>
       <Animated.View
-        pointerEvents={inbox.open ? 'auto' : 'none'}
+        pointerEvents={visible ? 'auto' : 'none'}
         style={[
           StyleSheet.absoluteFill,
           { backgroundColor: '#080d1a' },
-          inbox.style,
+          fadeStyle,
         ]}
       >
-        {inbox.mounted ? (
-          <NotificationsPanel
-            visible={inbox.open}
-            onBack={() => {
-              tapSelection();
-              inbox.setOpen(false);
-            }}
-            onOpen={(item: InboxItem) => {
-              inbox.setOpen(false);
-              if (item.updateId) {
-                openUpdateComments(item.updateId, item.commentId);
-              }
-            }}
+        <View style={tw`flex-1`}>
+          <ScrollView
+            style={tw`flex-1`}
+            contentContainerStyle={[
+              tw`items-center px-4 pb-36`,
+              { paddingTop: insets.top + 14 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => {
+                  setRefreshing(true);
+                  feedQuery
+                    .refetch()
+                    .catch(() => undefined)
+                    .finally(() => setRefreshing(false));
+                }}
+                tintColor="#22d3ee"
+                colors={['#22d3ee']}
+                progressBackgroundColor="#17324c"
+                progressViewOffset={insets.top}
+              />
+            }
+          >
+            <View
+              style={[tw`w-full`, contentMax ? { maxWidth: contentMax } : null]}
+            >
+              <View
+                style={tw`mb-4 ml-1 mr-1 flex-row items-center justify-between`}
+              >
+                <Text
+                  style={tw`font-sans-bold text-[30px] tracking-tight text-white`}
+                >
+                  Updates
+                </Text>
+                {isSupabaseConfigured && userId ? (
+                  <Pressable onPress={openInbox} hitSlop={10} style={tw`p-1`}>
+                    <Bell size={24} color="#cbd5e1" strokeWidth={2} />
+                    {unread > 0 ? (
+                      <View
+                        style={[
+                          tw`absolute items-center justify-center rounded-full px-1`,
+                          {
+                            top: -3,
+                            right: -5,
+                            minWidth: 18,
+                            height: 18,
+                            backgroundColor: '#ef4444',
+                          },
+                        ]}
+                      >
+                        <Text style={tw`font-sans-bold text-[10px] text-white`}>
+                          {badgeLabel(unread)}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </Pressable>
+                ) : null}
+              </View>
+              {isSupabaseConfigured && updates.length > 0 ? (
+                <View style={tw`mb-6 -mx-4`}>
+                  <CategoryChips active={cat} onSelect={selectCat} />
+                </View>
+              ) : null}
+              {error && updates.length > 0 ? (
+                <Text style={tw`mb-3 px-1 font-sans text-[12px] text-red-400`}>
+                  {error}
+                </Text>
+              ) : null}
+              {renderBody()}
+            </View>
+          </ScrollView>
+        </View>
+
+        {postUpdate ? (
+          <PostDetailScreen
+            update={postUpdate}
+            tallies={summarizeReactions(reactionRows, postUpdate.id, userId)}
+            myName={myName}
+            myAvatar={myAvatar}
+            ensureIdentity={ensureIdentity}
+            focusCommentId={focusComment}
+            onReact={(emoji) => void onReact(postUpdate, emoji)}
+            onClose={closePost}
           />
         ) : null}
-      </Animated.View>
 
-      <UpdateDetailSheet
-        update={detailUpdate}
-        tallies={
-          detailUpdate
-            ? summarizeReactions(reactionRows, detailUpdate.id, userId)
-            : []
-        }
-        authorName={AUTHOR_NAME}
-        authorPic={PROFILE_PIC}
-        ringColors={RING_COLORS}
-        onReact={(emoji) => {
-          if (detailUpdate) void onReact(detailUpdate, emoji);
-        }}
-        onOpenComments={() => {
-          if (!detailUpdate) return;
-          const target = detailUpdate;
-          setDetailUpdate(null);
-          openDetailComments(target);
-        }}
-        onClose={() => setDetailUpdate(null)}
-      />
-      <UsernameSheet
-        open={usernameOpen}
-        suggestion={nameSuggestion}
-        onClose={onUsernameClose}
-        onSaved={onUsernameSaved}
-      />
-    </Animated.View>
+        <Animated.View
+          pointerEvents={inbox.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: '#080d1a' },
+            inbox.style,
+          ]}
+        >
+          {inbox.mounted ? (
+            <NotificationsPanel
+              visible={inbox.open}
+              onBack={() => {
+                tapSelection();
+                inbox.setOpen(false);
+              }}
+              onOpen={(item: InboxItem) => {
+                inbox.setOpen(false);
+                if (item.updateId) {
+                  openUpdateComments(item.updateId, item.commentId);
+                }
+              }}
+            />
+          ) : null}
+        </Animated.View>
+
+        <UpdateDetailSheet
+          update={detailUpdate}
+          tallies={
+            detailUpdate
+              ? summarizeReactions(reactionRows, detailUpdate.id, userId)
+              : []
+          }
+          authorName={AUTHOR_NAME}
+          authorPic={PROFILE_PIC}
+          ringColors={RING_COLORS}
+          onReact={(emoji) => {
+            if (detailUpdate) void onReact(detailUpdate, emoji);
+          }}
+          onOpenComments={() => {
+            if (!detailUpdate) return;
+            const target = detailUpdate;
+            setDetailUpdate(null);
+            openDetailComments(target);
+          }}
+          onClose={() => setDetailUpdate(null)}
+        />
+        <UsernameSheet
+          open={usernameOpen}
+          suggestion={nameSuggestion}
+          onClose={onUsernameClose}
+          onSaved={onUsernameSaved}
+        />
+        <BottomSheet
+          open={signInOpen}
+          onClose={() => {
+            pendingReact.current = null;
+            setSignInOpen(false);
+          }}
+          restRatio={0.3}
+          border="subtle"
+          radius={20}
+        >
+          <View style={tw`items-center px-2 pt-2`}>
+            <Text
+              style={tw`font-sans-bold text-[22px] tracking-tight text-white`}
+            >
+              Sign in to react
+            </Text>
+            <Text
+              style={tw`mt-0.5 text-center font-sans text-[13px] text-slate-400`}
+            >
+              Pick how you want to continue
+            </Text>
+          </View>
+          <View style={tw`mt-7`}>
+            <Pressable
+              onPress={() => void chooseGuest()}
+              style={({ pressed }) => [
+                tw`flex-row items-center justify-center rounded-full border border-white/15 bg-white/5 py-4`,
+                pressed ? { transform: [{ scale: 0.98 }] } : null,
+              ]}
+            >
+              <Ghost size={16} color="#cbd5e1" strokeWidth={2} />
+              <Text
+                numberOfLines={1}
+                style={tw`ml-2 font-sans-semibold text-[13px] text-slate-100`}
+              >
+                Continue as Anonymous
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => void chooseGoogle()}
+              style={({ pressed }) => [
+                tw`mt-2 flex-row items-center justify-center rounded-full bg-white py-4`,
+                pressed ? { transform: [{ scale: 0.98 }] } : null,
+              ]}
+            >
+              <GoogleIcon size={16} />
+              <Text
+                numberOfLines={1}
+                style={tw`ml-2 font-sans-bold text-[13px] text-[#1f1f1f]`}
+              >
+                Sign in with Google
+              </Text>
+            </Pressable>
+          </View>
+        </BottomSheet>
+      </Animated.View>
+    </ReactionPlayContext.Provider>
   );
 }
 

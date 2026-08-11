@@ -168,7 +168,9 @@ function VinylDisc({
             contentFit="cover"
           />
         ) : (
-          <View style={tw`h-full w-full items-center justify-center rounded-full bg-slate-800`}>
+          <View
+            style={tw`h-full w-full items-center justify-center rounded-full bg-slate-800`}
+          >
             <Music size={30} color="#94a3b8" />
           </View>
         )}
@@ -224,9 +226,7 @@ function EqBar({ index, isPlaying }: { index: number; isPlaying: boolean }) {
   const barStyle = useAnimatedStyle(() => ({ height: height.value }));
 
   return (
-    <Animated.View
-      style={[tw`w-[3px] rounded-full bg-primary`, barStyle]}
-    />
+    <Animated.View style={[tw`w-[3px] rounded-full bg-primary`, barStyle]} />
   );
 }
 
@@ -456,7 +456,9 @@ function PickerContent({
   const state = selected ? downloads[selected.formatId] : undefined;
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- seeds default stream when formats arrive
     if (audioFormats.length > 0 && !selectedId) {
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-pass-data-to-parent -- seeds default stream when formats arrive
       setSelectedId(audioFormats[0].formatId);
     }
   }, [audioFormats, selectedId, setSelectedId]);
@@ -586,167 +588,167 @@ function PickerContent({
             />
           ) : (
             <View>
-            <View style={tw`flex-row items-center`}>
-              <Music size={13} color="#22d3ee" />
-              <Text style={tw`ml-1.5 font-mono text-[10px] text-slate-500`}>
-                Format:{' '}
-                <Text style={tw`font-mono-bold text-slate-300`}>
-                  {selected?.extension?.toUpperCase() ?? 'MP3'}
+              <View style={tw`flex-row items-center`}>
+                <Music size={13} color="#22d3ee" />
+                <Text style={tw`ml-1.5 font-mono text-[10px] text-slate-500`}>
+                  Format:{' '}
+                  <Text style={tw`font-mono-bold text-slate-300`}>
+                    {selected?.extension?.toUpperCase() ?? 'MP3'}
+                  </Text>
                 </Text>
-              </Text>
-              <TouchableOpacity
-                onPress={() => startEditTransition(true)}
-                accessibilityRole="button"
-                accessibilityLabel="Edit title and author"
-                style={tw`ml-2 rounded-md border border-primary/60 bg-white/5 p-1`}
-              >
-                <SquarePen size={16} color="#22d3ee" />
-              </TouchableOpacity>
-            </View>
-
-            {selected ? (
-              <View style={tw`mt-4`}>
-                <Text
-                  style={tw`ml-1 font-mono-bold text-[10px] uppercase tracking-wider text-primary/80`}
+                <TouchableOpacity
+                  onPress={() => startEditTransition(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit title and author"
+                  style={tw`ml-2 rounded-md border border-primary/60 bg-white/5 p-1`}
                 >
-                  Select Output Quality
-                </Text>
-                <View style={tw`mt-2 flex-row items-stretch`}>
-                  <View style={tw`relative mr-2.5 flex-1`}>
-                    {dropdownOpen ? (
-                      <View
-                        style={[
-                          tw`absolute overflow-hidden rounded-3xl border border-primary/20 bg-slate-950`,
-                          {
-                            left: 0,
-                            right: 0,
-                            bottom: '100%',
-                            marginBottom: 12,
-                            zIndex: 50,
-                          },
-                          panelShadow,
-                        ]}
-                      >
+                  <SquarePen size={16} color="#22d3ee" />
+                </TouchableOpacity>
+              </View>
+
+              {selected ? (
+                <View style={tw`mt-4`}>
+                  <Text
+                    style={tw`ml-1 font-mono-bold text-[10px] uppercase tracking-wider text-primary/80`}
+                  >
+                    Select Output Quality
+                  </Text>
+                  <View style={tw`mt-2 flex-row items-stretch`}>
+                    <View style={tw`relative mr-2.5 flex-1`}>
+                      {dropdownOpen ? (
                         <View
-                          style={tw`border-b border-white/5 bg-white/5 px-4 py-3`}
+                          style={[
+                            tw`absolute overflow-hidden rounded-3xl border border-primary/20 bg-slate-950`,
+                            {
+                              left: 0,
+                              right: 0,
+                              bottom: '100%',
+                              marginBottom: 12,
+                              zIndex: 50,
+                            },
+                            panelShadow,
+                          ]}
                         >
-                          <Text
-                            style={tw`font-mono-bold text-[9px] uppercase tracking-[2px] text-primary`}
+                          <View
+                            style={tw`border-b border-white/5 bg-white/5 px-4 py-3`}
                           >
-                            Available Streams
+                            <Text
+                              style={tw`font-mono-bold text-[9px] uppercase tracking-[2px] text-primary`}
+                            >
+                              Available Streams
+                            </Text>
+                          </View>
+                          <ScrollView
+                            style={{ maxHeight: 176 }}
+                            nestedScrollEnabled
+                            contentContainerStyle={tw`py-1`}
+                            keyboardShouldPersistTaps="handled"
+                          >
+                            {audioFormats.map((format) => (
+                              <QualityOption
+                                key={format.formatId}
+                                format={format}
+                                selected={format.formatId === selected.formatId}
+                                onSelect={() => {
+                                  setSelectedId(format.formatId);
+                                  setDropdownOpen(false);
+                                }}
+                              />
+                            ))}
+                          </ScrollView>
+                        </View>
+                      ) : null}
+
+                      <TouchableOpacity
+                        onPress={() => setDropdownOpen((v) => !v)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Select quality"
+                        style={tw.style(
+                          'flex-row items-center justify-between rounded-2xl border bg-white/5 px-4 py-3',
+                          dropdownOpen ? 'border-primary/50' : 'border-white/10'
+                        )}
+                      >
+                        <View style={tw`flex-1`}>
+                          <View style={tw`flex-row items-center`}>
+                            <Text
+                              style={tw`font-mono-bold text-[15px] text-white`}
+                              numberOfLines={1}
+                            >
+                              {titleFor(selected)}
+                            </Text>
+                            {selectedBadge ? (
+                              <Badge
+                                label={selectedBadge.label}
+                                tone={selectedBadge.tone}
+                              />
+                            ) : null}
+                          </View>
+                          <Text
+                            style={tw`mt-0.5 font-mono text-[11px] text-primary/60`}
+                          >
+                            {subtitleFor(selected)}
                           </Text>
                         </View>
-                        <ScrollView
-                          style={{ maxHeight: 176 }}
-                          nestedScrollEnabled
-                          contentContainerStyle={tw`py-1`}
-                          keyboardShouldPersistTaps="handled"
+                        <View
+                          style={tw.style('ml-2', dropdownOpen && 'rotate-180')}
                         >
-                          {audioFormats.map((format) => (
-                            <QualityOption
-                              key={format.formatId}
-                              format={format}
-                              selected={format.formatId === selected.formatId}
-                              onSelect={() => {
-                                setSelectedId(format.formatId);
-                                setDropdownOpen(false);
-                              }}
-                            />
-                          ))}
-                        </ScrollView>
-                      </View>
-                    ) : null}
+                          <ChevronDown
+                            size={20}
+                            color={dropdownOpen ? '#22d3ee' : '#94a3b8'}
+                          />
+                        </View>
+                      </TouchableOpacity>
+                    </View>
 
-                    <TouchableOpacity
-                      onPress={() => setDropdownOpen((v) => !v)}
-                      accessibilityRole="button"
-                      accessibilityLabel="Select quality"
-                      style={tw.style(
-                        'flex-row items-center justify-between rounded-2xl border bg-white/5 px-4 py-3',
-                        dropdownOpen ? 'border-primary/50' : 'border-white/10'
-                      )}
+                    <GetFileButton state={state} onPress={handleGet} />
+                  </View>
+                </View>
+              ) : info.isPartial ? (
+                <View style={tw`mt-4`}>
+                  <Text
+                    style={tw`ml-1 font-mono-bold text-[10px] uppercase tracking-wider text-primary/80`}
+                  >
+                    Select Output Quality
+                  </Text>
+                  <View style={tw`mt-2 flex-row items-stretch`}>
+                    <View
+                      style={tw`mr-2.5 flex-1 flex-row items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3`}
                     >
                       <View style={tw`flex-1`}>
-                        <View style={tw`flex-row items-center`}>
-                          <Text
-                            style={tw`font-mono-bold text-[15px] text-white`}
-                            numberOfLines={1}
-                          >
-                            {titleFor(selected)}
-                          </Text>
-                          {selectedBadge ? (
-                            <Badge
-                              label={selectedBadge.label}
-                              tone={selectedBadge.tone}
-                            />
-                          ) : null}
-                        </View>
-                        <Text
-                          style={tw`mt-0.5 font-mono text-[11px] text-primary/60`}
-                        >
-                          {subtitleFor(selected)}
-                        </Text>
-                      </View>
-                      <View
-                        style={tw.style('ml-2', dropdownOpen && 'rotate-180')}
-                      >
-                        <ChevronDown
-                          size={20}
-                          color={dropdownOpen ? '#22d3ee' : '#94a3b8'}
+                        <SkeletonBar
+                          style={tw`h-3.5 w-3/5 rounded-md bg-white/10`}
+                        />
+                        <SkeletonBar
+                          style={tw`mt-1.5 h-2.5 w-2/5 rounded-md bg-white/5`}
                         />
                       </View>
-                    </TouchableOpacity>
-                  </View>
-
-                  <GetFileButton state={state} onPress={handleGet} />
-                </View>
-              </View>
-            ) : info.isPartial ? (
-              <View style={tw`mt-4`}>
-                <Text
-                  style={tw`ml-1 font-mono-bold text-[10px] uppercase tracking-wider text-primary/80`}
-                >
-                  Select Output Quality
-                </Text>
-                <View style={tw`mt-2 flex-row items-stretch`}>
-                  <View
-                    style={tw`mr-2.5 flex-1 flex-row items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3`}
-                  >
-                    <View style={tw`flex-1`}>
-                      <SkeletonBar
-                        style={tw`h-3.5 w-3/5 rounded-md bg-white/10`}
-                      />
-                      <SkeletonBar
-                        style={tw`mt-1.5 h-2.5 w-2/5 rounded-md bg-white/5`}
-                      />
+                      <ChevronDown size={20} color="#475569" />
                     </View>
-                    <ChevronDown size={20} color="#475569" />
+                    <View
+                      style={tw`items-center justify-center rounded-2xl bg-primary/40 px-5`}
+                    >
+                      <Download size={20} color="#0a3540" strokeWidth={2.5} />
+                    </View>
                   </View>
-                  <View
-                    style={tw`items-center justify-center rounded-2xl bg-primary/40 px-5`}
+                  <Text
+                    style={tw`mt-3 text-center font-mono text-[10px] italic text-primary/50`}
                   >
-                    <Download size={20} color="#0a3540" strokeWidth={2.5} />
-                  </View>
+                    Identifying available streams…
+                  </Text>
                 </View>
-                <Text
-                  style={tw`mt-3 text-center font-mono text-[10px] italic text-primary/50`}
+              ) : (
+                <View
+                  style={tw`mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-5`}
                 >
-                  Identifying available streams…
-                </Text>
-              </View>
-            ) : (
-              <View
-                style={tw`mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-5`}
-              >
-                <Text
-                  style={tw`text-center font-mono text-[12px] italic text-slate-500`}
-                >
-                  No audio available for this one.
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
+                  <Text
+                    style={tw`text-center font-mono text-[12px] italic text-slate-500`}
+                  >
+                    No audio available for this one.
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </Animated.View>
       </View>
 
@@ -783,14 +785,22 @@ export default function SpotifyPickerModal({
   const previewUrl = info?.previewUrl;
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- resets picker ui on new track while open
     if (visible && info && info.id !== lastInfoId.current) {
       lastInfoId.current = info.id;
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-derived-state -- title user-editable; reset on track switch
       setTitle(info.title);
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-derived-state -- author user-editable; reset on track switch
       setAuthor(info.uploader);
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset picker ui for new track
       setEditing(false);
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset picker ui for new track
       setDropdownOpen(false);
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset picker ui for new track
       setIsPlaying(false);
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset picker ui for new track
       setAudioProgress(0);
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset picker ui for new track
       setSelectedId('');
     }
   }, [visible, info]);
@@ -798,10 +808,13 @@ export default function SpotifyPickerModal({
   useEffect(() => {
     if (visible && previewUrl) {
       audioRef.current?.load(previewUrl);
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- pauses webview audio when hidden
     } else if (!visible) {
       audioRef.current?.pause();
       audioRef.current?.seek(0);
+      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- syncs playback state with webview visibility
       setIsPlaying(false);
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- syncs playback state with webview visibility
       setAudioProgress(0);
     }
   }, [visible, previewUrl]);
@@ -832,6 +845,7 @@ export default function SpotifyPickerModal({
 
   useEffect(() => {
     if (info && visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-derived-state -- keep content mounted during fade-out
       setMounted(true);
       dim.value = withTiming(1, {
         duration: 120,

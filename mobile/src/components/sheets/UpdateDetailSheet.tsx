@@ -243,16 +243,20 @@ export default function UpdateDetailSheet({
       : { width: screenH * imgAspect, height: screenH };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-event-handler, react-you-might-not-need-an-effect/no-derived-state -- snap freezes content through close anim
     if (update) setSnap({ update, tallies });
   }, [update, tallies]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- keep mounted through exit anim
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-derived-state -- keep content mounted during fade-out
     setMounted(true);
     expand.value = 0;
   }, [open, expand]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- open/close spring + fade anim
     if (!mounted) return;
     if (open) {
       progress.value = withSpring(1, SPRING);

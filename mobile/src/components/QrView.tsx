@@ -2,7 +2,7 @@ import { View, Text, Pressable, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
-import QRCode from 'react-native-qrcode-svg';
+import QRCodeStyled from 'react-native-qrcode-styled';
 import tw from '../lib/tw';
 
 export default function QrView({
@@ -32,7 +32,22 @@ export default function QrView({
       >
         {value ? (
           <View style={tw`rounded-3xl bg-white p-6`}>
-            <QRCode value={value} size={qrSize} />
+            <QRCodeStyled
+              data={value}
+              size={qrSize}
+              padding={25}
+              pieceBorderRadius={[0, '75%', 0, '75%']}
+              isPiecesGlued
+              gradient={{
+                type: 'linear',
+                options: {
+                  start: [0, 0],
+                  end: [1, 1],
+                  colors: ['#22d3ee', '#0e7490'],
+                  locations: [0, 1],
+                },
+              }}
+            />
           </View>
         ) : source ? (
           <Image

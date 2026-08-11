@@ -652,6 +652,53 @@ export function ThumbsUpIcon({ size = 24 }: { size?: number }) {
   );
 }
 
+export function ShareAppIcon({ size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M11,11H7V7h4Zm6-4H15V9h2ZM13,17h4V13H13ZM7,17H9V15H7Z"
+        fill="none"
+        stroke="#ffffff"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+      <Path
+        d="M8,3H4A1,1,0,0,0,3,4V8"
+        fill="none"
+        stroke="#2ca9bc"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+      <Path
+        d="M21,8V4a1,1,0,0,0-1-1H16"
+        fill="none"
+        stroke="#2ca9bc"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+      <Path
+        d="M3,16v4a1,1,0,0,0,1,1H8"
+        fill="none"
+        stroke="#2ca9bc"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+      <Path
+        d="M16,21h4a1,1,0,0,0,1-1V16"
+        fill="none"
+        stroke="#2ca9bc"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+    </Svg>
+  );
+}
+
 export function FireIcon({ size = 24 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 512 512" fill="none">

@@ -33,62 +33,55 @@ export async function setOnboarded(value: boolean): Promise<void> {
 
 const SPEECH_MSG_KEY = 'phantom.speech.msgIdx';
 
+const readIndex = (key: string) =>
+  AsyncStorage.getItem(key)
+    .then((v) => (v ? Number(v) : -1))
+    .catch(() => -1);
+
 export async function nextSpeechMsgIndex(count: number): Promise<number> {
-  const next = await AsyncStorage.getItem(SPEECH_MSG_KEY)
-    .then((v) => (v ? Number(v) : 0))
-    .catch(() => 0);
-  await AsyncStorage.setItem(SPEECH_MSG_KEY, String((next + 1) % count)).catch(
+  const next = await readIndex(SPEECH_MSG_KEY);
+  const pick =
+    Number.isInteger(next) && next >= 0 && next < count
+      ? next
+      : Math.floor(Math.random() * count);
+  await AsyncStorage.setItem(SPEECH_MSG_KEY, String((pick + 1) % count)).catch(
     () => undefined
   );
-  return next;
+  return pick;
 }
+
+const pickNoRepeat = async (key: string, count: number): Promise<number> => {
+  const last = await readIndex(key);
+  const validLast =
+    Number.isInteger(last) && last >= 0 && last < count ? last : -1;
+  let pick = Math.floor(Math.random() * count);
+  if (count > 1 && pick === validLast) pick = (pick + 1) % count;
+  await AsyncStorage.setItem(key, String(pick)).catch(() => undefined);
+  return pick;
+};
 
 const QUIP_KEY = 'phantom.speech.quipIdx';
 
-export async function nextQuipIndex(count: number): Promise<number> {
-  const last = await AsyncStorage.getItem(QUIP_KEY)
-    .then((v) => (v ? Number(v) : -1))
-    .catch(() => -1);
-  let pick = Math.floor(Math.random() * count);
-  if (count > 1 && pick === last) pick = (pick + 1) % count;
-  await AsyncStorage.setItem(QUIP_KEY, String(pick)).catch(() => undefined);
-  return pick;
+export function nextQuipIndex(count: number): Promise<number> {
+  return pickNoRepeat(QUIP_KEY, count);
 }
 
 const IDLE_KEY = 'phantom.speech.idleIdx';
 
-export async function nextIdleIndex(count: number): Promise<number> {
-  const last = await AsyncStorage.getItem(IDLE_KEY)
-    .then((v) => (v ? Number(v) : -1))
-    .catch(() => -1);
-  let pick = Math.floor(Math.random() * count);
-  if (count > 1 && pick === last) pick = (pick + 1) % count;
-  await AsyncStorage.setItem(IDLE_KEY, String(pick)).catch(() => undefined);
-  return pick;
+export function nextIdleIndex(count: number): Promise<number> {
+  return pickNoRepeat(IDLE_KEY, count);
 }
 
 const BAD_LINK_KEY = 'phantom.speech.badLinkIdx';
 
-export async function nextBadLinkIndex(count: number): Promise<number> {
-  const last = await AsyncStorage.getItem(BAD_LINK_KEY)
-    .then((v) => (v ? Number(v) : -1))
-    .catch(() => -1);
-  let pick = Math.floor(Math.random() * count);
-  if (count > 1 && pick === last) pick = (pick + 1) % count;
-  await AsyncStorage.setItem(BAD_LINK_KEY, String(pick)).catch(() => undefined);
-  return pick;
+export function nextBadLinkIndex(count: number): Promise<number> {
+  return pickNoRepeat(BAD_LINK_KEY, count);
 }
 
 const SUCCESS_KEY = 'phantom.speech.successIdx';
 
-export async function nextSuccessIndex(count: number): Promise<number> {
-  const last = await AsyncStorage.getItem(SUCCESS_KEY)
-    .then((v) => (v ? Number(v) : -1))
-    .catch(() => -1);
-  let pick = Math.floor(Math.random() * count);
-  if (count > 1 && pick === last) pick = (pick + 1) % count;
-  await AsyncStorage.setItem(SUCCESS_KEY, String(pick)).catch(() => undefined);
-  return pick;
+export function nextSuccessIndex(count: number): Promise<number> {
+  return pickNoRepeat(SUCCESS_KEY, count);
 }
 
 export async function getScClientId(): Promise<{
@@ -153,6 +146,19 @@ export async function setNotifyPrimed(value: boolean): Promise<void> {
   await AsyncStorage.setItem(NOTIFY_PRIMED_KEY, value ? '1' : '0').catch(
     () => undefined
   );
+}
+
+export type HistoryView = 'list' | 'grid';
+
+const HISTORY_VIEW_KEY = 'phantom.history.view';
+
+export async function getHistoryView(): Promise<HistoryView> {
+  const v = await AsyncStorage.getItem(HISTORY_VIEW_KEY).catch(() => null);
+  return v === 'list' ? 'list' : 'grid';
+}
+
+export async function setHistoryView(value: HistoryView): Promise<void> {
+  await AsyncStorage.setItem(HISTORY_VIEW_KEY, value).catch(() => undefined);
 }
 
 export async function getHaptics(): Promise<boolean> {

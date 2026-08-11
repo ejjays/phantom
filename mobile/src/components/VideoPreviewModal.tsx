@@ -44,9 +44,11 @@ const HLS_JS_SRI =
 
 const isHlsUrl = (url: string) => /\.m3u8(\?|$)/iu.test(url);
 
-const HEAD = '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" /><style>html,body{margin:0;height:100%;background:#000}.wrap{display:flex;align-items:center;justify-content:center;height:100vh}video{width:100%;height:100%;object-fit:contain}video::-webkit-media-controls-fullscreen-button{display:none!important}</style>';
+const HEAD =
+  '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" /><style>html,body{margin:0;height:100%;background:#000}.wrap{display:flex;align-items:center;justify-content:center;height:100vh}video{width:100%;height:100%;object-fit:contain}video::-webkit-media-controls-fullscreen-button{display:none!important}</style>';
 
-const VIDEO_ATTRS = 'controls autoplay playsinline webkit-playsinline controlslist="nofullscreen nodownload noremoteplayback" disablepictureinpicture';
+const VIDEO_ATTRS =
+  'controls autoplay playsinline webkit-playsinline controlslist="nofullscreen nodownload noremoteplayback" disablepictureinpicture';
 
 const buildHtml = (url: string, poster?: string) => {
   const posterAttr = poster ? ` poster="${escapeAttr(poster)}"` : '';
@@ -58,7 +60,8 @@ const buildHtml = (url: string, poster?: string) => {
 };
 
 /* autoplay may fire before listener attaches */
-const INJECTED = "(function(){var v=document.querySelector('video');if(!v)return;var ok=function(){window.ReactNativeWebView.postMessage('playing');};v.addEventListener('playing',ok);v.addEventListener('timeupdate',ok);v.addEventListener('loadeddata',ok);v.addEventListener('error',function(){window.ReactNativeWebView.postMessage('error');});var ar=function(){if(v.videoWidth&&v.videoHeight)window.ReactNativeWebView.postMessage('ar:'+(v.videoWidth/v.videoHeight));};v.addEventListener('loadedmetadata',ar);ar();if(v.readyState>=2||!v.paused)ok();})();true;";
+const INJECTED =
+  "(function(){var v=document.querySelector('video');if(!v)return;var ok=function(){window.ReactNativeWebView.postMessage('playing');};v.addEventListener('playing',ok);v.addEventListener('timeupdate',ok);v.addEventListener('loadeddata',ok);v.addEventListener('error',function(){window.ReactNativeWebView.postMessage('error');});var ar=function(){if(v.videoWidth&&v.videoHeight)window.ReactNativeWebView.postMessage('ar:'+(v.videoWidth/v.videoHeight));};v.addEventListener('loadedmetadata',ar);ar();if(v.readyState>=2||!v.paused)ok();})();true;";
 
 const PreviewMessage = ({ text }: { text: string }) => (
   <View style={tw`flex-1 items-center justify-center px-8`}>
@@ -126,9 +129,11 @@ export default function VideoPreviewModal({
   const [ratio, setRatio] = useState(aspectRatio);
 
   useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- resets drag + ratio per preview open
     if (visible) {
       tx.value = 0;
       ty.value = 0;
+      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-derived-state -- reset ratio per preview; webview reports actual
       setRatio(aspectRatio);
     }
   }, [visible, aspectRatio, tx, ty]);

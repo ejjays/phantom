@@ -30,6 +30,7 @@ vi.mock('../src/lib/social/updates.logic', async (importActual) => {
 
 import {
   ensureSession,
+  signInAsGuest,
   getAccount,
   ensureGuestReady,
 } from '../src/lib/social/updates';
@@ -50,21 +51,12 @@ describe('ensureSession', () => {
     expect(mockApi.maybeSingle).not.toHaveBeenCalled();
   });
 
-  it('creates an anonymous session and profile row for signed-out users', async () => {
+  it('does not create a session for signed-out users', async () => {
     mockApi.getSession.mockResolvedValue(session(null));
-    mockApi.signInAnonymously.mockResolvedValue({
-      data: { user: { id: 'guest1' } },
-      error: null,
-    });
-    mockApi.maybeSingle.mockResolvedValue({ data: null, error: null });
-    mockApi.upsert.mockResolvedValue({ error: null });
 
-    expect(await ensureSession()).toBe('guest1');
-    expect(mockApi.upsert).toHaveBeenCalledWith({
-      id: 'guest1',
-      username: 'anonymous30584',
-      avatar_url: expect.stringMatching(/^preset:/u),
-    });
+    await expect(ensureSession()).rejects.toThrow(/sign in/iu);
+    expect(mockApi.signInAnonymously).not.toHaveBeenCalled();
+    expect(mockApi.upsert).not.toHaveBeenCalled();
   });
 
   it('repairs a stale anonymous session that lacks a profile row', async () => {
@@ -112,7 +104,7 @@ describe('ensureSession', () => {
       .mockResolvedValueOnce({ error: { code: '23505' } })
       .mockResolvedValue({ error: null });
 
-    expect(await ensureSession()).toBe('guest1');
+    expect(await signInAsGuest()).toBe('guest1');
     expect(mockApi.upsert).toHaveBeenCalledTimes(3);
     expect(mockApi.upsert.mock.calls.map(([row]) => row.username)).toEqual([
       'anonymous11111',
@@ -127,7 +119,7 @@ describe('ensureSession', () => {
       data: { user: null },
       error: new Error('signup disabled'),
     });
-    await expect(ensureSession()).rejects.toThrow(/signup disabled/u);
+    await expect(signInAsGuest()).rejects.toThrow(/signup disabled/u);
   });
 });
 
