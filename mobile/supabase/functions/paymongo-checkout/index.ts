@@ -124,7 +124,9 @@ Deno.serve(async (req) => {
               quantity: 1,
             },
           ],
-          payment_method_types: ['gcash', 'paymaya', 'grab_pay', 'qrph'],
+                    // wallets (gcash/paymaya/grab_pay) gated behind paymongo business
+          // verification — only qrph is live; re-add once verified
+          payment_method_types: ['qrph'],
           success_url: SUCCESS_URL,
           cancel_url: CANCEL_URL,
           reference_number: donation.reference_number,

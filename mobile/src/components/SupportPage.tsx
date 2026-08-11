@@ -272,6 +272,9 @@ export default function SupportPage({
           >
             Select payment
           </Text>
+          <Text style={tw`mb-3 ml-1 font-sans text-[12.5px] text-slate-500`}>
+            Scan with any PH bank or e-wallet app
+          </Text>
           {methods.map((entry, i) => {
             const active = entry.id === methodId;
             const last = i === methods.length - 1;

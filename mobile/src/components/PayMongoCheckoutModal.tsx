@@ -150,7 +150,7 @@ export default function PayMongoCheckoutModal({
       >
         <View style={tw`h-10 w-10`} />
         <Text style={tw`flex-1 text-center font-sans-semibold text-[18px] text-white`}>
-          {phase === 'success' ? 'Thank you!' : 'Pay with GCash'}
+          {phase === 'success' ? 'Thank you!' : 'Pay with QR Ph'}
         </Text>
         <View style={tw`h-10 w-10 items-center justify-center rounded-full`}>
           <ShieldCheck size={20} color="#22d3ee" />
@@ -214,7 +214,7 @@ export default function PayMongoCheckoutModal({
 
       <View style={[tw`pt-3`, { paddingBottom: insets.bottom + 14 }]}>
         <Text style={tw`text-center font-sans text-[11px] text-slate-500`}>
-          Secure checkout powered by PayMongo · GCash
+          Secure checkout powered by PayMongo
         </Text>
       </View>
     </View>

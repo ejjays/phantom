@@ -125,8 +125,8 @@ const buttonGlow = {
 
 const SUPPORT_METHODS: readonly SupportMethod[] = [
   {
-    id: 'gcash',
-    label: 'E-Wallet & QR Ph',
+    id: 'qrph',
+    label: 'QR Ph',
     kind: 'paymongo',
   },
   {
