@@ -133,7 +133,7 @@ const SUPPORT_METHODS: readonly SupportMethod[] = [
     id: 'paypal',
     label: 'PayPal',
     kind: 'paypal',
-    url: 'https://www.paypal.me/christson021',
+    url: 'https://www.paypal.com/ncp/payment/JNFWFRJ546TA4',
   },
 ];
 
@@ -785,8 +785,7 @@ animationConfig: {
       return;
     }
     tapSelection();
-    const url = amount ? `${method.url}/${amount}PHP` : method.url;
-    Linking.openURL(url).catch(() => undefined);
+    Linking.openURL(method.url).catch(() => undefined);
   };
 
   const openAvatarPicker = () => {
