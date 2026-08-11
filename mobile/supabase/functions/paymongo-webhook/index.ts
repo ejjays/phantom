@@ -64,19 +64,38 @@ Deno.serve(async (req) => {
     return json({ error: 'bad signature' }, 401);
   }
 
-  let event: { type?: string; data?: { attributes?: Record<string, unknown> } };
+  let body: {
+    type?: string;
+    data?: {
+      type?: string;
+      attributes?: {
+        type?: string;
+        data?: { attributes?: Record<string, unknown> };
+      };
+      data?: { attributes?: Record<string, unknown> };
+    };
+    attributes?: Record<string, unknown>;
+  };
   try {
-    event = JSON.parse(raw);
+    body = JSON.parse(raw);
   } catch {
     return json({ error: 'invalid payload' }, 400);
   }
 
-  if (event.type !== 'checkout_session.payment.paid') return json({ ok: true });
+  // envelope puts the resource type at data.type but the event type at
+  // data.attributes.type (classic format has a bare "event" at data.type),
+  // or body.type when the resource is sent bare.
+  const data = body.data ?? {};
+  const eventType = data.attributes?.type ?? data.type ?? body.type ?? '';
+  const isPaid =
+    eventType === 'checkout_session.payment.paid' ||
+    eventType === 'checkout_session';
 
-  // ack fast; the session reference (donation id) uniquely matches our row
-  const attrs = event.data?.attributes ?? {};
+  const resource = data.data ?? data.attributes?.data ?? body;
+  const attrs = resource?.attributes ?? {};
   const reference = attrs.reference_number as string | undefined;
-  if (!reference) return json({ ok: true });
+  console.log('webhook', eventType, reference ?? 'no-ref');
+  if (!isPaid || !reference) return json({ ok: true });
 
   const sb = createClient(
     Deno.env.get('SUPABASE_URL')!,
