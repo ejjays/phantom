@@ -18,7 +18,7 @@
     "@gradio/client": "^2.1.0",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@sentry/react": "^10.53.1",
-    "@supabase/supabase-js": "2.110.9",
+    "@supabase/supabase-js": "2.112.2",
     "clsx": "^2.1.1",
     "framer-motion": "^13.0.0",
     "jszip": "^3.10.1",
@@ -27,16 +27,17 @@
     "mediabunny": "^1.46.0",
     "pitchy": "^4.1.0",
     "prop-types": "^15.8.1",
-    "react": "19.2.8",
+    "react": "^19.2.8",
     "react-dom": "19.2.8",
     "react-router": "^8.3.0",
-    "styled-components": "^6.3.3",
+    "styled-components": "^6.5.1",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.59.1",
+    "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -50,7 +51,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.4.24",
+    "eslint-plugin-react-refresh": "^0.5.3",
     "eslint-plugin-sonarjs": "^4.0.3",
     "globals": "^16.5.0",
     "jsdom": "^29.0.2",
@@ -61,8 +62,7 @@
     "typescript-eslint": "^8.59.4",
     "vite": "^8.2.0",
     "vite-plugin-sitemap": "^0.8.2",
-    "vitest": "^4.1.5",
-    "@tailwindcss/postcss": "^4.3.3"
+    "vitest": "^4.1.5"
   },
   "optionalDependencies": {
     "@esbuild/android-arm64": "^0.28.0",
