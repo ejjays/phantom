@@ -32,14 +32,23 @@ const QR_PREFIX = 'phantom-qr:';
 const IMAGE_URL_RE = /\.(png|jpe?g|webp|gif)([?#]|$)/iu;
 
 // webview silently drops file downloads — catch a[download] clicks in-page and
-// hand the bytes back to RN, which saves them to the gallery itself
+// hand the bytes back to RN, which saves them to the gallery itself.
+// capture blobs at createObjectURL time: the page revokes the url right after
+// the click, so a later fetch of it would fail (blob already gone)
 const QR_CLICK_JS = `(function(){
-  document.addEventListener('click', function(e){
-    var a = e.target && e.target.closest ? e.target.closest('a[download]') : null;
-    if (!a || !a.href) return;
-    e.preventDefault();
-    var url = a.href;
-    var name = a.download || 'phantom-qr.png';
+  if (!window.__qrBlobs) {
+    window.__qrBlobs = {};
+    var origCreate = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = function(b){ var u = origCreate(b); window.__qrBlobs[u] = b; return u; };
+  }
+  function post(name, url) {
+    var blob = window.__qrBlobs[url];
+    if (blob) {
+      var rd = new FileReader();
+      rd.onload = function(){ window.ReactNativeWebView.postMessage('${QR_PREFIX}' + name + ':' + rd.result); };
+      rd.readAsDataURL(blob);
+      return;
+    }
     if (url.indexOf('data:') === 0) {
       window.ReactNativeWebView.postMessage('${QR_PREFIX}' + name + ':' + url);
     } else if (url.indexOf('blob:') === 0) {
@@ -51,15 +60,30 @@ const QR_CLICK_JS = `(function(){
     } else {
       window.ReactNativeWebView.postMessage('${QR_PREFIX}' + name + ':' + url);
     }
+  }
+  document.addEventListener('click', function(e){
+    var a = e.target && e.target.closest ? e.target.closest('a[download], a[href^="blob:"], a[href^="data:image/"]') : null;
+    if (!a || !a.href) return;
+    e.preventDefault();
+    post(a.download || 'phantom-qr.png', a.href);
   }, true);
 })();`;
 
 const blobToDataUrlJs = (url: string) =>
-  `(function(){fetch(${JSON.stringify(url)}).then(function(r){return r.blob();}).then(function(b){
-    var rd = new FileReader();
-    rd.onload = function(){ window.ReactNativeWebView.postMessage('${QR_PREFIX}qr.png:' + rd.result); };
-    rd.readAsDataURL(b);
-  }).catch(function(){ window.ReactNativeWebView.postMessage('${QR_PREFIX}error'); });})();true;`;
+  `(function(){
+    var blob = window.__qrBlobs && window.__qrBlobs[${JSON.stringify(url)}];
+    if (blob) {
+      var rd = new FileReader();
+      rd.onload = function(){ window.ReactNativeWebView.postMessage('${QR_PREFIX}qr.png:' + rd.result); };
+      rd.readAsDataURL(blob);
+    } else {
+      fetch(${JSON.stringify(url)}).then(function(r){return r.blob();}).then(function(b){
+        var rd = new FileReader();
+        rd.onload = function(){ window.ReactNativeWebView.postMessage('${QR_PREFIX}qr.png:' + rd.result); };
+        rd.readAsDataURL(b);
+      }).catch(function(){ window.ReactNativeWebView.postMessage('${QR_PREFIX}error'); });
+    }
+  })();true;`;
 
 type Phase = 'create' | 'open' | 'success' | 'error';
 export type CheckoutResult = 'success' | 'cancelled' | 'dismissed';
@@ -128,9 +152,21 @@ export default function PayMongoCheckoutModal({
     qrNoteTimerRef.current = setTimeout(() => setQrNote(null), 4000);
   }, []);
 
+  // the in-page click hook and the webview nav callback both fire for one
+  // download — skip the second copy of the same qr
+  const qrSeenRef = useRef(new Map<string, number>());
+  const isDuplicateQr = useCallback((key: string) => {
+    const now = Date.now();
+    const seen = qrSeenRef.current.get(key);
+    if (seen && now - seen < 10_000) return true;
+    qrSeenRef.current.set(key, now);
+    return false;
+  }, []);
+
   // base64 (data: URL) → temp file → gallery
   const saveQrDataUrl = useCallback(
     async (dataUrl: string) => {
+      if (isDuplicateQr(`d:${dataUrl}`)) return;
       const mime = /^data:([^;]+);base64,/u.exec(dataUrl)?.[1] ?? 'image/png';
       const ext = mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png';
       const tmp = new File(Paths.cache, `qr-${Date.now()}.${ext}`);
@@ -146,12 +182,13 @@ export default function PayMongoCheckoutModal({
       }
       tapSelection();
     },
-    [note]
+    [note, isDuplicateQr]
   );
 
   // http(s) URL → temp file → gallery
   const saveQrUrl = useCallback(
     async (name: string, url: string) => {
+      if (isDuplicateQr(`u:${url}`)) return;
       const ext = (/\.[a-z0-9]+(?:\?|$)/iu.exec(name)?.[0] ?? '.png')
         .replace(/[^a-z0-9]/giu, '');
       const tmp = new File(Paths.cache, `qr-${Date.now()}.${ext || 'png'}`);
@@ -165,7 +202,7 @@ export default function PayMongoCheckoutModal({
         if (tmp.exists) tmp.delete();
       }
     },
-    [note]
+    [note, isDuplicateQr]
   );
 
   const handleWebMessage = useCallback(
