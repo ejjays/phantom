@@ -24,17 +24,11 @@ import { isSupabaseConfigured, supabase } from '../lib/social/supabase';
 import { signInAsGuest } from '../lib/social/updates';
 import { saveToDevice } from '../lib/download/save';
 
-// matched verbatim in supabase/functions/paymongo-checkout/index.ts — keep in sync
 const PAY_SCHEME = 'phantom-pay://';
 const GCASH_SCHEMES = ['gcash://', 'gcashpay://'];
-
 const QR_PREFIX = 'phantom-qr:';
 const IMAGE_URL_RE = /\.(png|jpe?g|webp|gif)([?#]|$)/iu;
 
-// webview silently drops file downloads — catch a[download] clicks in-page and
-// hand the bytes back to RN, which saves them to the gallery itself.
-// capture blobs at createObjectURL time: the page revokes the url right after
-// the click, so a later fetch of it would fail (blob already gone)
 const QR_CLICK_JS = `(function(){
   if (!window.__qrBlobs) {
     window.__qrBlobs = {};
@@ -152,8 +146,6 @@ export default function PayMongoCheckoutModal({
     qrNoteTimerRef.current = setTimeout(() => setQrNote(null), 4000);
   }, []);
 
-  // the in-page click hook and the webview nav callback both fire for one
-  // download — skip the second copy of the same qr
   const qrSeenRef = useRef(new Map<string, number>());
   const isDuplicateQr = useCallback((key: string) => {
     const now = Date.now();
@@ -163,7 +155,7 @@ export default function PayMongoCheckoutModal({
     return false;
   }, []);
 
-  // base64 (data: URL) → temp file → gallery
+  // base64 (data: URL) > temp file > gallery
   const saveQrDataUrl = useCallback(
     async (dataUrl: string) => {
       if (isDuplicateQr(`d:${dataUrl}`)) return;
@@ -185,7 +177,6 @@ export default function PayMongoCheckoutModal({
     [note, isDuplicateQr]
   );
 
-  // http(s) URL → temp file → gallery
   const saveQrUrl = useCallback(
     async (name: string, url: string) => {
       if (isDuplicateQr(`u:${url}`)) return;
@@ -249,8 +240,6 @@ export default function PayMongoCheckoutModal({
       Linking.openURL(url).catch(() => undefined);
       return false;
     }
-    // paymongo's download button opens the QR as a blob: or image: url —
-    // grab the bytes in-page and save them ourselves
     if (url.startsWith('blob:')) {
       webViewRef.current?.injectJavaScript(blobToDataUrlJs(url));
       return false;
@@ -266,8 +255,6 @@ export default function PayMongoCheckoutModal({
     return true;
   };
 
-  // gcash app returns to the system browser, not our webview — poll the
-  // donation row as fallback so the app still resolves to success
   const poll = useCallback(async () => {
     if (finishedRef.current || !donationIdRef.current || !supabase) return;
     try {
