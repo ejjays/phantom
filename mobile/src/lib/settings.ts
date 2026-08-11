@@ -166,6 +166,19 @@ export async function getHaptics(): Promise<boolean> {
   return v !== '0';
 }
 
+const DARK_THEME_KEY = 'phantom.theme.dark';
+
+export async function getDarkTheme(): Promise<boolean> {
+  const v = await AsyncStorage.getItem(DARK_THEME_KEY).catch(() => null);
+  return v !== '0';
+}
+
+export async function setDarkTheme(value: boolean): Promise<void> {
+  await AsyncStorage.setItem(DARK_THEME_KEY, value ? '1' : '0').catch(
+    () => undefined
+  );
+}
+
 export async function setHaptics(value: boolean): Promise<void> {
   await AsyncStorage.setItem(HAPTICS_KEY, value ? '1' : '0').catch(
     () => undefined

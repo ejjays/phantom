@@ -294,7 +294,12 @@ function AppRoot() {
                 </Animated.View>
               )}
               <View
-                style={[tw`flex-1`, { opacity: tab === 'home' ? 1 : 0 }]}
+                style={[
+                  tw`flex-1`,
+                  tab === 'home'
+                    ? undefined
+                    : { transform: [{ translateX: -10000 }] },
+                ]}
                 pointerEvents={tab === 'home' ? 'auto' : 'none'}
               >
                 <HomeScreen

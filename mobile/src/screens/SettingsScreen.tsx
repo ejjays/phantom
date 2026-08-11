@@ -1,5 +1,6 @@
 import {
   memo,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -16,6 +17,8 @@ import {
   Linking,
   AppState,
   BackHandler,
+  StatusBar,
+  Dimensions,
   useWindowDimensions,
 } from 'react-native';
 import Animated, {
@@ -35,6 +38,8 @@ import QrView from '../components/QrView';
 import { buildGotymeQr, buildGcashQr } from '../lib/qrph';
 import AvatarPicker from '../components/AvatarPicker';
 import Avatar from '../components/Avatar';
+import ThemeSwitch from '../components/ThemeSwitch';
+import switchTheme from 'react-native-theme-switch-animation';
 import SupportPage, { type SupportMethod } from '../components/SupportPage';
 import SupportCarousel from '../components/SupportCarousel';
 import Card from '../components/Card';
@@ -74,6 +79,8 @@ import {
   setNotify,
   getHaptics,
   setHaptics,
+  getDarkTheme,
+  setDarkTheme,
   formatName,
   type FilenameFormat,
 } from '../lib/settings';
@@ -103,6 +110,23 @@ import { AVATAR_CATEGORIES, presetMarker } from '../lib/avatars';
 import { useSubScreen } from '../hooks/useSubScreen';
 
 const CYAN = '#22d3ee';
+const DARK_BG = '#030014';
+const LIGHT_BG = '#eef2f8';
+
+const PALETTE = (light: boolean) => ({
+  text: light ? '#0f172a' : '#ffffff',
+  hint: light ? '#64748b' : '#94a3b8',
+  label: light ? '#475569' : '#64748b',
+  rowBorder: light ? 'rgba(15,23,42,0.07)' : 'rgba(255,255,255,0.05)',
+  toggleOff: light ? '#cbd5e1' : '#334155',
+  ghostBg: light ? 'rgba(15,23,42,0.05)' : 'rgba(255,255,255,0.05)',
+  ghostBorder: light ? 'rgba(15,23,42,0.12)' : 'rgba(255,255,255,0.15)',
+  ghostText: light ? '#334155' : '#e2e8f0',
+  chevron: light ? '#94a3b8' : '#475569',
+  good: light ? '#059669' : '#4ade80',
+  warn: light ? '#d97706' : '#fbbf24',
+  error: light ? '#dc2626' : '#f87171',
+});
 const buttonGlow = {
   shadowColor: '#06b6d4',
   shadowOpacity: 0.5,
@@ -152,7 +176,7 @@ const FORMAT_LABELS: Record<FilenameFormat, string> = {
 
 type IconType = ComponentType<{ size?: number; color?: string }>;
 
-function Toggle({ value }: { value: boolean }) {
+function Toggle({ value, light }: { value: boolean; light?: boolean }) {
   const knobStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: withTiming(value ? 20 : 0, { duration: 170 }) }],
   }));
@@ -160,7 +184,9 @@ function Toggle({ value }: { value: boolean }) {
     <View
       style={[
         tw`h-7 w-12 justify-center rounded-full px-0.5`,
-        value ? tw`bg-primary` : tw`bg-slate-700`,
+        value
+          ? tw`bg-primary`
+          : { backgroundColor: PALETTE(!!light).toggleOff },
       ]}
     >
       <Animated.View style={[tw`h-6 w-6 rounded-full bg-white`, knobStyle]} />
@@ -171,15 +197,18 @@ function Toggle({ value }: { value: boolean }) {
 function SectionLabel({
   children,
   center,
+  light,
 }: {
   children: string;
   center?: boolean;
+  light?: boolean;
 }) {
   return (
     <Text
       style={[
-        tw`mb-3 mt-8 font-sans-semibold text-[13px] text-slate-500`,
+        tw`mb-3 mt-8 font-sans-semibold text-[13px]`,
         center ? tw`text-center` : tw`ml-1`,
+        { color: PALETTE(!!light).label },
       ]}
     >
       {children}
@@ -190,19 +219,21 @@ function SectionLabel({
 function SettingsSupport({
   isWide,
   visible,
+  light,
   onOpenSupport,
   onOpenSource,
   onOpenSocial,
 }: {
   isWide: boolean;
   visible: boolean;
+  light?: boolean;
   onOpenSupport: () => void;
   onOpenSource: () => void;
   onOpenSocial: (url: string) => void;
 }) {
   return (
     <View style={isWide ? { width: 380 } : tw`w-full`}>
-      <SectionLabel center={isWide}>Support</SectionLabel>
+      <SectionLabel center={isWide} light={light}>Support</SectionLabel>
       <SupportCarousel
         visible={visible}
         layout={isWide ? 'stack' : 'carousel'}
@@ -220,17 +251,31 @@ function SettingsBody({
   support,
   note,
   children,
+  themeSwitch,
+  light,
 }: {
   isWide: boolean;
   support: ReactNode;
   note?: ReactNode;
   children: ReactNode;
+  themeSwitch?: ReactNode;
+  light?: boolean;
 }) {
   return (
     <View style={[tw`w-full`, { maxWidth: isWide ? 1060 : 600 }]}>
-      <Text style={tw`font-sans-bold text-[32px] tracking-tight text-white`}>
-        Settings
-      </Text>
+      <View
+        style={tw`mb-1 flex-row items-center justify-between`}
+      >
+        <Text
+          style={[
+            tw`font-sans-bold text-[32px] tracking-tight`,
+            { color: PALETTE(!!light).text },
+          ]}
+        >
+          Settings
+        </Text>
+        {themeSwitch}
+      </View>
       {note}
       <View
         style={isWide ? [tw`flex-row items-start`, { gap: 72 }] : tw`w-full`}
@@ -252,6 +297,7 @@ function RowShell({
   tile = true,
   iconSize,
   children,
+  light,
 }: {
   Icon: IconType;
   label: string;
@@ -260,7 +306,9 @@ function RowShell({
   tile?: boolean;
   iconSize?: number;
   children: React.ReactNode;
+  light?: boolean;
 }) {
+  const palette = PALETTE(!!light);
   return (
     <View style={tw`flex-row items-center pl-4`}>
       <View
@@ -274,15 +322,15 @@ function RowShell({
       <View
         style={[
           tw`ml-3.5 flex-1 flex-row items-center py-4 pr-4`,
-          !last && tw`border-b border-white/5`,
+          !last && { borderBottomWidth: 1, borderBottomColor: palette.rowBorder },
         ]}
       >
         <View style={tw`flex-1`}>
-          <Text style={tw`font-sans-semibold text-[15px] text-white`}>
+          <Text style={[tw`font-sans-semibold text-[15px]`, { color: palette.text }]}>
             {label}
           </Text>
           {hint ? (
-            <Text style={tw`mt-0.5 font-sans text-[12px] text-slate-500`}>
+            <Text style={[tw`mt-0.5 font-sans text-[12px]`, { color: palette.hint }]}>
               {hint}
             </Text>
           ) : null}
@@ -302,8 +350,9 @@ function ToggleRow(props: {
   last?: boolean;
   tile?: boolean;
   iconSize?: number;
+  light?: boolean;
 }) {
-  const { value, onValueChange, ...rest } = props;
+  const { value, onValueChange, light, ...rest } = props;
   return (
     <Pressable
       onPress={() => onValueChange(!value)}
@@ -311,8 +360,8 @@ function ToggleRow(props: {
       accessibilityState={{ checked: value }}
       android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
     >
-      <RowShell {...rest}>
-        <Toggle value={value} />
+      <RowShell {...rest} light={light}>
+        <Toggle value={value} light={light} />
       </RowShell>
     </Pressable>
   );
@@ -321,15 +370,20 @@ function ToggleRow(props: {
 function ValueLabel({
   value,
   tone,
+  light,
 }: {
   value: string;
   tone?: 'good' | 'warn';
+  light?: boolean;
 }) {
   if (!tone) {
     return (
       <Text
         numberOfLines={1}
-        style={tw`mr-2 max-w-[150px] font-sans-medium text-[13px] text-slate-400`}
+        style={[
+          tw`mr-2 max-w-[150px] font-sans-medium text-[13px]`,
+          { color: PALETTE(!!light).hint },
+        ]}
       >
         {value}
       </Text>
@@ -345,7 +399,7 @@ function ValueLabel({
       <Text
         style={[
           tw`font-sans-semibold text-[12px]`,
-          tone === 'good' ? tw`text-green-400` : tw`text-amber-400`,
+          { color: PALETTE(!!light)[tone === 'good' ? 'good' : 'warn'] },
         ]}
       >
         {value}
@@ -364,17 +418,18 @@ function LinkRow(props: {
   onPress?: () => void;
   tile?: boolean;
   iconSize?: number;
+  light?: boolean;
 }) {
-  const { value, onPress, tone, ...rest } = props;
+  const { value, onPress, tone, light, ...rest } = props;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
     >
-      <RowShell {...rest}>
-        {value ? <ValueLabel value={value} tone={tone} /> : null}
-        <ChevronRight size={18} color="#475569" />
+      <RowShell {...rest} light={light}>
+        {value ? <ValueLabel value={value} tone={tone} light={light} /> : null}
+        <ChevronRight size={18} color={PALETTE(!!light).chevron} />
       </RowShell>
     </Pressable>
   );
@@ -383,10 +438,13 @@ function LinkRow(props: {
 function AccountCard({
   account,
   onPress,
+  light,
 }: {
   account: Account;
   onPress: () => void;
+  light?: boolean;
 }) {
+  const palette = PALETTE(!!light);
   return (
     <Pressable
       onPress={onPress}
@@ -394,7 +452,7 @@ function AccountCard({
       accessibilityLabel="Manage account"
       android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
     >
-      <Card>
+      <Card light={light}>
         <View style={tw`flex-row items-center p-4`}>
           <View>
             <Avatar
@@ -419,7 +477,7 @@ function AccountCard({
           <View style={tw`ml-3.5 flex-1`}>
             <Text
               numberOfLines={1}
-              style={tw`font-sans-semibold text-[16px] text-white`}
+              style={[tw`font-sans-semibold text-[16px]`, { color: palette.text }]}
             >
               {account.isGuest
                 ? displayName(account.username)
@@ -429,14 +487,14 @@ function AccountCard({
             </Text>
             <Text
               numberOfLines={1}
-              style={tw`mt-0.5 font-sans text-[12px] text-slate-500`}
+              style={[tw`mt-0.5 font-sans text-[12px]`, { color: palette.hint }]}
             >
               {account.isGuest
                 ? 'Guest — link Google to keep your reactions'
                 : (account.email ?? 'Tap to manage your account')}
             </Text>
           </View>
-          <ChevronRight size={20} color="#475569" />
+          <ChevronRight size={20} color={palette.chevron} />
         </View>
       </Card>
     </Pressable>
@@ -447,11 +505,14 @@ function SignInCard({
   signingIn,
   onGoogle,
   onGuest,
+  light,
 }: {
   signingIn: boolean;
   onGoogle: () => void;
   onGuest: () => void;
+  light?: boolean;
 }) {
+  const palette = PALETTE(!!light);
   return (
     <View>
       <Pressable
@@ -460,16 +521,27 @@ function SignInCard({
         accessibilityRole="button"
         accessibilityLabel="Continue as Anonymous"
         style={({ pressed }) => [
-          tw`flex-row items-center justify-center rounded-full border border-white/15 bg-white/5 py-3.5`,
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: palette.ghostBorder,
+            backgroundColor: palette.ghostBg,
+            paddingVertical: 14,
+          },
           pressed ? { transform: [{ scale: 0.98 }] } : null,
         ]}
       >
         {signingIn ? (
           <ActivityIndicator color={CYAN} />
         ) : (
-          <Ghost size={18} color="#cbd5e1" strokeWidth={2} />
+          <Ghost size={18} color={palette.ghostText} strokeWidth={2} />
         )}
-        <Text style={tw`ml-3 font-sans-semibold text-[15px] text-slate-100`}>
+        <Text
+          style={[tw`ml-3 font-sans-semibold text-[15px]`, { color: palette.ghostText }]}
+        >
           Continue as Anonymous
         </Text>
       </Pressable>
@@ -505,6 +577,8 @@ function SettingsScreen({
 }) {
   const progress = useSharedValue(0);
   const scrollRef = useRef<ScrollView>(null);
+  const switchOrigin = useRef({ x: 0, y: 0 });
+  const toggling = useRef(false);
   useEffect(() => {
     progress.value = withTiming(visible ? 1 : 0, { duration: 160 });
   }, [visible, progress]);
@@ -515,6 +589,7 @@ function SettingsScreen({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [notifs, setNotifs] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(true);
+  const [darkOn, setDarkOn] = useState(false);
   const [cacheBytes, setCacheBytes] = useState(() => cacheSize());
   const [batteryRestricted, setBatteryRestricted] = useState<boolean | null>(
     null
@@ -549,7 +624,7 @@ function SettingsScreen({
   const qrProgress = useSharedValue(0);
   useEffect(() => {
     const opening = qrOpen;
-    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-event-handler, react-you-might-not-need-an-effect/no-chain-state-updates -- mounted gates qr enter animation
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mounted gates qr enter animation
     if (opening) setQrMounted(true);
     qrProgress.value = withTiming(
       opening ? 1 : 0,
@@ -575,25 +650,20 @@ function SettingsScreen({
 
   // reset scroll on tab exit
   useEffect(() => {
-    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- tab-exit reset incl scroll side effect
-    if (visible) return;
+      if (visible) return;
     scrollRef.current?.scrollTo({ y: 0, animated: false });
     accountScreen.setOpen(false);
     avatarScreen.setOpen(false);
     supportScreen.setOpen(false);
-    // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset overlays on tab exit
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset overlays on tab exit
     setQrOpen(false);
-    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset overlays on tab exit
-    setPickerOpen(false);
-    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset overlays on tab exit
-    setSignOutOpen(false);
-    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset overlays on tab exit
-    setShareOpen(false);
+        setPickerOpen(false);
+        setSignOutOpen(false);
+        setShareOpen(false);
   }, [visible, accountScreen, avatarScreen, supportScreen]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-you-might-not-need-an-effect/no-pass-data-to-parent -- prop-sync parent fullscreen, lift too invasive
-    onFullScreen?.(avatarScreen.open || supportScreen.open);
+        onFullScreen?.(avatarScreen.open || supportScreen.open);
   }, [avatarScreen.open, supportScreen.open, onFullScreen]);
 
   useEffect(() => {
@@ -609,7 +679,44 @@ function SettingsScreen({
     getHaptics()
       .then(setHapticsOn)
       .catch(() => undefined);
+    getDarkTheme()
+      .then(setDarkOn)
+      .catch(() => undefined);
   }, []);
+
+  const handleSwitchOrigin = useCallback((point: { x: number; y: number }) => {
+    switchOrigin.current = point;
+  }, []);
+
+  const toggleTheme = () => {
+    if (toggling.current) return;
+    const targetDark = !darkOn;
+    const bodyW = Math.min(windowWidth - 40, 600);
+    const origin =
+      switchOrigin.current.x !== 0 || switchOrigin.current.y !== 0
+        ? switchOrigin.current
+        : { x: (windowWidth - bodyW) / 2 + bodyW - 46, y: 92 };
+    toggling.current = true;
+    tapSelection();
+    const { width: winW, height: winH } = Dimensions.get('window');
+    switchTheme({
+      switchThemeFunction: () => {
+        setDarkOn(targetDark);
+        setDarkTheme(targetDark).catch(() => undefined);
+      },
+animationConfig: {
+        type: 'circular',
+        duration: 900,
+        startingPoint: {
+          cxRatio: origin.x / winW,
+          cyRatio: origin.y / winH,
+        },
+      },
+    });
+    setTimeout(() => {
+      toggling.current = false;
+    }, 1100);
+  };
 
   useEffect(() => {
     const check = () => {
@@ -626,7 +733,7 @@ function SettingsScreen({
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-initialize-state -- ready gated by async auth load
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ready gated by async auth load
       setAuthReady(true);
       return undefined;
     }
@@ -651,8 +758,7 @@ function SettingsScreen({
 
   const wasVisible = useRef(visible);
   useEffect(() => {
-    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- tab-show ref edge, async fetch
-    if (visible && !wasVisible.current && isSupabaseConfigured) {
+      if (visible && !wasVisible.current && isSupabaseConfigured) {
       getAccount()
         .then((acc) => setAccount(acc))
         .catch(() => undefined);
@@ -661,8 +767,7 @@ function SettingsScreen({
   }, [visible]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- prefetch once account known, async
-    if (account?.username) {
+      if (account?.username) {
       getSocialNotify()
         .then(setSocialNotifyState)
         .catch(() => undefined);
@@ -855,189 +960,239 @@ function SettingsScreen({
     }
   };
 
+  const settingsSections = (light: boolean) => (
+    <>
+      {isSupabaseConfigured ? (
+        <>
+          <SectionLabel light={light}>Account</SectionLabel>
+          {!authReady ? (
+            <AccountSkeleton />
+          ) : account ? (
+            <AccountCard
+              account={account}
+              light={light}
+              onPress={() => {
+                tapSelection();
+                setNameValue(account?.username ?? '');
+                setNameError(null);
+                accountScreen.setOpen(true);
+              }}
+            />
+          ) : (
+            <SignInCard
+              signingIn={signingIn}
+              light={light}
+              onGoogle={() => void handleSignIn()}
+              onGuest={() => void handleGuestSignIn()}
+            />
+          )}
+          {authError ? (
+            <Text
+              style={[
+                tw`ml-1 mt-2 font-sans text-[12px]`,
+                { color: PALETTE(light).error },
+              ]}
+            >
+              {authError}
+            </Text>
+          ) : null}
+        </>
+      ) : null}
+
+      <SectionLabel light={light}>Downloads</SectionLabel>
+      <Card light={light}>
+        <RowShell
+          Icon={FolderIcon}
+          label="Save location"
+          hint="Movies/Phantom · Music/Phantom"
+          tile={false}
+          iconSize={26}
+          light={light}
+        >
+          {null}
+        </RowShell>
+        <LinkRow
+          Icon={FileIcon}
+          label="Filename format"
+          hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
+          onPress={() => setPickerOpen(true)}
+          tile={false}
+          iconSize={26}
+          light={light}
+        />
+        <ToggleRow
+          Icon={NotificationIcon}
+          label="Download alerts"
+          hint="Notify when a download finishes"
+          value={notifs}
+          onValueChange={toggleNotify}
+          tile={false}
+          iconSize={26}
+          light={light}
+        />
+        <ToggleRow
+          Icon={PasteIcon}
+          label="Auto-detect clipboard"
+          hint="Fill copied link when you return"
+          value={autopaste}
+          onValueChange={toggleAutopaste}
+          last
+          tile={false}
+          iconSize={26}
+          light={light}
+        />
+      </Card>
+
+      <SectionLabel light={light}>App</SectionLabel>
+      <Card light={light}>
+        {account ? (
+          <ToggleRow
+            Icon={SocialIcon}
+            label="Social notifications"
+            hint="Replies, mentions & likes on your comments"
+            value={socialNotify}
+            onValueChange={toggleSocialNotify}
+            tile={false}
+            iconSize={26}
+            light={light}
+          />
+        ) : null}
+        <ToggleRow
+          Icon={HapticsIcon}
+          label="Haptics"
+          hint="Vibrate on taps and actions"
+          value={hapticsOn}
+          onValueChange={toggleHaptics}
+          tile={false}
+          iconSize={27}
+          light={light}
+        />
+        <LinkRow
+          Icon={BatteryIcon}
+          label="Battery optimization"
+          hint={
+            batteryRestricted === false
+              ? 'Allowed to run without limits'
+              : 'Stop Android pausing long downloads'
+          }
+          value={batteryRestricted === false ? 'Off' : 'Fix'}
+          tone={batteryRestricted === false ? 'good' : 'warn'}
+          onPress={openBattery}
+          tile={false}
+          light={light}
+        />
+        <LinkRow
+          Icon={ShareAppIcon}
+          label="Share app"
+          hint="Send Phantom to a friend"
+          onPress={() => {
+            tapSelection();
+            setShareOpen(true);
+          }}
+          tile={false}
+          iconSize={26}
+          light={light}
+        />
+        <LinkRow
+          Icon={ClearCacheIcon}
+          label="Clear cache"
+          value={cacheBytes > 0 ? formatBytes(cacheBytes) : 'Empty'}
+          onPress={clearAppCache}
+          tile={false}
+          last
+          iconSize={26}
+          light={light}
+        />
+      </Card>
+
+      <SectionLabel light={light}>About</SectionLabel>
+      <Card light={light}>
+        <LinkRow
+          Icon={PrivacyIcon}
+          label="Privacy"
+          hint="Everything runs on your device"
+          tile={false}
+          iconSize={26}
+          light={light}
+        />
+        <LinkRow
+          Icon={VersionIcon}
+          label="Version"
+          value="1.1.0"
+          tile={false}
+          last
+          iconSize={24}
+          light={light}
+        />
+      </Card>
+    </>
+  );
+
+  const noteBanner =
+    isSupabaseConfigured && authReady && !account ? (
+      <View style={tw`mx-[-20px] mt-3 bg-cyan-500 px-5 py-1.5`}>
+        <Text style={tw`font-sans text-[12px] leading-4 text-white`}>
+          <Text style={tw`font-sans-bold`}>Note: </Text>
+          Sign-in is only for reactions and comments in Updates tab —
+          it&apos;s not used in the actual downloads.
+        </Text>
+      </View>
+    ) : null;
+
   return (
-    // skipcq: JS-0415
-    <Animated.View
-      pointerEvents={visible ? 'auto' : 'none'}
-      style={[StyleSheet.absoluteFill, tw`bg-background`, fadeStyle]}
-    >
-      <ScrollView
+    <>
+      {visible ? (
+        <StatusBar
+          barStyle={darkOn ? 'light-content' : 'dark-content'}
+          backgroundColor={darkOn ? DARK_BG : LIGHT_BG}
+        />
+      ) : null}
+      <View
+        pointerEvents={visible ? 'auto' : 'none'}
+        style={StyleSheet.absoluteFill}
+      >
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            fadeStyle,
+            { backgroundColor: darkOn ? DARK_BG : LIGHT_BG },
+          ]}
+        />
+        <Animated.ScrollView
         ref={scrollRef}
-        style={tw`flex-1`}
+        style={[tw`flex-1`, fadeStyle]}
         contentContainerStyle={tw`items-center px-5 pb-36 pt-16`}
         showsVerticalScrollIndicator={false}
       >
         <SettingsBody
           isWide={isWide}
-          note={
-            isSupabaseConfigured && authReady && !account ? (
-              <View style={tw`mx-[-20px] mt-3 bg-cyan-500 px-5 py-1.5`}>
-                <Text style={tw`font-sans text-[12px] leading-4 text-white`}>
-                  <Text style={tw`font-sans-bold`}>Note: </Text>
-                  Sign-in is only for reactions and comments in Updates tab —
-                  it&apos;s not used in the actual downloads.
-                </Text>
-              </View>
-            ) : null
+          light={!darkOn}
+          themeSwitch={
+            <ThemeSwitch
+              dark={darkOn}
+              instant
+              visible={visible}
+              onToggle={toggleTheme}
+              onOrigin={handleSwitchOrigin}
+            />
           }
+          note={noteBanner}
           support={
             <SettingsSupport
               isWide={isWide}
               visible={visible}
+              light={!darkOn}
               onOpenSupport={openSupportPage}
               onOpenSource={openSourceCode}
               onOpenSocial={openSocial}
             />
           }
         >
-          {isSupabaseConfigured ? (
-            <>
-              <SectionLabel>Account</SectionLabel>
-              {!authReady ? (
-                <AccountSkeleton />
-              ) : account ? (
-                <AccountCard
-                  account={account}
-                  onPress={() => {
-                    tapSelection();
-                    setNameValue(account?.username ?? '');
-                    setNameError(null);
-                    accountScreen.setOpen(true);
-                  }}
-                />
-              ) : (
-                <SignInCard
-                  signingIn={signingIn}
-                  onGoogle={() => void handleSignIn()}
-                  onGuest={() => void handleGuestSignIn()}
-                />
-              )}
-              {authError ? (
-                <Text style={tw`ml-1 mt-2 font-sans text-[12px] text-red-400`}>
-                  {authError}
-                </Text>
-              ) : null}
-            </>
-          ) : null}
-
-          <SectionLabel>Downloads</SectionLabel>
-          <Card>
-            <RowShell
-              Icon={FolderIcon}
-              label="Save location"
-              hint="Movies/Phantom · Music/Phantom"
-              tile={false}
-              iconSize={26}
-            >
-              {null}
-            </RowShell>
-            <LinkRow
-              Icon={FileIcon}
-              label="Filename format"
-              hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
-              onPress={() => setPickerOpen(true)}
-              tile={false}
-              iconSize={26}
-            />
-            <ToggleRow
-              Icon={NotificationIcon}
-              label="Download alerts"
-              hint="Notify when a download finishes"
-              value={notifs}
-              onValueChange={toggleNotify}
-              tile={false}
-              iconSize={26}
-            />
-            <ToggleRow
-              Icon={PasteIcon}
-              label="Auto-detect clipboard"
-              hint="Fill copied link when you return"
-              value={autopaste}
-              onValueChange={toggleAutopaste}
-              last
-              tile={false}
-              iconSize={26}
-            />
-          </Card>
-
-          <SectionLabel>App</SectionLabel>
-          <Card>
-            {account ? (
-              <ToggleRow
-                Icon={SocialIcon}
-                label="Social notifications"
-                hint="Replies, mentions & likes on your comments"
-                value={socialNotify}
-                onValueChange={toggleSocialNotify}
-                tile={false}
-                iconSize={26}
-              />
-            ) : null}
-            <ToggleRow
-              Icon={HapticsIcon}
-              label="Haptics"
-              hint="Vibrate on taps and actions"
-              value={hapticsOn}
-              onValueChange={toggleHaptics}
-              tile={false}
-              iconSize={27}
-            />
-            <LinkRow
-              Icon={BatteryIcon}
-              label="Battery optimization"
-              hint={
-                batteryRestricted === false
-                  ? 'Allowed to run without limits'
-                  : 'Stop Android pausing long downloads'
-              }
-              value={batteryRestricted === false ? 'Off' : 'Fix'}
-              tone={batteryRestricted === false ? 'good' : 'warn'}
-              onPress={openBattery}
-              tile={false}
-            />
-            <LinkRow
-              Icon={ShareAppIcon}
-              label="Share app"
-              hint="Send Phantom to a friend"
-              onPress={() => {
-                tapSelection();
-                setShareOpen(true);
-              }}
-              tile={false}
-              iconSize={26}
-            />
-            <LinkRow
-              Icon={ClearCacheIcon}
-              label="Clear cache"
-              value={cacheBytes > 0 ? formatBytes(cacheBytes) : 'Empty'}
-              onPress={clearAppCache}
-              tile={false}
-              last
-              iconSize={26}
-            />
-          </Card>
-
-          <SectionLabel>About</SectionLabel>
-          <Card>
-            <LinkRow
-              Icon={PrivacyIcon}
-              label="Privacy"
-              hint="Everything runs on your device"
-              tile={false}
-              iconSize={26}
-            />
-            <RowShell
-              Icon={VersionIcon}
-              label="Version"
-              tile={false}
-              last
-              iconSize={24}
-            >
-              <ValueLabel value="1.1.0" />
-            </RowShell>
-          </Card>
+          {settingsSections(!darkOn)}
         </SettingsBody>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <Animated.View
         pointerEvents={accountScreen.open ? 'auto' : 'none'}
@@ -1256,7 +1411,8 @@ function SettingsScreen({
           />
         ) : null}
       </Animated.View>
-    </Animated.View>
+    </View>
+    </>
   );
 }
 
