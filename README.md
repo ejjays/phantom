@@ -100,7 +100,7 @@ Prebuilt APKs: built via EAS on GitHub Actions (`build-apk.yml`, `eas build --lo
 
 ## Remix Lab Preview
 
-https://github.com/user-attachments/assets/c6e6badc-3f4a-40b5-86a9-7849e77b63aa
+https://github.com/user-attachments/assets/01623e43-d78d-4553-b00c-43cc2cf28c97
 
 ---
 
