@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { View, Text, Pressable, TextInput } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronLeft, Check, Heart, Wallet } from 'lucide-react-native';
 import tw from '../lib/tw';
 import KeyboardAvoidingForm from './KeyboardAvoidingForm';
@@ -16,27 +16,27 @@ import { PayPalIcon } from './icons';
 
 const CYAN = '#22d3ee';
 const ctaGlow = {
+  // no elevation — translucent bg makes android shadow the opaque children (dark text box)
   shadowColor: '#06b6d4',
   shadowOpacity: 0.5,
   shadowRadius: 12,
   shadowOffset: { width: 0, height: 0 },
-  elevation: 10,
 };
 
 export type SupportMethod =
   | { id: string; label: string; kind: 'paypal'; url: string }
   | { id: string; label: string; kind: 'paymongo' };
 
-type Tip = { amount: number; note: string };
+type Tip = { amount: number };
 const TIPS: readonly Tip[] = [
-  { amount: 50, note: 'Buys a coffee' },
-  { amount: 100, note: 'Fuels a late-night build' },
-  { amount: 250, note: 'Keeps it ad-free' },
-  { amount: 500, note: 'Legend status' },
+  { amount: 50 },
+  { amount: 100 },
+  { amount: 250 },
+  { amount: 500 },
 ];
 
 const TIP_W = 140;
-const TIP_H = 152;
+const TIP_H = 108;
 
 export default function SupportPage({
   methods,
@@ -154,6 +154,9 @@ export default function SupportPage({
           >
             Choose your tip
           </Text>
+          <Text style={tw`mb-3 ml-1 font-sans text-[12.5px] text-slate-500`}>
+            Any amount will really be appreciated
+          </Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -174,11 +177,11 @@ export default function SupportPage({
                 >
                   <View
                     style={[
-                      tw`overflow-hidden rounded-3xl border bg-[#1b1332] p-4`,
+                      tw`overflow-hidden rounded-3xl border p-4`,
                       { height: TIP_H },
                       active
                         ? [tw`border-primary/70`, ctaGlow]
-                        : tw`border-white/5`,
+                        : tw`border-white/15`,
                     ]}
                   >
                     <LottieView
@@ -186,6 +189,18 @@ export default function SupportPage({
                       autoPlay={false}
                       progress={0}
                       resizeMode="cover"
+                      style={[
+                        tw`absolute inset-0`,
+                        { transform: [{ scale: 2.2 }], transformOrigin: 'top' },
+                      ]}
+                    />
+                    <LinearGradient
+                      colors={[
+                        'rgba(255,255,255,0.13)',
+                        'rgba(255,255,255,0.04)',
+                        'rgba(15,8,35,0.42)',
+                      ]}
+                      locations={[0, 0.45, 1]}
                       style={tw`absolute inset-0`}
                     />
                     {active ? (
@@ -217,21 +232,9 @@ export default function SupportPage({
                     </View>
                     <View style={tw`flex-1`} />
                     <Text
-                      style={[
-                        tw`font-sans-bold text-[30px] text-white`,
-                        textOutline,
-                      ]}
+                      style={tw`font-sans-bold text-[30px] text-white`}
                     >
                       ₱{tip.amount}
-                    </Text>
-                    <Text
-                      numberOfLines={2}
-                      style={[
-                        tw`mt-1 font-sans text-[12px] leading-4 text-white/80`,
-                        textOutline,
-                      ]}
-                    >
-                      {tip.note}
                     </Text>
                   </View>
                 </Pressable>
@@ -331,29 +334,31 @@ export default function SupportPage({
               if (method) onPay(method, amount);
             }}
             disabled={!method}
+            accessibilityRole="button"
+            accessibilityLabel={method ? `Support via ${method.label}` : 'Choose a method'}
             style={({ pressed }) => [
-              tw`mt-8`,
-              pressed && method ? { transform: [{ scale: 0.98 }] } : null,
+              tw`mt-8 w-full items-center justify-center rounded-full border py-4`,
+              method
+                ? tw`border-primary/40`
+                : tw`border-white/10 bg-white/5`,
+              {
+                backgroundColor: method ? '#22d3ee40' : undefined,
+                boxShadow: method
+                  ? '0px 0px 6px 1.5px rgba(34,211,238,0.27)'
+                  : undefined,
+              },
+              method ? ctaGlow : null,
+              pressed && (method ? tw`opacity-90` : tw`opacity-60`),
             ]}
           >
-            <LinearGradient
-              colors={method ? ['#22d3ee', '#06b6d4'] : ['#1e293b', '#1e293b']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <Text
               style={[
-                tw`items-center rounded-full py-4`,
-                method ? ctaGlow : null,
+                tw`font-sans-semibold text-[17px]`,
+                { color: method ? '#22d3ee' : '#64748b' },
               ]}
             >
-              <Text
-                style={[
-                  tw`font-sans-bold text-[16px]`,
-                  { color: method ? '#04101f' : '#64748b' },
-                ]}
-              >
-                {method ? `Support via ${method.label}` : 'Choose a method'}
-              </Text>
-            </LinearGradient>
+              {method ? `Support via ${method.label}` : 'Choose a method'}
+            </Text>
           </Pressable>
         </View>
       </KeyboardAvoidingForm>
