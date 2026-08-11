@@ -4,7 +4,7 @@ import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
-import { ChevronLeft, Check, Heart } from 'lucide-react-native';
+import { ChevronLeft, Check, Heart, Wallet } from 'lucide-react-native';
 import tw from '../lib/tw';
 import KeyboardAvoidingForm from './KeyboardAvoidingForm';
 import { tapSelection } from '../lib/haptics';
@@ -12,7 +12,7 @@ import heroBg from '../../assets/support/hero-bg.json';
 import HeroLottieCard, { textOutline } from './HeroLottieCard';
 import WavingHand from './WavingHand';
 import tipBg from '../../assets/support/tip-bg.json';
-import { PayPalIcon, GCashIcon, GoTymeIcon } from './icons';
+import { PayPalIcon } from './icons';
 
 const CYAN = '#22d3ee';
 const ctaGlow = {
@@ -24,14 +24,8 @@ const ctaGlow = {
 };
 
 export type SupportMethod =
-  | {
-      id: string;
-      label: string;
-      kind: 'qr';
-      source: number;
-      amountQrs?: Record<number, number>;
-    }
-  | { id: string; label: string; kind: 'paypal'; url: string };
+  | { id: string; label: string; kind: 'paypal'; url: string }
+  | { id: string; label: string; kind: 'paymongo' };
 
 type Tip = { amount: number; note: string };
 const TIPS: readonly Tip[] = [
@@ -309,34 +303,19 @@ export default function SupportPage({
                 >
                   {entry.label}
                 </Text>
-                {entry.kind === 'qr' ? (
-                  entry.id === 'gcash' ? (
+                {entry.kind === 'paymongo' ? (
+                  <View
+                    style={tw`h-[42px] w-[42px] items-center justify-center`}
+                  >
                     <View
-                      style={tw`h-[42px] w-[42px] items-center justify-center`}
+                      style={[
+                        tw`h-[35px] w-[35px] items-center justify-center rounded-full`,
+                        { backgroundColor: '#0070BA' },
+                      ]}
                     >
-                      <View
-                        style={[
-                          tw`h-[35px] w-[35px] items-center justify-center rounded-full`,
-                          { backgroundColor: '#0070BA' },
-                        ]}
-                      >
-                        <GCashIcon size={25} />
-                      </View>
+                      <Wallet size={19} color="#ffffff" strokeWidth={2.4} />
                     </View>
-                  ) : (
-                    <View
-                      style={tw`h-[42px] w-[42px] items-center justify-center`}
-                    >
-                      <View
-                        style={[
-                          tw`h-[35px] w-[35px] items-center justify-center rounded-full`,
-                          { backgroundColor: '#0070BA' },
-                        ]}
-                      >
-                        <GoTymeIcon size={24} />
-                      </View>
-                    </View>
-                  )
+                  </View>
                 ) : (
                   <PayPalIcon size={42} />
                 )}

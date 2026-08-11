@@ -16,7 +16,6 @@ import {
   StyleSheet,
   Linking,
   AppState,
-  BackHandler,
   StatusBar,
   Dimensions,
   useWindowDimensions,
@@ -25,8 +24,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  runOnJS,
-  Easing,
 } from 'react-native-reanimated';
 import { ChevronRight, Check, Ghost } from 'lucide-react-native';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
@@ -34,28 +31,19 @@ import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
 import BottomSheet from '../components/sheets/BottomSheet';
 import ShareAppSheet from '../components/sheets/ShareAppSheet';
-import QrView from '../components/QrView';
-import { buildGotymeQr, buildGcashQr } from '../lib/qrph';
 import AvatarPicker from '../components/AvatarPicker';
 import Avatar from '../components/Avatar';
 import ThemeSwitch from '../components/ThemeSwitch';
 import switchTheme from 'react-native-theme-switch-animation';
 import SupportPage, { type SupportMethod } from '../components/SupportPage';
+import PayMongoCheckoutModal, {
+  type CheckoutResult,
+} from '../components/PayMongoCheckoutModal';
 import SupportCarousel from '../components/SupportCarousel';
 import Card from '../components/Card';
 import AccountPanel, { AccountSkeleton } from '../components/AccountPanel';
 import LottieView from 'lottie-react-native';
 import filenameAnim from '../../assets/filename.json';
-import gcashQr from '../../assets/support/gcash-qr.png';
-import gotymeQr from '../../assets/support/gotyme-qr.png';
-import gotyme50 from '../../assets/support/gotyme-50.webp';
-import gotyme100 from '../../assets/support/gotyme-100.webp';
-import gotyme250 from '../../assets/support/gotyme-250.webp';
-import gotyme500 from '../../assets/support/gotyme-500.webp';
-import gcash50 from '../../assets/support/gcash-50.webp';
-import gcash100 from '../../assets/support/gcash-100.webp';
-import gcash250 from '../../assets/support/gcash-250.webp';
-import gcash500 from '../../assets/support/gcash-500.webp';
 import {
   FolderIcon,
   FileIcon,
@@ -138,17 +126,8 @@ const buttonGlow = {
 const SUPPORT_METHODS: readonly SupportMethod[] = [
   {
     id: 'gcash',
-    label: 'GCash',
-    kind: 'qr',
-    source: gcashQr,
-    amountQrs: { 50: gcash50, 100: gcash100, 250: gcash250, 500: gcash500 },
-  },
-  {
-    id: 'gotyme',
-    label: 'GoTyme',
-    kind: 'qr',
-    source: gotymeQr,
-    amountQrs: { 50: gotyme50, 100: gotyme100, 250: gotyme250, 500: gotyme500 },
+    label: 'E-Wallet & QR Ph',
+    kind: 'paymongo',
   },
   {
     id: 'paypal',
@@ -157,11 +136,6 @@ const SUPPORT_METHODS: readonly SupportMethod[] = [
     url: 'https://www.paypal.me/christson021',
   },
 ];
-
-const QR_BUILDERS: Record<string, (amount: number) => string> = {
-  gcash: buildGcashQr,
-  gotyme: buildGotymeQr,
-};
 
 const FORMAT_ORDER: FilenameFormat[] = [
   'artist-title',
@@ -604,6 +578,8 @@ function SettingsScreen({
   const [nameError, setNameError] = useState<string | null>(null);
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState<number | null>(null);
 
   // sub-screen hooks cut animation boilerplate
   const accountScreen = useSubScreen(visible);
@@ -611,42 +587,8 @@ function SettingsScreen({
   const supportScreen = useSubScreen(visible);
 
   // qr slide-up vs slide-right
-  const [qr, setQr] = useState<{
-    source?: number;
-    value?: string;
-    label: string;
-    note?: string;
-  } | null>(null);
-  const [qrOpen, setQrOpen] = useState(false);
-  const [qrMounted, setQrMounted] = useState(false);
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const isWide = windowWidth >= 768;
-  const qrProgress = useSharedValue(0);
-  useEffect(() => {
-    const opening = qrOpen;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mounted gates qr enter animation
-    if (opening) setQrMounted(true);
-    qrProgress.value = withTiming(
-      opening ? 1 : 0,
-      { duration: 260, easing: Easing.out(Easing.cubic) },
-      (finished) => {
-        if (finished && !opening) runOnJS(setQrMounted)(false);
-      }
-    );
-  }, [qrOpen, qrProgress]);
-  const qrStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - qrProgress.value) * windowHeight }],
-  }));
-
-  useEffect(() => {
-    if (!visible || !qrOpen) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      tapSelection();
-      setQrOpen(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [visible, qrOpen]);
 
   // reset scroll on tab exit
   useEffect(() => {
@@ -655,11 +597,10 @@ function SettingsScreen({
     accountScreen.setOpen(false);
     avatarScreen.setOpen(false);
     supportScreen.setOpen(false);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset overlays on tab exit
-    setQrOpen(false);
         setPickerOpen(false);
         setSignOutOpen(false);
         setShareOpen(false);
+        setPayOpen(false);
   }, [visible, accountScreen, avatarScreen, supportScreen]);
 
   useEffect(() => {
@@ -835,34 +776,17 @@ animationConfig: {
     supportScreen.setOpen(true);
   };
 
-  const openQr = (source: number, label: string, note?: string) => {
-    tapSelection();
-    setQr({ source, label, note });
-    setQrOpen(true);
-  };
-
   const paySupport = (method: SupportMethod, amount: number | null) => {
-    if (method.kind === 'paypal') {
+    if (method.kind === 'paymongo') {
+      if (amount == null) return;
       tapSelection();
-      const url = amount ? `${method.url}/${amount}PHP` : method.url;
-      Linking.openURL(url).catch(() => undefined);
+      setPayAmount(amount);
+      setPayOpen(true);
       return;
     }
-    const note = amount
-      ? `Scan in ${method.label} to send ₱${amount}. Thank you for the support!`
-      : undefined;
-    // amount w/o preset card -> generate QR Ph dynamically
-    const build = QR_BUILDERS[method.id];
-    if (build && amount != null && method.amountQrs?.[amount] == null) {
-      tapSelection();
-      setQr({ value: build(amount), label: method.label, note });
-      setQrOpen(true);
-      return;
-    }
-    const source =
-      (amount != null ? method.amountQrs?.[amount] : undefined) ??
-      method.source;
-    openQr(source, method.label, note);
+    tapSelection();
+    const url = amount ? `${method.url}/${amount}PHP` : method.url;
+    Linking.openURL(url).catch(() => undefined);
   };
 
   const openAvatarPicker = () => {
@@ -1391,26 +1315,15 @@ animationConfig: {
         <ShareAppSheet />
       </BottomSheet>
 
-      <Animated.View
-        pointerEvents={qrOpen ? 'auto' : 'none'}
-        style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }, qrStyle]}
-      >
-        {qrMounted && qr ? (
-          <QrView
-            source={qr.source}
-            value={qr.value}
-            label={qr.label}
-            note={
-              qr.note ??
-              `Scan this in your ${qr.label} app to send a tip. Thank you for the support!`
-            }
-            onClose={() => {
-              tapSelection();
-              setQrOpen(false);
-            }}
-          />
-        ) : null}
-      </Animated.View>
+      {payOpen && payAmount != null ? (
+        <PayMongoCheckoutModal
+          amount={payAmount}
+          onExit={(result: CheckoutResult) => {
+            setPayOpen(false);
+            if (result === 'success') tapSuccess();
+          }}
+        />
+      ) : null}
     </View>
     </>
   );
