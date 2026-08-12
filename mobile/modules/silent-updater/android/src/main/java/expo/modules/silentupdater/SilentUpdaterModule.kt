@@ -10,8 +10,13 @@ import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 
 class SilentUpdaterModule : Module() {
+
+  private val context: Context
+    get() = requireNotNull(appContext.reactContext) { "react context lost" }
 
   override fun definition() = ModuleDefinition {
     Name("SilentUpdater")
@@ -60,8 +65,10 @@ class SilentUpdaterModule : Module() {
     val session = installer.openSession(sessionId)
     try {
       val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-      file.inputStream().use { input ->
-        session.openWrite("phantom.apk", 0, file.length()).use { output ->
+      val input: InputStream = file.inputStream()
+      input.use {
+        val output: OutputStream = session.openWrite("phantom.apk", 0, file.length())
+        output.use {
           while (true) {
             val read = input.read(buffer)
             if (read < 0) break
