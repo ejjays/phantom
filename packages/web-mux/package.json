@@ -46,10 +46,10 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "mediabunny": "^1.50.8"
+    "mediabunny": "^1.53.0"
   },
   "devDependencies": {
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "playwright": "^1.61.1",
     "typescript": "^5.9.3",
     "vite": "^8.1.4"
