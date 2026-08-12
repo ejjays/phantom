@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
 import { registerRootComponent } from 'expo';
-import messaging from '@react-native-firebase/messaging';
+import { getMessaging } from '@react-native-firebase/messaging';
 
 import App from './App';
 import { initCrashReporter, wrap } from './src/lib/crash';
@@ -11,12 +11,8 @@ import { displaySocialNotification } from './src/lib/social/pushRender';
 initCrashReporter();
 registerNotificationBackgroundHandler();
 
-(
-  globalThis as { RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS?: boolean }
-).RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
-
 try {
-  messaging().setBackgroundMessageHandler(async (message) => {
+  getMessaging().setBackgroundMessageHandler(async (message) => {
     await displaySocialNotification(message);
   });
 } catch {
