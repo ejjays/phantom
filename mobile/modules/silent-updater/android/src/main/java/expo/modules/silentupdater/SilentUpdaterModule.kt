@@ -66,16 +66,19 @@ class SilentUpdaterModule : Module() {
     try {
       val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
       val input: InputStream = file.inputStream()
-      input.use {
+      try {
         val output: OutputStream = session.openWrite("phantom.apk", 0, file.length())
-        output.use {
+        try {
           while (true) {
             val read = input.read(buffer)
             if (read < 0) break
             output.write(buffer, 0, read)
           }
-          output.fsync()
+        } finally {
+          output.close()
         }
+      } finally {
+        input.close()
       }
       session.commit(sender)
     } catch (err: Throwable) {
