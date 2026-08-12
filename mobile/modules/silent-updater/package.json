@@ -1,0 +1,12 @@
+{
+  "name": "silent-updater",
+  "version": "1.0.0",
+  "description": "Self-update installer via Android PackageInstaller",
+  "main": "index.ts",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "expo-modules-core": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

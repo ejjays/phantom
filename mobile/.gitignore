@@ -4,6 +4,7 @@ dist/
 web-build/
 android/
 ios/
+!modules/silent-updater/android/
 *.log
 *.apk
 .DS_Store

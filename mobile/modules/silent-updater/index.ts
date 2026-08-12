@@ -1,0 +1,1 @@
+export { installApk, hasInstallPermission, openInstallPermissionSettings } from './src/SilentUpdater';
