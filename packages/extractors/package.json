@@ -60,7 +60,7 @@
     "demo:live": "npm run build && node --experimental-strip-types examples/live-demo.ts"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.1.2",
     "typescript": "^5.9.3"
   },
   "engines": {
