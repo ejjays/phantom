@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", "group:allNonMajor", "monorepo:expo"],
+  "extends": ["config:recommended", "monorepo:expo"],
   "minimumReleaseAge": "3 days",
   "timezone": "Etc/UTC",
   "schedule": ["before 6am on monday"],
@@ -8,7 +8,14 @@
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all non-major deps",
       "automerge": true
+    },
+    {
+      "matchFileNames": ["mobile/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "mobile non-major deps",
+      "automerge": false
     },
     {
       "matchUpdateTypes": ["minor", "patch"],
