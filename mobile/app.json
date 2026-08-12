@@ -79,7 +79,9 @@
         {
           "android": {
             "foregroundService": {
-              "types": ["dataSync"]
+              "types": [
+                "dataSync"
+              ]
             }
           }
         }
@@ -108,6 +110,9 @@
         "projectId": "ec1cf54b-dee4-4847-9897-c24e8bd5eb74"
       }
     },
-    "owner": "ejjayz"
+    "owner": "ejjayz",
+    "updates": {
+      "url": "https://u.expo.dev/ec1cf54b-dee4-4847-9897-c24e8bd5eb74"
+    }
   }
 }
