@@ -24,7 +24,7 @@
     "jszip": "^3.10.1",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.577.0",
-    "mediabunny": "^1.46.0",
+    "mediabunny": "^1.53.0",
     "pitchy": "^4.1.0",
     "prop-types": "^15.8.1",
     "react": "^19.2.8",
@@ -41,7 +41,7 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@types/styled-components": "^5.1.34",
@@ -65,8 +65,8 @@
     "vitest": "^4.1.5"
   },
   "optionalDependencies": {
-    "@esbuild/android-arm64": "^0.28.0",
-    "@esbuild/linux-x64": "^0.28.0",
+    "@esbuild/android-arm64": "^0.28.2",
+    "@esbuild/linux-x64": "^0.28.2",
     "@rollup/rollup-android-arm64": "^4.60.4",
     "@rollup/rollup-linux-x64-gnu": "^4.60.3"
   }
