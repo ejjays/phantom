@@ -78,7 +78,7 @@ export function installYtProxy(): void {
     (dispatch) =>
       (
         opts: Dispatcher.DispatchOptions,
-        handler: Dispatcher.DispatchHandlers
+        handler: Dispatcher.DispatchHandler
       ): boolean =>
         YT_PROXY_HOSTS.test(originHost(opts.origin))
           ? proxy.dispatch(opts, handler)
