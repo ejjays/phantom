@@ -40,14 +40,20 @@ jobs:
               - 'web/backend/**'
               - 'web/shared/**'
               - 'packages/**'
+              - 'package.json'
+              - 'package-lock.json'
               - '.github/workflows/ci.yml'
             frontend:
               - 'web/frontend/**'
               - 'web/shared/**'
+              - 'package.json'
+              - 'package-lock.json'
               - '.github/workflows/ci.yml'
             mobile:
               - 'mobile/**'
               - 'packages/**'
+              - 'package.json'
+              - 'package-lock.json'
               - '.github/workflows/ci.yml'
 
   test-backend:
