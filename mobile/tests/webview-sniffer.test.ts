@@ -169,6 +169,29 @@ describe('pageScanToVideoInfo', () => {
     ]);
   });
 
+  it('uses element dims as the quality label', () => {
+    const withDims = {
+      url: 'https://site.example/watch',
+      title: 't',
+      videos: [
+        {
+          url: 'https://site.example/media/hd.mp4',
+          width: 1920,
+          height: 1080,
+        },
+        { url: 'https://site.example/media/master.m3u8' },
+      ],
+      images: [],
+    };
+    const info = pageScanToVideoInfo(withDims, 'site.example', false);
+    expect(info?.formats.map((format) => format.quality)).toEqual([
+      'HLS',
+      '1080p',
+    ]);
+    expect(info?.formats[1].width).toBe(1920);
+    expect(info?.formats[1].height).toBe(1080);
+  });
+
   it('builds a full info with hls first and headers', () => {
     const info = pageScanToVideoInfo(scan, 'site.example', false);
     expect(info).not.toBeNull();

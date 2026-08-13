@@ -5,15 +5,18 @@ import { PageScan, dedupeVideos, extensionOf, hashUrl } from './sniffer';
 function formatOf(video: PageScan['videos'][number], index: number): Format {
   const isHls = extensionOf(video.url) === 'm3u8';
   // pipeline saves every video as mp4 (remux or encode), so report mp4
+  const height = video.height ?? 0;
   return {
     formatId: `mp4_${index}`,
     url: video.url,
     extension: 'mp4',
-    quality: isHls ? 'HLS' : 'mp4',
+    quality: height ? `${height}p` : isHls ? 'HLS' : 'mp4',
     isVideo: true,
     isAudio: false,
     isMuxed: true,
     isHls,
+    width: video.width,
+    height: video.height,
   };
 }
 

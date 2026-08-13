@@ -2,6 +2,8 @@ export interface ScannedVideo {
   url: string;
   poster?: string;
   type?: string;
+  width?: number;
+  height?: number;
 }
 
 export interface PageScan {
@@ -70,6 +72,10 @@ export const SNIFFER_JS = `(() => {
       const item = { url };
       if (el && el.poster) item.poster = el.poster;
       if (el && el.type) item.type = el.type;
+      if (el && el.videoWidth > 0) {
+        item.width = el.videoWidth;
+        item.height = el.videoHeight;
+      }
       list.push(item);
     };
     document.querySelectorAll('video').forEach((v) => {
