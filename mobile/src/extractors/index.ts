@@ -16,6 +16,8 @@ import { getInfo as pinterestGetInfo } from './pinterest';
 import { getInfo as twitchGetInfo } from './twitch';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 import { reportError } from '../lib/crash';
+import { extractFromPage } from '../lib/webviewExtraction/host';
+import { pageScanToVideoInfo } from '../lib/webviewExtraction/normalize';
 
 export type OnPartial = (info: VideoInfo) => void;
 
@@ -111,6 +113,18 @@ function dispatch(
 const FAST_RESOLVE_DISABLED =
   process.env.EXPO_PUBLIC_DISABLE_FAST_RESOLVE === '1';
 
+// native paths are better (PO-token / audio-only): never scan their DOM
+const WEBVIEW_GUARDED = [
+  'youtube.com',
+  'youtu.be',
+  'spotify.com',
+  'soundcloud.com',
+];
+
+function webviewGuarded(host: string): boolean {
+  return WEBVIEW_GUARDED.some((domain) => matches(host, domain));
+}
+
 // benign content-state fails (private/removed/geo/login) & client network drops
 // aren't our bug — keep out of sentry so real extractor breaks stand out.
 function reportFailure(host: string, error: unknown): void {
@@ -137,16 +151,31 @@ export async function resolve(
     if (cached) return cached;
   }
 
-  let info: VideoInfo | null;
+  const partialSink = FAST_RESOLVE_DISABLED ? undefined : onPartial;
+
+  let info: VideoInfo | null = null;
+  let originalError: unknown = null;
   try {
-    info = await dispatch(
-      host,
-      url,
-      FAST_RESOLVE_DISABLED ? undefined : onPartial
-    );
+    info = await dispatch(host, url, partialSink);
   } catch (error) {
-    reportFailure(host, error);
-    throw error;
+    originalError = error;
+    if (webviewGuarded(host) || !(error instanceof ExtractorError)) {
+      reportFailure(host, error);
+      throw error;
+    }
+  }
+
+  // unknown host or typed extractor failure → generic DOM scan in hidden webview
+  if (!info && !webviewGuarded(host)) {
+    const scan = await extractFromPage(url, (scan) => {
+      const partial = pageScanToVideoInfo(scan, host, true);
+      if (partial) partialSink?.(partial);
+    });
+    info = scan ? pageScanToVideoInfo(scan, host, false) : null;
+    if (!info && originalError !== null) {
+      reportFailure(host, originalError);
+      throw originalError;
+    }
   }
 
   if (
