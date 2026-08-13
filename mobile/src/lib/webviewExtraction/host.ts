@@ -40,7 +40,7 @@ let currentScanId: number | undefined;
 let lastInjectedUrl: string | undefined;
 
 const EMPTY_SCAN_GRACE = 7_000;
-const PROBE_GRACE = 2_500;
+const PROBE_GRACE = 1_500;
 
 // players park a placeholder <video src> = page url until the stream loads
 function hasRealVideos(scan: PageScan): boolean {

@@ -404,7 +404,7 @@ describe('media request interception', () => {
       })
     );
     expect(handle.injectJavaScript).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(2_500);
+    vi.advanceTimersByTime(1_500);
     await expect(promise).resolves.toMatchObject({
       url: 'https://cdn.example/movie.mov',
       videos: [{ url: 'https://cdn.example/movie.mov' }],
