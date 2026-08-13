@@ -11,6 +11,7 @@ export interface PageScan {
   images: Array<{ url: string }>;
   cookies?: string;
   ogImage?: string;
+  isDirect?: boolean;
 }
 
 const MEDIA_RE = /\.(?:mp4|webm|m3u8|m4s|mkv|mov)(?:[?#]|$)/iu;

@@ -211,7 +211,13 @@ export function extractFromPage(
 ): Promise<PageScan | null> {
   // direct media paste: the file is the answer, no page to scan
   if (isMediaUrl(url)) {
-    const scan: PageScan = { url, title: '', videos: [{ url }], images: [] };
+    const scan: PageScan = {
+      url,
+      title: '',
+      videos: [{ url }],
+      images: [],
+      isDirect: true,
+    };
     return Promise.resolve(scan);
   }
   const existing = inflight.get(url);

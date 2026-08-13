@@ -338,6 +338,7 @@ describe('media request interception', () => {
       title: '',
       videos: [{ url: 'https://cdn.example/movie.m3u8' }],
       images: [],
+      isDirect: true,
     });
     expect(handle.navigate).not.toHaveBeenCalled();
   });

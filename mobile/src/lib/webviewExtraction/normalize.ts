@@ -23,9 +23,10 @@ export function pageScanToVideoInfo(
   host: string,
   isPartial: boolean
 ): VideoInfo | null {
-  // players park a placeholder <video src> = page url until the stream loads
+  // players park a placeholder <video> = page url until stream loads; direct
+  // media pastes are exempt (their url is the file itself)
   const videos = dedupeVideos(scan.videos).filter(
-    (video) => video.url !== scan.url
+    (video) => scan.isDirect || video.url !== scan.url
   );
   if (videos.length === 0) return null;
 

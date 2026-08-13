@@ -155,6 +155,20 @@ describe('pageScanToVideoInfo', () => {
     ]);
   });
 
+  it('keeps the file when the url is a direct media paste', () => {
+    const direct = {
+      url: 'https://cdn.example/files/flower.mp4',
+      title: '',
+      videos: [{ url: 'https://cdn.example/files/flower.mp4' }],
+      images: [],
+      isDirect: true,
+    };
+    const info = pageScanToVideoInfo(direct, 'cdn.example', false);
+    expect(info?.formats.map((format) => format.url)).toEqual([
+      'https://cdn.example/files/flower.mp4',
+    ]);
+  });
+
   it('builds a full info with hls first and headers', () => {
     const info = pageScanToVideoInfo(scan, 'site.example', false);
     expect(info).not.toBeNull();
