@@ -71,6 +71,20 @@ export async function extractFrame(src: File, out: File): Promise<boolean> {
   return false;
 }
 
+/* container swap only; fails when codecs aren't mp4-compatible (vp9/opus…) */
+export async function encodeToMp4(src: File, out: File): Promise<boolean> {
+  const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart "${fsPath(out.uri)}"`;
+  const session = await FFmpegKit.execute(cmd);
+  if (ReturnCode.isSuccess(await session.getReturnCode())) return true;
+
+  const output = await session.getOutput();
+  logWarn(
+    'mux',
+    `[encode-mp4] ffmpeg failed (${await session.getReturnCode()}): ${String(output).slice(-400)}`
+  );
+  return false;
+}
+
 /* container compatibility, not extra quality */
 export async function transcodeToMp3(src: File, out: File): Promise<boolean> {
   const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -vn -c:a libmp3lame -q:a 2 "${fsPath(out.uri)}"`;
@@ -219,7 +233,7 @@ export async function parallelHlsToMp4(
 }
 
 // remux concatenated segments -> clean mp4, no re-encode
-async function remuxToMp4(src: File, out: File): Promise<boolean> {
+export async function remuxToMp4(src: File, out: File): Promise<boolean> {
   const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -c copy -movflags +faststart "${fsPath(out.uri)}"`;
   const session = await FFmpegKit.execute(cmd);
   const code = await session.getReturnCode();

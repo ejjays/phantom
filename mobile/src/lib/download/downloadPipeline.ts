@@ -13,6 +13,8 @@ import {
   parallelHlsMuxedToMp4,
   tagAudio,
   extractFrame,
+  remuxToMp4,
+  encodeToMp4,
 } from './mux';
 import { saveToDevice } from './save';
 import { log } from '../log';
@@ -323,7 +325,7 @@ export async function runDownload({
 
   let threw: unknown;
   try {
-    const saveTarget = await fetchMedia({
+    let saveTarget = await fetchMedia({
       info,
       format,
       stem,
@@ -332,6 +334,22 @@ export async function runDownload({
       report,
       track,
     });
+
+    // every video lands as .mp4; copy when codecs allow, else re-encode
+    if (
+      format.isVideo &&
+      !format.isAudio &&
+      !saveTarget.name.toLowerCase().endsWith('.mp4')
+    ) {
+      onState({ status: 'muxing', progress: 99 });
+      const mp4 = track(new File(Paths.cache, `${stem}.mp4`));
+      const ok =
+        (await remuxToMp4(saveTarget, mp4)) || (await encodeToMp4(saveTarget, mp4));
+      if (signal.aborted) throw new Error('cancelled');
+      if (!ok) throw new Error('MP4 conversion failed');
+      await removeFile(saveTarget);
+      saveTarget = mp4;
+    }
 
     // tag audio so players show title/artist/art
     if (format.isAudio && !format.isVideo) {
@@ -356,9 +374,9 @@ export async function runDownload({
         title: inflight.title,
         author: inflight.author,
         platform: inflight.platform,
-        ext: inflight.ext,
         isAudio: inflight.isAudio,
         thumbnail: frameUri ?? inflight.thumbnail,
+        ext: saveTarget.name.split('.').pop() || inflight.ext,
         uri: saved.uri,
         savedAt: Date.now(),
       });
