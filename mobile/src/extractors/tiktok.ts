@@ -82,7 +82,7 @@ function buildVideoFormats(video: TikTokVideo): Format[] {
             : undefined,
         isMuxed: true,
         isVideo: true,
-        isAudio: false,
+        isAudio: true,
       };
     })
     .filter((format): format is Format => format !== null);
@@ -118,7 +118,7 @@ function buildVideoFormats(video: TikTokVideo): Format[] {
       acodec: 'aac',
       isMuxed: true,
       isVideo: true,
-      isAudio: false,
+      isAudio: true,
     });
   }
   return deduped;

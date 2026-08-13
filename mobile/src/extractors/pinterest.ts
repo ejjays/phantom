@@ -139,7 +139,7 @@ function buildFormats(videoList: Record<string, PinVideoEntry>): Format[] {
         vcodec: 'h264',
         acodec: 'aac',
         isVideo: true,
-        isAudio: false,
+        isAudio: true,
         isMuxed: true,
         isHls: true,
         hlsKeepAlive: true,
@@ -163,7 +163,7 @@ function buildFormats(videoList: Record<string, PinVideoEntry>): Format[] {
       vcodec: 'h264',
       acodec: 'aac',
       isVideo: true,
-      isAudio: false,
+      isAudio: true,
       isMuxed: true,
     });
   }
