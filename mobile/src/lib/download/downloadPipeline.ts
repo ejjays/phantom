@@ -12,6 +12,7 @@ import {
   parallelHlsToMp4,
   parallelHlsMuxedToMp4,
   tagAudio,
+  extractFrame,
 } from './mux';
 import { saveToDevice } from './save';
 import { log } from '../log';
@@ -340,6 +341,14 @@ export async function runDownload({
     const saved = await saveToDevice(saveTarget, (pct) =>
       onState({ status: 'saving', progress: pct })
     );
+    // paste-target media has no page art; grab a still before the temp dies
+    let frameUri: string | undefined;
+    if (saved.ok && format.isVideo && !inflight.thumbnail) {
+      const thumb = new File(Paths.cache, `${stem}.thumb.jpg`);
+      const ok = await extractFrame(saveTarget, thumb);
+      if (ok) frameUri = thumb.uri;
+      else await removeFile(thumb);
+    }
     await removeFile(saveTarget);
     if (saved.ok) {
       await addHistory({
@@ -349,7 +358,7 @@ export async function runDownload({
         platform: inflight.platform,
         ext: inflight.ext,
         isAudio: inflight.isAudio,
-        thumbnail: inflight.thumbnail,
+        thumbnail: frameUri ?? inflight.thumbnail,
         uri: saved.uri,
         savedAt: Date.now(),
       });

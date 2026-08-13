@@ -59,6 +59,18 @@ export async function demuxToM4a(src: File, out: File): Promise<boolean> {
   return false;
 }
 
+/* still frame for media without page art; retries frame 0 on seek miss */
+export async function extractFrame(src: File, out: File): Promise<boolean> {
+  const base = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}"`;
+  for (const seek of ['-ss 1', '']) {
+    const session = await FFmpegKit.execute(
+      `${base} ${seek} -frames:v 1 -q:v 3 "${fsPath(out.uri)}"`
+    );
+    if (ReturnCode.isSuccess(await session.getReturnCode())) return true;
+  }
+  return false;
+}
+
 /* container compatibility, not extra quality */
 export async function transcodeToMp3(src: File, out: File): Promise<boolean> {
   const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -vn -c:a libmp3lame -q:a 2 "${fsPath(out.uri)}"`;
