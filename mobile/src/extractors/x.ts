@@ -49,7 +49,7 @@ function buildFormats(media: XMedia): Format[] {
         tbr: variant.bitrate ? Math.round(variant.bitrate / 1000) : undefined,
         isMuxed: true,
         isVideo: true,
-        isAudio: false,
+        isAudio: true,
       };
     });
 

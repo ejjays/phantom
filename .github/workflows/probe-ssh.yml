@@ -14,7 +14,7 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           ssh -o BatchMode=yes -o ConnectTimeout=20 "$DEPLOY_USER@$DEPLOY_HOST" \
-            "hostname; date -u +%H:%M; systemctl is-active a1-hunt; grep -c 'launch attempt' ~/oracle-setup/hunt.log; echo 429:; grep -c '\"status\": 429' ~/oracle-setup/hunt.log; echo 500:; grep -c '\"status\": 500' ~/oracle-setup/hunt.log; echo success:; grep -c SUCCESS ~/oracle-setup/hunt.log; tail -n 3 ~/oracle-setup/hunt.log; sudo journalctl -u sshd --no-pager -n 5 2>/dev/null | tail -5; free -m | head -2"
+            "hostname; date -u +%H:%M; systemctl is-active a1-hunt; grep -c 'launch attempt' ~/oracle-setup/hunt.log; echo 429:; grep -c '\"status\": 429' ~/oracle-setup/hunt.log; echo 500:; grep -c '\"status\": 500' ~/oracle-setup/hunt.log; echo success:; grep -c SUCCESS ~/oracle-setup/hunt.log; echo cadence:; grep 'launch attempt' ~/oracle-setup/hunt.log | tail -n 300 | awk '{t=substr(\$1,2,5); split(t,a,\":\"); m=a[1]*60+a[2]; if(n++==0)first=m; last=m} END{d=last-first; if(d<0)d+=1440; print n\" launches over \"d\" min = \"n*60/d\" per hour\"}'; grep -E 'check .* sleep' ~/oracle-setup/hunt.log | tail -n 2; tail -n 3 ~/oracle-setup/hunt.log; sudo journalctl -u sshd --no-pager -n 5 2>/dev/null | tail -5; free -m | head -2"
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}

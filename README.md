@@ -26,6 +26,56 @@ Phantom downloads 4K+ video and audio, and breaks songs into stems + chords for 
 
 ---
 
+## Mobile App Preview
+
+<table align="center">
+  <tr>
+    <td align="center"><img src="mobile/assets/screenshots/home_screen.webp" width="150" alt="Home Screen" /></td>
+    <td align="center"><img src="mobile/assets/screenshots/video_download.webp" width="150" alt="Video Download" /></td>
+    <td align="center"><img src="mobile/assets/screenshots/audio_download.webp" width="150" alt="Audio Download" /></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="mobile/assets/screenshots/updates_feed.webp" width="150" alt="Updates Feed" /></td>
+    <td align="center"><img src="mobile/assets/screenshots/update_detail.webp" width="150" alt="Update Detail" /></td>
+    <td align="center"><img src="mobile/assets/screenshots/comments_section.webp" width="150" alt="Comments" /></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="mobile/assets/screenshots/settings_screen.webp" width="150" alt="Settings" /></td>
+    <td align="center"><img src="mobile/assets/screenshots/account_details.webp" width="150" alt="Account" /></td>
+    <td align="center"><img src="mobile/assets/screenshots/choose_avatar.webp" width="150" alt="Avatar" /></td>
+  </tr>
+</table>
+
+---
+
+## Remix Lab Preview
+
+https://github.com/user-attachments/assets/01623e43-d78d-4553-b00c-43cc2cf28c97
+
+---
+
+## Supported platforms
+
+| Platform     | Web | Mobile | Video | Audio | Images | Notes                                      |
+| ------------ | :-: | :----: | :-: | :-: | :----: | ------------------------------------------ |
+| YouTube      | ✅  |  ✅    | ✅  | ✅  | ➖      | playlists, shorts, 4K                      |
+| Spotify      | ✅  |  ✅    | ✅  | ✅  | ➖      | tracks & albums resolve via youtube search |
+| SoundCloud   | ✅  |  ✅    | ➖  | ✅  | ➖      | audio-only service                         |
+| Bilibili     | ✅  |  ✅    | ✅  | ✅  | ➖      | some videos need a cookie                  |
+| TikTok       | ✅  |  ✅    | ✅  | ✅  | ✅     | videos + photo carousels                   |
+| Instagram    | ✅  |  ✅    | ✅  | ✅  | ✅     | reels, posts, multi-image picker           |
+| Facebook     | ✅  |  ✅    | ✅  | ✅  | ✅     | public posts only                          |
+| Threads      | ✅  |  ✅    | ✅  | ✅  | ✅     |                                            |
+| X / Twitter  | ✅  |  ✅    | ✅  | ✅  | ➖     | videos & gifs only                         |
+| Bluesky      | ✅  |  ✅    | ✅  | ❌  | ➖     | hls only, no audio                        |
+| Vimeo        | ✅  |  ✅    | ✅  | ❌  | ➖     | hls only, no audio                        |
+| Dailymotion  | ❌  |  ✅    | ✅  | ❌  | ➖     | hls only, no audio                        |
+| Reddit       | ❌  |  ✅    | ✅  | ✅  | ➖     |                                            |
+| Pinterest    | ❌  |  ✅    | ✅  | ✅  | ✅     | video pins + photos                        |
+| Twitch       | ❌  |  ✅    | ✅  | ❌  | ➖     | clips, hls only                            |
+
+---
+
 ## Quick start (web)
 
 ```bash
@@ -73,34 +123,6 @@ eas build --profile development  # dev client APK
 ```
 
 Prebuilt APKs: built via EAS on GitHub Actions (`build-apk.yml`, `eas build --local`, profiles development/preview/production) and downloadable from the workflow's artifacts. Android only — iOS untested/unsupported.
-
----
-
-## Mobile App Preview
-
-<table align="center">
-  <tr>
-    <td align="center"><img src="mobile/assets/screenshots/video_download.webp" width="150" alt="Video Download" /></td>
-    <td align="center"><img src="mobile/assets/screenshots/audio_download.webp" width="150" alt="Audio Download" /></td>
-    <td align="center"><img src="mobile/assets/screenshots/download_history.webp" width="150" alt="Download History" /></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="mobile/assets/screenshots/updates_feed.webp" width="150" alt="Updates Feed" /></td>
-    <td align="center"><img src="mobile/assets/screenshots/update_detail.webp" width="150" alt="Update Detail" /></td>
-    <td align="center"><img src="mobile/assets/screenshots/comments_section.webp" width="150" alt="Comments" /></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="mobile/assets/screenshots/settings_screen.webp" width="150" alt="Settings" /></td>
-    <td align="center"><img src="mobile/assets/screenshots/account_details.webp" width="150" alt="Account" /></td>
-    <td align="center"><img src="mobile/assets/screenshots/choose_avatar.webp" width="150" alt="Avatar" /></td>
-  </tr>
-</table>
-
----
-
-## Remix Lab Preview
-
-https://github.com/user-attachments/assets/01623e43-d78d-4553-b00c-43cc2cf28c97
 
 ---
 
