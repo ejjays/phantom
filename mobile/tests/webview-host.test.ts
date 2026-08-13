@@ -28,7 +28,12 @@ import {
 const scanMessage = (url: string) =>
   JSON.stringify({
     type: 'pageScan',
-    data: { url, title: 't', videos: [{ url: `${url}/v.mp4` }], images: [] },
+    data: {
+      url,
+      title: 't',
+      videos: [{ url: `${url}/v.mp4`, width: 1280, height: 720 }],
+      images: [],
+    },
   });
 
 const makeHandle = () => ({
@@ -46,15 +51,32 @@ afterEach(() => {
 });
 
 describe('webview host', () => {
-  it('resolves a direct media url instantly without the webview', async () => {
+  it('resolves a direct media url through a metadata probe page', async () => {
     const handle = makeHandle();
     attachWebView(handle);
     const promise = extractFromPage('https://cdn.example/video.mp4');
 
+    expect(handle.navigate).toHaveBeenCalledWith(
+      expect.stringContaining('data:text/html')
+    );
+    onWebViewMessage(
+      JSON.stringify({
+        type: 'pageScan',
+        data: {
+          url: 'data:text/html;charset=utf-8,probe',
+          title: '',
+          videos: [
+            { url: 'https://cdn.example/video.mp4', width: 1280, height: 720 },
+          ],
+          images: [],
+        },
+      })
+    );
     await expect(promise).resolves.toMatchObject({
-      videos: [{ url: 'https://cdn.example/video.mp4' }],
+      url: 'https://cdn.example/video.mp4',
+      isDirect: true,
+      videos: [{ url: 'https://cdn.example/video.mp4', height: 720 }],
     });
-    expect(handle.navigate).not.toHaveBeenCalled();
   });
 
   it('loads queued urls sequentially', () => {
@@ -324,23 +346,106 @@ describe('media request interception', () => {
     ]);
   });
 
-  it('finishes immediately when the target url itself is media', async () => {
+  it('holds a direct media paste until the probe reports dims', async () => {
     const handle = makeHandle();
     attachWebView(handle);
-    // short-circuit at extractFromPage: never navigates, request event is moot
+    let settled: 'pending' | 'done' = 'pending';
     const promise = extractFromPage('https://cdn.example/movie.m3u8');
+    void promise.then(() => {
+      settled = 'done';
+    });
 
+    // probe page in flight: the target's own request must not resolve it
     onWebViewRequest('https://cdn.example/movie.m3u8');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toBe('pending');
+    expect(handle.navigate).toHaveBeenCalledWith(
+      expect.stringContaining('data:text/html')
+    );
+
+    onWebViewMessage(
+      JSON.stringify({
+        type: 'pageScan',
+        data: {
+          url: 'data:text/html;charset=utf-8,probe',
+          title: '',
+          videos: [
+            { url: 'https://cdn.example/movie.m3u8', width: 1920, height: 1080 },
+          ],
+          images: [],
+        },
+      })
+    );
     const scan = await promise;
 
     expect(scan).toEqual({
       url: 'https://cdn.example/movie.m3u8',
       title: '',
-      videos: [{ url: 'https://cdn.example/movie.m3u8' }],
+      videos: [{ url: 'https://cdn.example/movie.m3u8', height: 1080, width: 1920 }],
       images: [],
       isDirect: true,
     });
-    expect(handle.navigate).not.toHaveBeenCalled();
+  });
+
+  it('settles a direct media paste plain when metadata stays silent', async () => {
+    const handle = makeHandle();
+    attachWebView(handle);
+    const promise = extractFromPage('https://cdn.example/movie.mov');
+
+    onWebViewMessage(
+      JSON.stringify({
+        type: 'pageScan',
+        data: {
+          url: 'data:text/html;charset=utf-8,probe',
+          title: '',
+          videos: [{ url: 'https://cdn.example/movie.mov' }],
+          images: [],
+        },
+      })
+    );
+    expect(handle.injectJavaScript).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(2_500);
+    await expect(promise).resolves.toMatchObject({
+      url: 'https://cdn.example/movie.mov',
+      videos: [{ url: 'https://cdn.example/movie.mov' }],
+    });
+  });
+
+  it('probes xhr-sourced streams and upgrades dims when metadata loads', async () => {
+    const handle = makeHandle();
+    attachWebView(handle);
+    const promise = extractFromPage('https://a.com');
+
+    onWebViewMessage(
+      JSON.stringify({
+        type: 'pageScan',
+        data: {
+          url: 'https://a.com',
+          title: 't',
+          videos: [{ url: 'https://cdn.example/stream.mov' }],
+          images: [],
+        },
+      })
+    );
+    expect(handle.injectJavaScript).toHaveBeenCalledWith(
+      expect.stringContaining('__phantom_probe("https://cdn.example/stream.mov")')
+    );
+    onWebViewMessage(
+      JSON.stringify({
+        type: 'pageScan',
+        data: {
+          url: 'https://a.com',
+          title: 't',
+          videos: [
+            { url: 'https://cdn.example/stream.mov', width: 1920, height: 1080 },
+          ],
+          images: [],
+        },
+      })
+    );
+    await expect(promise).resolves.toMatchObject({
+      videos: [{ url: 'https://cdn.example/stream.mov', height: 1080 }],
+    });
   });
 
   it('ignores non-media requests', async () => {

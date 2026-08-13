@@ -111,6 +111,18 @@ export const SNIFFER_JS = `(() => {
   window.addEventListener('load', () => setTimeout(collect, 250));
   setTimeout(collect, 1500);
   setTimeout(collect, 5000);
+  // dims for streams the page fetched off-screen (xhr/tumblr) or direct pastes:
+  // play a hidden metadata-only element, browser reads headers for us
+  window.__phantom_collect = collect;
+  window.__phantom_probe = (u) => {
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.src = u;
+    v.style.display = 'none';
+    v.onloadedmetadata = () => setTimeout(collect, 300);
+    v.onerror = () => setTimeout(collect, 300);
+    document.body.appendChild(v);
+  };
   post({ type: 'ready' });
 })();`;
 
