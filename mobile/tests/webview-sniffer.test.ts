@@ -139,6 +139,22 @@ describe('pageScanToVideoInfo', () => {
     ).toBeNull();
   });
 
+  it('filters placeholder videos that echo the page url', () => {
+    const placeholder = {
+      url: 'https://site.example/watch',
+      title: 't',
+      videos: [
+        { url: 'https://site.example/watch' },
+        { url: 'https://site.example/media/hd.mp4' },
+      ],
+      images: [],
+    };
+    const info = pageScanToVideoInfo(placeholder, 'site.example', false);
+    expect(info?.formats.map((format) => format.url)).toEqual([
+      'https://site.example/media/hd.mp4',
+    ]);
+  });
+
   it('builds a full info with hls first and headers', () => {
     const info = pageScanToVideoInfo(scan, 'site.example', false);
     expect(info).not.toBeNull();
@@ -173,5 +189,21 @@ describe('pageScanToVideoInfo', () => {
       false
     );
     expect(info?.downloadHeaders?.Cookie).toBe('sid=abc123; pref=dark');
+  });
+
+  it('prefers poster, then og:image, over first image', () => {
+    const withPoster = pageScanToVideoInfo(
+      { ...scan, videos: [{ url: 'https://site.example/media/hd.mp4', poster: 'https://site.example/poster.jpg' }] },
+      'site.example',
+      false
+    );
+    expect(withPoster?.thumbnail).toBe('https://site.example/poster.jpg');
+
+    const withoutPoster = pageScanToVideoInfo(
+      { ...scan, videos: scan.videos.slice(0, 2), ogImage: 'https://site.example/og.jpg' },
+      'site.example',
+      false
+    );
+    expect(withoutPoster?.thumbnail).toBe('https://site.example/og.jpg');
   });
 });

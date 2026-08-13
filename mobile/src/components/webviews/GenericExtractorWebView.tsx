@@ -48,8 +48,7 @@ export default function GenericExtractorWebView() {
             injectJavaScript: (js) => ref.current?.injectJavaScript(js),
           })
         }
-        onLoadEnd={onWebViewPageEnded}
-        onNavigationStateChange={onWebViewPageEnded}
+        onNavigationStateChange={({ url }) => onWebViewPageEnded(url)}
         onShouldStartLoadWithRequest={(request) => {
           onWebViewRequest(request.url);
           return true;

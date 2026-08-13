@@ -23,7 +23,10 @@ export function pageScanToVideoInfo(
   host: string,
   isPartial: boolean
 ): VideoInfo | null {
-  const videos = dedupeVideos(scan.videos);
+  // players park a placeholder <video src> = page url until the stream loads
+  const videos = dedupeVideos(scan.videos).filter(
+    (video) => video.url !== scan.url
+  );
   if (videos.length === 0) return null;
 
   const formats = videos
@@ -31,7 +34,9 @@ export function pageScanToVideoInfo(
     .sort((lhs, rhs) => Number(rhs.isHls) - Number(lhs.isHls));
 
   const thumbnail =
-    videos.find((video) => video.poster)?.poster ?? scan.images[0]?.url;
+    videos.find((video) => video.poster)?.poster ??
+    scan.ogImage ??
+    scan.images[0]?.url;
 
   const headers: Record<string, string> = {
     'User-Agent': DESKTOP_UA,

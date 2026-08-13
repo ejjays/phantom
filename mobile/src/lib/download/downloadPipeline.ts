@@ -131,8 +131,6 @@ async function fetchMedia({
     'User-Agent': DESKTOP_UA,
     Referer: refererFor(info.extractorKey),
   };
-  const chunked =
-    info.extractorKey === 'youtube' || info.extractorKey === 'spotify';
 
   const fetchTo = async (
     dlUrl: string,
@@ -152,9 +150,13 @@ async function fetchMedia({
         });
       }
     };
-    if (chunked) {
+    try {
       await chunkedDownload(dlUrl, headers, dest, onProg, signal);
-    } else {
+    } catch (error) {
+      if (!(error instanceof Error && /unknown size/iu.test(error.message))) {
+        throw error;
+      }
+      // server without range support: plain single-shot download
       await File.downloadFileAsync(dlUrl, dest, {
         idempotent: true,
         headers,
