@@ -1,0 +1,26 @@
+name: Deploy Hunt
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-hunt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Push hunt.sh and restart service
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          scp -o BatchMode=yes -o ConnectTimeout=20 .github/hunt/hunt.sh \
+            "$DEPLOY_USER@$DEPLOY_HOST:~/oracle-setup/hunt.sh" && \
+          ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "bash -n ~/oracle-setup/hunt.sh && sudo systemctl restart a1-hunt && \
+             sleep 3 && systemctl is-active a1-hunt && tail -n 2 ~/oracle-setup/hunt.log"
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
