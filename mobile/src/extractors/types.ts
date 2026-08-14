@@ -46,6 +46,7 @@ export interface VideoInfo {
   isPartial: boolean;
   isIsrcMatch: boolean;
   isFullData: boolean;
+  source?: 'webview';
   metascraper?: { title?: string };
   downloadHeaders?: Record<string, string>;
   previewUrl?: string;

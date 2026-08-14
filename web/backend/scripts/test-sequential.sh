@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/data/data/com.termux/files/usr/bin/bash
 # Sequential test runner for low-memory environments (Termux)
 # Runs each test file in isolation, freeing memory between them.
 # Usage: ./scripts/test-sequential.sh [pattern]
@@ -31,14 +31,14 @@ for i in "${!FILES[@]}"; do
   printf "[%d/%d] %s ... " "$IDX" "$TOTAL" "$FILE"
 
   if NODE_ENV=test NODE_OPTIONS='--import ./scripts/termux-shim.js --max-old-space-size=384' \
-     npx vitest run "$FILE" --reporter=dot --no-coverage > /tmp/vitest-out.log 2>&1; then
+     node ../../node_modules/vitest/vitest.mjs run "$FILE" --reporter=dot --no-coverage > .vitest-out.log 2>&1; then
     echo "PASS"
     PASS=$((PASS + 1))
   else
     echo "FAIL"
     FAIL=$((FAIL + 1))
     FAILED_FILES+=("$FILE")
-    tail -20 /tmp/vitest-out.log
+    tail -20 .vitest-out.log
   fi
 
   # let the OS reclaim memory between runs

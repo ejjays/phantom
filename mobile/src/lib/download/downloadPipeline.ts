@@ -12,6 +12,9 @@ import {
   parallelHlsToMp4,
   parallelHlsMuxedToMp4,
   tagAudio,
+  extractFrame,
+  remuxToMp4,
+  encodeToMp4,
 } from './mux';
 import { saveToDevice } from './save';
 import { log } from '../log';
@@ -131,8 +134,6 @@ async function fetchMedia({
     'User-Agent': DESKTOP_UA,
     Referer: refererFor(info.extractorKey),
   };
-  const chunked =
-    info.extractorKey === 'youtube' || info.extractorKey === 'spotify';
 
   const fetchTo = async (
     dlUrl: string,
@@ -152,9 +153,13 @@ async function fetchMedia({
         });
       }
     };
-    if (chunked) {
+    try {
       await chunkedDownload(dlUrl, headers, dest, onProg, signal);
-    } else {
+    } catch (error) {
+      if (!(error instanceof Error && /unknown size/iu.test(error.message))) {
+        throw error;
+      }
+      // server without range support: plain single-shot download
       await File.downloadFileAsync(dlUrl, dest, {
         idempotent: true,
         headers,
@@ -320,7 +325,7 @@ export async function runDownload({
 
   let threw: unknown;
   try {
-    const saveTarget = await fetchMedia({
+    let saveTarget = await fetchMedia({
       info,
       format,
       stem,
@@ -330,6 +335,22 @@ export async function runDownload({
       track,
     });
 
+    // every video lands as .mp4; copy when codecs allow, else re-encode
+    if (
+      format.isVideo &&
+      !format.isAudio &&
+      !saveTarget.name.toLowerCase().endsWith('.mp4')
+    ) {
+      onState({ status: 'muxing', progress: 99 });
+      const mp4 = track(new File(Paths.cache, `${stem}.mp4`));
+      const ok =
+        (await remuxToMp4(saveTarget, mp4)) || (await encodeToMp4(saveTarget, mp4));
+      if (signal.aborted) throw new Error('cancelled');
+      if (!ok) throw new Error('MP4 conversion failed');
+      await removeFile(saveTarget);
+      saveTarget = mp4;
+    }
+
     // tag audio so players show title/artist/art
     if (format.isAudio && !format.isVideo) {
       await tagAudioInPlace(saveTarget, stem, info, tag, track);
@@ -338,6 +359,14 @@ export async function runDownload({
     const saved = await saveToDevice(saveTarget, (pct) =>
       onState({ status: 'saving', progress: pct })
     );
+    // paste-target media has no page art; grab a still before the temp dies
+    let frameUri: string | undefined;
+    if (saved.ok && format.isVideo && !inflight.thumbnail) {
+      const thumb = new File(Paths.cache, `${stem}.thumb.jpg`);
+      const ok = await extractFrame(saveTarget, thumb);
+      if (ok) frameUri = thumb.uri;
+      else await removeFile(thumb);
+    }
     await removeFile(saveTarget);
     if (saved.ok) {
       await addHistory({
@@ -345,9 +374,9 @@ export async function runDownload({
         title: inflight.title,
         author: inflight.author,
         platform: inflight.platform,
-        ext: inflight.ext,
         isAudio: inflight.isAudio,
-        thumbnail: inflight.thumbnail,
+        thumbnail: frameUri ?? inflight.thumbnail,
+        ext: saveTarget.name.split('.').pop() || inflight.ext,
         uri: saved.uri,
         savedAt: Date.now(),
       });
