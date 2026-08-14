@@ -5,10 +5,169 @@ import {
   extensionOf,
   dedupeVideos,
   hashUrl,
+  hlsVideosOf,
+  parseHlsMessage,
   parseWebViewMessage,
+  SNIFFER_JS,
+  MEDIA_JUNK_RE,
+  MEDIA_WIDE_RE,
 } from '../src/lib/webviewExtraction/sniffer';
 import { pageScanToVideoInfo } from '../src/lib/webviewExtraction/normalize';
 import { DESKTOP_UA } from '../src/lib/userAgents';
+
+describe('SNIFFER_JS page code', () => {
+  it('is syntactically valid when interpolated', () => {
+    // evaluating our own injected script string is the point of the test
+    // eslint-disable-next-line sonarjs/code-eval
+    expect(() => new Function(SNIFFER_JS)).not.toThrow();
+  });
+
+  it('keeps scanning until the page dies, not a fixed window', () => {
+    expect(SNIFFER_JS).toContain('setInterval(collect, 1200)');
+    expect(SNIFFER_JS).toContain('setTimeout(() => clearInterval(timer), 30000)');
+  });
+
+  it('walks same-origin frames, harvests embedded media, and filters failed probes', () => {
+    expect(SNIFFER_JS).toContain('window.frames');
+    expect(SNIFFER_JS).toContain('__phantom_failed_probes');
+    expect(SNIFFER_JS).toContain('og:video');
+    expect(SNIFFER_JS).toContain('outerHTML');
+    expect(SNIFFER_JS).not.toContain('m4s');
+  });
+
+  it('embeds the hls manifest parser and the in-page fetcher', () => {
+    expect(SNIFFER_JS).toContain('__phantom_hls');
+    expect(SNIFFER_JS).toContain('hlsVideosOf');
+    expect(SNIFFER_JS).toContain('EXT-X-STREAM-INF');
+    expect(SNIFFER_JS).toContain('xhr.timeout = 8000');
+  });
+});
+
+const MASTER = `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-STREAM-INF:BANDWIDTH=2800000,RESOLUTION=1920x1080,CODECS="avc1.640028"
+https://cdn.example/hls/1080/index.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=1280000,RESOLUTION=1280x720
+720/index.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=640000,RESOLUTION=854x480
+480/index.m3u8`;
+
+describe('hlsVideosOf', () => {
+  it('parses master playlist variants with resolutions', () => {
+    const videos = hlsVideosOf(MASTER, 'https://cdn.example/hls/master.m3u8');
+    expect(videos).toEqual([
+      { url: 'https://cdn.example/hls/1080/index.m3u8', type: 'm3u8', width: 1920, height: 1080 },
+      { url: 'https://cdn.example/hls/720/index.m3u8', type: 'm3u8', width: 1280, height: 720 },
+      { url: 'https://cdn.example/hls/480/index.m3u8', type: 'm3u8', width: 854, height: 480 },
+    ]);
+  });
+
+  it('resolves relative variant uris against the manifest url', () => {
+    const videos = hlsVideosOf(MASTER, 'https://cdn.example/hls/master.m3u8');
+    expect(videos.map((v) => v.url)).toEqual([
+      'https://cdn.example/hls/1080/index.m3u8',
+      'https://cdn.example/hls/720/index.m3u8',
+      'https://cdn.example/hls/480/index.m3u8',
+    ]);
+  });
+
+  it('reports a media playlist itself as the stream', () => {
+    const media = `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:6
+#EXTINF:6.0,
+https://cdn.example/hls/seg-0.ts
+#EXTINF:6.0,
+https://cdn.example/hls/seg-1.ts`;
+    expect(hlsVideosOf(media, 'https://cdn.example/hls/stream.m3u8')).toEqual([
+      { url: 'https://cdn.example/hls/stream.m3u8', type: 'm3u8' },
+    ]);
+  });
+
+  it.each([
+    ['not a playlist', 'https://cdn.example/hls/master.m3u8'],
+    ['<html>404 page</html>', 'https://cdn.example/hls/master.m3u8'],
+    ['', 'https://cdn.example/hls/master.m3u8'],
+  ])('rejects %s', (text, base) => {
+    expect(hlsVideosOf(text, base)).toEqual([]);
+  });
+
+  it('skips non-http variant uris', () => {
+    const blobMaster = `#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=2800000,RESOLUTION=1920x1080
+blob:https://cdn.example/uuid`;
+    expect(hlsVideosOf(blobMaster, 'https://cdn.example/hls/master.m3u8')).toEqual([]);
+  });
+
+  it('is case-insensitive on the playlist header and resolution', () => {
+    const lower = MASTER.replace('#EXTM3U', '#extm3u').replace(
+      'RESOLUTION=1920x1080',
+      'resolution=1920x1080'
+    );
+    expect(hlsVideosOf(lower, 'https://cdn.example/hls/master.m3u8')[0]).toMatchObject({
+      width: 1920,
+      height: 1080,
+    });
+  });
+});
+
+describe('parseHlsMessage', () => {
+  it('parses an hls result message', () => {
+    const raw = JSON.stringify({
+      type: 'hls',
+      data: {
+        url: 'https://cdn.example/hls/master.m3u8',
+        videos: [{ url: 'https://cdn.example/hls/1080/index.m3u8', type: 'm3u8' }],
+      },
+    });
+    expect(parseHlsMessage(raw)).toEqual({
+      url: 'https://cdn.example/hls/master.m3u8',
+      videos: [{ url: 'https://cdn.example/hls/1080/index.m3u8', type: 'm3u8' }],
+    });
+  });
+
+  it.each([
+    ['garbage', null],
+    [JSON.stringify({ type: 'pageScan' }), null],
+    [JSON.stringify({ type: 'hls' }), null],
+    [JSON.stringify({ type: 'hls', data: { url: 'u' } }), null],
+    [JSON.stringify({ type: 'hls', data: { url: '', videos: [] } }), null],
+  ])('%s → null', (input, expected) => {
+    expect(parseHlsMessage(input)).toBe(expected);
+  });
+});
+
+describe('MEDIA_JUNK_RE', () => {
+  it.each([
+    ['https://st-ok.cdn-vk.ru/res/js/MediaTopic_Hook_m78pne85.js', true],
+    ['https://st-ok.cdn-vk.ru/res/js/VideoChatPush_oe5i85ep.js', true],
+    ['https://c.example/style.css?v=2', true],
+    ['https://c.example/thumb.png', true],
+    ['https://c.example/font.woff2', true],
+    ['https://c.example/state.json', true],
+    ['https://c.example/video.mp4', false],
+    ['https://c.example/stream.m3u8?q=1', false],
+    ['https://c.example/page.html', true],
+  ])('%s → %s', (url, expected) => {
+    expect(MEDIA_JUNK_RE.test(url)).toBe(expected);
+  });
+});
+
+describe('MEDIA_WIDE_RE', () => {
+  it.each([
+    ['https://ok.ru/video/12345', true],
+    ['https://vu.odnoklassniki.ru/getmp4/abc/xyz', true],
+    ['https://cdn.example/manifest.mpd', true],
+    ['https://cdn.example/seg-1.ts', true],
+    ['https://c.example/movie.mov', false],
+    ['https://st-ok.cdn-vk.ru/res/js/MediaTopic_Hook.js', false],
+    ['https://st-ok.cdn-vk.ru/res/js/VideoChatPush.js', false],
+    ['https://st-ok.cdn-vk.ru/res/js/MediascopeTracker.js', false],
+    ['https://c.example/mediathumb.png', false],
+  ])('%s → %s', (url, expected) => {
+    expect(MEDIA_WIDE_RE.test(url)).toBe(expected);
+  });
+});
 
 describe('isMediaUrl', () => {
   it.each([

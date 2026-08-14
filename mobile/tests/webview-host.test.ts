@@ -156,18 +156,45 @@ it('injects the sniffer once per page url', () => {
     await expect(promise).resolves.toMatchObject({ url: 'https://a.com' });
   });
 
-  it('settles empty as null after the grace period', async () => {
+  it('settles null once scans stay idle past the patience floor', async () => {
     const handle = makeHandle();
     attachWebView(handle);
     const promise = extractFromPage('https://a.com');
+    const empty = JSON.stringify({
+      type: 'pageScan',
+      data: { url: 'https://a.com', title: 't', videos: [], images: [] },
+    });
 
-    onWebViewMessage(
-      JSON.stringify({
-        type: 'pageScan',
-        data: { url: 'https://a.com', title: 't', videos: [], images: [] },
-      })
-    );
+    onWebViewMessage(empty);
+    onWebViewMessage(empty);
+    onWebViewMessage(empty);
+    vi.advanceTimersByTime(8_000);
+    onWebViewMessage(empty);
+    await expect(promise).resolves.toBeNull();
+  });
+
+  it('holds empty scans until the patience floor even when idle', async () => {
+    const handle = makeHandle();
+    attachWebView(handle);
+    let settled: 'pending' | 'done' = 'pending';
+    const promise = extractFromPage('https://a.com');
+    void promise.then(() => {
+      settled = 'done';
+    });
+    const empty = JSON.stringify({
+      type: 'pageScan',
+      data: { url: 'https://a.com', title: 't', videos: [], images: [] },
+    });
+
+    onWebViewMessage(empty);
+    onWebViewMessage(empty);
+    onWebViewMessage(empty);
     vi.advanceTimersByTime(7_000);
+    onWebViewMessage(empty);
+    expect(settled).toBe('pending');
+
+    vi.advanceTimersByTime(2_000);
+    onWebViewMessage(empty);
     await expect(promise).resolves.toBeNull();
   });
 
@@ -232,21 +259,103 @@ it('injects the sniffer once per page url', () => {
     });
   });
 
-  it('settles captured media requests even when scans stay empty', async () => {
+  it('settles captured media requests when scans go idle', async () => {
+    const handle = makeHandle();
+    attachWebView(handle);
+    const promise = extractFromPage('https://a.com');
+    const empty = JSON.stringify({
+      type: 'pageScan',
+      data: { url: 'https://a.com', title: 't', videos: [], images: [] },
+    });
+
+    onWebViewRequest('https://cdn.example/live/stream.m3u8');
+    onWebViewMessage(empty);
+    onWebViewMessage(empty);
+    onWebViewMessage(empty);
+    vi.advanceTimersByTime(8_000);
+    onWebViewMessage(empty);
+    await expect(promise).resolves.toMatchObject({
+      videos: [{ url: 'https://cdn.example/live/stream.m3u8' }],
+    });
+  });
+
+  it('probes wide candidates in capped batches', async () => {
+    const handle = makeHandle();
+    attachWebView(handle);
+    const promise = extractFromPage('https://a.com');
+    const scan = (dims: Record<string, [number, number]>) =>
+      JSON.stringify({
+        type: 'pageScan',
+        data: {
+          url: 'https://a.com',
+          title: 't',
+          videos: ['u1', 'u2', 'u3', 'u4', 'u5', 'u6'].map((id) => {
+            const d = dims[id];
+            return d
+              ? { url: `https://c.example/${id}.mp4`, width: d[0], height: d[1] }
+              : { url: `https://c.example/${id}.mp4` };
+          }),
+          images: [],
+        },
+      });
+    const probeCalls = () =>
+      handle.injectJavaScript.mock.calls.filter((call) =>
+        String(call[0]).includes('__phantom_probe')
+      );
+
+    onWebViewMessage(scan({}));
+    expect(probeCalls()).toHaveLength(4);
+
+    onWebViewMessage(
+      scan({ u1: [1920, 1080], u2: [1920, 1080], u3: [1920, 1080], u4: [1920, 1080] })
+    );
+    expect(probeCalls()).toHaveLength(6);
+
+    onWebViewMessage(
+      scan({
+        u1: [1920, 1080],
+        u2: [1920, 1080],
+        u3: [1920, 1080],
+        u4: [1920, 1080],
+        u5: [1920, 1080],
+        u6: [1920, 1080],
+      })
+    );
+    await expect(promise).resolves.toMatchObject({
+      videos: [
+        { url: 'https://c.example/u1.mp4', height: 1080 },
+        { url: 'https://c.example/u2.mp4' },
+        { url: 'https://c.example/u3.mp4' },
+        { url: 'https://c.example/u4.mp4' },
+        { url: 'https://c.example/u5.mp4' },
+        { url: 'https://c.example/u6.mp4' },
+      ],
+    });
+  });
+
+  it('settles with the freshest scan when probes stay silent', async () => {
     const handle = makeHandle();
     attachWebView(handle);
     const promise = extractFromPage('https://a.com');
 
-    onWebViewRequest('https://cdn.example/live/stream.m3u8');
     onWebViewMessage(
       JSON.stringify({
         type: 'pageScan',
-        data: { url: 'https://a.com', title: 't', videos: [], images: [] },
+        data: {
+          url: 'https://a.com',
+          title: 't',
+          videos: [{ url: 'https://c.example/u1.mp4' }],
+          images: [],
+        },
       })
     );
-    vi.advanceTimersByTime(7_000);
+    expect(handle.injectJavaScript).toHaveBeenCalledWith(
+      expect.stringContaining('__phantom_probe("https://c.example/u1.mp4")')
+    );
+
+    vi.advanceTimersByTime(1_500);
     await expect(promise).resolves.toMatchObject({
-      videos: [{ url: 'https://cdn.example/live/stream.m3u8' }],
+      videos: [{ url: 'https://c.example/u1.mp4' }],
     });
   });
 
@@ -327,6 +436,123 @@ it('injects the sniffer once per page url', () => {
     detachWebView();
     await expect(first).resolves.toBeNull();
     await expect(second).resolves.toBeNull();
+  });
+});
+
+describe('hls manifest probing', () => {
+  const hlsScan = () =>
+    JSON.stringify({
+      type: 'pageScan',
+      data: {
+        url: 'https://a.com',
+        title: 't',
+        videos: [{ url: 'https://cdn.example/hls/master.m3u8' }],
+        images: [],
+      },
+    });
+  const hlsResult = (videos: object[]) =>
+    JSON.stringify({
+      type: 'hls',
+      data: { url: 'https://cdn.example/hls/master.m3u8', videos },
+    });
+  const variants = [
+    {
+      url: 'https://cdn.example/hls/1080/index.m3u8',
+      type: 'm3u8',
+      width: 1920,
+      height: 1080,
+    },
+    { url: 'https://cdn.example/hls/720/index.m3u8', type: 'm3u8', width: 1280, height: 720 },
+  ];
+  const hlsCalls = (handle: ReturnType<typeof makeHandle>) =>
+    handle.injectJavaScript.mock.calls.filter((call) =>
+      String(call[0]).includes('__phantom_hls')
+    );
+
+  it('fetches m3u8 manifests via __phantom_hls, not the video probe', async () => {
+    const handle = makeHandle();
+    attachWebView(handle);
+    const promise = extractFromPage('https://a.com');
+
+    onWebViewMessage(hlsScan());
+    expect(hlsCalls(handle)).toHaveLength(1);
+    expect(handle.injectJavaScript).not.toHaveBeenCalledWith(
+      expect.stringContaining('__phantom_probe')
+    );
+
+    onWebViewMessage(hlsResult(variants));
+    vi.advanceTimersByTime(1_500);
+    await expect(promise).resolves.toMatchObject({
+      url: 'https://a.com',
+      videos: [
+        { url: 'https://cdn.example/hls/1080/index.m3u8', height: 1080 },
+        { url: 'https://cdn.example/hls/720/index.m3u8', height: 720 },
+        { url: 'https://cdn.example/hls/master.m3u8' },
+      ],
+    });
+  });
+
+  it('holds the settle while manifest fetches are in flight', async () => {
+    const handle = makeHandle();
+    attachWebView(handle);
+    let settled: 'pending' | 'done' = 'pending';
+    const promise = extractFromPage('https://a.com');
+    void promise.then(() => {
+      settled = 'done';
+    });
+
+    onWebViewMessage(hlsScan());
+    expect(hlsCalls(handle)).toHaveLength(1);
+    vi.advanceTimersByTime(3_000);
+    expect(settled).toBe('pending');
+
+    onWebViewMessage(hlsResult(variants));
+    vi.advanceTimersByTime(1_500);
+    await expect(promise).resolves.toMatchObject({
+      videos: [
+        { url: 'https://cdn.example/hls/1080/index.m3u8', height: 1080 },
+        { url: 'https://cdn.example/hls/720/index.m3u8', height: 720 },
+        { url: 'https://cdn.example/hls/master.m3u8' },
+      ],
+    });
+  });
+
+  it('settles with the raw manifest when the fetch yields no variants', async () => {
+    const handle = makeHandle();
+    attachWebView(handle);
+    const promise = extractFromPage('https://a.com');
+
+    onWebViewMessage(hlsScan());
+    onWebViewMessage(hlsResult([]));
+    vi.advanceTimersByTime(1_500);
+    await expect(promise).resolves.toMatchObject({
+      videos: [{ url: 'https://cdn.example/hls/master.m3u8' }],
+    });
+  });
+
+  it('ignores stale hls results from a previous injection', async () => {
+    const handle = makeHandle();
+    attachWebView(handle);
+    let settled: 'pending' | 'done' = 'pending';
+    const promise = extractFromPage('https://a.com');
+    void promise.then(() => {
+      settled = 'done';
+    });
+
+    onWebViewMessage(hlsScan());
+    onWebViewMessage(JSON.stringify({ ...JSON.parse(hlsResult(variants)), id: 0 }));
+    vi.advanceTimersByTime(1_500);
+    expect(settled).toBe('pending');
+
+    onWebViewMessage(hlsResult(variants));
+    vi.advanceTimersByTime(1_500);
+    await expect(promise).resolves.toMatchObject({
+      videos: [
+        { url: 'https://cdn.example/hls/1080/index.m3u8', height: 1080 },
+        { url: 'https://cdn.example/hls/720/index.m3u8', height: 720 },
+        { url: 'https://cdn.example/hls/master.m3u8' },
+      ],
+    });
   });
 });
 

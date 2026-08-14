@@ -5,7 +5,9 @@ import {
   PageScan,
   ScannedVideo,
   dedupeVideos,
+  extensionOf,
   isMediaUrl,
+  parseHlsMessage,
   parseWebViewMessage,
 } from './sniffer';
 
@@ -23,6 +25,7 @@ interface Pending {
   timer: ReturnType<typeof setTimeout>;
   onScan?: (scan: PageScan) => void;
   isDirect?: boolean;
+  start: number;
 }
 
 let handle: WebViewHandle | null = null;
@@ -30,27 +33,46 @@ let active: Pending | null = null;
 const queue: Pending[] = [];
 const inflight = new Map<string, Promise<PageScan | null>>();
 let extraVideos: ScannedVideo[] = [];
-let bestScan: PageScan | null = null;
-let emptyTimer: ReturnType<typeof setTimeout> | null = null;
 let probeTimer: ReturnType<typeof setTimeout> | null = null;
 let probed: string[] = [];
-let realScan: PageScan | null = null;
+let pendingHls = 0;
+let latestScan: PageScan | null = null;
+let lastEmptyKey = '';
+let stableCount = 0;
 let scanCounter = 0;
 let currentScanId: number | undefined;
 let lastInjectedUrl: string | undefined;
 
-const EMPTY_SCAN_GRACE = 7_000;
 const PROBE_GRACE = 1_500;
+const MAX_PROBES = 4;
+const STABLE_SETTLE = 3;
+const MIN_PATIENCE = 8_000;
 
 // players park a placeholder <video src> = page url until the stream loads
 function hasRealVideos(scan: PageScan): boolean {
   return scan.videos.some((video) => video.url !== scan.url);
 }
 
-function clearEmptyTimer(): void {
-  if (emptyTimer) {
-    clearTimeout(emptyTimer);
-    emptyTimer = null;
+function isHlsUrl(url: string): boolean {
+  return extensionOf(url) === 'm3u8';
+}
+
+// m3u8 manifests get XHR-fetched + variant-parsed in-page (a <video> element
+// can't read them); everything else gets the hidden metadata video probe
+function armProbes(videos: ScannedVideo[]): void {
+  for (const video of videos) {
+    if (video.height || probed.includes(video.url)) continue;
+    probed.push(video.url);
+    if (isHlsUrl(video.url)) {
+      pendingHls += 1;
+      handle?.injectJavaScript(
+        `window.__phantom_hls(${JSON.stringify(video.url)});`
+      );
+    } else {
+      handle?.injectJavaScript(
+        `window.__phantom_probe(${JSON.stringify(video.url)});`
+      );
+    }
   }
 }
 
@@ -75,7 +97,6 @@ function finish(scan: PageScan | null): void {
   const pending = active;
   active = null;
   inflight.delete(pending.url);
-  clearEmptyTimer();
   handle?.navigate('about:blank');
   if (scan) {
     const merged = {
@@ -107,11 +128,14 @@ function pump(): void {
   const pending = queue.shift();
   if (!pending) return;
   active = pending;
+  pending.start = Date.now();
   extraVideos = [];
-  bestScan = null;
+  latestScan = null;
   lastInjectedUrl = undefined;
+  lastEmptyKey = '';
+  stableCount = 0;
   probed = [];
-  realScan = null;
+  pendingHls = 0;
   log(TAG, 'extract start', pending.url);
   handle.navigate(pending.pageUrl);
   pending.timer = setTimeout(() => {
@@ -157,6 +181,25 @@ function scanIdOf(raw: string): number | undefined {
 }
 
 export function onWebViewMessage(raw: string): void {
+  const hls = parseHlsMessage(raw);
+  if (hls) {
+    if (!active) return;
+    const id = scanIdOf(raw);
+    if (id !== undefined && id !== currentScanId) {
+      log(TAG, 'stale hls ignored', id, 'active', currentScanId);
+      return;
+    }
+    pendingHls = Math.max(0, pendingHls - 1);
+    if (!probed.includes(hls.url)) probed.push(hls.url);
+    for (const video of hls.videos) {
+      if (!extraVideos.some((existing) => existing.url === video.url)) {
+        extraVideos.push(video);
+      }
+    }
+    // settle only after every manifest fetch resolved, or variants get dropped
+    if (pendingHls === 0 && latestScan) armProbeTimer();
+    return;
+  }
   const scan = parseWebViewMessage(raw);
   if (!active || !scan) return;
   const id = scanIdOf(raw);
@@ -165,49 +208,72 @@ export function onWebViewMessage(raw: string): void {
     return;
   }
   // SPA players populate the dom long after the first scans: hold when no real
-  // media yet. one shot from the first empty scan covers every sniffer post
-  // (250ms/1.5s/5s) — the last scan is the decider.
+  // media yet, and only settle once scans go quiet past a patience floor so
+  // late-starting players still get caught
   if (hasRealVideos(scan)) {
+    latestScan = scan;
     // xhr-fetched streams have no <video> element: probe them for metadata
     // (a direct-paste probe page already probes its own target)
     const missing = active.isDirect
       ? []
-      : scan.videos.filter(
-          (video) => !video.height && !probed.includes(video.url)
-        );
+      : scan.videos
+          .filter((video) => !video.height && !probed.includes(video.url))
+          .slice(0, MAX_PROBES);
     if (missing.length > 0) {
-      realScan = scan;
-      for (const video of missing) {
-        probed.push(video.url);
-        handle?.injectJavaScript(
-          `window.__phantom_probe(${JSON.stringify(video.url)});`
-        );
-      }
-      if (!probeTimer) {
-        probeTimer = setTimeout(() => {
-          probeTimer = null;
-          log(TAG, 'probe grace elapsed, settling', active?.url);
-          if (realScan) finish(realScan);
-        }, PROBE_GRACE);
-      }
+      armProbes(missing);
+      armProbeTimer();
       return;
     }
     finish(scan);
     return;
   }
-  bestScan = scan;
-  if (!emptyTimer) {
-    emptyTimer = setTimeout(() => {
-      emptyTimer = null;
+  latestScan = scan;
+  const key = scan.videos
+    .map((video) => `${video.url}|${video.width ?? ''}|${video.height ?? ''}`)
+    .join(',');
+  if (key === lastEmptyKey) {
+    stableCount += 1;
+    if (
+      stableCount >= STABLE_SETTLE &&
+      Date.now() - active.start >= MIN_PATIENCE
+    ) {
       // captured media requests count, even when every scan was empty
-      const settled =
-        bestScan && (hasRealVideos(bestScan) || extraVideos.length > 0)
-          ? bestScan
-          : null;
-      log(TAG, 'empty scans only, settling', active?.url);
+      const settled = extraVideos.length > 0 ? scan : null;
+      log(TAG, 'idle scans, settling', active.url);
       finish(settled);
-    }, EMPTY_SCAN_GRACE);
+    }
+  } else {
+    lastEmptyKey = key;
+    stableCount = 1;
   }
+}
+
+// keep settling on the freshest scan: probes that fail drop out of later
+// scans, so draining the batch filters junk before the user sees it
+function armProbeTimer(): void {
+  if (probeTimer) return;
+  probeTimer = setTimeout(() => {
+    probeTimer = null;
+    const fresh = latestScan;
+    if (!fresh || !hasRealVideos(fresh)) {
+      finish(fresh);
+      return;
+    }
+    const next = fresh.videos
+      .filter((video) => !video.height && !probed.includes(video.url))
+      .slice(0, MAX_PROBES);
+    if (next.length > 0) {
+      armProbes(next);
+      armProbeTimer();
+      return;
+    }
+    if (pendingHls > 0) {
+      armProbeTimer();
+      return;
+    }
+    log(TAG, 'probe grace elapsed, settling', active?.url);
+    finish(fresh);
+  }, PROBE_GRACE);
 }
 
 export function onWebViewPageEnded(url: string): void {
@@ -274,6 +340,7 @@ export function extractFromPage(
       timer: setTimeout(() => {}, 0),
       onScan,
       isDirect,
+      start: Date.now(),
     };
   });
   if (!pending) throw new Error('unreachable');
