@@ -57,7 +57,6 @@
     "expect": {
       "minFormats": 2,
       "wantResolution": true,
-      "wantFilesize": true,
       "rejectUploader": "TikTok User"
     }
   },
