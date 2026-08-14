@@ -16,6 +16,7 @@
     "test:probe": "VITEST_INCLUDE_LIVE=1 VITEST_INCLUDE_PROBE=1 npx vitest run tests/live"
   },
   "dependencies": {
+    "@expo/ui": "~57.0.11",
     "@nikhil-cephei/ffmpeg-kit-react-native": "6.0.12",
     "@phantom/extractors": "0.0.1",
     "@react-native-async-storage/async-storage": "2.2.0",
