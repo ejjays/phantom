@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import * as generic from '../../src/services/extractors/generic.js';
+import { getInfo } from '../../src/services/extractors/generic.js';
 
 // live test against real pages — run: LIVE_TEST=1 npx vitest run tests/manual/generic_live.test.ts
 const RUN = process.env.LIVE_TEST === '1';
@@ -61,7 +61,7 @@ ldescribe('generic extractor (live)', () => {
     async () => {
       const url =
         'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4';
-      const info = await generic.getInfo(url, {});
+      const info = await getInfo(url, {});
       expect(info, 'direct mp4 should resolve in probeDirect').toBeTruthy();
       expect(info?.formats[0].url).toBe(url);
       await expectMediaReachable(url);
@@ -73,7 +73,7 @@ ldescribe('generic extractor (live)', () => {
     { timeout: 90_000 },
     async () => {
       const url = 'https://archive.org/details/BigBuckBunny_124';
-      const info = await generic.getInfo(url, {});
+      const info = await getInfo(url, {});
       expect(info, 'archive.org should resolve via yt-dlp generic').toBeTruthy();
       expect(info?.formats.length ?? 0).toBeGreaterThan(0);
       const video =
@@ -90,7 +90,7 @@ ldescribe('generic extractor (live)', () => {
     { timeout: 120_000 },
     async () => {
       const url = 'https://www.cbc.ca/player/play/video/9.7305466';
-      const info = await generic.getInfo(url, {});
+      const info = await getInfo(url, {});
       expect(info, 'cbc should resolve').toBeTruthy();
       expect(info?.formats.length ?? 0).toBeGreaterThan(0);
       const candidate =
