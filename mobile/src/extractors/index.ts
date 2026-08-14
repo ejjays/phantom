@@ -18,6 +18,7 @@ import { getCachedInfo, setCachedInfo } from '../lib/cache';
 import { reportError } from '../lib/crash';
 import { log } from '../lib/log';
 import { gatedFetch, mapLimit } from '../lib/net';
+import { getGenericSnifferEnabled } from '../lib/settings';
 import { extractFromPage } from '../lib/webviewExtraction/host';
 import { pageScanToVideoInfo } from '../lib/webviewExtraction/normalize';
 
@@ -192,6 +193,17 @@ export async function resolve(
       reportFailure(host, error);
       throw error;
     }
+  }
+
+  // unknown host or typed extractor failure → generic DOM scan in hidden
+  // webview; experimental, opt-in (default off): a 30s scan that usually
+  // finds nothing is worse than an instant "unsupported"
+  if (!info && !webviewGuarded(host) && !(await getGenericSnifferEnabled())) {
+    if (originalError !== null) {
+      reportFailure(host, originalError);
+      throw originalError;
+    }
+    return null;
   }
 
   // unknown host or typed extractor failure → generic DOM scan in hidden webview

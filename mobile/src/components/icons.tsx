@@ -256,6 +256,21 @@ export function HapticsIcon({ size = 24 }: IconProps) {
   );
 }
 
+export function ExperimentIcon({ size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="2 2 20 20">
+      <Path
+        fill="#a78bfa"
+        d="M9.5 2.7v5.2L4.9 16.6a2.4 2.4 0 0 0 2.1 3.4h10a2.4 2.4 0 0 0 2.1-3.4l-4.6-8.7V2.7"
+      />
+      <Path
+        fill="#f1f5f9"
+        d="M8.6 2.7h6.8M7.4 15.7h9.2"
+      />
+    </Svg>
+  );
+}
+
 export function ClearCacheIcon({ size = 24 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="123.55 132.2 777 777">

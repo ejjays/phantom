@@ -19,6 +19,7 @@ const NOTIFY_PRIMED_KEY = 'phantom.notify.primed';
 const HAPTICS_KEY = 'phantom.haptics';
 const SC_CLIENTID_KEY = 'phantom.soundcloud.clientid';
 const ONBOARDED_KEY = 'phantom.onboarded';
+const GENERIC_SNIFFER_KEY = 'phantom.genericSniffer';
 
 export async function getOnboarded(): Promise<boolean> {
   const v = await AsyncStorage.getItem(ONBOARDED_KEY).catch(() => null);
@@ -140,6 +141,18 @@ export async function setNotify(value: boolean): Promise<void> {
 export async function getNotifyPrimed(): Promise<boolean> {
   const v = await AsyncStorage.getItem(NOTIFY_PRIMED_KEY).catch(() => null);
   return v === '1';
+}
+
+// generic webview sniffer is best-effort: opt-in only, off by default
+export async function getGenericSnifferEnabled(): Promise<boolean> {
+  const v = await AsyncStorage.getItem(GENERIC_SNIFFER_KEY).catch(() => null);
+  return v === '1';
+}
+
+export async function setGenericSnifferEnabled(value: boolean): Promise<void> {
+  await AsyncStorage.setItem(GENERIC_SNIFFER_KEY, value ? '1' : '0').catch(
+    () => undefined
+  );
 }
 
 export async function setNotifyPrimed(value: boolean): Promise<void> {
