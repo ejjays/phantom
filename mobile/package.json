@@ -12,7 +12,8 @@
     "test": "npx vitest run",
     "test:live": "VITEST_INCLUDE_LIVE=1 npx vitest run tests/live",
     "lint": "bash ../scripts/lint-changed.sh",
-    "lint:all": "eslint . --cache"
+    "lint:all": "eslint . --cache",
+    "test:probe": "VITEST_INCLUDE_LIVE=1 VITEST_INCLUDE_PROBE=1 npx vitest run tests/live"
   },
   "dependencies": {
     "@nikhil-cephei/ffmpeg-kit-react-native": "6.0.12",
