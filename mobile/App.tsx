@@ -29,7 +29,6 @@ import ErrorSheet from './src/components/sheets/ErrorSheet';
 import { AppDialogProvider } from './src/components/AppDialog';
 import YouTubeExtractorWebView from './src/components/webviews/YouTubeExtractorWebView';
 import InstagramExtractorWebView from './src/components/webviews/InstagramExtractorWebView';
-import GenericExtractorWebView from './src/components/webviews/GenericExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
 import { getOnboarded, setOnboarded, getAutoPaste } from './src/lib/settings';
@@ -380,7 +379,6 @@ function AppRoot() {
               />
               <YouTubeExtractorWebView />
               <InstagramExtractorWebView />
-              <GenericExtractorWebView />
               <NotificationPermissionSheet
                 visible={notifPriming.visible}
                 onAllow={() => void notifPriming.allow()}

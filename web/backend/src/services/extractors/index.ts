@@ -26,10 +26,6 @@ import {
   getStream as thGetStream,
 } from './threads/index.js';
 import { getInfo as biGetInfo, getStream as biGetStream } from './bilibili.js';
-import {
-  getInfo as genGetInfo,
-  getStream as genGetStream,
-} from './generic.js';
 import { Extractor, ExtractorOptions, VideoInfo } from '../../types/index.js';
 import {
   fetchMetadata,
@@ -78,9 +74,30 @@ export function getInFlightJsResult(
 }
 
 const genericExtractor: Extractor = {
-  // yt-dlp generic: Pure's get_video.dat + onLoadResource in one engine
-  getInfo: genGetInfo,
-  getStream: genGetStream,
+  getInfo: async (url: string) => {
+    const meta = await fetchMetadata(url);
+    if (!meta) return null;
+    return {
+      type: 'video',
+      id: `gen_${Buffer.from(url).toString('base64').substring(0, 10)}`,
+      title: meta.title || 'Unknown Video',
+      uploader: meta.author || meta.publisher || 'Unknown',
+      thumbnail: meta.image || undefined,
+      webpageUrl: url,
+      formats: [],
+      metascraper: meta,
+      fromBrain: false,
+      isPartial: false,
+      isIsrcMatch: false,
+      isJsInfo: true,
+      isFullData: false,
+    };
+  },
+  getStream: () => {
+    throw new Error(
+      'Streaming not supported for generic URLs. Please provide a supported platform link.'
+    );
+  },
 };
 
 export function getExtractor(url: string): Extractor | null {

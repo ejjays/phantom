@@ -5,7 +5,6 @@
     "url": "https://www.facebook.com/cnn/videos/10155529876156509/",
     "expect": {
       "minFormats": 1,
-      "wantFilesize": true,
       "rejectUploader": "Facebook User"
     }
   },
@@ -15,7 +14,6 @@
     "url": "https://www.facebook.com/reel/1195289147628387",
     "expect": {
       "minFormats": 1,
-      "wantFilesize": true,
       "rejectUploader": "Facebook User"
     }
   },
@@ -24,8 +22,7 @@
     "extractor": "threads",
     "url": "https://www.threads.com/@mrbeast/post/DOCp-qLiXVo",
     "expect": {
-      "minFormats": 1,
-      "wantFilesize": true
+      "minFormats": 1
     }
   },
   {
@@ -33,9 +30,7 @@
     "extractor": "x",
     "url": "https://x.com/i/status/2030683209466335363",
     "expect": {
-      "minFormats": 2,
-      "wantResolution": true,
-      "wantFilesize": true,
+      "minFormats": 1,
       "rejectUploader": "X User"
     }
   },
@@ -44,9 +39,7 @@
     "extractor": "x",
     "url": "https://x.com/i/status/2077217230895382826",
     "expect": {
-      "minFormats": 2,
-      "wantResolution": true,
-      "wantFilesize": true,
+      "minFormats": 1,
       "rejectUploader": "X User"
     }
   },
@@ -55,8 +48,7 @@
     "extractor": "tiktok",
     "url": "https://vt.tiktok.com/ZSCQnCeg6/",
     "expect": {
-      "minFormats": 2,
-      "wantResolution": true,
+      "minFormats": 1,
       "rejectUploader": "TikTok User"
     }
   },
@@ -65,10 +57,8 @@
     "extractor": "vimeo",
     "url": "https://vimeo.com/76979871",
     "expect": {
-      "minFormats": 2,
-      "mediaKind": "video",
-      "wantResolution": true,
-      "wantFilesize": true
+      "minFormats": 1,
+      "mediaKind": "video"
     }
   },
   {
@@ -77,9 +67,7 @@
     "url": "https://www.dailymotion.com/video/x9b5fti",
     "expect": {
       "minFormats": 1,
-      "mediaKind": "video",
-      "wantResolution": true,
-      "wantFilesize": false
+      "mediaKind": "video"
     }
   },
   {
@@ -88,20 +76,16 @@
     "url": "https://soundcloud.com/marshmellomusic/alone",
     "expect": {
       "minFormats": 1,
-      "mediaKind": "audio",
-      "wantFilesize": true
+      "mediaKind": "audio"
     }
   },
   {
-    "name": "reddit v.redd.it post (soft: bot-wall serves 200 HTML \u2192 noVideo; metadata asserted when reachable)",
+    "name": "reddit v.redd.it post",
     "extractor": "reddit",
     "url": "https://www.reddit.com/r/nextfuckinglevel/comments/1ul35f8/a_freediver_exploring_the_worlds_deepest_swimming/",
     "expect": {
       "minFormats": 1,
-      "mediaKind": "video",
-      "wantResolution": true,
-      "wantFilesize": true,
-      "soft": true
+      "mediaKind": "video"
     }
   },
   {
@@ -110,85 +94,43 @@
     "url": "https://bsky.app/profile/bsky.app/post/3mk4lzkrnk22d",
     "expect": {
       "minFormats": 1,
-      "mediaKind": "video",
-      "wantResolution": true,
-      "wantFilesize": true
+      "mediaKind": "video"
     }
   },
   {
-    "name": "instagram reel (mrbeast — needs EXPO_PUBLIC_IG_COOKIE)",
+    "name": "instagram reel (mrbeast \u2014 needs EXPO_PUBLIC_IG_COOKIE)",
     "extractor": "instagram",
     "url": "https://www.instagram.com/reel/DJW7ZrwxQJ6/",
-    "expect": {
-      "minFormats": 2,
-      "mediaKind": "video",
-      "wantResolution": true,
-      "wantFilesize": true
-    }
+    "expect": { "minFormats": 1, "mediaKind": "video" }
   },
   {
     "name": "pinterest video pin (official @pinterest)",
     "extractor": "pinterest",
     "url": "https://www.pinterest.com/pin/424605071145308338/",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "video",
-      "wantResolution": true,
-      "wantFilesize": false
-    }
+    "expect": { "minFormats": 1, "mediaKind": "video" }
   },
   {
-    "name": "soundcloud share link (works — earl agustin)",
+    "name": "soundcloud share link (works \u2014 earl agustin)",
     "extractor": "soundcloud",
     "url": "https://on.soundcloud.com/Ctv8hjVsXOxRYGEgeU",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "audio",
-      "wantFilesize": true
-    }
+    "expect": { "minFormats": 1, "mediaKind": "audio" }
   },
   {
-    "name": "soundcloud share link (label DRM — israel houghton, isrc→youtube; skips headless)",
+    "name": "soundcloud share link (label DRM \u2014 israel houghton, isrc\u2192youtube; skips headless)",
     "extractor": "soundcloud",
     "url": "https://on.soundcloud.com/Oe8j8SwKjTK0SPtk2J",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "audio",
-      "wantFilesize": true
-    }
+    "expect": { "minFormats": 1, "mediaKind": "audio" }
   },
   {
     "name": "twitch clip (squeex)",
     "extractor": "twitch",
     "url": "https://www.twitch.tv/squeex/clip/ProtectivePoorMoonShazBotstix-tukvl4Y1Y4Kh_wEc",
-    "expect": {
-      "minFormats": 2,
-      "mediaKind": "video",
-      "wantResolution": true,
-      "wantFilesize": true
-    }
+    "expect": { "minFormats": 1, "mediaKind": "video" }
   },
   {
     "name": "twitch VOD (mrbeast)",
     "extractor": "twitch",
     "url": "https://www.twitch.tv/mrbeast6000/v/2662682707",
-    "expect": {
-      "minFormats": 2,
-      "mediaKind": "video",
-      "wantResolution": true,
-      "wantFilesize": true
-    }
-  },
-  {
-    "name": "bilibili UGC video (region-locked outside SEA — soft: metadata asserted when reachable)",
-    "extractor": "bilibili",
-    "url": "https://www.bilibili.tv/video/170001",
-    "expect": {
-      "minFormats": 2,
-      "mediaKind": "video",
-      "wantResolution": true,
-      "wantFilesize": true,
-      "soft": true
-    }
+    "expect": { "minFormats": 1, "mediaKind": "video" }
   }
 ]

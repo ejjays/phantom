@@ -257,7 +257,7 @@ export async function expandShortUrl(url: string): Promise<string> {
   return expanded;
 }
 
-export function runYtdlpLocal(
+function runYtdlpLocal(
   args: string[],
   signal: AbortSignal | null
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {

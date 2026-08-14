@@ -271,24 +271,6 @@ async function oembedThumb(url: string): Promise<string | undefined> {
   }
 }
 
-// old videos: config thumbs empty & oembed gone — page og:image still there
-async function ogImageThumb(url: string): Promise<string | undefined> {
-  try {
-    const res = await gatedFetch(url, {
-      headers: { 'User-Agent': DESKTOP_UA, Referer: REFERER },
-    });
-    if (!res.ok) return undefined;
-    const html = await res.text();
-    const match =
-      /<meta[^>]+(?:property|name)=["']og:image["'][^>]+content=["']([^"']+)["']/iu.exec(
-        html
-      );
-    return match?.[1]?.replace(/&amp;/gu, '&') ?? undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 async function viaConfig(
   ref: { id: string; hash?: string },
   url: string
@@ -345,7 +327,6 @@ async function viaConfig(
   const video = cfg.video;
   let thumbnail = pickThumb(video?.thumbs);
   if (!thumbnail) thumbnail = await oembedThumb(url);
-  if (!thumbnail) thumbnail = await ogImageThumb(url);
   return buildInfo(
     {
       id: String(video?.id ?? ref.id),
