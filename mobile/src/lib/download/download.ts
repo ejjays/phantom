@@ -102,7 +102,7 @@ export async function chunkedDownload(
               throw new Error(`chunked: HTTP ${res.status}`);
             return new Uint8Array(await res.arrayBuffer());
           },
-          { retries: 3, delayMs: 1500, signal }
+          { retries: 2, delayMs: 400, signal }
         );
       },
       handle,
