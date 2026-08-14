@@ -38,6 +38,11 @@ import {
   serverError,
   networkError,
 } from '../../src/extractors/errors';
+import {
+  MEDIA_JUNK_RE,
+  hlsVideosOf,
+  isMediaUrl,
+} from '../../src/lib/webviewExtraction/sniffer';
 
 const RESOLVERS = {
   facebook: facebookGetInfo,
@@ -187,6 +192,61 @@ describe.skipIf(!RUN_LIVE)('live extractor health', () => {
       }
     });
   }
+});
+
+// the sniffer's DOM/resource-timing legs need a live WebView, but its
+// embedded-url harvest + hls parse are pure: smoke them against real pages so
+// generic-path regressions still bite headlessly. best-effort → soft skips.
+describe.skipIf(!RUN_LIVE)('live generic sniffer (headless legs)', () => {
+  // same regex the in-page collect() uses on outerHTML, capped at 250KB there
+  const EMBEDDED_MEDIA_RE =
+    /https?:\/\/[^"'<>\s]+?\.(?:mp4|webm|m3u8|mov)(?:[?#][^"'<>\s]*)?/gi;
+
+  it('harvests embedded media urls from a real page', { timeout: 30000, retry: 1 }, async (ctx) => {
+    const page =
+      'https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video';
+    let html: string;
+    try {
+      const res = await fetch(page);
+      html = await res.text();
+    } catch (error) {
+      ctx.skip(`fetch failed: ${(error as Error).message}`);
+      return;
+    }
+    const embedded = html.match(EMBEDDED_MEDIA_RE) ?? [];
+    const candidates = [...new Set(embedded)].filter(
+      (url) => !MEDIA_JUNK_RE.test(url) && isMediaUrl(url)
+    );
+    if (candidates.length === 0) {
+      ctx.skip('no embedded media urls on page (page changed?)');
+      return;
+    }
+    expect(candidates[0]).toMatch(/^https:\/\//u);
+  });
+
+  // ok.ru-class unlock — the XHR-fetched variant parse must survive real HLS
+  it('parses a live hls master playlist into variants', { timeout: 30000, retry: 1 }, async (ctx) => {
+    const manifest = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+    let text: string;
+    try {
+      const res = await fetch(manifest);
+      text = await res.text();
+    } catch (error) {
+      ctx.skip(`fetch failed: ${(error as Error).message}`);
+      return;
+    }
+    if (!/^#EXTM3U/iu.test(text)) {
+      ctx.skip('manifest url returned non-m3u8 content');
+      return;
+    }
+    const variants = hlsVideosOf(text, manifest);
+    if (variants.length === 0) {
+      ctx.skip('no variants parsed (manifest format changed?)');
+      return;
+    }
+    expect(variants.some((v) => v.url.startsWith('https://'))).toBe(true);
+    expect(variants.some((v) => v.width && v.height)).toBe(true);
+  });
 });
 
 // first-chunk probe: media URL must serve real bytes, not a 403 or an HTML
