@@ -1,5 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { View, StatusBar, InteractionManager, AppState } from 'react-native';
+import {
+  View,
+  StatusBar,
+  InteractionManager,
+  AppState,
+  BackHandler,
+} from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -263,6 +269,15 @@ function AppRoot() {
       setVisited((v) => (v[next] ? v : { ...v, [next]: true }));
     }
   };
+  // back on a non-home tab returns home; home owns the exit dialog
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (tab === 'home') return false;
+      goTab('home');
+      return true;
+    });
+    return () => sub.remove();
+  }, [tab]);
   const onLayoutRoot = useCallback(() => {
     if (fontsLoaded || fontError) {
       void SplashScreen.hideAsync();
