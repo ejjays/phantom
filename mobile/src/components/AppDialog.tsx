@@ -37,7 +37,7 @@ export function useAppDialog(): DialogContextValue {
 }
 
 const dialogColors = {
-  containerColor: '#0a0a1a',
+  containerColor: '#15152c',
   titleContentColor: '#ffffff',
   textContentColor: '#cbd5e1',
 };
