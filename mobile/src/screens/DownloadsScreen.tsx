@@ -7,6 +7,7 @@ import {
   RefreshControl,
   useWindowDimensions,
   AppState,
+  StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -17,7 +18,6 @@ import {
   Play,
   FolderOpen,
   RotateCcw,
-  UndoDot,
   X,
 } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
@@ -50,6 +50,12 @@ import { PlatformLogo, type PlatformName } from '../components/logos';
 import TwinkleStars from '../components/backgrounds/TwinkleStars';
 import ShootingStars from '../components/backgrounds/ShootingStars';
 import SwipeToDelete from '../components/SwipeToDelete';
+import {
+  Host,
+  Snackbar,
+  SnackbarHost,
+  type SnackbarHostRef,
+} from '@expo/ui/jetpack-compose';
 
 type Props = {
   visible: boolean;
@@ -459,37 +465,36 @@ function DownloadsScreenInner({ visible }: Props) {
     });
   }, []);
 
-  const [undoItem, setUndoItem] = useState<{
-    item: HistoryItem;
-    index: number;
-  } | null>(null);
-  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snackbarRef = useRef<SnackbarHostRef>(null);
 
-  const clearUndo = useCallback(() => {
-    if (undoTimer.current) clearTimeout(undoTimer.current);
-    undoTimer.current = null;
-    setUndoItem(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+
+  const askUndo = useCallback(async (item: HistoryItem, index: number) => {
+    setSnackbarOpen(true);
+    try {
+      const result = await snackbarRef.current?.showSnackbar({
+        message: 'Download deleted',
+        actionLabel: 'Undo',
+        duration: 'long',
+      });
+      if (result === 'actionPerformed') {
+        tapImpact();
+        void restoreHistory(item, index);
+      }
+    } finally {
+      setSnackbarOpen(false);
+    }
   }, []);
-
-  const undoDelete = useCallback(() => {
-    tapImpact();
-    if (!undoItem) return;
-    void restoreHistory(undoItem.item, undoItem.index);
-    clearUndo();
-  }, [undoItem, clearUndo]);
 
   const onDelete = useCallback(
     (item: HistoryItem) => {
+      tapImpact();
       const index = itemsRef.current.findIndex((it) => it.id === item.id);
       void removeHistory(item.id).then(refresh);
-      if (undoTimer.current) clearTimeout(undoTimer.current);
-      setUndoItem({ item, index: Math.max(0, index) });
-      undoTimer.current = setTimeout(() => setUndoItem(null), 4000);
+      void askUndo(item, Math.max(0, index));
     },
-    [refresh]
+    [refresh, askUndo]
   );
-
-  useEffect(() => () => clearUndo(), [clearUndo]);
 
   const recheck = useCallback((list: HistoryItem[]) => {
     void Promise.all(
@@ -681,28 +686,25 @@ function DownloadsScreenInner({ visible }: Props) {
           </>
         )}
       </ScrollView>
-      {undoItem && (
-        <Animated.View
-          entering={FadeInUp.duration(200)}
-          exiting={FadeOutDown.duration(200)}
-          style={[
-            tw`absolute right-4 flex-row items-center gap-3 rounded-full border border-white/10 bg-slate-900/95 px-4 py-2.5`,
-            { bottom: 98 + insets.bottom + 12 },
-          ]}
-        >
-          <Pressable
-            onPress={undoDelete}
-            hitSlop={8}
-            style={tw`flex-row items-center gap-1.5`}
-            accessibilityLabel="Undo delete"
-          >
-            <UndoDot size={14} color="#22d3ee" strokeWidth={2.5} />
-            <Text style={tw`font-mono text-[12px] font-semibold text-cyan-400`}>
-              Undo
-            </Text>
-          </Pressable>
-        </Animated.View>
-      )}
+      <View
+        pointerEvents={snackbarOpen ? 'box-none' : 'none'}
+        style={[
+          StyleSheet.absoluteFill,
+          { justifyContent: 'flex-end', paddingBottom: 98 + insets.bottom },
+        ]}
+      >
+        <View style={{ height: 84 }}>
+          <Host style={{ flex: 1 }}>
+            <SnackbarHost ref={snackbarRef}>
+              <Snackbar
+                containerColor="#15152c"
+                contentColor="#e2e8f0"
+                actionContentColor="#22d3ee"
+              />
+            </SnackbarHost>
+          </Host>
+        </View>
+      </View>
     </View>
   );
 }
