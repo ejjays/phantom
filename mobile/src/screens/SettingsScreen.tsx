@@ -28,7 +28,7 @@ import Animated, {
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
-import { ChevronRight, Ghost } from 'lucide-react-native';
+import { ChevronRight, Check, Ghost } from 'lucide-react-native';
 import Constants from 'expo-constants';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
@@ -121,7 +121,7 @@ import { signInWithGoogle, signOutGoogle } from '../lib/social/googleAuth';
 import { AVATAR_CATEGORIES, presetMarker } from '../lib/avatars';
 import { useSubScreen } from '../hooks/useSubScreen';
 import { useAppDialog } from '../components/AppDialog';
-import FilenameFormatPanel from '../components/FilenameFormatPanel';
+import { DropdownMenu, DropdownMenuItem } from '@expo/ui/jetpack-compose';
 
 const CYAN = '#22d3ee';
 const DARK_BG = '#030014';
@@ -170,6 +170,17 @@ const QR_BUILDERS: Record<string, (amount: number) => string> = {
 };
 
 type IconType = ComponentType<{ size?: number; color?: string }>;
+
+const FORMAT_ORDER: FilenameFormat[] = [
+  'artist-title',
+  'title',
+  'title-platform',
+];
+const FORMAT_LABELS: Record<FilenameFormat, string> = {
+  'artist-title': 'Artist – Title',
+  title: 'Title only',
+  'title-platform': 'Title (platform)',
+};
 
 function Toggle({ value, light }: { value: boolean; light?: boolean }) {
   const knobStyle = useAnimatedStyle(() => ({
@@ -721,6 +732,7 @@ function SettingsScreen({
   const fadeStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
   const [format, setFormat] = useState<FilenameFormat>('artist-title');
+  const [formatMenuOpen, setFormatMenuOpen] = useState(false);
   const [autopaste, setAutopaste] = useState(false);
   const [notifs, setNotifs] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(true);
@@ -744,7 +756,6 @@ function SettingsScreen({
   const accountScreen = useSubScreen(visible);
   const avatarScreen = useSubScreen(visible);
   const supportScreen = useSubScreen(visible);
-  const filenameScreen = useSubScreen(visible);
   const { showDialog } = useAppDialog();
 
   // qr slide-up vs slide-right
@@ -792,11 +803,10 @@ function SettingsScreen({
     accountScreen.setOpen(false);
     avatarScreen.setOpen(false);
     supportScreen.setOpen(false);
-    filenameScreen.setOpen(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset overlays on tab exit
     setQrOpen(false);
         setShareOpen(false);
-  }, [visible, accountScreen, avatarScreen, supportScreen, filenameScreen]);
+  }, [visible, accountScreen, avatarScreen, supportScreen]);
 
   useEffect(() => {
         onFullScreen?.(avatarScreen.open || supportScreen.open);
@@ -922,7 +932,6 @@ animationConfig: {
     tapSelection();
     setFormat(f);
     setFilenameFormat(f).catch(() => undefined);
-    filenameScreen.setOpen(false);
   };
 
   const toggleAutopaste = (v: boolean) => {
@@ -1165,15 +1174,44 @@ animationConfig: {
         >
           {null}
         </RowShell>
-        <LinkRow
-          Icon={FileIcon}
-          label="Filename format"
-          hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
-          onPress={() => filenameScreen.setOpen(true)}
-          tile={false}
-          iconSize={26}
-          light={light}
-        />
+        <DropdownMenu
+          expanded={formatMenuOpen}
+          onDismissRequest={() => setFormatMenuOpen(false)}
+          color="#15152c"
+        >
+          <DropdownMenu.Trigger>
+            <LinkRow
+              Icon={FileIcon}
+              label="Filename format"
+              hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
+              onPress={() => setFormatMenuOpen(true)}
+              tile={false}
+              iconSize={26}
+              light={light}
+            />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Items>
+            {FORMAT_ORDER.map((f) => (
+              <DropdownMenuItem key={f} onClick={() => choose(f)}>
+                <DropdownMenuItem.Text>
+                  <Text
+                    style={[
+                      tw`font-sans-semibold text-[15px]`,
+                      { color: f === format ? '#22d3ee' : '#e2e8f0' },
+                    ]}
+                  >
+                    {FORMAT_LABELS[f]}
+                  </Text>
+                </DropdownMenuItem.Text>
+                {f === format ? (
+                  <DropdownMenuItem.TrailingIcon>
+                    <Check size={16} color="#22d3ee" strokeWidth={3} />
+                  </DropdownMenuItem.TrailingIcon>
+                ) : null}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenu.Items>
+        </DropdownMenu>
         <ToggleRow
           Icon={NotificationIcon}
           label="Download alerts"
@@ -1419,26 +1457,6 @@ animationConfig: {
             onBack={() => {
               tapSelection();
               supportScreen.setOpen(false);
-            }}
-          />
-        )}
-      </Animated.View>
-
-      <Animated.View
-        pointerEvents={filenameScreen.open ? 'auto' : 'none'}
-        style={[
-          StyleSheet.absoluteFill,
-          tw`bg-background`,
-          filenameScreen.style,
-        ]}
-      >
-        {filenameScreen.mounted && (
-          <FilenameFormatPanel
-            format={format}
-            onChoose={choose}
-            onBack={() => {
-              tapSelection();
-              filenameScreen.setOpen(false);
             }}
           />
         )}
