@@ -28,7 +28,7 @@ import Animated, {
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
-import { ChevronRight, Check, Ghost } from 'lucide-react-native';
+import { ChevronRight, Ghost } from 'lucide-react-native';
 import Constants from 'expo-constants';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
@@ -45,8 +45,6 @@ import SupportPage, { type SupportMethod } from '../components/SupportPage';
 import SupportCarousel from '../components/SupportCarousel';
 import Card from '../components/Card';
 import AccountPanel, { AccountSkeleton } from '../components/AccountPanel';
-import LottieView from 'lottie-react-native';
-import filenameAnim from '../../assets/filename.json';
 import gcashQr from '../../assets/support/gcash-qr.png';
 import gotymeQr from '../../assets/support/gotyme-qr.png';
 import gotyme50 from '../../assets/support/gotyme-50.webp';
@@ -122,6 +120,8 @@ import {
 import { signInWithGoogle, signOutGoogle } from '../lib/social/googleAuth';
 import { AVATAR_CATEGORIES, presetMarker } from '../lib/avatars';
 import { useSubScreen } from '../hooks/useSubScreen';
+import { useAppDialog } from '../components/AppDialog';
+import FilenameFormatPanel from '../components/FilenameFormatPanel';
 
 const CYAN = '#22d3ee';
 const DARK_BG = '#030014';
@@ -141,14 +141,6 @@ const PALETTE = (light: boolean) => ({
   warn: light ? '#d97706' : '#fbbf24',
   error: light ? '#dc2626' : '#f87171',
 });
-const buttonGlow = {
-  shadowColor: '#06b6d4',
-  shadowOpacity: 0.5,
-  shadowRadius: 12,
-  shadowOffset: { width: 0, height: 0 },
-  elevation: 10,
-};
-
 const SUPPORT_METHODS: readonly SupportMethod[] = [
   {
     id: 'gcash',
@@ -175,17 +167,6 @@ const SUPPORT_METHODS: readonly SupportMethod[] = [
 const QR_BUILDERS: Record<string, (amount: number) => string> = {
   gcash: buildGcashQr,
   gotyme: buildGotymeQr,
-};
-
-const FORMAT_ORDER: FilenameFormat[] = [
-  'artist-title',
-  'title',
-  'title-platform',
-];
-const FORMAT_LABELS: Record<FilenameFormat, string> = {
-  'artist-title': 'Artist – Title',
-  title: 'Title only',
-  'title-platform': 'Title (platform)',
 };
 
 type IconType = ComponentType<{ size?: number; color?: string }>;
@@ -741,7 +722,6 @@ function SettingsScreen({
 
   const [format, setFormat] = useState<FilenameFormat>('artist-title');
   const [autopaste, setAutopaste] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [notifs, setNotifs] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(true);
   const [genericSniffer, setGenericSniffer] = useState(false);
@@ -758,13 +738,14 @@ function SettingsScreen({
   const [nameValue, setNameValue] = useState('');
   const [nameBusy, setNameBusy] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
-  const [signOutOpen, setSignOutOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
 
   // sub-screen hooks cut animation boilerplate
   const accountScreen = useSubScreen(visible);
   const avatarScreen = useSubScreen(visible);
   const supportScreen = useSubScreen(visible);
+  const filenameScreen = useSubScreen(visible);
+  const { showDialog } = useAppDialog();
 
   // qr slide-up vs slide-right
   const [qr, setQr] = useState<{
@@ -811,12 +792,11 @@ function SettingsScreen({
     accountScreen.setOpen(false);
     avatarScreen.setOpen(false);
     supportScreen.setOpen(false);
+    filenameScreen.setOpen(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset overlays on tab exit
     setQrOpen(false);
-        setPickerOpen(false);
-        setSignOutOpen(false);
         setShareOpen(false);
-  }, [visible, accountScreen, avatarScreen, supportScreen]);
+  }, [visible, accountScreen, avatarScreen, supportScreen, filenameScreen]);
 
   useEffect(() => {
         onFullScreen?.(avatarScreen.open || supportScreen.open);
@@ -942,7 +922,7 @@ animationConfig: {
     tapSelection();
     setFormat(f);
     setFilenameFormat(f).catch(() => undefined);
-    setTimeout(() => setPickerOpen(false), 150);
+    filenameScreen.setOpen(false);
   };
 
   const toggleAutopaste = (v: boolean) => {
@@ -1115,7 +1095,6 @@ animationConfig: {
   };
 
   const doSignOut = async () => {
-    setSignOutOpen(false);
     accountScreen.setOpen(false);
     try {
       await signOutGoogle();
@@ -1124,6 +1103,16 @@ animationConfig: {
       setAuthError(messageOf(err));
     }
   };
+
+  const handleSignOut = useCallback(() => {
+    showDialog({
+      title: 'Log out',
+      message: 'You can sign back in anytime.',
+      confirmLabel: 'Log out',
+      destructive: true,
+      onConfirm: () => void doSignOut(),
+    });
+  }, [showDialog]);
 
   const settingsSections = (light: boolean) => (
     <>
@@ -1180,7 +1169,7 @@ animationConfig: {
           Icon={FileIcon}
           label="Filename format"
           hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
-          onPress={() => setPickerOpen(true)}
+          onPress={() => filenameScreen.setOpen(true)}
           tile={false}
           iconSize={26}
           light={light}
@@ -1391,7 +1380,7 @@ animationConfig: {
               tapSelection();
               accountScreen.setOpen(false);
             }}
-            onSignOut={() => setSignOutOpen(true)}
+            onSignOut={handleSignOut}
             onEditAvatar={openAvatarPicker}
             onLinkGoogle={() => void handleSignIn()}
           />
@@ -1435,134 +1424,25 @@ animationConfig: {
         )}
       </Animated.View>
 
-      <BottomSheet open={pickerOpen} onClose={() => setPickerOpen(false)}>
-        <View style={tw`items-center pb-1`}>
-          <LottieView
-            source={filenameAnim}
-            autoPlay
-            loop
-            style={tw`h-32 w-32`}
-          />
-          <Text
-            style={tw`mt-1 font-sans-bold text-[22px] tracking-tight text-white`}
-          >
-            Filename format
-          </Text>
-          <Text style={tw`mt-1 font-sans text-[13px] text-slate-400`}>
-            How your saved files are named
-          </Text>
-        </View>
-        <View style={tw`mt-5`}>
-          {FORMAT_ORDER.map((f, i) => {
-            const active = f === format;
-            const last = i === FORMAT_ORDER.length - 1;
-            return (
-              <Pressable
-                key={f}
-                onPress={() => choose(f)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: active }}
-                style={({ pressed }) => [
-                  tw`flex-row items-center rounded-full border px-5 py-3.5`,
-                  last ? null : tw`mb-2.5`,
-                  active
-                    ? [
-                        tw`border-primary/40`,
-                        { backgroundColor: '#22d3ee40' },
-                        buttonGlow,
-                      ]
-                    : tw`border-white/10 bg-[#131d36]`,
-                  pressed ? { transform: [{ scale: 0.985 }] } : null,
-                ]}
-              >
-                <View style={tw`flex-1`}>
-                  <View
-                    style={[
-                      tw`self-start rounded-full px-2 py-0.5`,
-                      { backgroundColor: active ? CYAN : `${CYAN}1a` },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        tw`font-sans-semibold text-[11px]`,
-                        { color: active ? '#030014' : CYAN },
-                      ]}
-                    >
-                      {FORMAT_LABELS[f]}
-                    </Text>
-                  </View>
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      tw`mt-1.5 ml-1 font-mono text-[11px]`,
-                      active ? tw`text-white/80` : tw`text-slate-400`,
-                    ]}
-                  >
-                    {formatName(f, 'Best video', 'MrBeast', 'youtube')}.mp4
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    tw`ml-3 h-6 w-6 items-center justify-center rounded-full`,
-                    active ? tw`bg-primary` : tw`border-2 border-white/20`,
-                  ]}
-                >
-                  {active ? (
-                    <Check size={14} color="#030014" strokeWidth={3} />
-                  ) : null}
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-      </BottomSheet>
-
-      <BottomSheet
-        open={signOutOpen}
-        onClose={() => setSignOutOpen(false)}
-        border="subtle"
+      <Animated.View
+        pointerEvents={filenameScreen.open ? 'auto' : 'none'}
+        style={[
+          StyleSheet.absoluteFill,
+          tw`bg-background`,
+          filenameScreen.style,
+        ]}
       >
-        <View style={tw`items-center px-2 pt-2`}>
-          <Text
-            style={tw`font-sans-bold text-[22px] tracking-tight text-white`}
-          >
-            Log out
-          </Text>
-          <Text
-            style={tw`mt-2 text-center font-sans text-[14px] leading-5 text-slate-400`}
-          >
-            You can sign back in anytime.
-          </Text>
-        </View>
-        <View style={tw`mt-7 flex-row`}>
-          <Pressable
-            onPress={() => setSignOutOpen(false)}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel sign out"
-            style={({ pressed }) => [
-              tw`flex-1 items-center rounded-full border border-white/10 bg-white/5 py-4`,
-              pressed ? { transform: [{ scale: 0.97 }] } : null,
-            ]}
-          >
-            <Text style={tw`font-sans-semibold text-[15px] text-slate-200`}>
-              Cancel
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => void doSignOut()}
-            accessibilityRole="button"
-            accessibilityLabel="Confirm log out"
-            style={({ pressed }) => [
-              tw`ml-3 flex-1 items-center rounded-full bg-red-500 py-4`,
-              pressed ? { transform: [{ scale: 0.97 }] } : null,
-            ]}
-          >
-            <Text style={tw`font-sans-bold text-[15px] text-white`}>
-              Log out
-            </Text>
-          </Pressable>
-        </View>
-      </BottomSheet>
+        {filenameScreen.mounted && (
+          <FilenameFormatPanel
+            format={format}
+            onChoose={choose}
+            onBack={() => {
+              tapSelection();
+              filenameScreen.setOpen(false);
+            }}
+          />
+        )}
+      </Animated.View>
 
       <BottomSheet open={shareOpen} onClose={() => setShareOpen(false)}>
         <ShareAppSheet />

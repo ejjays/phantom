@@ -17,6 +17,7 @@ interface DialogConfig {
   cancelLabel?: string;
   confirmLabel?: string;
   showCancel?: boolean;
+  destructive?: boolean;
   onCancel?: () => void;
   onConfirm?: () => void;
 }
@@ -103,7 +104,9 @@ export function AppDialogProvider({ children }: { children: React.ReactNode }) {
               <AlertDialog.ConfirmButton>
                 <TextButton
                   onClick={handleConfirm}
-                  colors={{ contentColor: confirmColor }}
+                  colors={{
+                    contentColor: config.destructive ? '#ef4444' : confirmColor,
+                  }}
                 >
                   <Text style={{ fontFamily: 'Rubik-SemiBold', fontSize: 15 }}>
                     {config.confirmLabel}
