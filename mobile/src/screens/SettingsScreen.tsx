@@ -121,7 +121,7 @@ import { signInWithGoogle, signOutGoogle } from '../lib/social/googleAuth';
 import { AVATAR_CATEGORIES, presetMarker } from '../lib/avatars';
 import { useSubScreen } from '../hooks/useSubScreen';
 import { useAppDialog } from '../components/AppDialog';
-import { DropdownMenu, DropdownMenuItem } from '@expo/ui/jetpack-compose';
+import { Host, DropdownMenu, DropdownMenuItem } from '@expo/ui/jetpack-compose';
 
 const CYAN = '#22d3ee';
 const DARK_BG = '#030014';
@@ -1174,12 +1174,13 @@ animationConfig: {
         >
           {null}
         </RowShell>
-        <DropdownMenu
-          expanded={formatMenuOpen}
-          onDismissRequest={() => setFormatMenuOpen(false)}
-          color="#15152c"
-        >
-          <DropdownMenu.Trigger>
+        <Host matchContents>
+          <DropdownMenu
+            expanded={formatMenuOpen}
+            onDismissRequest={() => setFormatMenuOpen(false)}
+            color="#15152c"
+          >
+            <DropdownMenu.Trigger>
             <LinkRow
               Icon={FileIcon}
               label="Filename format"
@@ -1212,6 +1213,7 @@ animationConfig: {
             ))}
           </DropdownMenu.Items>
         </DropdownMenu>
+        </Host>
         <ToggleRow
           Icon={NotificationIcon}
           label="Download alerts"
