@@ -271,9 +271,6 @@ function AppRoot() {
   if (!fontsLoaded && !fontError) {
     return null;
   }
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={tw`flex-1 bg-background`}>
