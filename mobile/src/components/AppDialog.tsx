@@ -3,7 +3,6 @@ import React, {
   useContext,
   useState,
   useCallback,
-  useMemo,
 } from 'react';
 import {
   Host,
@@ -24,7 +23,6 @@ interface DialogConfig {
 
 interface DialogContextValue {
   showDialog: (config: DialogConfig) => void;
-  hideDialog: () => void;
 }
 
 const DialogContext = createContext<DialogContextValue | null>(null);
@@ -54,8 +52,6 @@ export function AppDialogProvider({ children }: { children: React.ReactNode }) {
     setConfig(cfg);
   }, []);
 
-  const hideDialog = useCallback(() => setConfig(null), []);
-
   const handleCancel = useCallback(() => {
     if (locked) return;
     setLocked(true);
@@ -70,13 +66,8 @@ export function AppDialogProvider({ children }: { children: React.ReactNode }) {
     setConfig(null);
   }, [locked, config]);
 
-  const contextValue = useMemo(
-    () => ({ showDialog, hideDialog }),
-    [showDialog, hideDialog]
-  );
-
   return (
-    <DialogContext.Provider value={contextValue}>
+    <DialogContext.Provider value={{ showDialog }}>
       {children}
       {config && (
         <Host matchContents>
