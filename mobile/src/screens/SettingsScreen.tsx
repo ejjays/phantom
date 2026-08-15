@@ -57,7 +57,6 @@ import gcash250 from '../../assets/support/gcash-250.webp';
 import gcash500 from '../../assets/support/gcash-500.webp';
 import {
   FolderIcon,
-  FileIcon,
   PasteIcon,
   DownloadsIcon,
   NotificationIcon,
@@ -70,6 +69,7 @@ import {
   GoogleIcon,
   ShareAppIcon,
   ExperimentIcon,
+  FileIcon,
 } from '../components/icons';
 import {
   checkForUpdate,
@@ -121,7 +121,14 @@ import { signInWithGoogle, signOutGoogle } from '../lib/social/googleAuth';
 import { AVATAR_CATEGORIES, presetMarker } from '../lib/avatars';
 import { useSubScreen } from '../hooks/useSubScreen';
 import { useAppDialog } from '../components/AppDialog';
-import { Host, DropdownMenu, DropdownMenuItem } from '@expo/ui/jetpack-compose';
+import {
+  Box,
+  Host,
+  ExposedDropdownMenuBox,
+  ExposedDropdownMenu,
+  DropdownMenuItem,
+} from '@expo/ui/jetpack-compose';
+import { height, menuAnchor, width } from '@expo/ui/jetpack-compose/modifiers';
 
 const CYAN = '#22d3ee';
 const DARK_BG = '#030014';
@@ -181,6 +188,11 @@ const FORMAT_LABELS: Record<FilenameFormat, string> = {
   title: 'Title only',
   'title-platform': 'Title (platform)',
 };
+
+// M3 popup opens below its anchor w/ 8dp margin; sized anchor centers it
+const FORMAT_MENU_MAX_W = 340;
+const FORMAT_MENU_EST_H = 168;
+const FORMAT_MENU_V_MARGIN = 8;
 
 function Toggle({ value, light }: { value: boolean; light?: boolean }) {
   const knobStyle = useAnimatedStyle(() => ({
@@ -932,6 +944,7 @@ animationConfig: {
     tapSelection();
     setFormat(f);
     setFilenameFormat(f).catch(() => undefined);
+    setFormatMenuOpen(false);
   };
 
   const toggleAutopaste = (v: boolean) => {
@@ -1174,46 +1187,18 @@ animationConfig: {
         >
           {null}
         </RowShell>
-        <Host matchContents>
-          <DropdownMenu
-            expanded={formatMenuOpen}
-            onDismissRequest={() => setFormatMenuOpen(false)}
-            color="#15152c"
-          >
-            <DropdownMenu.Trigger>
-            <LinkRow
-              Icon={FileIcon}
-              label="Filename format"
-              hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
-              onPress={() => setFormatMenuOpen(true)}
-              tile={false}
-              iconSize={26}
-              light={light}
-            />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Items>
-            {FORMAT_ORDER.map((f) => (
-              <DropdownMenuItem key={f} onClick={() => choose(f)}>
-                <DropdownMenuItem.Text>
-                  <Text
-                    style={[
-                      tw`font-sans-semibold text-[15px]`,
-                      { color: f === format ? '#22d3ee' : '#e2e8f0' },
-                    ]}
-                  >
-                    {FORMAT_LABELS[f]}
-                  </Text>
-                </DropdownMenuItem.Text>
-                {f === format ? (
-                  <DropdownMenuItem.TrailingIcon>
-                    <Check size={16} color="#22d3ee" strokeWidth={3} />
-                  </DropdownMenuItem.TrailingIcon>
-                ) : null}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenu.Items>
-        </DropdownMenu>
-        </Host>
+        <LinkRow
+          Icon={FileIcon}
+          label="Filename format"
+          hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
+          onPress={() => {
+            tapSelection();
+            setFormatMenuOpen(true);
+          }}
+          tile={false}
+          iconSize={26}
+          light={light}
+        />
         <ToggleRow
           Icon={NotificationIcon}
           label="Download alerts"
@@ -1467,7 +1452,6 @@ animationConfig: {
       <BottomSheet open={shareOpen} onClose={() => setShareOpen(false)}>
         <ShareAppSheet />
       </BottomSheet>
-
       <Animated.View
         pointerEvents={qrOpen ? 'auto' : 'none'}
         style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }, qrStyle]}
@@ -1488,6 +1472,65 @@ animationConfig: {
           />
         ) : null}
       </Animated.View>
+
+      {formatMenuOpen ? (
+        <View style={StyleSheet.absoluteFill}>
+          <Pressable
+            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
+            onPress={() => {
+              tapSelection();
+              setFormatMenuOpen(false);
+            }}
+            accessibilityLabel="Close filename format menu"
+          />
+          <View pointerEvents="box-none" style={tw`items-center`}>
+            <Host matchContents>
+              <ExposedDropdownMenuBox
+                expanded={formatMenuOpen}
+                onExpandedChange={setFormatMenuOpen}
+              >
+                <Box
+                  modifiers={[
+                    menuAnchor(),
+                    width(Math.min(windowWidth - 48, FORMAT_MENU_MAX_W)),
+                    height(
+                      Math.max(
+                        120,
+                        (windowHeight - FORMAT_MENU_EST_H) / 2 - FORMAT_MENU_V_MARGIN
+                      )
+                    ),
+                  ]}
+                />
+                <ExposedDropdownMenu
+                  expanded={formatMenuOpen}
+                  onDismissRequest={() => setFormatMenuOpen(false)}
+                  containerColor="#15152c"
+                >
+                  {FORMAT_ORDER.map((f) => (
+                    <DropdownMenuItem key={f} onClick={() => choose(f)}>
+                      <DropdownMenuItem.Text>
+                        <Text
+                          style={[
+                            tw`font-sans-semibold text-[15px]`,
+                            { color: f === format ? '#22d3ee' : '#e2e8f0' },
+                          ]}
+                        >
+                          {FORMAT_LABELS[f]}
+                        </Text>
+                      </DropdownMenuItem.Text>
+                      {f === format ? (
+                        <DropdownMenuItem.TrailingIcon>
+                          <Check size={16} color="#22d3ee" strokeWidth={3} />
+                        </DropdownMenuItem.TrailingIcon>
+                      ) : null}
+                    </DropdownMenuItem>
+                  ))}
+                </ExposedDropdownMenu>
+              </ExposedDropdownMenuBox>
+            </Host>
+          </View>
+        </View>
+      ) : null}
     </View>
     </>
   );

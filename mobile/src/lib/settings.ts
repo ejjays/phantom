@@ -200,14 +200,15 @@ export async function setHaptics(value: boolean): Promise<void> {
 
 export function formatName(
   fmt: FilenameFormat,
-  title: string,
+  title: string | undefined,
   artist: string | undefined,
   platform: string
 ): string {
-  if (fmt === 'title') return title;
+  const t = (title ?? '').toString().trim() || 'Untitled';
+  if (fmt === 'title') return t;
   if (fmt === 'title-platform') {
     const tag = platform.charAt(0).toUpperCase() + platform.slice(1);
-    return `${title} (${tag})`;
+    return `${t} (${tag})`;
   }
-  return artist ? `${artist} - ${title}` : title;
+  return artist ? `${artist} - ${t}` : t;
 }
