@@ -1,5 +1,9 @@
 import { File, Paths } from 'expo-file-system';
-import { installApk, installViaSystem } from '../../../modules/silent-updater';
+import {
+  installApk,
+  installViaSystem,
+  saveToDownloads,
+} from '../../../modules/silent-updater';
 import { saveApkToFolder } from '../download/save';
 import { sha256Hex } from './sha256';
 import type { UpdateManifest } from './manifest';
@@ -10,6 +14,9 @@ const SILENT_GRACE_MS = 8_000;
 // java File() treats 'file://' uris as literal paths; strip the scheme first
 const toFsPath = (uri: string): string =>
   decodeURIComponent(uri.replace(/^file:\/\//u, ''));
+
+const apkDisplayName = (version: string): string =>
+  `phantom-v${version.replaceAll('.', '-')}.apk`;
 
 export async function downloadApk(
   manifest: UpdateManifest,
@@ -31,17 +38,20 @@ export async function downloadApk(
     if (file.exists) file.delete();
     throw new Error('update: downloaded apk failed checksum, try again');
   }
-  // oem roms choke on app-private cache files, so drop the apk into the
-  // user's visible save folder — the same public path browser downloads take
-  const saved = await saveApkToFolder(
-    file,
-    `phantom-v${manifest.version.replaceAll('.', '-')}.apk`,
-    (pct) => {
-      const total = manifest.size ?? 0;
-      if (total > 0) onProgress(Math.round((pct / 100) * total), total);
-    }
+  // mediastore downloads first — the same public folder browsers use, no
+  // picker; saf folder only as a fallback for older androids
+  const name = apkDisplayName(manifest.version);
+  const saved = await saveToDownloads(toFsPath(file.uri), name).catch(
+    () => null
   );
   if (saved) return saved;
+  // oem roms choke on app-private cache files, so drop the apk into the
+  // user's visible save folder — the same public path browser downloads take
+  const safe = await saveApkToFolder(file, name, (pct) => {
+    const total = manifest.size ?? 0;
+    if (total > 0) onProgress(Math.round((pct / 100) * total), total);
+  });
+  if (safe) return safe;
   // Paths.cache is a Directory object; template-stringing it yields '[object Object]' — pass the File's real uri instead
   return toFsPath(file.uri);
 }

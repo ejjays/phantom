@@ -1,10 +1,14 @@
 package expo.modules.silentupdater
 
 import android.app.PendingIntent
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import expo.modules.kotlin.exception.CodedException
@@ -41,6 +45,42 @@ class SilentUpdaterModule : Module() {
     AsyncFunction("installViaSystem") { path: String ->
       installViaSystem(path)
     }
+
+    AsyncFunction("saveToDownloads") { sourcePath: String, name: String ->
+      saveToDownloads(sourcePath, name)
+    }
+  }
+
+  // mediator downloads collection: the same public folder browsers use, so
+  // the installer stages it without oem quirks and without any picker
+  private fun saveToDownloads(sourcePath: String, name: String): String {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+      throw CodedException("mediastore downloads needs api 29+")
+    }
+    val source = File(sourcePath)
+    if (!source.exists()) {
+      throw CodedException("apk file missing: $sourcePath")
+    }
+    val values = ContentValues().apply {
+      put(MediaStore.Downloads.DISPLAY_NAME, name)
+      put(MediaStore.Downloads.MIME_TYPE, "application/vnd.android.package-archive")
+      put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+    }
+    val resolver = context.contentResolver
+    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+      ?: throw CodedException("mediastore insert failed")
+    try {
+      val output = resolver.openOutputStream(uri)
+        ?: throw CodedException("mediastore open failed")
+      output.use { out ->
+        source.inputStream().use { input -> input.copyTo(out) }
+      }
+    } catch (err: Throwable) {
+      resolver.delete(uri, null, null)
+      if (err is CodedException) throw err
+      throw CodedException("mediastore write failed: ${err.message}")
+    }
+    return uri.toString()
   }
 
   // visible installer path; the only flow oem roms never block
