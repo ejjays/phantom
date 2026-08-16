@@ -40,10 +40,15 @@ CURRENT=$(curl -fsS "$SUPABASE_URL/storage/v1/object/public/apk/latest.json" 2>/
 CUR_VER=$(printf '%s' "$CURRENT" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')
 newer() {
   [ "$1" != "$2" ] || return 1
-  local a b
-  IFS='.' read -r a _ <<< "${1%%-*}"
-  IFS='.' read -r b _ <<< "${2%%-*}"
-  [ "$a" -gt "$b" ]
+  local IFS=. a b i
+  read -ra a <<< "${1%%-*}"
+  read -ra b <<< "${2%%-*}"
+  for ((i = 0; i < ${#a[@]} && i < ${#b[@]}; i++)); do
+    if ((10#${a[i]} > 10#${b[i]})); then return 0
+    elif ((10#${a[i]} < 10#${b[i]})); then return 1
+    fi
+  done
+  (( ${#a[@]} > ${#b[@]} ))
 }
 if [ -n "$CUR_VER" ] && ! newer "$VERSION" "$CUR_VER" && [ "$VERSION" != "$CUR_VER" ]; then
   echo "skip manifest: $VERSION is not newer than current $CUR_VER" >&2
