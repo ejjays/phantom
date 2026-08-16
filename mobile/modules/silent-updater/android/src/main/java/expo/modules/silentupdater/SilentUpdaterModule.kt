@@ -45,15 +45,19 @@ class SilentUpdaterModule : Module() {
 
   // visible installer path; the only flow oem roms never block
   private fun installViaSystem(path: String): String {
-    val file = File(path)
-    if (!file.exists()) {
-      throw CodedException("apk file missing: $path")
+    val uri = if (path.startsWith("content://")) {
+      Uri.parse(path)
+    } else {
+      val file = File(path)
+      if (!file.exists()) {
+        throw CodedException("apk file missing: $path")
+      }
+      FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.updatefileprovider",
+        file
+      )
     }
-    val uri = FileProvider.getUriForFile(
-      context,
-      "${context.packageName}.updatefileprovider",
-      file
-    )
     val intent = Intent(Intent.ACTION_VIEW).apply {
       setDataAndType(uri, "application/vnd.android.package-archive")
       addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)

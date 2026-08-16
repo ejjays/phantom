@@ -1,5 +1,6 @@
 import { File, Paths } from 'expo-file-system';
 import { installApk, installViaSystem } from '../../../modules/silent-updater';
+import { saveApkToFolder } from '../download/save';
 import { sha256Hex } from './sha256';
 import type { UpdateManifest } from './manifest';
 
@@ -30,12 +31,28 @@ export async function downloadApk(
     if (file.exists) file.delete();
     throw new Error('update: downloaded apk failed checksum, try again');
   }
+  // oem roms choke on app-private cache files, so drop the apk into the
+  // user's visible save folder — the same public path browser downloads take
+  const saved = await saveApkToFolder(
+    file,
+    `phantom-v${manifest.version.replaceAll('.', '-')}.apk`,
+    (pct) => {
+      const total = manifest.size ?? 0;
+      if (total > 0) onProgress(Math.round((pct / 100) * total), total);
+    }
+  );
+  if (saved) return saved;
   // Paths.cache is a Directory object; template-stringing it yields '[object Object]' — pass the File's real uri instead
   return toFsPath(file.uri);
 }
 
 export async function installDownloadedApk(path: string): Promise<void> {
   try {
+    if (path.startsWith('content://')) {
+      // public folder files are staged by the system without ceremony
+      await installViaSystem(path);
+      return;
+    }
     await installApk(path);
     // silent success kills this process; surviving the grace window means the
     // system declined it (oem roms) — hand off to the visible installer

@@ -133,7 +133,33 @@ async function saveViaMediaStore(source: File): Promise<string> {
   return uri;
 }
 
-export type SaveResult = { ok: boolean; uri?: string };
+type SaveResult = { ok: boolean; uri?: string };
+
+// the update installer's source: an apk that lives in the user's visible
+// folder stages cleanly on oem roms, unlike app-private cache files
+export async function saveApkToFolder(
+  source: File,
+  displayName: string,
+  onProgress?: (pct: number) => void
+): Promise<string | null> {
+  const dir = await getSaveDir();
+  if (!dir) return null;
+  try {
+    const target = await StorageAccessFramework.createFileAsync(
+      dir,
+      displayName,
+      'application/vnd.android.package-archive'
+    );
+    await streamToSaf(source, target, onProgress);
+    return target;
+  } catch (error) {
+    logWarn(
+      'save',
+      `[save] apk folder save failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return null;
+  }
+}
 
 export async function saveToDevice(
   source: File,
