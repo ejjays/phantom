@@ -25,7 +25,7 @@ if ! gh release view "$TAG" >/dev/null 2>&1; then
   gh release create "$TAG" --title "$TAG" --notes "${NOTES:-}" >/dev/null
 fi
 gh release upload "$TAG" "$APK" --clobber
-APK_URL=$(gh release view "$TAG" --json assets --jq ".assets[] | select(.name == \"$ASSET\") | .browserDownloadUrl")
+APK_URL=$(gh release view "$TAG" --json assets --jq ".assets[] | select(.name == \"$ASSET\") | .url")
 [ -n "$APK_URL" ] || { echo "asset url not found on release" >&2; exit 1; }
 
 # idempotent: creates the public apk/ bucket on first run
