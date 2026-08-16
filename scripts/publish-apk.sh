@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 
 APK="${1:?apk path required}"
 VERSION="${2:?version required}"
-NOTES="${*:3:-}"
+NOTES="${*:3}"
 
 [ -f "$APK" ] || { echo "apk not found: $APK" >&2; exit 1; }
 : "${SUPABASE_URL:?set SUPABASE_URL}"
@@ -24,7 +24,7 @@ ASSET="phantom-$VERSION.apk"
 if ! gh release view "$TAG" >/dev/null 2>&1; then
   gh release create "$TAG" --title "$TAG" --notes "${NOTES:-}" >/dev/null
 fi
-gh release upload "$TAG" "$APK" --clobber
+gh release upload "$TAG" "$APK#$ASSET" --clobber
 APK_URL=$(gh release view "$TAG" --json assets --jq ".assets[] | select(.name == \"$ASSET\") | .browserDownloadUrl")
 [ -n "$APK_URL" ] || { echo "asset url not found on release" >&2; exit 1; }
 
