@@ -11,6 +11,9 @@ on:
         options:
           - preview
           - production
+  push:
+    branches:
+      - ota/debug-1.2.2
 
 jobs:
   publish:
@@ -38,10 +41,14 @@ jobs:
       - name: Publish OTA update
         working-directory: mobile
         env:
+          INPUTS_CHANNEL: ${{ inputs.channel }}
           EXPO_PUBLIC_GIPHY_KEY: ${{ secrets.EXPO_PUBLIC_GIPHY_KEY }}
           EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID }}
           EXPO_PUBLIC_SPOTIFY_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_SPOTIFY_CLIENT_ID }}
           EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET: ${{ secrets.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-        run: eas update --non-interactive --channel "${{ inputs.channel }}" --message "debug: surface update install error"
+        run: |
+          eas update --non-interactive \
+            --channel "${INPUTS_CHANNEL:-preview}" \
+            --message "debug: surface update install error"
