@@ -17,14 +17,14 @@ SHA=$(sha256sum "$APK" | cut -d' ' -f1)
 SIZE=$(stat -c%s "$APK")
 AUTH="Authorization: Bearer $SUPABASE_SERVICE_KEY"
 TAG="v$VERSION"
-ASSET="phantom-$VERSION.apk"
+ASSET=$(basename "$APK")
 
 # free-plan storage caps per file at 50 MB, so the APK lives on a github
 # release (range requests work, matching the app's chunked downloader)
 if ! gh release view "$TAG" >/dev/null 2>&1; then
   gh release create "$TAG" --title "$TAG" --notes "${NOTES:-}" >/dev/null
 fi
-gh release upload "$TAG" "$APK#$ASSET" --clobber
+gh release upload "$TAG" "$APK" --clobber
 APK_URL=$(gh release view "$TAG" --json assets --jq ".assets[] | select(.name == \"$ASSET\") | .browserDownloadUrl")
 [ -n "$APK_URL" ] || { echo "asset url not found on release" >&2; exit 1; }
 
