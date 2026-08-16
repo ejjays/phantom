@@ -33,6 +33,9 @@ curl -fsS -X POST "$SUPABASE_URL/storage/v1/bucket" \
   -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"name":"apk","public":true}' >/dev/null 2>&1 || true
 
+# supabase refuses to overwrite an existing object via POST, so delete first
+curl -fsS -X DELETE "$SUPABASE_URL/storage/v1/object/apk/latest.json" \
+  -H "$AUTH" >/dev/null 2>&1 || true
 MANIFEST=$(mktemp)
 printf '{"version":"%s","apkUrl":"%s","sha256":"%s","size":"%s","notes":"%s","publishedAt":"%s"}\n' \
   "$VERSION" "$APK_URL" "$SHA" "$SIZE" "$NOTES" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MANIFEST"
