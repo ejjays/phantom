@@ -3,8 +3,8 @@ import { startActivityAsync } from 'expo-intent-launcher';
 
 const CHANNEL = 'downloads';
 const NOTIF_ID = 'phantom-download';
-const SMALL_ICON = 'notification_icon';
-const BRAND = '#22d3ee';
+export const SMALL_ICON = 'notification_icon';
+export const BRAND = '#22d3ee';
 
 export const CANCEL_ACTION = 'cancel-download';
 

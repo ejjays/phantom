@@ -540,7 +540,6 @@ export default function HomeScreen({
                     ghostStyle,
                   ]}
                 >
-                  {/* reenable w/ focusSignal */}
                   <PhantomHero
                     amazeSignal={0}
                     focusSignal={gazeTick}
@@ -612,7 +611,9 @@ export default function HomeScreen({
             }}
           >
             <AlertDialog.Title>
-              <ComposeText style={{ fontWeight: 'bold' }}>Exit Phantom?</ComposeText>
+              <ComposeText style={{ fontWeight: 'bold' }}>
+                Exit Phantom?
+              </ComposeText>
             </AlertDialog.Title>
             <AlertDialog.Text>
               <ComposeText>Are you sure you want to quit?</ComposeText>

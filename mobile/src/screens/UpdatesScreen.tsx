@@ -820,7 +820,6 @@ function UpdatesScreen({
     inbox.setOpen(true);
   };
 
-  // open a post's comments, optionally focusing one. used by inbox & deep link.
   const openUpdateComments = (
     updateId: string,
     commentId: string | null = null

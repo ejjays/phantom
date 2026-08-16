@@ -3,6 +3,8 @@ import { gatedFetch, mapLimit } from '../lib/net';
 import { noVideo, fromStatus, classifyThrown } from './errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError, log } from '../lib/log';
+import { decodeEntities, probeFileSize } from './social';
+import { buildVideoInfo } from './videoInfo';
 const REFERER = 'https://www.reddit.com/';
 const RD_DEBUG = false;
 
@@ -10,61 +12,18 @@ function dbg(...parts: unknown[]): void {
   if (RD_DEBUG) log('reddit', '[JS-Reddit]', ...parts);
 }
 
-function decodeEntities(text: string): string {
-  return text.replace(
-    /&(#x[0-9a-fA-F]+|#\d+|amp|lt|gt|quot|apos);/giu,
-    (entity, code: string) => {
-      if (code.startsWith('#x')) {
-        return String.fromCodePoint(parseInt(code.slice(2), 16));
-      }
-      if (code.startsWith('#')) {
-        return String.fromCodePoint(parseInt(code.slice(1), 10));
-      }
-      switch (code.toLowerCase()) {
-        case 'amp':
-          return '&';
-        case 'lt':
-          return '<';
-        case 'gt':
-          return '>';
-        case 'quot':
-          return '"';
-        default:
-          return "'";
-      }
-    }
-  );
-}
-
-async function headSize(url: string): Promise<number> {
-  try {
-    const res = await gatedFetch(url, {
-      method: 'HEAD',
-      headers: { 'User-Agent': DESKTOP_UA },
-    });
-    const len = res?.headers?.get('content-length');
-    return len ? parseInt(len, 10) : 0;
-  } catch {
-    return 0;
-  }
-}
-
 async function postId(url: string): Promise<string | null> {
   const direct = url.match(/\/comments\/([a-z0-9]+)/iu);
   if (direct) return direct[1];
   // share/short links redirect to permalink
-  try {
-    const res = await gatedFetch(url, {
-      headers: { 'User-Agent': DESKTOP_UA },
-      redirect: 'follow',
-    });
-    const finalUrl = res.url || res.headers?.get('location') || '';
-    dbg('redirect', res.status, '->', finalUrl);
-    const redir = finalUrl.match(/\/comments\/([a-z0-9]+)/iu);
-    return redir ? redir[1] : null;
-  } catch {
-    return null;
-  }
+  const res = await gatedFetch(url, {
+    headers: { 'User-Agent': DESKTOP_UA },
+    redirect: 'follow',
+  });
+  const finalUrl = res.url || res.headers?.get('location') || '';
+  dbg('redirect', res.status, '->', finalUrl);
+  const redir = finalUrl.match(/\/comments\/([a-z0-9]+)/iu);
+  return redir ? redir[1] : null;
 }
 
 function metaTag(html: string, prop: string): string | undefined {
@@ -216,15 +175,18 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     if (formats.length === 0) throw noVideo('Reddit');
 
     // mpd has no size; HEAD each quality
-    const audioSize = audioUrl ? await headSize(audioUrl) : 0;
+    const audioSize = audioUrl
+      ? ((await probeFileSize(audioUrl, { 'User-Agent': DESKTOP_UA })) ?? 0)
+      : 0;
     await mapLimit(formats, 3, async (format) => {
-      const videoSize = await headSize(format.url);
+      const videoSize = await probeFileSize(format.url, {
+        'User-Agent': DESKTOP_UA,
+      });
       if (videoSize) format.filesize = videoSize + audioSize;
     });
     dbg('formats', formats.length, 'audio', !!audioUrl);
 
-    return {
-      type: 'video',
+    return buildVideoInfo({
       id,
       title: meta.title,
       uploader: meta.uploader,
@@ -233,13 +195,8 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       duration: parseDuration(mpd),
       formats,
       extractorKey: 'reddit',
-      isJsInfo: true,
-      fromBrain: false,
-      isPartial: false,
-      isIsrcMatch: false,
-      isFullData: true,
       downloadHeaders: { 'User-Agent': DESKTOP_UA, Referer: REFERER },
-    };
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     logError('reddit', `[JS-Reddit] Error extracting ${url}: ${message}`);

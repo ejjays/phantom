@@ -4,6 +4,7 @@ import { gatedFetch } from '../lib/net';
 import { noVideo, fromStatus, classifyThrown } from './errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError } from '../lib/log';
+import { buildVideoInfo } from './videoInfo';
 
 const APPVIEW = 'https://public.api.bsky.app/xrpc';
 
@@ -194,8 +195,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     const formats = buildFormats(variants, duration);
     if (formats.length === 0) throw noVideo('Bluesky');
 
-    const info: VideoInfo = {
-      type: 'video',
+    const info: VideoInfo = buildVideoInfo({
       id: rkey,
       title: post?.record?.text || 'Bluesky Video',
       uploader:
@@ -205,13 +205,8 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       duration: duration || undefined,
       formats,
       extractorKey: 'bluesky',
-      isJsInfo: true,
-      fromBrain: false,
-      isPartial: false,
-      isIsrcMatch: false,
-      isFullData: true,
       downloadHeaders: { 'User-Agent': DESKTOP_UA },
-    };
+    });
 
     info.title = normalizeTitle(info as unknown as Record<string, unknown>);
     info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);

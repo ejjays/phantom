@@ -178,7 +178,6 @@ export default function ImageFocusOverlay({
   if (!mounted || !origin || !uri) return null;
 
   return (
-    // skipcq: JS-0415
     <Modal
       visible
       transparent

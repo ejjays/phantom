@@ -2,8 +2,6 @@ import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react';
 import { View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
-// html5 audio sandbox — plays remote MP3 previews without a native module.
-// commands come in via injectJavaScript, status goes out via ReactNativeWebView.postMessage.
 const AUDIO_HTML = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -68,7 +66,6 @@ type Props = {
   onMessage: (msg: PreviewAudioMessage) => void;
 };
 
-// hidden but rendered (offscreen), so the media element keeps playing
 const PreviewAudioWebView = forwardRef<PreviewAudioHandle, Props>(
   function PreviewAudioWebView({ onMessage }, ref) {
     const webRef = useRef<WebView>(null);
@@ -105,7 +102,6 @@ const PreviewAudioWebView = forwardRef<PreviewAudioHandle, Props>(
       }
       if (parsed.type === 'ready') {
         readyRef.current = true;
-        // flush any commands sent before webview finished bootstrap
         for (const js of pending.current) {
           webRef.current?.injectJavaScript(`${js}; true;`);
         }

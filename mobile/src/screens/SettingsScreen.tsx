@@ -70,10 +70,7 @@ import {
   ShareAppIcon,
   FileIcon,
 } from '../components/icons';
-import {
-  checkForUpdate,
-  type UpdateManifest,
-} from '../lib/updater/manifest';
+import { checkForUpdate, type UpdateManifest } from '../lib/updater/manifest';
 import { downloadApk, installDownloadedApk } from '../lib/updater/install';
 import {
   hasInstallPermission,
@@ -245,7 +242,9 @@ function SettingsSupport({
 }) {
   return (
     <View style={isWide ? { width: 380 } : tw`w-full`}>
-      <SectionLabel center={isWide} light={light}>Support</SectionLabel>
+      <SectionLabel center={isWide} light={light}>
+        Support
+      </SectionLabel>
       <SupportCarousel
         visible={visible}
         layout={isWide ? 'stack' : 'carousel'}
@@ -275,9 +274,7 @@ function SettingsBody({
 }) {
   return (
     <View style={[tw`w-full`, { maxWidth: isWide ? 1060 : 600 }]}>
-      <View
-        style={tw`mb-1 flex-row items-center justify-between`}
-      >
+      <View style={tw`mb-1 flex-row items-center justify-between`}>
         <Text
           style={[
             tw`font-sans-bold text-[32px] tracking-tight`,
@@ -334,15 +331,28 @@ function RowShell({
       <View
         style={[
           tw`ml-3.5 flex-1 flex-row items-center py-4 pr-4`,
-          !last && { borderBottomWidth: 1, borderBottomColor: palette.rowBorder },
+          !last && {
+            borderBottomWidth: 1,
+            borderBottomColor: palette.rowBorder,
+          },
         ]}
       >
         <View style={tw`flex-1`}>
-          <Text style={[tw`font-sans-semibold text-[15px]`, { color: palette.text }]}>
+          <Text
+            style={[
+              tw`font-sans-semibold text-[15px]`,
+              { color: palette.text },
+            ]}
+          >
             {label}
           </Text>
           {hint ? (
-            <Text style={[tw`mt-0.5 font-sans text-[12px]`, { color: palette.hint }]}>
+            <Text
+              style={[
+                tw`mt-0.5 font-sans text-[12px]`,
+                { color: palette.hint },
+              ]}
+            >
               {hint}
             </Text>
           ) : null}
@@ -453,7 +463,13 @@ function LinkRow(props: {
 function UpdateControl({ light }: { light?: boolean }) {
   const installed = Constants.expoConfig?.version ?? '0.0.0';
   const [status, setStatus] = useState<
-    'checking' | 'none' | 'available' | 'downloading' | 'installing' | 'error' | 'permission'
+    | 'checking'
+    | 'none'
+    | 'available'
+    | 'downloading'
+    | 'installing'
+    | 'error'
+    | 'permission'
   >('checking');
   const [manifest, setManifest] = useState<UpdateManifest | null>(null);
   const [progress, setProgress] = useState(0);
@@ -577,7 +593,9 @@ function UpdateControl({ light }: { light?: boolean }) {
           </View>
         ) : null}
         {status === 'downloading' ? (
-          <View style={tw`h-1 mx-4 mb-4 rounded-full bg-neutral-200 overflow-hidden`}>
+          <View
+            style={tw`h-1 mx-4 mb-4 rounded-full bg-neutral-200 overflow-hidden`}
+          >
             <View
               style={{
                 width: `${progress * 100}%`,
@@ -633,7 +651,10 @@ function AccountCard({
           <View style={tw`ml-3.5 flex-1`}>
             <Text
               numberOfLines={1}
-              style={[tw`font-sans-semibold text-[16px]`, { color: palette.text }]}
+              style={[
+                tw`font-sans-semibold text-[16px]`,
+                { color: palette.text },
+              ]}
             >
               {account.isGuest
                 ? displayName(account.username)
@@ -643,7 +664,10 @@ function AccountCard({
             </Text>
             <Text
               numberOfLines={1}
-              style={[tw`mt-0.5 font-sans text-[12px]`, { color: palette.hint }]}
+              style={[
+                tw`mt-0.5 font-sans text-[12px]`,
+                { color: palette.hint },
+              ]}
             >
               {account.isGuest
                 ? 'Guest — link Google to keep your reactions'
@@ -696,7 +720,10 @@ function SignInCard({
           <Ghost size={18} color={palette.ghostText} strokeWidth={2} />
         )}
         <Text
-          style={[tw`ml-3 font-sans-semibold text-[15px]`, { color: palette.ghostText }]}
+          style={[
+            tw`ml-3 font-sans-semibold text-[15px]`,
+            { color: palette.ghostText },
+          ]}
         >
           Continue as Anonymous
         </Text>
@@ -741,7 +768,8 @@ function SettingsScreen({
   const fadeStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
   const [format, setFormat] = useState<FilenameFormat>('artist-title');
-  const [pendingFormat, setPendingFormat] = useState<FilenameFormat>('artist-title');
+  const [pendingFormat, setPendingFormat] =
+    useState<FilenameFormat>('artist-title');
   const [formatMenuOpen, setFormatMenuOpen] = useState(false);
   const [autopaste, setAutopaste] = useState(false);
   const [notifs, setNotifs] = useState(false);
@@ -761,13 +789,11 @@ function SettingsScreen({
   const [nameError, setNameError] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
 
-  // sub-screen hooks cut animation boilerplate
   const accountScreen = useSubScreen(visible);
   const avatarScreen = useSubScreen(visible);
   const supportScreen = useSubScreen(visible);
   const { showDialog } = useAppDialog();
 
-  // qr slide-up vs slide-right
   const [qr, setQr] = useState<{
     source?: number;
     value?: string;
@@ -808,20 +834,19 @@ function SettingsScreen({
     return true;
   }, 10);
 
-  // reset scroll on tab exit
   useEffect(() => {
-      if (visible) return;
+    if (visible) return;
     scrollRef.current?.scrollTo({ y: 0, animated: false });
     accountScreen.setOpen(false);
     avatarScreen.setOpen(false);
     supportScreen.setOpen(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset overlays on tab exit
     setQrOpen(false);
-        setShareOpen(false);
+    setShareOpen(false);
   }, [visible, accountScreen, avatarScreen, supportScreen]);
 
   useEffect(() => {
-        onFullScreen?.(avatarScreen.open || supportScreen.open);
+    onFullScreen?.(avatarScreen.open || supportScreen.open);
   }, [avatarScreen.open, supportScreen.open, onFullScreen]);
 
   useEffect(() => {
@@ -862,7 +887,7 @@ function SettingsScreen({
         setDarkOn(targetDark);
         setDarkTheme(targetDark).catch(() => undefined);
       },
-animationConfig: {
+      animationConfig: {
         type: 'circular',
         duration: 900,
         startingPoint: {
@@ -916,7 +941,7 @@ animationConfig: {
 
   const wasVisible = useRef(visible);
   useEffect(() => {
-      if (visible && !wasVisible.current && isSupabaseConfigured) {
+    if (visible && !wasVisible.current && isSupabaseConfigured) {
       getAccount()
         .then((acc) => setAccount(acc))
         .catch(() => undefined);
@@ -925,7 +950,7 @@ animationConfig: {
   }, [visible]);
 
   useEffect(() => {
-      if (account?.username) {
+    if (account?.username) {
       getSocialNotify()
         .then(setSocialNotifyState)
         .catch(() => undefined);
@@ -945,7 +970,7 @@ animationConfig: {
   };
 
   const formatClickable = (f: FilenameFormat) =>
-  clickable(() => setPendingFormat(f), { indication: false });
+    clickable(() => setPendingFormat(f), { indication: false });
 
   const toggleAutopaste = (v: boolean) => {
     setAutopaste(v);
@@ -1012,7 +1037,6 @@ animationConfig: {
     const note = amount
       ? `Scan in ${method.label} to send ₱${amount}. Thank you for the support!`
       : undefined;
-    // amount w/o preset card -> generate QR Ph dynamically
     const build = QR_BUILDERS[method.id];
     if (build && amount != null && method.amountQrs?.[amount] == null) {
       tapSelection();
@@ -1310,8 +1334,8 @@ animationConfig: {
       <View style={tw`mx-[-20px] mt-3 bg-cyan-500 px-5 py-1.5`}>
         <Text style={tw`font-sans text-[12px] leading-4 text-white`}>
           <Text style={tw`font-sans-bold`}>Note: </Text>
-          Sign-in is only for reactions and comments in Updates tab —
-          it&apos;s not used in the actual downloads.
+          Sign-in is only for reactions and comments in Updates tab — it&apos;s
+          not used in the actual downloads.
         </Text>
       </View>
     ) : null;
@@ -1338,189 +1362,199 @@ animationConfig: {
           ]}
         />
         <Animated.ScrollView
-        ref={scrollRef}
-        style={[tw`flex-1`, fadeStyle]}
-        contentContainerStyle={tw`items-center px-5 pb-36 pt-16`}
-        showsVerticalScrollIndicator={false}
-      >
-        <SettingsBody
-          isWide={isWide}
-          light={!darkOn}
-          themeSwitch={
-            <ThemeSwitch
-              dark={darkOn}
-              instant
-              visible={visible}
-              onToggle={toggleTheme}
-              onOrigin={handleSwitchOrigin}
-            />
-          }
-          note={noteBanner}
-          support={
-            <SettingsSupport
-              isWide={isWide}
-              visible={visible}
-              light={!darkOn}
-              onOpenSupport={openSupportPage}
-              onOpenSource={openSourceCode}
-              onOpenSocial={openSocial}
-            />
-          }
+          ref={scrollRef}
+          style={[tw`flex-1`, fadeStyle]}
+          contentContainerStyle={tw`items-center px-5 pb-36 pt-16`}
+          showsVerticalScrollIndicator={false}
         >
-          {settingsSections(!darkOn)}
-        </SettingsBody>
-      </Animated.ScrollView>
-
-      <Animated.View
-        pointerEvents={accountScreen.open ? 'auto' : 'none'}
-        style={[
-          StyleSheet.absoluteFill,
-          tw`bg-background`,
-          accountScreen.style,
-        ]}
-      >
-        {accountScreen.mounted && (
-          <AccountPanel
-            account={account}
-            nameValue={nameValue}
-            onChangeName={setNameValue}
-            onSave={() => void saveName()}
-            saving={nameBusy}
-            error={nameError}
-            onBack={() => {
-              tapSelection();
-              accountScreen.setOpen(false);
-            }}
-            onSignOut={handleSignOut}
-            onEditAvatar={openAvatarPicker}
-            onLinkGoogle={() => void handleSignIn()}
-          />
-        )}
-      </Animated.View>
-
-      <Animated.View
-        pointerEvents={avatarScreen.open ? 'auto' : 'none'}
-        style={[StyleSheet.absoluteFill, tw`bg-background`, avatarScreen.style]}
-      >
-        {avatarScreen.mounted && (
-          <AvatarPicker
-            categories={AVATAR_CATEGORIES}
-            current={account?.avatarUrl ?? null}
-            onPick={pickAvatar}
-            onBack={() => {
-              tapSelection();
-              avatarScreen.setOpen(false);
-            }}
-          />
-        )}
-      </Animated.View>
-
-      <Animated.View
-        pointerEvents={supportScreen.open ? 'auto' : 'none'}
-        style={[
-          StyleSheet.absoluteFill,
-          tw`bg-background`,
-          supportScreen.style,
-        ]}
-      >
-        {supportScreen.mounted && (
-          <SupportPage
-            methods={SUPPORT_METHODS}
-            onPay={paySupport}
-            onBack={() => {
-              tapSelection();
-              supportScreen.setOpen(false);
-            }}
-          />
-        )}
-      </Animated.View>
-
-      <BottomSheet open={shareOpen} onClose={() => setShareOpen(false)}>
-        <ShareAppSheet />
-      </BottomSheet>
-      <Animated.View
-        pointerEvents={qrOpen ? 'auto' : 'none'}
-        style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }, qrStyle]}
-      >
-        {qrMounted && qr ? (
-          <QrView
-            source={qr.source}
-            value={qr.value}
-            label={qr.label}
-            note={
-              qr.note ??
-              `Scan this in your ${qr.label} app to send a tip. Thank you for the support!`
+          <SettingsBody
+            isWide={isWide}
+            light={!darkOn}
+            themeSwitch={
+              <ThemeSwitch
+                dark={darkOn}
+                instant
+                visible={visible}
+                onToggle={toggleTheme}
+                onOrigin={handleSwitchOrigin}
+              />
             }
-            onClose={() => {
-              tapSelection();
-              setQrOpen(false);
-            }}
-          />
-        ) : null}
-      </Animated.View>
-
-      {formatMenuOpen ? (
-        <Host matchContents>
-          <AlertDialog
-            onDismissRequest={() => setFormatMenuOpen(false)}
-            colors={{
-              containerColor: '#2a2150',
-              titleContentColor: '#e2e8f0',
-              textContentColor: '#cbd5e1',
-            }}
+            note={noteBanner}
+            support={
+              <SettingsSupport
+                isWide={isWide}
+                visible={visible}
+                light={!darkOn}
+                onOpenSupport={openSupportPage}
+                onOpenSource={openSourceCode}
+                onOpenSocial={openSocial}
+              />
+            }
           >
-            <AlertDialog.Title>
-              <ComposeText style={{ fontWeight: 'bold', fontSize: 20 }}>
-                Filename format
-              </ComposeText>
-            </AlertDialog.Title>
-            <AlertDialog.Text>
-              <Column>
-                {FORMAT_ORDER.map((f) => (
-                  <ListItem
-                    key={f}
-                    tonalElevation={0}
-                    colors={{
-                      containerColor: '#2a2150',
-                      supportingContentColor: '#8b95b5',
-                    }}
-                    modifiers={[formatClickable(f)]}
-                  >
-                    <ListItem.LeadingContent>
-                      <RadioButton selected={pendingFormat === f} />
-                    </ListItem.LeadingContent>
-                    <ListItem.HeadlineContent>
-                      <ComposeText>{FORMAT_LABELS[f]}</ComposeText>
-                    </ListItem.HeadlineContent>
-                    <ListItem.SupportingContent>
-                      <ComposeText style={{ fontSize: 12 }}>
-                        {`${formatName(f, 'Best video', 'MrBeast', 'youtube')}.mp4`}
-                      </ComposeText>
-                    </ListItem.SupportingContent>
-                  </ListItem>
-                ))}
-              </Column>
-            </AlertDialog.Text>
-            <AlertDialog.ConfirmButton>
-              <ComposeTextButton
-                onClick={() => choose(pendingFormat)}
-                colors={{ contentColor: '#22d3ee' }}
-              >
-                <ComposeText style={{ fontWeight: 'bold' }}>OK</ComposeText>
-              </ComposeTextButton>
-            </AlertDialog.ConfirmButton>
-            <AlertDialog.DismissButton>
-              <ComposeTextButton
-                onClick={() => setFormatMenuOpen(false)}
-                colors={{ contentColor: '#94a3b8' }}
-              >
-                <ComposeText style={{ fontWeight: 'bold' }}>Cancel</ComposeText>
-              </ComposeTextButton>
-            </AlertDialog.DismissButton>
-          </AlertDialog>
-        </Host>
-      ) : null}
-    </View>
+            {settingsSections(!darkOn)}
+          </SettingsBody>
+        </Animated.ScrollView>
+
+        <Animated.View
+          pointerEvents={accountScreen.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            accountScreen.style,
+          ]}
+        >
+          {accountScreen.mounted && (
+            <AccountPanel
+              account={account}
+              nameValue={nameValue}
+              onChangeName={setNameValue}
+              onSave={() => void saveName()}
+              saving={nameBusy}
+              error={nameError}
+              onBack={() => {
+                tapSelection();
+                accountScreen.setOpen(false);
+              }}
+              onSignOut={handleSignOut}
+              onEditAvatar={openAvatarPicker}
+              onLinkGoogle={() => void handleSignIn()}
+            />
+          )}
+        </Animated.View>
+
+        <Animated.View
+          pointerEvents={avatarScreen.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            avatarScreen.style,
+          ]}
+        >
+          {avatarScreen.mounted && (
+            <AvatarPicker
+              categories={AVATAR_CATEGORIES}
+              current={account?.avatarUrl ?? null}
+              onPick={pickAvatar}
+              onBack={() => {
+                tapSelection();
+                avatarScreen.setOpen(false);
+              }}
+            />
+          )}
+        </Animated.View>
+
+        <Animated.View
+          pointerEvents={supportScreen.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            supportScreen.style,
+          ]}
+        >
+          {supportScreen.mounted && (
+            <SupportPage
+              methods={SUPPORT_METHODS}
+              onPay={paySupport}
+              onBack={() => {
+                tapSelection();
+                supportScreen.setOpen(false);
+              }}
+            />
+          )}
+        </Animated.View>
+
+        <BottomSheet open={shareOpen} onClose={() => setShareOpen(false)}>
+          <ShareAppSheet />
+        </BottomSheet>
+        <Animated.View
+          pointerEvents={qrOpen ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: '#000' },
+            qrStyle,
+          ]}
+        >
+          {qrMounted && qr ? (
+            <QrView
+              source={qr.source}
+              value={qr.value}
+              label={qr.label}
+              note={
+                qr.note ??
+                `Scan this in your ${qr.label} app to send a tip. Thank you for the support!`
+              }
+              onClose={() => {
+                tapSelection();
+                setQrOpen(false);
+              }}
+            />
+          ) : null}
+        </Animated.View>
+
+        {formatMenuOpen ? (
+          <Host matchContents>
+            <AlertDialog
+              onDismissRequest={() => setFormatMenuOpen(false)}
+              colors={{
+                containerColor: '#2a2150',
+                titleContentColor: '#e2e8f0',
+                textContentColor: '#cbd5e1',
+              }}
+            >
+              <AlertDialog.Title>
+                <ComposeText style={{ fontWeight: 'bold', fontSize: 20 }}>
+                  Filename format
+                </ComposeText>
+              </AlertDialog.Title>
+              <AlertDialog.Text>
+                <Column>
+                  {FORMAT_ORDER.map((f) => (
+                    <ListItem
+                      key={f}
+                      tonalElevation={0}
+                      colors={{
+                        containerColor: '#2a2150',
+                        supportingContentColor: '#8b95b5',
+                      }}
+                      modifiers={[formatClickable(f)]}
+                    >
+                      <ListItem.LeadingContent>
+                        <RadioButton selected={pendingFormat === f} />
+                      </ListItem.LeadingContent>
+                      <ListItem.HeadlineContent>
+                        <ComposeText>{FORMAT_LABELS[f]}</ComposeText>
+                      </ListItem.HeadlineContent>
+                      <ListItem.SupportingContent>
+                        <ComposeText style={{ fontSize: 12 }}>
+                          {`${formatName(f, 'Best video', 'MrBeast', 'youtube')}.mp4`}
+                        </ComposeText>
+                      </ListItem.SupportingContent>
+                    </ListItem>
+                  ))}
+                </Column>
+              </AlertDialog.Text>
+              <AlertDialog.ConfirmButton>
+                <ComposeTextButton
+                  onClick={() => choose(pendingFormat)}
+                  colors={{ contentColor: '#22d3ee' }}
+                >
+                  <ComposeText style={{ fontWeight: 'bold' }}>OK</ComposeText>
+                </ComposeTextButton>
+              </AlertDialog.ConfirmButton>
+              <AlertDialog.DismissButton>
+                <ComposeTextButton
+                  onClick={() => setFormatMenuOpen(false)}
+                  colors={{ contentColor: '#94a3b8' }}
+                >
+                  <ComposeText style={{ fontWeight: 'bold' }}>
+                    Cancel
+                  </ComposeText>
+                </ComposeTextButton>
+              </AlertDialog.DismissButton>
+            </AlertDialog>
+          </Host>
+        ) : null}
+      </View>
     </>
   );
 }

@@ -17,10 +17,11 @@ import { getInfo as twitchGetInfo } from './twitch';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 import { reportError } from '../lib/crash';
 import { log } from '../lib/log';
-import { gatedFetch, mapLimit } from '../lib/net';
+import { mapLimit } from '../lib/net';
 import { getGenericSnifferEnabled } from '../lib/settings';
 import { extractFromPage } from '../lib/webviewExtraction/host';
 import { pageScanToVideoInfo } from '../lib/webviewExtraction/normalize';
+import { probeFileSize } from './social';
 
 export type OnPartial = (info: VideoInfo) => void;
 
@@ -128,33 +129,6 @@ function webviewGuarded(host: string): boolean {
   return WEBVIEW_GUARDED.some((domain) => matches(host, domain));
 }
 
-function timeoutSignal(ms: number): AbortSignal {
-  const controller = new AbortController();
-  setTimeout(() => controller.abort(), ms);
-  return controller.signal;
-}
-
-// HEAD the media url for its size; referer+cookies sent because tokenized CDNs
-// 403 bare requests. fail-soft: picker just shows no size.
-async function fetchWebviewSize(
-  url: string,
-  headers: Record<string, string>
-): Promise<number | undefined> {
-  try {
-    const head = await gatedFetch(url, {
-      method: 'HEAD',
-      headers,
-      redirect: 'follow',
-      signal: timeoutSignal(5000),
-    });
-    if (!head.ok) return undefined;
-    const length = head.headers.get('content-length');
-    return length ? parseInt(length, 10) : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 // benign content-state fails (private/removed/geo/login) & client network drops
 // aren't our bug — keep out of sentry so real extractor breaks stand out.
 function reportFailure(host: string, error: unknown): void {
@@ -206,9 +180,13 @@ export async function resolve(
     return null;
   }
 
-  // unknown host or typed extractor failure → generic DOM scan in hidden webview
   if (!info && !webviewGuarded(host)) {
-    log('Resolve', 'webview fallback', url, originalError ? `after error: ${originalError}` : '(unknown host)');
+    log(
+      'Resolve',
+      'webview fallback',
+      url,
+      originalError ? `after error: ${originalError}` : '(unknown host)'
+    );
     const scan = await extractFromPage(url, (scan) => {
       const partial = pageScanToVideoInfo(scan, host, true);
       if (partial) partialSink?.(partial);
@@ -218,11 +196,13 @@ export async function resolve(
       const headers = info.downloadHeaders ?? {};
       await mapLimit(info.formats, 2, async (format) => {
         if (!format.url || format.filesize || format.isHls) return;
-        const size = await fetchWebviewSize(format.url, headers);
+        const size = await probeFileSize(format.url, headers);
         if (size) format.filesize = size;
       });
       const sizeLabel = (format: Format): string =>
-        format.filesize ? `${Math.round(format.filesize / 1024 / 1024)}MB` : '?size';
+        format.filesize
+          ? `${Math.round(format.filesize / 1024 / 1024)}MB`
+          : '?size';
       log(
         'Resolve',
         'webview info',

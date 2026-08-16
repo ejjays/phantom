@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../src/lib/net', () => ({
   gatedFetch: vi.fn(),
+  timeoutSignal: (ms: number) => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), ms);
+    return controller.signal;
+  },
   mapLimit: <T>(
     items: T[],
     _limit: number,

@@ -126,13 +126,13 @@ describe('instagram getInfo (logged-out /api/graphql)', () => {
     const top = info?.formats?.[0];
     expect(top?.quality).toBe('1080p');
     expect(top?.url).toContain('1080.mp4');
-    // dash video-only carries separate audio track to mux on-device
+
     expect(top?.muxAudioUrl).toContain('audio.mp4');
     expect(top?.isMuxed).toBe(false);
     expect(
       info?.formats.some((f) => f.quality === '720p' && Boolean(f.muxAudioUrl))
     ).toBe(true);
-    // progressive stays muxed fallback
+
     expect(info?.formats.some((f) => f.isMuxed === true)).toBe(true);
   });
 

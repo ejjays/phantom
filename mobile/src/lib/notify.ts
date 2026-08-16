@@ -9,7 +9,12 @@ import * as Sharing from 'expo-sharing';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { File, Paths } from 'expo-file-system';
 import { copyAsync } from 'expo-file-system/legacy';
-import { runDownloadCancel, CANCEL_ACTION } from './fgservice';
+import {
+  runDownloadCancel,
+  CANCEL_ACTION,
+  SMALL_ICON,
+  BRAND,
+} from './fgservice';
 import { setNotify } from './settings';
 import xLogo from '../../assets/logos/x.png';
 import instagramLogo from '../../assets/logos/instagram.png';
@@ -26,8 +31,6 @@ import vimeoLogo from '../../assets/logos/vimeo.png';
 import dailymotionLogo from '../../assets/logos/dailymotion.png';
 
 const CHANNEL = 'complete';
-const SMALL_ICON = 'notification_icon';
-const BRAND = '#22d3ee';
 const TAP_TYPE = 'download-complete';
 const SHARE_ACTION = 'share-file';
 const OPEN_ACTION = 'open-file';
@@ -174,7 +177,8 @@ async function handleFileAction(
   if (handled.has(key)) return;
   handled.add(key);
   const fail = (): void => {
-    if (notificationId) notifee.cancelNotification(notificationId).catch(() => undefined);
+    if (notificationId)
+      notifee.cancelNotification(notificationId).catch(() => undefined);
   };
   try {
     if (pressId === OPEN_ACTION) {

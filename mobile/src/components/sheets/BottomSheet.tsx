@@ -70,7 +70,6 @@ export default function BottomSheet({
   const isExpand = keyboardMode === 'expand';
   const hidden = screenH * (FULL_RATIO - restRatio);
 
-  // sheet lifts in lockstep with the keyboard's own motion, no didShow lag
   useGenericKeyboardHandler(
     {
       onMove: (event) => {

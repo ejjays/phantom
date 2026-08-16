@@ -83,6 +83,7 @@ async function saveToFolder(
 ): Promise<boolean> {
   const dir = await getSaveDir();
   if (!dir) return false;
+  let created = false;
   try {
     const stem = source.name.replace(/\.[^.]+$/u, '');
     const target = await StorageAccessFramework.createFileAsync(
@@ -90,11 +91,14 @@ async function saveToFolder(
       stem,
       mimeFor(source.name)
     );
+    created = true;
     await streamToSaf(source, target, onProgress);
     log('save', `[save] folder: ${source.name}`);
     return true;
   } catch (error) {
-    await AsyncStorage.removeItem(DIR_KEY).catch(() => undefined);
+    // forget only when the dir itself failed (permission/removed); mid-stream
+    // write errors are transient and the user's choice should survive
+    if (!created) await AsyncStorage.removeItem(DIR_KEY).catch(() => undefined);
     logError(
       'save',
       `[save] folder save failed: ${error instanceof Error ? error.message : String(error)}`
@@ -167,7 +171,6 @@ async function saveLegacy(
   /* gallery rejects audio; saf folder instead */
   if (AUDIO_EXT.has(ext)) return saveToFolder(source, onProgress);
 
-  // user picked a folder; save there
   if (await readSaveDir()) return saveToFolder(source, onProgress);
 
   try {

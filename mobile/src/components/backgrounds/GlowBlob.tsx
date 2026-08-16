@@ -1,6 +1,5 @@
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-// soft radial glow — reads as light, not a hard disk
 export default function GlowBlob({
   color,
   size,

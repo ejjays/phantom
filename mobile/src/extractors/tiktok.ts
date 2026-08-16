@@ -4,6 +4,7 @@ import { gatedFetch } from '../lib/net';
 import { noVideo, fromStatus, temporaryError, classifyThrown } from './errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError, log, warn as logWarn } from '../lib/log';
+import { buildVideoInfo } from './videoInfo';
 
 interface TikTokPlayAddr {
   Width?: number;
@@ -226,8 +227,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       throw noVideo('TikTok');
     }
 
-    const info: VideoInfo = {
-      type: 'video',
+    const info: VideoInfo = buildVideoInfo({
       id: item.id || url,
       title: item.desc || 'TikTok Video',
       uploader: item.author?.nickname || item.author?.uniqueId || 'TikTok User',
@@ -236,12 +236,8 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       duration: item.video?.duration,
       formats,
       extractorKey: 'tiktok',
-      isJsInfo: true,
-      fromBrain: false,
-      isPartial: false,
-      isIsrcMatch: false,
-      isFullData: !isPhoto,
-    };
+    });
+    info.isFullData = !isPhoto;
 
     info.title = normalizeTitle(info as unknown as Record<string, unknown>);
     info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);

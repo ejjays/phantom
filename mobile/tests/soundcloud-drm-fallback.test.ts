@@ -29,7 +29,11 @@ function textRes(body: string, ok = true): Response {
   } as unknown as Response;
 }
 function jsonRes(body: unknown): Response {
-  return { ok: true, status: 200, json: () => Promise.resolve(body) } as unknown as Response;
+  return {
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve(body),
+  } as unknown as Response;
 }
 
 const HOME =
@@ -67,7 +71,8 @@ const drmLabelTrack = {
 
 function wireSc(trackBody: unknown) {
   mockFetch.mockImplementation((reqUrl: string) => {
-    if (reqUrl === 'https://soundcloud.com/') return Promise.resolve(textRes(HOME));
+    if (reqUrl === 'https://soundcloud.com/')
+      return Promise.resolve(textRes(HOME));
     if (reqUrl.includes('/assets/')) return Promise.resolve(textRes(ASSET));
     if (reqUrl.includes('/resolve')) return Promise.resolve(jsonRes(trackBody));
     return Promise.resolve(textRes('', false));
@@ -90,8 +95,22 @@ const ytResult = {
   isIsrcMatch: false,
   isFullData: true,
   formats: [
-    { formatId: 'a', url: 'https://yt/audio.m4a', extension: 'm4a', isAudio: true, isVideo: false, isMuxed: false },
-    { formatId: 'v', url: 'https://yt/video.mp4', extension: 'mp4', isAudio: false, isVideo: true, isMuxed: false },
+    {
+      formatId: 'a',
+      url: 'https://yt/audio.m4a',
+      extension: 'm4a',
+      isAudio: true,
+      isVideo: false,
+      isMuxed: false,
+    },
+    {
+      formatId: 'v',
+      url: 'https://yt/video.mp4',
+      extension: 'mp4',
+      isAudio: false,
+      isVideo: true,
+      isMuxed: false,
+    },
   ],
 };
 
@@ -105,7 +124,12 @@ describe('soundcloud DRM → youtube isrc fallback', () => {
   it('recovers a DRM-locked label track from youtube via its metadata', async () => {
     wireSc(drmLabelTrack);
     mockSearch.mockResolvedValue([
-      { id: 'ytVideoId', title: 'You Are Good', author: 'Israel Houghton', durationSec: 323 },
+      {
+        id: 'ytVideoId',
+        title: 'You Are Good',
+        author: 'Israel Houghton',
+        durationSec: 323,
+      },
     ]);
     mockYtInfo.mockResolvedValue(ytResult);
 
@@ -115,13 +139,14 @@ describe('soundcloud DRM → youtube isrc fallback', () => {
       onPartial
     );
 
-    // searched youtube by "artist title" first; isrc-only search not needed
     expect(mockSearch).toHaveBeenCalledWith('Israel Houghton You Are Good');
-    // matched video was extracted on-device
-    expect(mockYtInfo).toHaveBeenCalledWith('https://www.youtube.com/watch?v=ytVideoId');
+
+    expect(mockYtInfo).toHaveBeenCalledWith(
+      'https://www.youtube.com/watch?v=ytVideoId'
+    );
 
     expect(info).not.toBeNull();
-    // labelled as a soundcloud isrc-match, source metadata overlaid
+
     expect(info?.extractorKey).toBe('soundcloud');
     expect(info?.isIsrcMatch).toBe(true);
     expect(info?.title).toBe('You Are Good');
@@ -132,7 +157,6 @@ describe('soundcloud DRM → youtube isrc fallback', () => {
     expect(info?.formats).toHaveLength(1);
     expect(info?.formats[0].url).toBe('https://yt/audio.m4a');
 
-    // picker painted with the label metadata + isrc-match flag
     const paint = onPartial.mock.calls.at(-1)?.[0];
     expect(paint.isPartial).toBe(true);
     expect(paint.isIsrcMatch).toBe(true);
@@ -150,7 +174,6 @@ describe('soundcloud DRM → youtube isrc fallback', () => {
   });
 
   it('falls back to the DRM error when no isrc/metadata to search with', async () => {
-    // encrypted-only + no publisher_metadata and no title/uploader
     wireSc({
       ...drmLabelTrack,
       title: undefined,
@@ -158,9 +181,9 @@ describe('soundcloud DRM → youtube isrc fallback', () => {
       publisher_metadata: undefined,
     });
 
-    await expect(
-      getInfo('https://soundcloud.com/x/locked')
-    ).rejects.toThrow(/DRM-protected/u);
+    await expect(getInfo('https://soundcloud.com/x/locked')).rejects.toThrow(
+      /DRM-protected/u
+    );
     expect(mockSearch).not.toHaveBeenCalled();
   });
 });

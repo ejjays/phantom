@@ -217,8 +217,6 @@ export function NotificationIcon({ size = 24 }: IconProps) {
 }
 
 export function SocialIcon({ size = 24 }: IconProps) {
-  // outline recoloured to white (source #36013F disappears on dark bg); cyan
-  // fill + smile kept as-is to match brand.
   return (
     <Svg width={size} height={size} viewBox="60 51 920 920" fill="none">
       <Path
@@ -263,10 +261,7 @@ export function ExperimentIcon({ size = 24 }: IconProps) {
         fill="#a78bfa"
         d="M9.5 2.7v5.2L4.9 16.6a2.4 2.4 0 0 0 2.1 3.4h10a2.4 2.4 0 0 0 2.1-3.4l-4.6-8.7V2.7"
       />
-      <Path
-        fill="#f1f5f9"
-        d="M8.6 2.7h6.8M7.4 15.7h9.2"
-      />
+      <Path fill="#f1f5f9" d="M8.6 2.7h6.8M7.4 15.7h9.2" />
     </Svg>
   );
 }

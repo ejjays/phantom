@@ -21,15 +21,11 @@ import {
   classifyThrown,
 } from '../src/extractors/errors';
 
-// ---- helpers ----
-
 const social = (over: Partial<RawSocialData> = {}): RawSocialData => ({
   title: 'Cool Video',
   uploader: 'TestUser',
   ...over,
 });
-
-// ---- ExtractorError ----
 
 describe('ExtractorError', () => {
   it('stores retryable + expected flags', () => {
@@ -45,8 +41,6 @@ describe('ExtractorError', () => {
     expect(err.expected).toBe(false);
   });
 });
-
-// ---- error factories ----
 
 describe('error factories', () => {
   it('notFound is permanent + expected', () => {
@@ -131,8 +125,6 @@ describe('error factories', () => {
   });
 });
 
-// ---- fromStatus ----
-
 describe('fromStatus', () => {
   it.each([
     [404, 'notFound'],
@@ -165,8 +157,6 @@ describe('fromStatus', () => {
   });
 });
 
-// ---- classifyThrown ----
-
 describe('classifyThrown', () => {
   it('passes ExtractorError through as-is', () => {
     const orig = rateLimited('X');
@@ -195,8 +185,6 @@ describe('classifyThrown', () => {
     expect(e).toBeInstanceOf(ExtractorError);
   });
 });
-
-// ---- normalizeArtist ----
 
 describe('normalizeArtist', () => {
   it('returns uploader when available', () => {
@@ -304,8 +292,6 @@ describe('normalizeArtist', () => {
     expect(result).toBe('YouTube User');
   });
 });
-
-// ---- normalizeTitle ----
 
 describe('normalizeTitle', () => {
   it('returns a clean title when available', () => {

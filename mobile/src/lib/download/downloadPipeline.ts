@@ -18,6 +18,7 @@ import {
 } from './mux';
 import { saveToDevice } from './save';
 import { log } from '../log';
+import { ABORT_MESSAGE } from '../retry';
 import { upsertInflight, removeInflight, type InflightItem } from '../inflight';
 import { addHistory } from '../downloadHistory';
 
@@ -37,7 +38,8 @@ export type RunDownloadInput = {
 const removeFile = (file: File): Promise<void> =>
   deleteAsync(file.uri, { idempotent: true }).catch(() => undefined);
 
-const mb = (bytes: number): string => (bytes / 1048576).toFixed(1);
+const BYTES_PER_MB = 1048576;
+const mb = (bytes: number): string => (bytes / BYTES_PER_MB).toFixed(1);
 
 function buildInflight(
   info: VideoInfo,
@@ -46,7 +48,7 @@ function buildInflight(
   tag: { title?: string; artist?: string } | undefined,
   seed?: InflightItem
 ): InflightItem {
-  const pick = <T,>(a: T | undefined, fallback: T): T =>
+  const pick = <T>(a: T | undefined, fallback: T): T =>
     a !== undefined ? a : fallback;
   return {
     id: stem,
@@ -65,10 +67,7 @@ function buildInflight(
       thumbnail: pick(seed?.info.thumbnail, info.thumbnail),
       duration: pick(seed?.info.duration, info.duration),
       extractorKey: pick(seed?.info.extractorKey, info.extractorKey),
-      downloadHeaders: pick(
-        seed?.info.downloadHeaders,
-        info.downloadHeaders
-      ),
+      downloadHeaders: pick(seed?.info.downloadHeaders, info.downloadHeaders),
     },
     format: pick(seed?.format, format),
     tag: pick(seed?.tag, tag),
@@ -167,17 +166,16 @@ async function fetchMedia({
           onProg(bytesWritten, totalBytes),
       });
     }
-    if (signal.aborted) throw new Error('cancelled');
+    if (signal.aborted) throw new Error(ABORT_MESSAGE);
     const secs = Math.max((Date.now() - startedAt) / 1000, 0.1);
     log(
       'downloadPipeline',
-      `[Download] ${label} ${mb(written)}MB in ${secs.toFixed(1)}s (${(written / 1048576 / secs).toFixed(1)} MB/s)`
+      `[Download] ${label} ${mb(written)}MB in ${secs.toFixed(1)}s (${(written / BYTES_PER_MB / secs).toFixed(1)} MB/s)`
     );
   };
 
   if (format.extension === 'mp3') {
     if (format.noTranscode) {
-      // already native mp3; download & keep untouched
       const outFile = track(new File(Paths.cache, `${stem}.mp3`));
       await fetchTo(format.url, outFile, 0, 100, 'audio');
       return outFile;
@@ -224,7 +222,6 @@ async function fetchMedia({
   }
   if (format.isHls) {
     const outFile = track(new File(Paths.cache, `${stem}.${ext}`));
-    // sum segment durations for progress
     let durationSec = info.duration ?? 0;
     if (!durationSec) {
       try {
@@ -264,7 +261,7 @@ async function fetchMedia({
       );
       if (ok) path = 'parallel-muxed';
     }
-    if (signal.aborted) throw new Error('cancelled');
+    if (signal.aborted) throw new Error(ABORT_MESSAGE);
     if (!ok) {
       ok = await hlsToMp4(
         format.url,
@@ -279,7 +276,7 @@ async function fetchMedia({
       'downloadPipeline',
       `[Download] hls (${path}) ${ok ? 'ok' : 'failed'} in ${((Date.now() - hStart) / 1000).toFixed(1)}s`
     );
-    if (signal.aborted) throw new Error('cancelled');
+    if (signal.aborted) throw new Error(ABORT_MESSAGE);
     if (!ok) throw new Error('HLS download failed');
     // big 4k saves are slow; avoid a frozen-looking 98%
     onState({ status: 'muxing', progress: 99 });
@@ -344,14 +341,14 @@ export async function runDownload({
       onState({ status: 'muxing', progress: 99 });
       const mp4 = track(new File(Paths.cache, `${stem}.mp4`));
       const ok =
-        (await remuxToMp4(saveTarget, mp4)) || (await encodeToMp4(saveTarget, mp4));
-      if (signal.aborted) throw new Error('cancelled');
+        (await remuxToMp4(saveTarget, mp4)) ||
+        (await encodeToMp4(saveTarget, mp4));
+      if (signal.aborted) throw new Error(ABORT_MESSAGE);
       if (!ok) throw new Error('MP4 conversion failed');
       await removeFile(saveTarget);
       saveTarget = mp4;
     }
 
-    // tag audio so players show title/artist/art
     if (format.isAudio && !format.isVideo) {
       await tagAudioInPlace(saveTarget, stem, info, tag, track);
     }

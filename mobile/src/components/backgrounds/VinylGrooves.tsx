@@ -1,7 +1,6 @@
 import { View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
-// concentric grooves — mirrors web's repeating-radial-gradient at 3px steps, 30% overlay
 export default function VinylGrooves({ size = 96 }: { size?: number }) {
   const center = size / 2;
   const rings = [];

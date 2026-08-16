@@ -16,6 +16,8 @@ const YT_PLAYLIST_ID = /[&?]list=([0-9A-Za-z_-]+)/u;
 
 const CODEC_RANK: Record<string, number> = { h264: 0, vp9: 1, av1: 2 };
 
+const MP3_BITRATE_BPS = 190000;
+
 function videoCodecOf(raw: RawYtFormat): string {
   const mime = raw.mimeType?.toLowerCase() ?? '';
   if (mime.includes('av01')) return 'av1';
@@ -116,7 +118,8 @@ export function buildFormats(raw: RawYtResult): Format[] {
     let mp3Bytes = mp3Raw.contentLength
       ? Number(mp3Raw.contentLength)
       : base.filesize;
-    if (raw.duration) mp3Bytes = Math.round((raw.duration * 190000) / 8);
+    if (raw.duration)
+      mp3Bytes = Math.round((raw.duration * MP3_BITRATE_BPS) / 8);
     audioFormats.push({
       ...base,
       formatId: 'mp3',

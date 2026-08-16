@@ -541,7 +541,6 @@ export default function UpdateDetailSheet({
   const trayTop = tray ? tray.y - TRAY_H - 10 : 0;
 
   return (
-    // skipcq: JS-0415
     <Modal
       visible
       transparent
@@ -574,8 +573,6 @@ export default function UpdateDetailSheet({
               ]}
             >
               <Pressable onPress={openFocus} style={tw`flex-1`}>
-                {/* no transition: expo-image replays crossfade on Android
-                    relayout & flickers black as hero scales during expand */}
                 <Image
                   source={{ uri: snap.update.imageUrl }}
                   style={tw`h-full w-full`}

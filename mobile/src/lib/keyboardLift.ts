@@ -1,4 +1,3 @@
-// lift focused field above keyboard
 export function computeLift(
   fieldBottom: number,
   keyboardHeight: number,

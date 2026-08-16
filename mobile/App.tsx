@@ -1,10 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import {
-  View,
-  StatusBar,
-  InteractionManager,
-  AppState,
-} from 'react-native';
+import { View, StatusBar, InteractionManager, AppState } from 'react-native';
 import { useBackHandler } from './src/lib/back';
 import {
   SafeAreaProvider,
@@ -262,12 +257,8 @@ function AppRoot() {
     }
   };
   const tabHistory = useRef<Tab[]>([]);
-  const goTab = (
-    next: Tab,
-    opts: { fromBack?: boolean } = {}
-  ) => {
+  const goTab = (next: Tab, opts: { fromBack?: boolean } = {}) => {
     if (!opts.fromBack && next !== tab) {
-      // tapping a tab records where we came from; tapping home resets the stack
       if (next === 'home') tabHistory.current = [];
       else tabHistory.current = [...tabHistory.current, tab];
     }
@@ -368,7 +359,11 @@ function AppRoot() {
                   onDeepLinkHandled={() => setDeepLink(null)}
                 />
               )}
-              <BottomNav tab={tab} onChange={goTab} hidden={navHidden || playlistOpen} />
+              <BottomNav
+                tab={tab}
+                onChange={goTab}
+                hidden={navHidden || playlistOpen}
+              />
               {playlistOpen && playlistInfo ? (
                 <PlaylistScreen
                   info={playlistInfo}

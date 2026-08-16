@@ -3,6 +3,9 @@ import { gatedFetch, mapLimit } from '../lib/net';
 import { noVideo, classifyThrown } from './errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError, log } from '../lib/log';
+import { parseHlsMaster, pickLargestThumb } from './hls';
+import { probeFileSize } from './social';
+import { buildVideoInfo } from './videoInfo';
 const REFERER = 'https://vimeo.com/';
 
 // flip true to trace config/player-page on-device
@@ -42,8 +45,7 @@ interface VmMeta {
 }
 
 function buildInfo(meta: VmMeta, url: string, formats: Format[]): VideoInfo {
-  return {
-    type: 'video',
+  return buildVideoInfo({
     id: meta.id,
     title: meta.title || 'Vimeo Video',
     uploader: meta.uploader || 'Vimeo',
@@ -52,13 +54,8 @@ function buildInfo(meta: VmMeta, url: string, formats: Format[]): VideoInfo {
     duration: meta.duration,
     formats,
     extractorKey: 'vimeo',
-    isJsInfo: true,
-    fromBrain: false,
-    isPartial: false,
-    isIsrcMatch: false,
-    isFullData: true,
     downloadHeaders: { 'User-Agent': DESKTOP_UA, Referer: REFERER },
-  };
+  });
 }
 
 function parseId(url: string): { id: string; hash?: string } | null {
@@ -147,14 +144,6 @@ async function pageHash(id: string, url: string): Promise<string | undefined> {
   }
 }
 
-function pickThumb(thumbs?: Record<string, string>): string | undefined {
-  if (!thumbs) return undefined;
-  const sized = Object.entries(thumbs)
-    .filter(([key]) => /^\d+$/u.test(key))
-    .sort((lhs, rhs) => Number(rhs[0]) - Number(lhs[0]));
-  return sized[0]?.[1] ?? thumbs.base ?? Object.values(thumbs)[0];
-}
-
 function buildFormats(progressive: Progressive[]): Format[] {
   const seen = new Set<string>();
   const formats: Format[] = [];
@@ -177,79 +166,6 @@ function buildFormats(progressive: Progressive[]): Format[] {
       isVideo: true,
       isAudio: false,
       isMuxed: true,
-    });
-  }
-  formats.sort((lhs, rhs) => (rhs.height ?? 0) - (lhs.height ?? 0));
-  return formats;
-}
-
-// vimeo hls master: separate video variants + one shared audio track
-async function buildHlsFormats(
-  master: string,
-  durationSec: number
-): Promise<Format[]> {
-  let text: string;
-  try {
-    const res = await gatedFetch(master, {
-      headers: { 'User-Agent': DESKTOP_UA, Referer: REFERER },
-    });
-    if (!res.ok) return [];
-    text = await res.text();
-  } catch {
-    return [];
-  }
-  const lines = text.split('\n');
-  let audioUrl: string | undefined;
-  for (const line of lines) {
-    if (line.startsWith('#EXT-X-MEDIA:') && /TYPE=AUDIO/u.test(line)) {
-      const uri = line.match(/URI="([^"]+)"/u)?.[1];
-      if (uri) {
-        audioUrl = new URL(uri, master).toString();
-        break;
-      }
-    }
-  }
-  const seen = new Set<number>();
-  const formats: Format[] = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    if (!lines[i].startsWith('#EXT-X-STREAM-INF:')) continue;
-    const attrs = lines[i];
-    const dims = attrs.match(/RESOLUTION=(\d+)x(\d+)/u);
-    const uri = lines[i + 1]?.trim();
-    if (!dims || !uri || uri.startsWith('#')) continue;
-    const height = Number(dims[2]);
-    if (seen.has(height)) continue;
-    seen.add(height);
-    const bw = Number(
-      attrs.match(/AVERAGE-BANDWIDTH=(\d+)/u)?.[1] ??
-        attrs.match(/[^-]BANDWIDTH=(\d+)/u)?.[1] ??
-        0
-    );
-    const codecs = attrs.match(/CODECS="([^"]+)"/u)?.[1] ?? '';
-    formats.push({
-      formatId: `${height}p`,
-      url: new URL(uri, master).toString(),
-      hlsAudioUrl: audioUrl,
-      extension: 'mp4',
-      resolution: `${dims[1]}x${dims[2]}`,
-      quality: `${height}p`,
-      width: Number(dims[1]),
-      height,
-      filesize:
-        bw > 0 && durationSec > 0
-          ? Math.round((bw / 8) * durationSec)
-          : undefined,
-      vcodec: /av01/u.test(codecs)
-        ? 'av1'
-        : /hvc1|hev1/u.test(codecs)
-          ? 'hevc'
-          : 'h264',
-      acodec: 'aac',
-      isVideo: true,
-      isAudio: false,
-      isMuxed: true,
-      isHls: true,
-      hlsKeepAlive: true,
     });
   }
   formats.sort((lhs, rhs) => (rhs.height ?? 0) - (lhs.height ?? 0));
@@ -307,7 +223,12 @@ async function viaConfig(
   if (formats.length === 0) {
     const cdn = files?.hls?.cdns?.[files.hls.default_cdn ?? ''];
     if (cdn?.url) {
-      const variants = await buildHlsFormats(cdn.url, cfg.video?.duration ?? 0);
+      const headers = { 'User-Agent': DESKTOP_UA, Referer: REFERER };
+      const variants = await parseHlsMaster(
+        cdn.url,
+        cfg.video?.duration ?? 0,
+        headers
+      );
       if (variants.length) formats.push(...variants);
       else
         formats.push({
@@ -330,20 +251,15 @@ async function viaConfig(
   // config carries no size; HEAD each quality
   await mapLimit(formats, 3, async (format) => {
     if (format.isHls) return;
-    try {
-      const head = await gatedFetch(format.url, {
-        method: 'HEAD',
-        headers: { 'User-Agent': DESKTOP_UA, Referer: REFERER },
-      });
-      const len = head?.headers?.get('content-length');
-      if (len) format.filesize = parseInt(len, 10);
-    } catch {
-      /* size optional */
-    }
+    const size = await probeFileSize(format.url, {
+      'User-Agent': DESKTOP_UA,
+      Referer: REFERER,
+    });
+    if (size) format.filesize = size;
   });
 
   const video = cfg.video;
-  let thumbnail = pickThumb(video?.thumbs);
+  let thumbnail = pickLargestThumb(video?.thumbs);
   if (!thumbnail) thumbnail = await oembedThumb(url);
   if (!thumbnail) thumbnail = await ogImageThumb(url);
   return buildInfo(

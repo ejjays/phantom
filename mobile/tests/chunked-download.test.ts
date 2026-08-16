@@ -77,9 +77,7 @@ function makeFetchMock(total: number, ranges: string[]) {
           status: 206,
           headers: {
             get: (k: string) =>
-              k.toLowerCase() === 'content-range'
-                ? `bytes 0-0/${total}`
-                : null,
+              k.toLowerCase() === 'content-range' ? `bytes 0-0/${total}` : null,
           },
           arrayBuffer: () =>
             Promise.resolve(new Uint8Array(1).buffer as ArrayBuffer),
@@ -95,7 +93,9 @@ function makeFetchMock(total: number, ranges: string[]) {
               ok: true,
               status: 206,
               arrayBuffer: () =>
-                Promise.resolve(new Uint8Array([idx % 256]).buffer as ArrayBuffer),
+                Promise.resolve(
+                  new Uint8Array([idx % 256]).buffer as ArrayBuffer
+                ),
             }),
           (4 - idx) * 5
         )
@@ -131,10 +131,10 @@ describe('chunkedDownload', () => {
     const total = CHUNK * 4; // 4 chunks
     const ranges: string[] = [];
     global.fetch = makeFetchMock(total, ranges) as unknown as typeof fetch;
-    // partial file already has 2 full chunks on disk
+
     const file = makeFileMock(true, CHUNK * 2);
-    // sidecar matches the in-flight download
-    stateFiles.set(`${file.name  }.state`, {
+
+    stateFiles.set(`${file.name}.state`, {
       exists: true,
       content: JSON.stringify({
         url: 'https://g.example/videoplayback',
@@ -150,7 +150,6 @@ describe('chunkedDownload', () => {
       () => {}
     );
 
-// resumes at chunk 2: fetches only the remaining 2 ranges
     expect(ranges).toHaveLength(2);
     expect(ranges[0]).toBe(`bytes=${CHUNK * 2}-${CHUNK * 3 - 1}`);
     expect(file.delete).not.toHaveBeenCalled();
@@ -158,14 +157,14 @@ describe('chunkedDownload', () => {
     // handle must be positioned at the resume offset, not the start
     expect(file.open().offset).toBe(CHUNK * 2);
     expect(file.open().writeBytes).toHaveBeenCalledTimes(2);
-    stateFiles.delete(`${file.name  }.state`);
+    stateFiles.delete(`${file.name}.state`);
   });
 
   it('restarts fresh when url changed', async () => {
     const ranges: string[] = [];
     global.fetch = makeFetchMock(CHUNK * 4, ranges) as unknown as typeof fetch;
     const file = makeFileMock(true, CHUNK * 2);
-    stateFiles.set(`${file.name  }.state`, {
+    stateFiles.set(`${file.name}.state`, {
       exists: true,
       content: JSON.stringify({
         url: 'https://old.example/videoplayback',
@@ -185,12 +184,12 @@ describe('chunkedDownload', () => {
     expect(ranges[0]).toBe(`bytes=0-${CHUNK - 1}`);
     expect(file.delete).toHaveBeenCalled();
     expect(file.create).toHaveBeenCalled();
-    stateFiles.delete(`${file.name  }.state`);
+    stateFiles.delete(`${file.name}.state`);
   });
 
   it('keeps sidecar on failure so a retry can resume mid-file', async () => {
     const file = makeFileMock(true, CHUNK);
-    stateFiles.set(`${file.name  }.state`, {
+    stateFiles.set(`${file.name}.state`, {
       exists: true,
       content: JSON.stringify({
         url: 'https://g.example/videoplayback',
@@ -237,10 +236,9 @@ describe('chunkedDownload', () => {
       )
     ).rejects.toThrow('network dropped');
 
-    // partial file untouched & sidecar retained for the retry
     expect(file.delete).not.toHaveBeenCalled();
-    expect(stateFiles.has(`${file.name  }.state`)).toBe(true);
-    stateFiles.delete(`${file.name  }.state`);
+    expect(stateFiles.has(`${file.name}.state`)).toBe(true);
+    stateFiles.delete(`${file.name}.state`);
   });
 
   it('clears sidecar once the download finishes', async () => {
@@ -248,7 +246,7 @@ describe('chunkedDownload', () => {
     const ranges: string[] = [];
     global.fetch = makeFetchMock(total, ranges) as unknown as typeof fetch;
     const file = makeFileMock(true, CHUNK * 2);
-    stateFiles.set(`${file.name  }.state`, {
+    stateFiles.set(`${file.name}.state`, {
       exists: true,
       content: JSON.stringify({
         url: 'https://g.example/videoplayback',
@@ -264,6 +262,6 @@ describe('chunkedDownload', () => {
       () => {}
     );
 
-    expect(stateFiles.has(`${file.name  }.state`)).toBe(false);
+    expect(stateFiles.has(`${file.name}.state`)).toBe(false);
   });
 });

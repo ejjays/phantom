@@ -1,6 +1,5 @@
 import { SvgXml } from 'react-native-svg';
 
-// crisp vector platform logos, rendered straight from the .svg sources.
 export type PlatformName =
   | 'bilibili'
   | 'bluesky'

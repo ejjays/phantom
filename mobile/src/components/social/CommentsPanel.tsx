@@ -365,8 +365,6 @@ function LikeButton({
 }
 
 function CommentGif({ uri, width }: { uri: string; width: number }) {
-  // gif dims arent stored, so size from the aspect fragment if present, else
-  // measure from the first decoded frame.
   const [aspect, setAspect] = useState(() => readAspect(uri) ?? 1.4);
   const [playing, setPlaying] = useState(true);
   const imageRef = useRef<Image>(null);
@@ -608,7 +606,6 @@ const CommentRow = memo(function CommentRow({
   const handle = comment.username.startsWith('@')
     ? comment.username
     : `@${comment.username}`;
-  // guests display "Anonymous 30584"; their raw handle stays for mentions
   const label = isGuestName(comment.username)
     ? displayName(comment.username)
     : handle;
@@ -902,13 +899,8 @@ export default function CommentsPanel({
   const kbHeight = useRef(0);
   const pendingReplyBottom = useRef<number | null>(null);
 
-  // keyboardChatScrollView lifts content via native contentInset sim, layout
-  // stays static — avoids per-frame layout/composite cost on the heavy list.
-  // composerExtra = live composer height, so content clears it.
   const composerExtra = useSharedValue(0);
   const { progress: kbProgress } = useReanimatedKeyboardAnimation();
-  // only reserve composer clearance while the keyboard is up — keeps a tight
-  // bottom (no huge gap after the last comment) when it's down.
   const extraPadding = useDerivedValue(
     () => composerExtra.value * kbProgress.value
   );
@@ -997,8 +989,6 @@ export default function CommentsPanel({
     commentsRef.current = comments;
   }, [comments, updateId]);
 
-  // defer the (heavy) comment render until just after the entrance animation so
-  // a cached thread doesnt render synchronously on mount & stall the transition
   useEffect(() => {
     const timer = setTimeout(() => setReady(true), 300);
     return () => clearTimeout(timer);
@@ -1034,7 +1024,6 @@ export default function CommentsPanel({
     [scrollRef]
   );
 
-  /* place the pending reply target's bottom just above the composer, using the ..real keyboard height. only scroll down so comment never drops off-top. */
   const flushReplyScroll = useCallback(
     (kb: number) => {
       const contentBottom = pendingReplyBottom.current;
@@ -1179,7 +1168,6 @@ export default function CommentsPanel({
         });
       }, 260);
     } else {
-      // land on the comments section (new comment is now first), not the post top
       requestAnimationFrame(() =>
         smoothScrollTo(Math.max(0, commentsTop.current - 12))
       );
@@ -1275,8 +1263,6 @@ export default function CommentsPanel({
       setReplyTarget({ id: rootId, handle });
       setInput(`${handle} `);
       requestAnimationFrame(() => inputRef.current?.focus());
-      // sit the tapped comment's row (incl. its Reply button, not its replies)
-      // just above the composer once the keyboard is up.
       if (rowScreenBottom < 0 || scrollH.current === 0) return;
       pendingReplyBottom.current =
         rowScreenBottom - svTop.current + scrollTop.value;
@@ -1327,7 +1313,6 @@ export default function CommentsPanel({
       ? replyTarget.handle
       : '';
   const inputRest = input.slice(mentionPrefix.length);
-  // stable ref so keyboard re-renders don't re-render every visible list row
   const roots = useMemo(
     () => comments.filter((comment) => !comment.parentId),
     [comments]
@@ -1345,8 +1330,6 @@ export default function CommentsPanel({
           new Date(second.createdAt).getTime()
       );
 
-  // batch-mount roots per frame so a big thread opens instantly, not in one
-  // blocking commit
   useEffect(() => {
     if (rootLimit >= roots.length) return undefined;
     const id = requestAnimationFrame(() =>
@@ -1360,11 +1343,6 @@ export default function CommentsPanel({
       const replies = repliesFor(root.id);
       const hasReplies = replies.length > 0;
       const isOpen = !!expanded[root.id];
-      /**
-       * once a thread is toggled its key exists here; keep that thread's reply
-       * Collapsible mounted so expand & collapse both animate, while
-       * never-opened threads still skip mounting reply rows.
-       */
       const everOpened = root.id in expanded;
       const shown = replyShown[root.id] ?? INITIAL_REPLIES;
       const visibleReplies = replies.slice(0, shown);
