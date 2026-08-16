@@ -6,6 +6,7 @@ export type UpdateManifest = {
   notes?: string;
   sha256?: string;
   minVersion?: string;
+  size?: number;
 };
 
 export function latestManifestUrl(): string {
@@ -22,6 +23,10 @@ export function parseManifest(text: string): UpdateManifest {
   if (typeof raw.notes === 'string') manifest.notes = raw.notes;
   if (typeof raw.sha256 === 'string') manifest.sha256 = raw.sha256;
   if (typeof raw.minVersion === 'string') manifest.minVersion = raw.minVersion;
+  if (typeof raw.size === 'string') {
+    const size = parseInt(raw.size, 10);
+    if (Number.isFinite(size)) manifest.size = size;
+  }
   return manifest;
 }
 

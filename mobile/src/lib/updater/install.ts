@@ -1,5 +1,4 @@
 import { File, Paths } from 'expo-file-system';
-import { chunkedDownload } from '../download/download';
 import { installApk, installViaSystem } from '../../../modules/silent-updater';
 import { sha256Hex } from './sha256';
 import type { UpdateManifest } from './manifest';
@@ -11,17 +10,6 @@ const SILENT_GRACE_MS = 8_000;
 const toFsPath = (uri: string): string =>
   decodeURIComponent(uri.replace(/^file:\/\//u, ''));
 
-// github release urls 302 to a signed cdn; rn fetch drops the Range header on
-// that redirect, so resolve the final host first and chunk from there
-async function resolveFinalUrl(
-  url: string,
-  signal?: AbortSignal
-): Promise<string> {
-  const res = await fetch(url, { method: 'HEAD', redirect: 'follow', signal });
-  return res.url || url;
-}
-
-// chunked downloader wants content-range support; storage serves it
 export async function downloadApk(
   manifest: UpdateManifest,
   onProgress: (written: number, total: number) => void,
@@ -29,13 +17,14 @@ export async function downloadApk(
 ): Promise<string> {
   const file = new File(Paths.cache, APK_NAME);
   if (file.exists) file.delete();
-  await chunkedDownload(
-    await resolveFinalUrl(manifest.apkUrl, signal),
-    {},
-    file,
-    onProgress,
-    signal
-  );
+  // native downloader replaces the js chunk fetcher: streams to disk and
+  // follows the release redirect natively — ranged chunking on rn fetch
+  // was corrupting files intermittently
+  await File.downloadFileAsync(manifest.apkUrl, file, {
+    idempotent: true,
+    signal,
+    onProgress: (data) => onProgress(data.bytesWritten, data.totalBytes),
+  });
   const digest = await sha256Hex(file);
   if (manifest.sha256 && digest !== manifest.sha256.toLowerCase()) {
     if (file.exists) file.delete();
