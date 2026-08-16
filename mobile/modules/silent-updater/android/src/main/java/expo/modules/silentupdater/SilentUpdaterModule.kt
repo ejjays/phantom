@@ -52,7 +52,7 @@ class SilentUpdaterModule : Module() {
       context,
       0x5E1F,
       Intent(context, SilentUpdateReceiver::class.java),
-      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
     ).intentSender
 
     val params = PackageInstaller.SessionParams(

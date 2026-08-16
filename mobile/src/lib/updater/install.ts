@@ -5,9 +5,9 @@ import type { UpdateManifest } from './manifest';
 
 const APK_NAME = 'phantom-update.apk';
 
-export function apkPath(): string {
-  return `${Paths.cache}/${APK_NAME}`;
-}
+// java File() treats 'file://' uris as literal paths; strip the scheme first
+const toFsPath = (uri: string): string =>
+  decodeURIComponent(uri.replace(/^file:\/\//u, ''));
 
 // chunked downloader wants content-range support; storage serves it
 export async function downloadApk(
@@ -18,7 +18,8 @@ export async function downloadApk(
   const file = new File(Paths.cache, APK_NAME);
   if (file.exists) file.delete();
   await chunkedDownload(manifest.apkUrl, {}, file, onProgress, signal);
-  return apkPath();
+  // Paths.cache is a Directory object; template-stringing it yields '[object Object]' — pass the File's real uri instead
+  return toFsPath(file.uri);
 }
 
 export async function installDownloadedApk(path: string): Promise<void> {
