@@ -28,7 +28,7 @@ import Animated, {
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
-import { ChevronRight, Check, Ghost } from 'lucide-react-native';
+import { ChevronRight, Ghost } from 'lucide-react-native';
 import Constants from 'expo-constants';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
@@ -122,13 +122,15 @@ import { AVATAR_CATEGORIES, presetMarker } from '../lib/avatars';
 import { useSubScreen } from '../hooks/useSubScreen';
 import { useAppDialog } from '../components/AppDialog';
 import {
-  Box,
+  AlertDialog,
   Host,
-  ExposedDropdownMenuBox,
-  ExposedDropdownMenu,
-  DropdownMenuItem,
+  Text as ComposeText,
+  TextButton as ComposeTextButton,
+  RadioButton,
+  ListItem,
+  Column,
 } from '@expo/ui/jetpack-compose';
-import { height, menuAnchor, width } from '@expo/ui/jetpack-compose/modifiers';
+import { clickable } from '@expo/ui/jetpack-compose/modifiers';
 
 const CYAN = '#22d3ee';
 const DARK_BG = '#030014';
@@ -188,11 +190,6 @@ const FORMAT_LABELS: Record<FilenameFormat, string> = {
   title: 'Title only',
   'title-platform': 'Title (platform)',
 };
-
-// M3 popup opens below its anchor w/ 8dp margin; sized anchor centers it
-const FORMAT_MENU_MAX_W = 340;
-const FORMAT_MENU_EST_H = 168;
-const FORMAT_MENU_V_MARGIN = 8;
 
 function Toggle({ value, light }: { value: boolean; light?: boolean }) {
   const knobStyle = useAnimatedStyle(() => ({
@@ -437,8 +434,9 @@ function LinkRow(props: {
   tile?: boolean;
   iconSize?: number;
   light?: boolean;
+  chevron?: boolean;
 }) {
-  const { value, onPress, tone, light, ...rest } = props;
+  const { value, onPress, tone, light, chevron = true, ...rest } = props;
   return (
     <Pressable
       onPress={onPress}
@@ -447,7 +445,9 @@ function LinkRow(props: {
     >
       <RowShell {...rest} light={light}>
         {value ? <ValueLabel value={value} tone={tone} light={light} /> : null}
-        <ChevronRight size={18} color={PALETTE(!!light).chevron} />
+        {chevron ? (
+          <ChevronRight size={18} color={PALETTE(!!light).chevron} />
+        ) : null}
       </RowShell>
     </Pressable>
   );
@@ -744,6 +744,7 @@ function SettingsScreen({
   const fadeStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
   const [format, setFormat] = useState<FilenameFormat>('artist-title');
+  const [pendingFormat, setPendingFormat] = useState<FilenameFormat>('artist-title');
   const [formatMenuOpen, setFormatMenuOpen] = useState(false);
   const [autopaste, setAutopaste] = useState(false);
   const [notifs, setNotifs] = useState(false);
@@ -802,6 +803,12 @@ function SettingsScreen({
     if (!visible || !qrOpen) return false;
     tapSelection();
     setQrOpen(false);
+    return true;
+  }, 10);
+
+  useBackHandler(() => {
+    if (!visible || !formatMenuOpen) return false;
+    setFormatMenuOpen(false);
     return true;
   }, 10);
 
@@ -943,6 +950,9 @@ animationConfig: {
     setFilenameFormat(f).catch(() => undefined);
     setFormatMenuOpen(false);
   };
+
+  const formatClickable = (f: FilenameFormat) =>
+  clickable(() => setPendingFormat(f), { indication: false });
 
   const toggleAutopaste = (v: boolean) => {
     setAutopaste(v);
@@ -1190,6 +1200,7 @@ animationConfig: {
           hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
           onPress={() => {
             tapSelection();
+            setPendingFormat(format);
             setFormatMenuOpen(true);
           }}
           tile={false}
@@ -1233,16 +1244,18 @@ animationConfig: {
             light={light}
           />
         ) : null}
-        <ToggleRow
-          Icon={ExperimentIcon}
-          label="Grab from any site"
-          hint="Experimental: best-effort scan for unsupported links"
-          value={genericSniffer}
-          onValueChange={toggleGenericSniffer}
-          tile={false}
-          iconSize={27}
-          light={light}
-        />
+        {false && (
+          <ToggleRow
+            Icon={ExperimentIcon}
+            label="Grab from any site"
+            hint="Experimental: best-effort scan for unsupported links"
+            value={genericSniffer}
+            onValueChange={toggleGenericSniffer}
+            tile={false}
+            iconSize={27}
+            light={light}
+          />
+        )}
         <ToggleRow
           Icon={HapticsIcon}
           label="Haptics"
@@ -1309,6 +1322,7 @@ animationConfig: {
           value={Constants.expoConfig?.version ?? '1.2.1'}
           tile={false}
           last
+          chevron={false}
           iconSize={24}
           light={light}
         />
@@ -1471,62 +1485,65 @@ animationConfig: {
       </Animated.View>
 
       {formatMenuOpen ? (
-        <View style={StyleSheet.absoluteFill}>
-          <Pressable
-            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
-            onPress={() => {
-              tapSelection();
-              setFormatMenuOpen(false);
+        <Host matchContents>
+          <AlertDialog
+            onDismissRequest={() => setFormatMenuOpen(false)}
+            colors={{
+              containerColor: '#2a2150',
+              titleContentColor: '#e2e8f0',
+              textContentColor: '#cbd5e1',
             }}
-            accessibilityLabel="Close filename format menu"
-          />
-          <View pointerEvents="box-none" style={tw`items-center`}>
-            <Host matchContents>
-              <ExposedDropdownMenuBox
-                expanded={formatMenuOpen}
-                onExpandedChange={setFormatMenuOpen}
+          >
+            <AlertDialog.Title>
+              <ComposeText style={{ fontWeight: 'bold', fontSize: 20 }}>
+                Filename format
+              </ComposeText>
+            </AlertDialog.Title>
+            <AlertDialog.Text>
+              <Column>
+                {FORMAT_ORDER.map((f) => (
+                  <ListItem
+                    key={f}
+                    tonalElevation={0}
+                    colors={{
+                      containerColor: '#2a2150',
+                      supportingContentColor: '#8b95b5',
+                    }}
+                    modifiers={[formatClickable(f)]}
+                  >
+                    <ListItem.LeadingContent>
+                      <RadioButton selected={pendingFormat === f} />
+                    </ListItem.LeadingContent>
+                    <ListItem.HeadlineContent>
+                      <ComposeText>{FORMAT_LABELS[f]}</ComposeText>
+                    </ListItem.HeadlineContent>
+                    <ListItem.SupportingContent>
+                      <ComposeText style={{ fontSize: 12 }}>
+                        {`${formatName(f, 'Best video', 'MrBeast', 'youtube')}.mp4`}
+                      </ComposeText>
+                    </ListItem.SupportingContent>
+                  </ListItem>
+                ))}
+              </Column>
+            </AlertDialog.Text>
+            <AlertDialog.ConfirmButton>
+              <ComposeTextButton
+                onClick={() => choose(pendingFormat)}
+                colors={{ contentColor: '#22d3ee' }}
               >
-                <Box
-                  modifiers={[
-                    menuAnchor(),
-                    width(Math.min(windowWidth - 48, FORMAT_MENU_MAX_W)),
-                    height(
-                      Math.max(
-                        120,
-                        (windowHeight - FORMAT_MENU_EST_H) / 2 - FORMAT_MENU_V_MARGIN
-                      )
-                    ),
-                  ]}
-                />
-                <ExposedDropdownMenu
-                  expanded={formatMenuOpen}
-                  onDismissRequest={() => setFormatMenuOpen(false)}
-                  containerColor="#15152c"
-                >
-                  {FORMAT_ORDER.map((f) => (
-                    <DropdownMenuItem key={f} onClick={() => choose(f)}>
-                      <DropdownMenuItem.Text>
-                        <Text
-                          style={[
-                            tw`font-sans-semibold text-[15px]`,
-                            { color: f === format ? '#22d3ee' : '#e2e8f0' },
-                          ]}
-                        >
-                          {FORMAT_LABELS[f]}
-                        </Text>
-                      </DropdownMenuItem.Text>
-                      {f === format ? (
-                        <DropdownMenuItem.TrailingIcon>
-                          <Check size={16} color="#22d3ee" strokeWidth={3} />
-                        </DropdownMenuItem.TrailingIcon>
-                      ) : null}
-                    </DropdownMenuItem>
-                  ))}
-                </ExposedDropdownMenu>
-              </ExposedDropdownMenuBox>
-            </Host>
-          </View>
-        </View>
+                <ComposeText style={{ fontWeight: 'bold' }}>OK</ComposeText>
+              </ComposeTextButton>
+            </AlertDialog.ConfirmButton>
+            <AlertDialog.DismissButton>
+              <ComposeTextButton
+                onClick={() => setFormatMenuOpen(false)}
+                colors={{ contentColor: '#94a3b8' }}
+              >
+                <ComposeText style={{ fontWeight: 'bold' }}>Cancel</ComposeText>
+              </ComposeTextButton>
+            </AlertDialog.DismissButton>
+          </AlertDialog>
+        </Host>
       ) : null}
     </View>
     </>
