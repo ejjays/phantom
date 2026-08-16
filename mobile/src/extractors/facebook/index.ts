@@ -1,6 +1,6 @@
 import { VideoInfo, Format } from '../shared/types';
 import { fetchHtml, fetchFileSize } from './fetcher';
-import { parseHtml } from './parser';
+import { parseHtml } from '@phantom/extractors/facebook/parser';
 import { normalizeVideoInfo } from './normalizer';
 import { mapLimit } from '../../lib/net';
 import { noVideo, temporaryError, classifyThrown } from '../shared/errors';
