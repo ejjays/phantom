@@ -1,10 +1,10 @@
-import { VideoInfo, Format, ExtractorError } from './types';
+import { VideoInfo, Format, ExtractorError } from './shared/types';
 import { gatedFetch } from '../lib/net';
-import { probeFileSize } from './social';
-import { noVideo, fromStatus, temporaryError, classifyThrown } from './errors';
+import { probeFileSize } from './shared/utils';
+import { noVideo, fromStatus, temporaryError, classifyThrown } from './shared/errors';
 import { getScClientId, setScClientId } from '../lib/settings';
 import { DESKTOP_UA } from '../lib/userAgents';
-import { buildVideoInfo } from './videoInfo';
+import { buildVideoInfo } from './shared/videoInfo';
 import {
   resolveViaYoutube,
   buildFromYoutube,

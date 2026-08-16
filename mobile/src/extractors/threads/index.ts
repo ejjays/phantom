@@ -1,9 +1,9 @@
-import { VideoInfo, Format, ExtractorOptions } from '../types';
+import { VideoInfo, Format, ExtractorOptions } from '../shared/types';
 import { fetchHtml, fetchEmbed, fetchFileSize } from './fetcher';
 import { parseHtml } from './parser';
 import { normalizeVideoInfo } from './normalizer';
 import { mapLimit } from '../../lib/net';
-import { noVideo, classifyThrown } from '../errors';
+import { noVideo, classifyThrown } from '../shared/errors';
 import { error as logError } from '../../lib/log';
 
 function extract(html: string, targetUrl: string): VideoInfo | null {

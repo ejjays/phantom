@@ -1,4 +1,4 @@
-import { Format, VideoInfo } from '../extractors/types';
+import { Format, VideoInfo } from '../extractors/shared/types';
 
 export type DownloadState = {
   status: 'downloading' | 'muxing' | 'saving' | 'saved' | 'error';

@@ -1,4 +1,4 @@
-import { VideoInfo, Format } from '../types';
+import { VideoInfo, Format } from '../shared/types';
 import {
   extractViaWebView,
   playlistViaWebView,
@@ -6,9 +6,9 @@ import {
   type RawYtResult,
   type RawYtPlaylist,
 } from './bridge';
-import { noVideo, temporaryError, classifyThrown } from '../errors';
+import { noVideo, temporaryError, classifyThrown } from '../shared/errors';
 import { DESKTOP_UA } from '../../lib/userAgents';
-import { buildVideoInfo } from '../videoInfo';
+import { buildVideoInfo } from '../shared/videoInfo';
 
 const YT_ID =
   /(?:v=|\/v\/|youtu\.be\/|shorts\/|live\/|embed\/)([0-9A-Za-z_-]{11})/u;

@@ -37,7 +37,7 @@ import {
   FilePlay,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
-import { VideoInfo, Format } from '../extractors/types';
+import { VideoInfo, Format } from '../extractors/shared/types';
 import VideoPreviewModal from './VideoPreviewModal';
 import {
   DownloadState,

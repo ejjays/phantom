@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Format, VideoInfo } from '../extractors/types';
+import type { Format, VideoInfo } from '../extractors/shared/types';
 import {
   prettyName,
   formatLabel,

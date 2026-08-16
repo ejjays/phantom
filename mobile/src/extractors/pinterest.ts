@@ -1,10 +1,10 @@
-import { VideoInfo, Format } from './types';
+import { VideoInfo, Format } from './shared/types';
 import { gatedFetch } from '../lib/net';
-import { notFound, noVideo, fromStatus, classifyThrown } from './errors';
+import { notFound, noVideo, fromStatus, classifyThrown } from './shared/errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError } from '../lib/log';
-import { decodeEntities } from './social';
-import { buildVideoInfo } from './videoInfo';
+import { decodeEntities } from './shared/utils';
+import { buildVideoInfo } from './shared/videoInfo';
 
 const REFERER = 'https://www.pinterest.com/';
 const PIDGETS_API = 'https://widgets.pinterest.com/v3/pidgets/pins/info/';

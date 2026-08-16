@@ -1,11 +1,11 @@
-import { VideoInfo, Format } from './types';
+import { VideoInfo, Format } from './shared/types';
 import { gatedFetch, mapLimit } from '../lib/net';
-import { noVideo, classifyThrown } from './errors';
+import { noVideo, classifyThrown } from './shared/errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError, log } from '../lib/log';
-import { parseHlsMaster, pickLargestThumb } from './hls';
-import { probeFileSize } from './social';
-import { buildVideoInfo } from './videoInfo';
+import { parseHlsMaster, pickLargestThumb } from './shared/hls';
+import { probeFileSize } from './shared/utils';
+import { buildVideoInfo } from './shared/videoInfo';
 const REFERER = 'https://vimeo.com/';
 
 // flip true to trace config/player-page on-device

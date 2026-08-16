@@ -1,4 +1,4 @@
-import type { VideoInfo } from '../types';
+import type { VideoInfo } from '../shared/types';
 import type { ThreadsParsed } from './types';
 import { normalizeVideoInfo as normalize } from '@phantom/extractors/threads/normalizer';
 

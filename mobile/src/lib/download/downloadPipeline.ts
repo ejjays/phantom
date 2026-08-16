@@ -1,7 +1,7 @@
 import { File, Paths } from 'expo-file-system';
 import { deleteAsync, moveAsync } from 'expo-file-system/legacy';
 import { DESKTOP_UA } from '../userAgents';
-import type { Format, VideoInfo } from '../../extractors/types';
+import type { Format, VideoInfo } from '../../extractors/shared/types';
 import { refererFor, type DownloadState } from '../format';
 import { chunkedDownload } from './download';
 import {

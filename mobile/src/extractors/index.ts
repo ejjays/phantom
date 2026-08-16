@@ -1,4 +1,4 @@
-import { VideoInfo, Format, ExtractorError } from './types';
+import { VideoInfo, Format, ExtractorError } from './shared/types';
 import { getInfo as facebookGetInfo } from './facebook';
 import { getInfo as tiktokGetInfo } from './tiktok';
 import { getInfo as xGetInfo } from './x';
@@ -21,7 +21,7 @@ import { mapLimit } from '../lib/net';
 import { getGenericSnifferEnabled } from '../lib/settings';
 import { extractFromPage } from '../lib/webviewExtraction/host';
 import { pageScanToVideoInfo } from '../lib/webviewExtraction/normalize';
-import { probeFileSize } from './social';
+import { probeFileSize } from './shared/utils';
 
 export type OnPartial = (info: VideoInfo) => void;
 

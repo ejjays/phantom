@@ -1,4 +1,4 @@
-import { VideoInfo, Format, ExtractorError } from './types';
+import { VideoInfo, Format, ExtractorError } from './shared/types';
 import { gatedFetch } from '../lib/net';
 import {
   notFound,
@@ -6,11 +6,11 @@ import {
   noVideo,
   fromStatus,
   classifyThrown,
-} from './errors';
+} from './shared/errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError, warn as logWarn } from '../lib/log';
-import { parseHlsMaster, pickLargestThumb } from './hls';
-import { buildVideoInfo } from './videoInfo';
+import { parseHlsMaster, pickLargestThumb } from './shared/hls';
+import { buildVideoInfo } from './shared/videoInfo';
 const REFERER = 'https://www.dailymotion.com/';
 
 interface DmStream {

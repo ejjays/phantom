@@ -1,11 +1,11 @@
-import { VideoInfo, Format } from './types';
+import { VideoInfo, Format } from './shared/types';
 import { gatedFetch, mapLimit } from '../lib/net';
-import { noVideo, notFound, classifyThrown } from './errors';
+import { noVideo, notFound, classifyThrown } from './shared/errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError, log, warn as logWarn } from '../lib/log';
 import { OnPartial } from '../extractors/index';
-import { buildVideoInfo } from './videoInfo';
-import { probeFileSize } from './social';
+import { buildVideoInfo } from './shared/videoInfo';
+import { probeFileSize } from './shared/utils';
 
 const REFERER = 'https://www.twitch.tv/';
 const TW_DEBUG = false;

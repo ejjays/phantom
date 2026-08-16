@@ -1,4 +1,4 @@
-import { gatedFetch, timeoutSignal } from '../lib/net';
+import { gatedFetch, timeoutSignal } from '../../lib/net';
 
 /**
  * html entity decode for scraped pages; matches the entity set social

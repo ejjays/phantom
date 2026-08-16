@@ -1,10 +1,10 @@
-import { VideoInfo, Format } from './types';
-import { normalizeTitle, normalizeArtist } from './social';
+import { VideoInfo, Format } from './shared/types';
+import { normalizeTitle, normalizeArtist } from './shared/utils';
 import { gatedFetch } from '../lib/net';
-import { noVideo, fromStatus, temporaryError, classifyThrown } from './errors';
+import { noVideo, fromStatus, temporaryError, classifyThrown } from './shared/errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError, log, warn as logWarn } from '../lib/log';
-import { buildVideoInfo } from './videoInfo';
+import { buildVideoInfo } from './shared/videoInfo';
 
 interface TikTokPlayAddr {
   Width?: number;

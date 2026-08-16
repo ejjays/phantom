@@ -1,10 +1,10 @@
-import { VideoInfo, Format } from './types';
-import { normalizeTitle, normalizeArtist } from './social';
+import { VideoInfo, Format } from './shared/types';
+import { normalizeTitle, normalizeArtist } from './shared/utils';
 import { gatedFetch } from '../lib/net';
-import { noVideo, fromStatus, classifyThrown } from './errors';
+import { noVideo, fromStatus, classifyThrown } from './shared/errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError } from '../lib/log';
-import { buildVideoInfo } from './videoInfo';
+import { buildVideoInfo } from './shared/videoInfo';
 
 const APPVIEW = 'https://public.api.bsky.app/xrpc';
 

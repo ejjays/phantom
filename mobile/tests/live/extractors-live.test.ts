@@ -28,7 +28,7 @@ import { getInfo as instagramGetInfo } from '../../src/extractors/instagram';
 import { getInfo as pinterestGetInfo } from '../../src/extractors/pinterest';
 import { getInfo as twitchGetInfo } from '../../src/extractors/twitch';
 import { getInfo as bilibiliGetInfo } from '../../src/extractors/bilibili';
-import { ExtractorError, type VideoInfo } from '../../src/extractors/types';
+import { ExtractorError, type VideoInfo } from '../../src/extractors/shared/types';
 import {
   noVideo,
   notFound,
@@ -37,7 +37,7 @@ import {
   rateLimited,
   serverError,
   networkError,
-} from '../../src/extractors/errors';
+} from '../../src/extractors/shared/errors';
 import {
   MEDIA_JUNK_RE,
   hlsVideosOf,

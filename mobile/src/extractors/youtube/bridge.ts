@@ -1,6 +1,6 @@
 import type { SabrConfig } from '../../lib/download/youtubeSabr';
 import { YT_INTERNAL_UA } from '../../lib/userAgents';
-import { ExtractorError } from '../types';
+import { ExtractorError } from '../shared/types';
 import {
   privateVideo,
   ageRestricted,
@@ -9,7 +9,7 @@ import {
   notFound,
   noVideo,
   temporaryError,
-} from '../errors';
+} from '../shared/errors';
 import { log, warn as logWarn } from '../../lib/log';
 
 export interface RawYtFormat {

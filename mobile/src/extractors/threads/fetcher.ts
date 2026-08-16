@@ -1,6 +1,6 @@
 import { HEADERS, DESKTOP_UA } from './constants';
 import { gatedFetch, timeoutSignal } from '../../lib/net';
-import { probeFileSize } from '../social';
+import { probeFileSize } from '../shared/utils';
 
 type FetchOptions = {
   cookie?: string;

@@ -45,7 +45,7 @@ import {
   updateDownloadProgress,
   setDownloadCancelHandler,
 } from '../lib/fgservice';
-import type { VideoInfo, PlaylistEntry, Format } from '../extractors/types';
+import type { VideoInfo, PlaylistEntry, Format } from '../extractors/shared/types';
 
 type Props = {
   info: VideoInfo;

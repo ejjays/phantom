@@ -22,7 +22,7 @@ import PlaylistScreen from './src/screens/PlaylistScreen';
 import { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
 import { prewarmClientId } from './src/extractors/soundcloud';
-import { Format, VideoInfo, ExtractorError } from './src/extractors/types';
+import { Format, VideoInfo, ExtractorError } from './src/extractors/shared/types';
 import PickerModal from './src/components/PickerModal';
 import SpotifyPickerModal from './src/components/SpotifyPickerModal';
 import NotificationPermissionSheet from './src/components/sheets/NotificationPermissionSheet';

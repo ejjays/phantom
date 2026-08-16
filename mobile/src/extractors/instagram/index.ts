@@ -1,12 +1,12 @@
-import { VideoInfo, Format, ExtractorError } from '../types';
+import { VideoInfo, Format, ExtractorError } from '../shared/types';
 import { gatedFetch, mapLimit } from '../../lib/net';
 import { getInstagramCookie } from '../../lib/settings';
 import { cookieGet } from '../../lib/authFetch';
-import { noVideo, fromStatus, classifyThrown } from '../errors';
+import { noVideo, fromStatus, classifyThrown } from '../shared/errors';
 import { DESKTOP_UA } from '../../lib/userAgents';
 import { error as logError } from '../../lib/log';
 import { webviewFetch } from './bridge';
-import { buildVideoInfo } from '../videoInfo';
+import { buildVideoInfo } from '../shared/videoInfo';
 
 function isInstagramHost(url: string): boolean {
   try {

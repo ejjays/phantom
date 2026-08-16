@@ -1,4 +1,4 @@
-import { VideoInfo, ExtractorError } from '../types';
+import { VideoInfo, ExtractorError } from '../shared/types';
 import { resolveViaYoutube, buildFromYoutube } from '../youtube/isrcMatch';
 
 // reexported for callers/tests that predate the shared isrcMatch module
@@ -13,8 +13,8 @@ import {
   type OdesliResult,
 } from './api';
 import { lookupSpotifyMapping } from '../../lib/social/registry';
-import { noVideo, temporaryError } from '../errors';
-import { buildVideoInfo } from '../videoInfo';
+import { noVideo, temporaryError } from '../shared/errors';
+import { buildVideoInfo } from '../shared/videoInfo';
 import { log } from '../../lib/log';
 
 type Meta = {

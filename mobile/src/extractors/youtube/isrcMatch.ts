@@ -1,7 +1,7 @@
-import { VideoInfo } from '../types';
+import { VideoInfo } from '../shared/types';
 import { getInfo as youtubeGetInfo } from './index';
 import { searchViaWebView, type YtSearchResult } from './bridge';
-import { buildVideoInfo } from '../videoInfo';
+import { buildVideoInfo } from '../shared/videoInfo';
 
 export interface IsrcMatchMeta {
   id: string;

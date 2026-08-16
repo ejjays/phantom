@@ -1,5 +1,5 @@
 import { Format } from './types';
-import { gatedFetch } from '../lib/net';
+import { gatedFetch } from '../../lib/net';
 
 // master -> per-quality variants; separate audio rendition if present, else muxed
 export async function parseHlsMaster(

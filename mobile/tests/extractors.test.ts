@@ -3,8 +3,8 @@ import {
   normalizeArtist,
   normalizeTitle,
   type RawSocialData,
-} from '../src/extractors/social';
-import { ExtractorError } from '../src/extractors/types';
+} from '../src/extractors/shared/utils';
+import { ExtractorError } from '../src/extractors/shared/types';
 import {
   notFound,
   privateVideo,
@@ -19,7 +19,7 @@ import {
   temporaryError,
   fromStatus,
   classifyThrown,
-} from '../src/extractors/errors';
+} from '../src/extractors/shared/errors';
 
 const social = (over: Partial<RawSocialData> = {}): RawSocialData => ({
   title: 'Cool Video',
