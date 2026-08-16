@@ -5,6 +5,7 @@ web-build/
 android/
 ios/
 !modules/silent-updater/android/
+!modules/vpn-detector/android/
 *.log
 *.apk
 .DS_Store
