@@ -1,0 +1,1 @@
+export { isVpnActive } from './src/VpnDetector';

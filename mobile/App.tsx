@@ -33,6 +33,7 @@ import InstagramExtractorWebView from './src/components/webviews/InstagramExtrac
 import GenericExtractorWebView from './src/components/webviews/GenericExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
+import { isVpnActive } from './modules/vpn-detector';
 import { getOnboarded, setOnboarded, getAutoPaste } from './src/lib/settings';
 import { addDownloadTapListener } from './src/lib/notify';
 import { registerDownloadService } from './src/lib/fgservice';
@@ -94,6 +95,7 @@ function AppRoot() {
     canRetry: boolean;
   } | null>(null);
   const [invalidLink, setInvalidLink] = useState(false);
+  const [vpnWarning, setVpnWarning] = useState(false);
   const [info, setInfo] = useState<VideoInfo | null>(null);
   const [playlistInfo, setPlaylistInfo] = useState<VideoInfo | null>(null);
   const [playlistOpen, setPlaylistOpen] = useState(false);
@@ -196,6 +198,8 @@ function AppRoot() {
   const handleResolve = async () => {
     if (!link.trim() || loading) return;
     tapImpact();
+    // tunnel check is prompt-only; resolve proceeds either way
+    void isVpnActive().then(setVpnWarning).catch(() => setVpnWarning(false));
     const url = cleanUrl(link);
     dismissedRef.current = false;
     setLoading(true);
@@ -340,6 +344,8 @@ function AppRoot() {
                   muted={notifPriming.visible}
                   invalidLink={invalidLink}
                   successSignal={successSignal}
+                  vpnWarning={vpnWarning}
+                  onDismissVpnWarning={() => setVpnWarning(false)}
                 />
               </View>
               {visited.settings && (
