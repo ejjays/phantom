@@ -2,7 +2,7 @@
   "expo": {
     "name": "Phantom",
     "slug": "cyan-phantom",
-    "version": "1.2.8",
+    "version": "1.2.9",
     "runtimeVersion": {
       "policy": "appVersion"
     },
