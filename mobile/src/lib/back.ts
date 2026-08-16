@@ -13,9 +13,9 @@ const handlers: Entry[] = [];
 let installed = false;
 
 function dispatch() {
-  const sorted = [...handlers].sort((a, b) => b.pri - a.pri);
-  for (const h of sorted) {
-    if (h.cb()) return true;
+  const sorted = [...handlers].sort((entryA, entryB) => entryB.pri - entryA.pri);
+  for (const entry of sorted) {
+    if (entry.cb()) return true;
   }
   return false;
 }

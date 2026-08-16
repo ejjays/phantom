@@ -68,7 +68,6 @@ import {
   VersionIcon,
   GoogleIcon,
   ShareAppIcon,
-  ExperimentIcon,
   FileIcon,
 } from '../components/icons';
 import {
@@ -89,8 +88,6 @@ import {
   setNotify,
   getHaptics,
   setHaptics,
-  getGenericSnifferEnabled,
-  setGenericSnifferEnabled,
   getDarkTheme,
   setDarkTheme,
   formatName,
@@ -749,7 +746,6 @@ function SettingsScreen({
   const [autopaste, setAutopaste] = useState(false);
   const [notifs, setNotifs] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(true);
-  const [genericSniffer, setGenericSniffer] = useState(false);
   const [darkOn, setDarkOn] = useState(false);
   const [cacheBytes, setCacheBytes] = useState(() => cacheSize());
   const [batteryRestricted, setBatteryRestricted] = useState<boolean | null>(
@@ -840,9 +836,6 @@ function SettingsScreen({
       .catch(() => undefined);
     getHaptics()
       .then(setHapticsOn)
-      .catch(() => undefined);
-    getGenericSnifferEnabled()
-      .then(setGenericSniffer)
       .catch(() => undefined);
     getDarkTheme()
       .then(setDarkOn)
@@ -975,12 +968,6 @@ animationConfig: {
     setHaptics(v).catch(() => undefined);
     setHapticsEnabled(v);
     if (v) tapSelection();
-  };
-
-  const toggleGenericSniffer = (v: boolean) => {
-    tapSelection();
-    setGenericSniffer(v);
-    setGenericSnifferEnabled(v).catch(() => undefined);
   };
 
   const clearAppCache = () => {
@@ -1244,18 +1231,6 @@ animationConfig: {
             light={light}
           />
         ) : null}
-        {false && (
-          <ToggleRow
-            Icon={ExperimentIcon}
-            label="Grab from any site"
-            hint="Experimental: best-effort scan for unsupported links"
-            value={genericSniffer}
-            onValueChange={toggleGenericSniffer}
-            tile={false}
-            iconSize={27}
-            light={light}
-          />
-        )}
         <ToggleRow
           Icon={HapticsIcon}
           label="Haptics"

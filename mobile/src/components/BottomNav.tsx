@@ -34,7 +34,7 @@ import {
   type IconProps,
 } from './icons';
 
-type Tab = 'home' | 'downloads' | 'updates' | 'settings';
+export type Tab = 'home' | 'downloads' | 'updates' | 'settings';
 
 const TABS: { id: Tab; label: string; Icon: ComponentType<IconProps> }[] = [
   { id: 'home', label: 'Home', Icon: HomeIcon },

@@ -17,7 +17,7 @@ import tw from './src/lib/tw';
 import TwinkleStars from './src/components/backgrounds/TwinkleStars';
 import ShootingStars from './src/components/backgrounds/ShootingStars';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import BottomNav from './src/components/BottomNav';
+import BottomNav, { type Tab } from './src/components/BottomNav';
 import HomeScreen from './src/screens/HomeScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import UpdatesScreen from './src/screens/UpdatesScreen';
@@ -77,9 +77,7 @@ function AppRoot() {
     'Rubik-SemiBold': RubikSemiBold,
     'Rubik-Bold': RubikBold,
   });
-  const [tab, setTab] = useState<'home' | 'downloads' | 'settings' | 'updates'>(
-    'home'
-  );
+  const [tab, setTab] = useState<Tab>('home');
   const [visited, setVisited] = useState({
     downloads: false,
     settings: false,
@@ -263,9 +261,9 @@ function AppRoot() {
       setSuccessSignal((count) => count + 1);
     }
   };
-  const tabHistory = useRef<('home' | 'downloads' | 'settings' | 'updates')[]>([]);
+  const tabHistory = useRef<Tab[]>([]);
   const goTab = (
-    next: 'home' | 'downloads' | 'settings' | 'updates',
+    next: Tab,
     opts: { fromBack?: boolean } = {}
   ) => {
     if (!opts.fromBack && next !== tab) {
