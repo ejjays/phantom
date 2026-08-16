@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.provider.Settings
+import androidx.core.content.FileProvider
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -36,6 +37,29 @@ class SilentUpdaterModule : Module() {
     AsyncFunction("installApk") { path: String ->
       install(path)
     }
+
+    AsyncFunction("installViaSystem") { path: String ->
+      installViaSystem(path)
+    }
+  }
+
+  // visible installer path; the only flow oem roms never block
+  private fun installViaSystem(path: String): String {
+    val file = File(path)
+    if (!file.exists()) {
+      throw CodedException("apk file missing: $path")
+    }
+    val uri = FileProvider.getUriForFile(
+      context,
+      "${context.packageName}.updatefileprovider",
+      file
+    )
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+      setDataAndType(uri, "application/vnd.android.package-archive")
+      addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(intent)
+    return "started"
   }
 
   private fun install(path: String): String {

@@ -1,9 +1,10 @@
 import { File, Paths } from 'expo-file-system';
 import { chunkedDownload } from '../download/download';
-import { installApk } from '../../../modules/silent-updater';
+import { installApk, installViaSystem } from '../../../modules/silent-updater';
 import type { UpdateManifest } from './manifest';
 
 const APK_NAME = 'phantom-update.apk';
+const SILENT_GRACE_MS = 8_000;
 
 // java File() treats 'file://' uris as literal paths; strip the scheme first
 const toFsPath = (uri: string): string =>
@@ -25,6 +26,10 @@ export async function downloadApk(
 export async function installDownloadedApk(path: string): Promise<void> {
   try {
     await installApk(path);
+    // silent success kills this process; surviving the grace window means the
+    // system declined it (oem roms) — hand off to the visible installer
+    await new Promise((resolve) => setTimeout(resolve, SILENT_GRACE_MS));
+    await installViaSystem(path);
   } finally {
     const file = new File(Paths.cache, APK_NAME);
     if (file.exists) file.delete();

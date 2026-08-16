@@ -6,6 +6,16 @@
     <receiver
       android:name=".SilentUpdateReceiver"
       android:exported="false" />
+
+    <provider
+      android:name="androidx.core.content.FileProvider"
+      android:authorities="${applicationId}.updatefileprovider"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/update_file_paths" />
+    </provider>
   </application>
 
 </manifest>
