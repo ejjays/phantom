@@ -34,6 +34,21 @@ curl -fsS -X POST "$SUPABASE_URL/storage/v1/bucket" \
   -d '{"name":"apk","public":true}' >/dev/null 2>&1 || true
 
 # supabase refuses to overwrite an existing object via POST, so delete first
+# never downgrade the manifest: parallel builds publish out of order and the
+# last finisher must not mask a newer version from users
+CURRENT=$(curl -fsS "$SUPABASE_URL/storage/v1/object/public/apk/latest.json" 2>/dev/null || echo '{"version":"0.0.0"}')
+CUR_VER=$(printf '%s' "$CURRENT" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')
+newer() {
+  [ "$1" != "$2" ] || return 1
+  local a b
+  IFS='.' read -r a _ <<< "${1%%-*}"
+  IFS='.' read -r b _ <<< "${2%%-*}"
+  [ "$a" -gt "$b" ]
+}
+if [ -n "$CUR_VER" ] && ! newer "$VERSION" "$CUR_VER" && [ "$VERSION" != "$CUR_VER" ]; then
+  echo "skip manifest: $VERSION is not newer than current $CUR_VER" >&2
+  exit 0
+fi
 curl -fsS -X DELETE "$SUPABASE_URL/storage/v1/object/apk/latest.json" \
   -H "$AUTH" >/dev/null 2>&1 || true
 MANIFEST=$(mktemp)
