@@ -104,5 +104,6 @@ jobs:
         run: |
           AAPT2=$(ls "$ANDROID_SDK_ROOT"/build-tools/*/aapt2 | sort -V | tail -1)
           VERSION=$("$AAPT2" dump badging mobile/app-release.apk | grep -oP "versionName='\K[^']+")
-          echo "built versionName: $VERSION"
+          CODE=$("$AAPT2" dump badging mobile/app-release.apk | grep -oP "versionCode='\K[^']+")
+          echo "built versionName: $VERSION (versionCode $CODE)"
           bash scripts/publish-apk.sh mobile/app-release.apk "$VERSION" "${NOTES:-updated via silent updater}"

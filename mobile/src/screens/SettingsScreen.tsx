@@ -473,6 +473,7 @@ function UpdateControl({ light }: { light?: boolean }) {
   >('checking');
   const [manifest, setManifest] = useState<UpdateManifest | null>(null);
   const [progress, setProgress] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const check = useCallback(async () => {
@@ -503,9 +504,11 @@ function UpdateControl({ light }: { light?: boolean }) {
       );
       setStatus('installing');
       await installDownloadedApk(path);
-    } catch {
+    } catch (err) {
       abortRef.current = null;
       setStatus('error');
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+      console.error('update install failed', err);
     }
   }, [manifest]);
 
@@ -546,8 +549,8 @@ function UpdateControl({ light }: { light?: boolean }) {
         ? (manifest.notes ?? 'Includes fixes and improvements')
         : status === 'permission'
           ? 'Tap to grant "Install unknown apps" in settings'
-          : status === 'error'
-            ? 'Tap to retry'
+: status === 'error'
+              ? (errorMessage ?? 'Tap to retry')
             : 'Downloads silently — no Play Store needed';
 
   return (
