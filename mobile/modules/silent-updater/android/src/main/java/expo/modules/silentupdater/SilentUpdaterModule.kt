@@ -17,6 +17,7 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.security.MessageDigest
 
 class SilentUpdaterModule : Module() {
 
@@ -49,6 +50,29 @@ class SilentUpdaterModule : Module() {
     AsyncFunction("saveToDownloads") { sourcePath: String, name: String ->
       saveToDownloads(sourcePath, name)
     }
+
+    AsyncFunction("hashFile") { path: String ->
+      hashFile(path)
+    }
+  }
+
+  // native sha-256 of the downloaded apk; js-thread hashing of ~100mb froze
+  // the ui for the whole digest
+  private fun hashFile(path: String): String {
+    val file = File(path)
+    if (!file.exists()) {
+      throw CodedException("apk file missing: $path")
+    }
+    val digest = MessageDigest.getInstance("SHA-256")
+    file.inputStream().use { input ->
+      val buffer = ByteArray(1 shl 20)
+      while (true) {
+        val read = input.read(buffer)
+        if (read < 0) break
+        digest.update(buffer, 0, read)
+      }
+    }
+    return digest.digest().joinToString("") { "%02x".format(it) }
   }
 
   // mediator downloads collection: the same public folder browsers use, so

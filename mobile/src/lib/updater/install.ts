@@ -3,6 +3,7 @@ import {
   installApk,
   installViaSystem,
   saveToDownloads,
+  hashFile,
 } from '../../../modules/silent-updater';
 import { saveApkToFolder } from '../download/save';
 import { sha256Hex } from './sha256';
@@ -33,7 +34,14 @@ export async function downloadApk(
     signal,
     onProgress: (data) => onProgress(data.bytesWritten, data.totalBytes),
   });
-  const digest = await sha256Hex(file);
+  // native hashing — js-side digests of ~100mb would freeze the ui for the
+  // whole pass; fallback only for binaries too old to ship the native fn
+  let digest: string;
+  try {
+    digest = await hashFile(toFsPath(file.uri));
+  } catch {
+    digest = await sha256Hex(file);
+  }
   if (manifest.sha256 && digest !== manifest.sha256.toLowerCase()) {
     if (file.exists) file.delete();
     throw new Error('update: downloaded apk failed checksum, try again');

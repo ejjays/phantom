@@ -4,4 +4,5 @@ export {
   hasInstallPermission,
   openInstallPermissionSettings,
   saveToDownloads,
+  hashFile,
 } from './src/SilentUpdater';
