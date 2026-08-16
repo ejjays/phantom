@@ -6,8 +6,8 @@ import {
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
-import { BackHandler } from 'react-native';
 import { tapSelection } from '../lib/haptics';
+import { useBackHandler } from '../lib/back';
 
 // slide-right sub-screen pattern used by SettingsScreen overlays
 export function useSubScreen(parentVisible: boolean) {
@@ -34,16 +34,13 @@ export function useSubScreen(parentVisible: boolean) {
     }
   }, [open, progress]);
 
-  // back button closes the sub-screen
-  useEffect(() => {
-    if (!parentVisible || !open) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      tapSelection();
-      setOpen(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [parentVisible, open]);
+  // back button closes the sub-screen (higher priority than app go-home)
+  useBackHandler(() => {
+    if (!parentVisible || !open) return false;
+    tapSelection();
+    setOpen(false);
+    return true;
+  }, 10);
 
   const style = useAnimatedStyle(() => ({
     opacity: progress.value,

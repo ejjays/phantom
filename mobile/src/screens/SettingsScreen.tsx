@@ -16,11 +16,11 @@ import {
   StyleSheet,
   Linking,
   AppState,
-  BackHandler,
   StatusBar,
   Dimensions,
   useWindowDimensions,
 } from 'react-native';
+import { useBackHandler } from '../lib/back';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -798,15 +798,12 @@ function SettingsScreen({
     transform: [{ translateY: (1 - qrProgress.value) * windowHeight }],
   }));
 
-  useEffect(() => {
-    if (!visible || !qrOpen) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      tapSelection();
-      setQrOpen(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [visible, qrOpen]);
+  useBackHandler(() => {
+    if (!visible || !qrOpen) return false;
+    tapSelection();
+    setQrOpen(false);
+    return true;
+  }, 10);
 
   // reset scroll on tab exit
   useEffect(() => {

@@ -10,10 +10,10 @@ import {
   Text,
   Pressable,
   Image,
-  BackHandler,
   Keyboard,
   StyleSheet,
 } from 'react-native';
+import { useBackHandler } from '../lib/back';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -149,21 +149,18 @@ export default function PlaylistScreen({ info, visible, onClose }: Props) {
     }
   }, [visible, progress]);
 
-  useEffect(() => {
-    if (!visible) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (showSearch) {
-        closeSearch();
-        return true;
-      }
-      if (!batchRunning) {
-        tapSelection();
-        onClose();
-      }
+  useBackHandler(() => {
+    if (!visible) return false;
+    if (showSearch) {
+      closeSearch();
       return true;
-    });
-    return () => sub.remove();
-  }, [visible, onClose, batchRunning, showSearch, closeSearch]);
+    }
+    if (!batchRunning) {
+      tapSelection();
+      onClose();
+    }
+    return true;
+  }, 10);
 
   useEffect(() => {
     if (!focusEntryId) return;

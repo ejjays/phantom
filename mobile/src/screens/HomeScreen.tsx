@@ -14,6 +14,7 @@ import {
   Text as ComposeText,
   TextButton as ComposeTextButton,
 } from '@expo/ui/jetpack-compose';
+import { useBackHandler } from '../lib/back';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -419,18 +420,15 @@ export default function HomeScreen({
     });
   };
 
-  useEffect(() => {
-    if (!active) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (Keyboard.isVisible()) {
-        Keyboard.dismiss();
-        return true;
-      }
-      setExitOpen(true);
+  useBackHandler(() => {
+    if (!active) return false;
+    if (Keyboard.isVisible()) {
+      Keyboard.dismiss();
       return true;
-    });
-    return () => sub.remove();
-  }, [active]);
+    }
+    setExitOpen(true);
+    return true;
+  }, 0);
 
   return (
     <View style={tw`flex-1`}>
@@ -614,7 +612,7 @@ export default function HomeScreen({
             }}
           >
             <AlertDialog.Title>
-              <ComposeText>Exit Phantom?</ComposeText>
+              <ComposeText style={{ fontWeight: 'bold' }}>Exit Phantom?</ComposeText>
             </AlertDialog.Title>
             <AlertDialog.Text>
               <ComposeText>Are you sure you want to quit?</ComposeText>
@@ -622,9 +620,9 @@ export default function HomeScreen({
             <AlertDialog.ConfirmButton>
               <ComposeTextButton
                 onClick={() => BackHandler.exitApp()}
-                colors={{ contentColor: '#4ade80' }}
+                colors={{ contentColor: '#22d3ee' }}
               >
-                <ComposeText>Exit</ComposeText>
+                <ComposeText style={{ fontWeight: 'bold' }}>Exit</ComposeText>
               </ComposeTextButton>
             </AlertDialog.ConfirmButton>
             <AlertDialog.DismissButton>
@@ -632,7 +630,7 @@ export default function HomeScreen({
                 onClick={() => setExitOpen(false)}
                 colors={{ contentColor: '#94a3b8' }}
               >
-                <ComposeText>Cancel</ComposeText>
+                <ComposeText style={{ fontWeight: 'bold' }}>Cancel</ComposeText>
               </ComposeTextButton>
             </AlertDialog.DismissButton>
           </AlertDialog>

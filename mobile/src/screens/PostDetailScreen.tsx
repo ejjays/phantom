@@ -4,10 +4,10 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  BackHandler,
   type NativeSyntheticEvent,
   type TextLayoutEventData,
 } from 'react-native';
+import { useBackHandler } from '../lib/back';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -254,13 +254,10 @@ export default function PostDetailScreen({
     fade.value = withTiming(1, { duration: 280, easing: EASE });
   }, [fade]);
 
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      dismiss();
-      return true;
-    });
-    return () => sub.remove();
-  }, [dismiss]);
+  useBackHandler(() => {
+    dismiss();
+    return true;
+  }, 10);
 
   const surfaceStyle = useAnimatedStyle(() => ({
     opacity: fade.value,

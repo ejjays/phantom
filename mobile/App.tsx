@@ -4,8 +4,8 @@ import {
   StatusBar,
   InteractionManager,
   AppState,
-  BackHandler,
 } from 'react-native';
+import { useBackHandler } from './src/lib/back';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -263,21 +263,35 @@ function AppRoot() {
       setSuccessSignal((count) => count + 1);
     }
   };
-  const goTab = (next: 'home' | 'downloads' | 'settings' | 'updates') => {
+  const tabHistory = useRef<('home' | 'downloads' | 'settings' | 'updates')[]>([]);
+  const goTab = (
+    next: 'home' | 'downloads' | 'settings' | 'updates',
+    opts: { fromBack?: boolean } = {}
+  ) => {
+    if (!opts.fromBack && next !== tab) {
+      // tapping a tab records where we came from; tapping home resets the stack
+      if (next === 'home') tabHistory.current = [];
+      else tabHistory.current = [...tabHistory.current, tab];
+    }
     setTab(next);
     if (next === 'downloads' || next === 'settings' || next === 'updates') {
       setVisited((v) => (v[next] ? v : { ...v, [next]: true }));
     }
   };
-  // back on a non-home tab returns home; home owns the exit dialog
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (tab === 'home') return false;
-      goTab('home');
+  // lowest priority: walk the tab stack back, else home; home owns the exit dialog
+  useBackHandler(() => {
+    if (tabHistory.current.length > 0) {
+      const prev = tabHistory.current[tabHistory.current.length - 1];
+      tabHistory.current = tabHistory.current.slice(0, -1);
+      setTab(prev);
       return true;
-    });
-    return () => sub.remove();
-  }, [tab]);
+    }
+    if (tab !== 'home') {
+      setTab('home');
+      return true;
+    }
+    return false;
+  }, -100);
   const onLayoutRoot = useCallback(() => {
     if (fontsLoaded || fontError) {
       void SplashScreen.hideAsync();
@@ -356,7 +370,7 @@ function AppRoot() {
                   onDeepLinkHandled={() => setDeepLink(null)}
                 />
               )}
-              <BottomNav onChange={goTab} hidden={navHidden || playlistOpen} />
+              <BottomNav tab={tab} onChange={goTab} hidden={navHidden || playlistOpen} />
               {playlistOpen && playlistInfo ? (
                 <PlaylistScreen
                   info={playlistInfo}

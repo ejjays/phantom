@@ -9,10 +9,10 @@ import {
   AppState,
   StyleSheet,
   Modal,
-  BackHandler,
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBackHandler } from '../lib/back';
 import { Image } from 'expo-image';
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 import {
@@ -519,17 +519,14 @@ function DownloadsScreenInner({ visible }: Props) {
     };
   }, [focusEntryId]);
 
-  useEffect(() => {
-    if (!visible) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (searchOpen) {
-        closeSearch();
-        return true;
-      }
-      return false;
-    });
-    return () => sub.remove();
-  }, [visible, searchOpen, closeSearch]);
+  useBackHandler(() => {
+    if (!visible) return false;
+    if (searchOpen) {
+      closeSearch();
+      return true;
+    }
+    return false;
+  }, 10);
 
   useEffect(() => {
     void getHistoryView().then(setView);
