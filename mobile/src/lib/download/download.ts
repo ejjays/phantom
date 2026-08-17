@@ -52,11 +52,13 @@ export async function chunkedDownload(
     return;
   } catch (error) {
     if (error instanceof Error && /chunked: HTTP/u.test(error.message)) {
-      // cdn rejected the request; fall through to the js path so the
-      // caller's 403 -> refreshStreamUrl hook still fires
+      // TEMP TEST: fall through to the js fetch path on the same url —
+      // compares rn fetch (cookie jar) vs native okhttp (no cookies)
+      log('download', '[native403] falling back to js path, same url');
+    } else {
+      // anything else (io, module missing in tests) retries in js below
       throw error;
     }
-    // anything else (io, module missing in tests) retries in js below
   }
 
   const head = await fetch(url, {
