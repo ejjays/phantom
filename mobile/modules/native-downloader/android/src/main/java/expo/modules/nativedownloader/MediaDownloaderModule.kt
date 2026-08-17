@@ -5,6 +5,7 @@ import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import okhttp3.Call
 import okhttp3.Callback
@@ -125,20 +126,18 @@ class MediaDownloaderModule : Module() {
               -1
             }
             emitProgress(jobId, job)
-            val sink = if (resume > 0) {
-              dest.appendSink().buffer()
-            } else {
-              dest.sink().buffer()
-            }
-            val src = resp.body?.source() ?: throw IOException("empty body")
+            // okio 3 (bundled with okhttp) removed File.sink()/appendSink();
+            // plain java streams keep the same 64kb contiguous writes
+            val sink = FileOutputStream(dest, resume > 0)
+            val src = resp.body?.byteStream() ?: throw IOException("empty body")
             sink.use { out ->
               src.use { input ->
-                // 64kb copies with buffer.emit() spread bridge traffic out
-                // without losing the in-order contiguity resume relies on
+                val buf = ByteArray(64 * 1024)
+                // 64kb direct writes: in-order contiguity resume relies on
                 while (true) {
-                  val read = input.read(out.buffer, 64 * 1024)
+                  val read = input.read(buf)
                   if (read == -1) break
-                  out.emit()
+                  out.write(buf, 0, read)
                   job.bytes += read
                   val now = System.currentTimeMillis()
                   if (now - job.lastEmitAt >= 40) {
