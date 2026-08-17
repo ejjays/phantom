@@ -1,0 +1,12 @@
+{
+  "name": "wake-lock",
+  "version": "1.0.0",
+  "description": "Keep CPU + Wi-Fi radio awake during long downloads (PowerManager + WifiManager)",
+  "main": "index.ts",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "expo-modules-core": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

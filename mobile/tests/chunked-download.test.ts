@@ -187,6 +187,60 @@ describe('chunkedDownload', () => {
     stateFiles.delete(`${file.name}.state`);
   });
 
+  it('falls back to sequential ranges when the cdn rejects parallel bursts', async () => {
+    const total = CHUNK * 4;
+    const statuses: number[] = [];
+    let failuresGiven = 0;
+    global.fetch = vi.fn(
+      (
+        _url: string,
+        init?: { headers?: Record<string, string> }
+      ): Promise<{
+        ok: boolean;
+        status: number;
+        headers?: { get: (k: string) => string | null };
+        arrayBuffer: () => Promise<ArrayBuffer>;
+      }> => {
+        const range = init?.headers?.Range ?? '';
+        if (range === 'bytes=0-0') {
+          return Promise.resolve({
+            ok: true,
+            status: 206,
+            headers: {
+              get: (k: string) =>
+                k.toLowerCase() === 'content-range'
+                  ? `bytes 0-0/${total}`
+                  : null,
+            },
+            arrayBuffer: () =>
+              Promise.resolve(new Uint8Array(1).buffer as ArrayBuffer),
+          });
+        }
+        const fail = failuresGiven < 2;
+        if (fail) failuresGiven += 1;
+        statuses.push(fail ? 403 : 206);
+        return Promise.resolve({
+          ok: !fail,
+          status: fail ? 403 : 206,
+          arrayBuffer: () =>
+            Promise.resolve(new Uint8Array([7]).buffer as ArrayBuffer),
+        });
+      }
+    ) as unknown as typeof fetch;
+
+    const file = makeFileMock(false, 0);
+    await chunkedDownload(
+      'https://gv.example/videoplayback',
+      {},
+      file as never,
+      () => {}
+    );
+
+    expect(statuses).toContain(403);
+    expect(statuses).toContain(206);
+    expect(file.open().writeBytes).toHaveBeenCalledTimes(4);
+  });
+
   it('keeps sidecar on failure so a retry can resume mid-file', async () => {
     const file = makeFileMock(true, CHUNK);
     stateFiles.set(`${file.name}.state`, {

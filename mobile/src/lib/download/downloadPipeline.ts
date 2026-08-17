@@ -21,6 +21,13 @@ import { log } from '../log';
 import { ABORT_MESSAGE } from '../retry';
 import { upsertInflight, removeInflight, type InflightItem } from '../inflight';
 import { addHistory } from '../downloadHistory';
+import { resolve } from '../../extractors';
+import {
+  acquireCpuLock,
+  acquireWifiLock,
+  releaseCpuLock,
+  releaseWifiLock,
+} from '../../../modules/wake-lock';
 
 export type DownloadOutcome = { status: 'saved' | 'denied'; uri?: string };
 
@@ -109,6 +116,23 @@ async function tagAudioInPlace(
   }
 }
 
+// signed cdn urls expire (googlevideo, spotify) — match the failed stream
+// against a fresh resolve so a retry never reuses the dead url
+async function refreshStreamUrl(
+  info: VideoInfo,
+  format: Format,
+  url: string
+): Promise<string | null> {
+  const fresh = await resolve(info.webpageUrl, undefined, { fresh: true });
+  if (!fresh || fresh.formats.length === 0) return null;
+  const match =
+    fresh.formats.find((f) => f.formatId === format.formatId) ??
+    fresh.formats[0];
+  if (url === format.url) return match.url || null;
+  if (url === format.muxAudioUrl) return match.muxAudioUrl || null;
+  return null;
+}
+
 type FetchMediaInput = {
   info: VideoInfo;
   format: Format;
@@ -143,6 +167,7 @@ async function fetchMedia({
   ): Promise<void> => {
     const startedAt = Date.now();
     let written = 0;
+    let refreshed = false;
     const onProg = (done: number, total: number): void => {
       written = done;
       if (total > 0) {
@@ -152,19 +177,35 @@ async function fetchMedia({
         });
       }
     };
+    const attempt = async (targetUrl: string): Promise<void> => {
+      try {
+        await chunkedDownload(targetUrl, headers, dest, onProg, signal);
+      } catch (error) {
+        if (!(error instanceof Error && /unknown size/iu.test(error.message))) {
+          throw error;
+        }
+        // server without range support: plain single-shot download
+        await File.downloadFileAsync(targetUrl, dest, {
+          idempotent: true,
+          headers,
+          onProgress: ({ bytesWritten, totalBytes }) =>
+            onProg(bytesWritten, totalBytes),
+        });
+      }
+    };
     try {
-      await chunkedDownload(dlUrl, headers, dest, onProg, signal);
+      await attempt(dlUrl);
     } catch (error) {
-      if (!(error instanceof Error && /unknown size/iu.test(error.message))) {
+      // cdn 403 = signed url rejected; one fresh resolve usually fixes it
+      if (!(error instanceof Error && /chunked: HTTP/u.test(error.message))) {
         throw error;
       }
-      // server without range support: plain single-shot download
-      await File.downloadFileAsync(dlUrl, dest, {
-        idempotent: true,
-        headers,
-        onProgress: ({ bytesWritten, totalBytes }) =>
-          onProg(bytesWritten, totalBytes),
-      });
+      if (refreshed) throw error;
+      refreshed = true;
+      const freshUrl = await refreshStreamUrl(info, format, dlUrl);
+      if (!freshUrl) throw error;
+      log('downloadPipeline', `[Download] ${label} url expired, re-resolved`);
+      await attempt(freshUrl);
     }
     if (signal.aborted) throw new Error(ABORT_MESSAGE);
     const secs = Math.max((Date.now() - startedAt) / 1000, 0.1);
@@ -302,6 +343,13 @@ export async function runDownload({
     return file;
   };
 
+  // keep CPU + Wi-Fi radio awake for the whole download; best-effort,
+  // a lock failure must never fail the download itself
+  await Promise.allSettled([
+    acquireCpuLock('phantom-download'),
+    acquireWifiLock('phantom-download'),
+  ]);
+
   const inflight = buildInflight(info, format, stem, tag, seed);
   await upsertInflight(inflight);
 
@@ -392,6 +440,7 @@ export async function runDownload({
       await removeInflight(stem);
       await Promise.all(temps.map(removeFile));
     }
+    await Promise.allSettled([releaseCpuLock(), releaseWifiLock()]);
   }
 }
 

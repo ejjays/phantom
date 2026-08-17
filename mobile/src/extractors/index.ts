@@ -146,11 +146,12 @@ function reportFailure(host: string, error: unknown): void {
 
 export async function resolve(
   url: string,
-  onPartial?: OnPartial
+  onPartial?: OnPartial,
+  options?: { fresh?: boolean }
 ): Promise<VideoInfo | null> {
   const host = hostOf(url);
 
-  if (!FAST_RESOLVE_DISABLED) {
+  if (!FAST_RESOLVE_DISABLED && !options?.fresh) {
     const cached = getCachedInfo(url);
     if (cached) return cached;
   }

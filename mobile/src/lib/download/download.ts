@@ -84,35 +84,60 @@ export async function chunkedDownload(
   handle.offset = resumeChunk * CHUNK;
   const started = Date.now();
   let finished = false;
+
+  // CDNs (googlevideo, spotifycdn) 403 bursts of parallel ranges on one
+  // signed URL — retry those chunks sequentially before giving up
+  const fetchChunk = (start: number, end: number): Promise<Uint8Array> =>
+    withRetry(
+      async () => {
+        const res = await fetch(url, {
+          headers: { ...headers, Range: `bytes=${start}-${end}` },
+          signal,
+        });
+        if (res.status >= 400) throw new Error(`chunked: HTTP ${res.status}`);
+        return new Uint8Array(await res.arrayBuffer());
+      },
+      { retries: 3, delayMs: 1500, signal }
+    );
+
   try {
     const remaining = Math.ceil(total / CHUNK) - resumeChunk;
-    await orderedParallelToFile(
-      remaining,
-      (idx) => {
+    let doneChunks = 0;
+    try {
+      await orderedParallelToFile(
+        remaining,
+        (idx) => {
+          const global = resumeChunk + idx;
+          const start = global * CHUNK;
+          const end = Math.min(start + CHUNK, total) - 1;
+          return fetchChunk(start, end);
+        },
+        handle,
+        CONCURRENCY,
+        (done) => {
+          doneChunks = done;
+          onProgress(
+            Math.min((resumeChunk + done) * CHUNK, total),
+            total
+          );
+        }
+      );
+    } catch {
+      // parallel burst rejected → sequential ranges for the remainder
+      for (let idx = doneChunks; idx < remaining; idx += 1) {
         const global = resumeChunk + idx;
         const start = global * CHUNK;
         const end = Math.min(start + CHUNK, total) - 1;
-        return withRetry(
-          async () => {
-            const res = await fetch(url, {
-              headers: { ...headers, Range: `bytes=${start}-${end}` },
-              signal,
-            });
-            if (res.status >= 400)
-              throw new Error(`chunked: HTTP ${res.status}`);
-            return new Uint8Array(await res.arrayBuffer());
-          },
-          { retries: 3, delayMs: 1500, signal }
-        );
-      },
-      handle,
-      CONCURRENCY,
-      (done) =>
+        const buf = await fetchChunk(start, end);
+        handle.offset = start;
+        handle.writeBytes(buf);
+        doneChunks += 1;
         onProgress(
-          Math.min((resumeChunk + done) * CHUNK, total),
+          Math.min((resumeChunk + doneChunks) * CHUNK, total),
           total
-        )
-    );
+        );
+      }
+    }
     const secs = (Date.now() - started) / 1000;
     const mbps = secs > 0 ? ((total * 8) / 1e6 / secs).toFixed(1) : '0';
     log(
