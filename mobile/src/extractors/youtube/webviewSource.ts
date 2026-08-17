@@ -44,7 +44,10 @@ const RAW_HTML = `<!doctype html>
   const warn = (stage, detail) => post({ log: true, stage, detail: String(detail) });
   warn('wv', 'script start');
   const REQUEST_KEY = 'O43z0dpjhgX20SCx4KAo';
-  const CLIENTS = ['ANDROID_VR', 'IOS'];
+  // visionos-minted urls (c=VISIONOS) serve on this ip's cdn edge while
+  // android-vr (c=ANDROID_VR) 403 — measured same-instant same-node.
+  // keep android-vr + ios as fallback for clients that reject visionos
+  const CLIENTS = ['VISIONOS', 'ANDROID_VR', 'IOS'];
   const DEFAULT_TTL_MS = 6 * 60 * 60 * 1000;
   const REFRESH_MARGIN_MS = 5 * 60 * 1000;
   const rnFetches = {};
@@ -118,9 +121,10 @@ const RAW_HTML = `<!doctype html>
     warn('import', 'youtubei start');
     const ytMod = await importFirst(
       [
-        'https://cdn.jsdelivr.net/npm/youtubei.js@17/bundle/browser.js',
-        'https://unpkg.com/youtubei.js@17/bundle/browser.js',
-        'https://esm.sh/youtubei.js@17?bundle',
+        // v18 added the VISIONOS client; v17 errors "Invalid client: VISIONOS"
+        'https://cdn.jsdelivr.net/npm/youtubei.js@18/bundle/browser.js',
+        'https://unpkg.com/youtubei.js@18/bundle/browser.js',
+        'https://esm.sh/youtubei.js@18?bundle',
       ],
       'youtubei'
     );

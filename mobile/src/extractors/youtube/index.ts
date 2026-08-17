@@ -67,20 +67,17 @@ export function buildFormats(raw: RawYtResult): Format[] {
   const rawAll = [...(raw.formats || []), ...(raw.adaptive || [])].filter(
     (f) => f.url
   );
-  const muxed = rawAll.filter((f) => f.hasVideo && f.hasAudio);
+  // progressive (muxed) urls come back in paired mode (mm=18) and the
+  // googlevideo cdn 403s those for some isps — it serves adaptive (mm=31)
+  // fine. build the video ladder from the separate video stream and mux
+  // the audio in (zero regression: that path already exists).
   const videoOnly = rawAll.filter((f) => f.hasVideo && !f.hasAudio);
   const audioOnly = rawAll.filter((f) => f.hasAudio && !f.hasVideo);
 
   const aac = bestAudio(audioOnly, 'mp4');
   const opus = bestAudio(audioOnly, 'webm');
 
-  /* dedupe by height; prefer muxed */
-  const ladder = new Map<number, Format>();
-  muxed.forEach((fmt, i) => {
-    const format = baseFormat(fmt, 1000 + i);
-    ladder.set(format.height ?? 0, format);
-  });
-
+  /* adaptive first: separate video (+mux audio). primary pick */
   const byHeight = new Map<number, RawYtFormat>();
   for (const video of videoOnly) {
     const height = video.height ?? 0;
@@ -91,6 +88,7 @@ export function buildFormats(raw: RawYtResult): Format[] {
   }
 
   let index = 0;
+  const ladder = new Map<number, Format>();
   for (const video of byHeight.values()) {
     const height = video.height ?? 0;
     if (ladder.has(height)) continue;
@@ -106,6 +104,17 @@ export function buildFormats(raw: RawYtResult): Format[] {
     format.filesize = sum > 0 ? sum : undefined;
     ladder.set(height, format);
   }
+
+  /* progressive (paired, mm=18) rungs fill only heights with no
+     separate streams (live archives) — the cdn 403s paired urls on
+     some isps, so adaptive must own every height it covers */
+  const muxed = rawAll.filter((f) => f.hasVideo && f.hasAudio);
+  muxed.forEach((fmt, i) => {
+    const format = baseFormat(fmt, 1000 + i);
+    if (!ladder.has(format.height ?? 0)) {
+      ladder.set(format.height ?? 0, format);
+    }
+  });
 
   const videoLadder = [...ladder.values()].sort(
     (lhs, rhs) => (rhs.height ?? 0) - (lhs.height ?? 0)
