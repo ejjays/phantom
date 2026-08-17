@@ -1,0 +1,12 @@
+{
+  "name": "native-downloader",
+  "version": "1.0.0",
+  "description": "OkHttp single-connection streaming download with byte-range resume (native download)",
+  "main": "index.ts",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "expo-modules-core": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

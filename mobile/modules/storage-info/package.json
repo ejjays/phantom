@@ -1,0 +1,12 @@
+{
+  "name": "storage-info",
+  "version": "1.0.0",
+  "description": "Free/total bytes for internal storage + all mounted volumes (StatFs)",
+  "main": "index.ts",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "expo-modules-core": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

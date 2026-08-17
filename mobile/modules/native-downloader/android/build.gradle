@@ -1,0 +1,34 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+group = 'expo.modules.nativedownloader'
+version = '1.0.0'
+
+def expoModulesCorePlugin = new File(
+  project(":expo-modules-core").projectDir.absolutePath,
+  "ExpoModulesCorePlugin.gradle"
+)
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+
+def safeExtGet(prop, fallback) {
+  rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+}
+
+android {
+  namespace "expo.modules.nativedownloader"
+  compileSdk safeExtGet('compileSdkVersion', 36)
+  defaultConfig {
+    minSdkVersion safeExtGet('minSdkVersion', 24)
+    versionCode 1
+    versionName "1.0.0"
+  }
+}
+
+// okhttp comes from ReactAndroid (api(libs.okhttp3)); this library only
+// picks it up transitively if the app project was built against it, so
+// declare it explicitly — version forced by RN's resolution
+dependencies {
+  implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}

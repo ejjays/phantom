@@ -9,10 +9,12 @@ vi.mock('expo-file-system', () => ({
     exists: boolean;
     size: number;
     name: string;
+    uri: string;
     private state: FakeState | undefined;
     constructor(_dir: string, name?: string) {
       this.size = 0;
       this.name = name ?? 'unknown';
+      this.uri = `file:///cache/${this.name}`;
       this.exists = stateFiles.has(this.name);
       this.state = stateFiles.get(this.name);
     }
@@ -38,8 +40,19 @@ vi.mock('expo-file-system', () => ({
   FileMode: { ReadWrite: 'ReadWrite' },
   Paths: { cache: 'file:///cache' },
 }));
+
 vi.mock('../src/lib/retry', () => ({
   withRetry: <T>(fn: () => Promise<T>) => fn(),
+}));
+
+vi.mock('../src/lib/hls', () => ({
+  orderedParallelToFile: async () => {},
+}));
+
+vi.mock('../modules/native-downloader', () => ({
+  startDownload: () => {
+    throw new Error('native missing in tests');
+  },
 }));
 
 import { chunkedDownload } from '../src/lib/download/download';
@@ -50,6 +63,7 @@ function makeFileMock(exists: boolean, size = 0) {
   const handle = { offset: 0, writeBytes: vi.fn(), close: vi.fn() };
   return {
     name: 'target.vid.mp4',
+    uri: 'file:///cache/target.vid.mp4',
     exists,
     size,
     delete: vi.fn(),

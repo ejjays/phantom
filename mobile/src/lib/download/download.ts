@@ -1,6 +1,7 @@
 import { File, FileMode, Paths } from 'expo-file-system';
 import { withRetry } from '../retry';
 import { orderedParallelToFile } from './hls';
+import { nativeDownload } from './nativeDownload';
 import { log } from '../log';
 
 // largeHeap covers webview + parallel chunks
@@ -43,6 +44,21 @@ export async function chunkedDownload(
   onProgress: (written: number, total: number) => void,
   signal?: AbortSignal
 ): Promise<void> {
+  // primary path: native streaming; the js chunked path below stays as
+  // fallback for tests/older builds. unknown-size server or a js-side
+  // native failure both land in the fallback.
+  try {
+    await nativeDownload(url, headers, file, onProgress, signal);
+    return;
+  } catch (error) {
+    if (error instanceof Error && /chunked: HTTP/u.test(error.message)) {
+      // cdn rejected the request; fall through to the js path so the
+      // caller's 403 -> refreshStreamUrl hook still fires
+      throw error;
+    }
+    // anything else (io, module missing in tests) retries in js below
+  }
+
   const head = await fetch(url, {
     headers: { ...headers, Range: 'bytes=0-0' },
     signal,

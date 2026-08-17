@@ -17,6 +17,7 @@ import {
   encodeToMp4,
 } from './mux';
 import { saveToDevice } from './save';
+import { checkStorageBeforeDownload } from './storagePreflight';
 import { log } from '../log';
 import { ABORT_MESSAGE } from '../retry';
 import { upsertInflight, removeInflight, type InflightItem } from '../inflight';
@@ -367,6 +368,18 @@ export async function runDownload({
       });
     }
   };
+
+  // fail before writing anything: a half-empty disk kills downloads
+  // midway and the kept partial bloats the resume path
+  const gate = await checkStorageBeforeDownload(
+    format.filesize ?? 0,
+    info.duration
+  );
+  if (!gate.ok) {
+    onState({ status: 'error', progress: 0 });
+    await removeInflight(stem);
+    throw new Error(gate.message);
+  }
 
   let threw: unknown;
   try {
