@@ -168,7 +168,6 @@ async function fetchMedia({
   ): Promise<void> => {
     const startedAt = Date.now();
     let written = 0;
-    let refreshed = false;
     const onProg = (done: number, total: number): void => {
       written = done;
       if (total > 0) {
@@ -197,26 +196,35 @@ async function fetchMedia({
     try {
       await attempt(dlUrl);
     } catch (error) {
-      // cdn 403 = signed url rejected; one fresh resolve usually fixes it
+      // cdn 403: the signed url got rejected on that edge node — some
+      // (geo) nodes 403 what a sibling node serves. each fresh resolve
+      // rolls a new node; try up to 3 rolls before giving up
       if (!(error instanceof Error && /chunked: HTTP/u.test(error.message))) {
         throw error;
       }
-      if (refreshed) throw error;
-      refreshed = true;
-      const freshUrl = await refreshStreamUrl(info, format, dlUrl);
-      log(
-        'downloadPipeline',
-        '[D] refresh',
-        'same',
-        freshUrl === dlUrl,
-        'fresh',
-        freshUrl?.slice(0, 90),
-        'old',
-        dlUrl.slice(0, 90)
-      );
-      if (!freshUrl) throw error;
+      let lastError = error;
+      let reResolved = false;
+      for (let roll = 0; roll < 3; roll += 1) {
+        const freshUrl = await refreshStreamUrl(info, format, dlUrl);
+        if (!freshUrl) throw lastError;
+        try {
+          await attempt(freshUrl);
+          reResolved = true;
+          break;
+        } catch (retryError) {
+          if (
+            !(
+              retryError instanceof Error &&
+              /chunked: HTTP/u.test(retryError.message)
+            )
+          ) {
+            throw retryError;
+          }
+          lastError = retryError;
+        }
+      }
+      if (!reResolved) throw lastError;
       log('downloadPipeline', `[Download] ${label} url expired, re-resolved`);
-      await attempt(freshUrl);
     }
     if (signal.aborted) throw new Error(ABORT_MESSAGE);
     const secs = Math.max((Date.now() - startedAt) / 1000, 0.1);

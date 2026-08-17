@@ -82,12 +82,14 @@ class MediaDownloaderModule : Module() {
 
     // only map host headers through; anything else (e.g. synthetic auth
     // headers the extractors never set) is not trusted
-    val allowed = setOf("user-agent", "referer", "cookie", "range")
+    val allowed = setOf("user-agent", "accept", "referer", "cookie", "origin", "range")
     val builder = Request.Builder().url(url)
     headers.forEach { (name, value) ->
       if (allowed.contains(name.lowercase())) builder.header(name, value)
     }
-    builder.header("Range", if (resumeBytes > 0) "bytes=$resumeBytes-" else "bytes=0-")
+    // no Range when starting fresh — same as the js path; some cdns 403 a
+    // re-resolved signed url when a range header rides along unrequested
+    if (resumeBytes > 0) builder.header("Range", "bytes=$resumeBytes-")
 
     // single streaming connection; one round trip, no per-chunk js hop
     val call = client.newCall(builder.build())
