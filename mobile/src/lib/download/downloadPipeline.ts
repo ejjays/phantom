@@ -222,6 +222,9 @@ async function fetchMedia({
           }
           lastError = retryError;
         }
+        // cdn rejects in minute-scale bursts (measured: flips within ~60s);
+        // wait before the next roll so the server-side flip has time to land
+        await new Promise((r) => setTimeout(r, 60000 + roll * 15000));
       }
       if (!reResolved) throw lastError;
       log('downloadPipeline', `[Download] ${label} url expired, re-resolved`);
