@@ -204,6 +204,16 @@ async function fetchMedia({
       if (refreshed) throw error;
       refreshed = true;
       const freshUrl = await refreshStreamUrl(info, format, dlUrl);
+      log(
+        'downloadPipeline',
+        '[D] refresh',
+        'same',
+        freshUrl === dlUrl,
+        'fresh',
+        freshUrl?.slice(0, 90),
+        'old',
+        dlUrl.slice(0, 90)
+      );
       if (!freshUrl) throw error;
       log('downloadPipeline', `[Download] ${label} url expired, re-resolved`);
       await attempt(freshUrl);

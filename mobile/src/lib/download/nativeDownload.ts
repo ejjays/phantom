@@ -1,5 +1,6 @@
 import { File, Paths } from 'expo-file-system';
 import { startDownload, type DownloadJob } from '../../../modules/native-downloader';
+import { log } from '../log';
 
 // native streaming download replaces the old 4MB/4x array-buffer chunks:
 // okhttp writes straight to disk on one connection, no js hop per chunk.
@@ -83,6 +84,16 @@ export function nativeDownload(
           if (file.exists) file.delete();
           file.create();
         }
+        log(
+          'nativeDownload',
+          '[D] start',
+          'url',
+          url.slice(0, 90),
+          'headers',
+          JSON.stringify(headers),
+          'resume',
+          resumeBytes
+        );
         job = startDownload(
           jobId,
           url,
@@ -93,6 +104,19 @@ export function nativeDownload(
             if (e.jobId === jobId) onProgress(e.bytes, e.total);
           },
           (e) => {
+            log(
+              'nativeDownload',
+              '[D] done',
+              e.state,
+              'httpCode',
+              e.httpCode ?? '?',
+              'resumeBytes',
+              resumeBytes,
+              'bytes',
+              e.bytes,
+              'url',
+              url.slice(0, 90)
+            );
             if (e.jobId !== jobId || done) return;
             done = true;
             signal?.removeEventListener('abort', abortHandler);
