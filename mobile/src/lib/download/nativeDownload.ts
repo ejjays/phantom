@@ -88,7 +88,7 @@ export function nativeDownload(
           'nativeDownload',
           '[D] start',
           'url',
-          url.slice(0, 90),
+          url,
           'headers',
           JSON.stringify(headers),
           'resume',
@@ -104,19 +104,21 @@ export function nativeDownload(
             if (e.jobId === jobId) onProgress(e.bytes, e.total);
           },
           (e) => {
-            log(
-              'nativeDownload',
-              '[D] done',
-              e.state,
-              'httpCode',
-              e.httpCode ?? '?',
-              'resumeBytes',
-              resumeBytes,
-              'bytes',
-              e.bytes,
-              'url',
-              url.slice(0, 90)
-            );
+            if (e.jobId === jobId) {
+              log(
+                'nativeDownload',
+                '[D] done',
+                e.state,
+                'httpCode',
+                e.httpCode ?? '?',
+                'bytes',
+                e.bytes,
+                'total',
+                e.total,
+                'url',
+                url
+              );
+            }
             if (e.jobId !== jobId || done) return;
             done = true;
             signal?.removeEventListener('abort', abortHandler);
