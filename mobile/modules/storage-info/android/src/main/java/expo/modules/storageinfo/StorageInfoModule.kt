@@ -32,7 +32,7 @@ class StorageInfoModule : Module() {
         if (file != null) dirs.add(file)
       }
       // dedupe identical paths (emulated primary is often listed twice)
-      val out = mutableListOf<Map<String, Long>>()
+      val out = mutableListOf<Map<String, Any>>()
       val seen = mutableSetOf<String>()
       for (dir in dirs) {
         val abs = dir.absolutePath
