@@ -29,19 +29,7 @@ export function useAppUpdate(autoCheck = true) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // TEMP UI preview: EXPO_PUBLIC_PREVIEW_UPDATE_UI=1 fakes update states (dev only)
-  const previewUi = __DEV__ && process.env.EXPO_PUBLIC_PREVIEW_UPDATE_UI === '1';
-
   const check = useCallback(async (): Promise<UpdateCheck | null> => {
-    if (previewUi) {
-      const fake: UpdateManifest = {
-        version: '9.9.9',
-        apkUrl: 'https://preview.invalid/x.apk',
-      };
-      setManifest(fake);
-      setStatus('available');
-      return { status: 'available', manifest: fake };
-    }
     const update = await checkForUpdate(installed);
     if (!update) {
       setStatus('none');
@@ -50,22 +38,10 @@ export function useAppUpdate(autoCheck = true) {
     setManifest(update.manifest);
     setStatus('available');
     return update;
-  }, [installed, previewUi]);
+  }, [installed]);
 
   const install = useCallback(
     async (explicit?: UpdateManifest) => {
-      if (previewUi) {
-        setStatus('downloading');
-        for (let step = 0; step <= 20; step += 1) {
-          await new Promise((resolve) => setTimeout(resolve, 250));
-          setProgress(step / 20);
-        }
-        setStatus('installing');
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        setProgress(0);
-        setStatus('none');
-        return;
-      }
       const target = explicit ?? manifest;
       if (!target) return;
       if (!(await hasInstallPermission())) {
@@ -91,7 +67,7 @@ export function useAppUpdate(autoCheck = true) {
         console.error('update install failed', err);
       }
     },
-    [manifest, previewUi]
+    [manifest]
   );
 
   const updateNow = useCallback(async () => {
