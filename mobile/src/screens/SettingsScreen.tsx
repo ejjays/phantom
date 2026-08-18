@@ -29,7 +29,6 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { ChevronRight, Ghost } from 'lucide-react-native';
-import Constants from 'expo-constants';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
@@ -58,7 +57,6 @@ import gcash500 from '../../assets/support/gcash-500.webp';
 import {
   FolderIcon,
   PasteIcon,
-  DownloadsIcon,
   NotificationIcon,
   SocialIcon,
   HapticsIcon,
@@ -70,12 +68,7 @@ import {
   ShareAppIcon,
   FileIcon,
 } from '../components/icons';
-import { checkForUpdate, type UpdateManifest } from '../lib/updater/manifest';
-import { downloadApk, installDownloadedApk } from '../lib/updater/install';
-import {
-  hasInstallPermission,
-  openInstallPermissionSettings,
-} from '../../modules/silent-updater';
+import { useAppUpdate } from '../hooks/useAppUpdate';
 import {
   getFilenameFormat,
   setFilenameFormat,
@@ -460,154 +453,63 @@ function LinkRow(props: {
   );
 }
 
-function UpdateControl({ light }: { light?: boolean }) {
-  const installed = Constants.expoConfig?.version ?? '0.0.0';
-  const [status, setStatus] = useState<
-    | 'checking'
-    | 'none'
-    | 'available'
-    | 'downloading'
-    | 'installing'
-    | 'error'
-    | 'permission'
-  >('checking');
-  const [manifest, setManifest] = useState<UpdateManifest | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  const check = useCallback(async () => {
-    const update = await checkForUpdate(installed);
-    if (!update) {
-      setStatus('none');
-      return;
-    }
-    setManifest(update.manifest);
-    setStatus('available');
-  }, [installed]);
-
-  const install = useCallback(async () => {
-    if (!manifest) return;
-    if (!(await hasInstallPermission())) {
-      setStatus('permission');
-      await openInstallPermissionSettings();
-      return;
-    }
-    setStatus('downloading');
-    setProgress(0);
-    abortRef.current = new AbortController();
-    try {
-      const path = await downloadApk(
-        manifest,
-        (written, total) => setProgress(total ? written / total : 0),
-        abortRef.current.signal
-      );
-      setStatus('installing');
-      await installDownloadedApk(path);
-    } catch (err) {
-      abortRef.current = null;
-      setStatus('error');
-      setErrorMessage(err instanceof Error ? err.message : String(err));
-      console.error('update install failed', err);
-    }
-  }, [manifest]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-time update check
-    void check();
-    return () => abortRef.current?.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
-  }, []);
-
-  // user returns from the "allow installs" settings screen: auto-resume
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active' || status !== 'permission') return;
-      void install();
-    });
-    return () => sub.remove();
-  }, [status, install]);
-
-  const label =
+function VersionRow({ light }: { light?: boolean }) {
+  const {
+    installed,
+    status,
+    progress,
+    errorMessage,
+    updateNow,
+  } = useAppUpdate();
+  const hint =
     status === 'checking'
       ? 'Checking for updates…'
-      : status === 'available' && manifest
-        ? `Phantom ${manifest.version} available`
-        : status === 'downloading'
-          ? `Downloading ${Math.round(progress * 100)}%`
-          : status === 'installing'
-            ? 'Installing…'
-            : status === 'permission'
-              ? 'Allow installs to update'
-              : status === 'error'
-                ? 'Update failed'
-                : 'Up to date';
-  const hint =
-    status === 'none'
-      ? `You're on the latest version`
-      : status === 'available' && manifest
-        ? (manifest.notes ?? 'Includes fixes and improvements')
-        : status === 'permission'
-          ? 'Tap to grant "Install unknown apps" in settings'
-: status === 'error'
-              ? (errorMessage ?? 'Tap to retry')
-            : 'Downloads silently — no Play Store needed';
+      : status === 'none'
+        ? "You're on latest version"
+        : status === 'available'
+          ? 'Update available'
+          : status === 'downloading'
+            ? `Downloading ${Math.round(progress * 100)}%`
+            : status === 'installing'
+              ? 'Installing…'
+              : status === 'permission'
+                ? 'Tap to allow installs'
+                : (errorMessage ?? 'Update failed — tap to retry');
+  const busy = status === 'downloading' || status === 'installing';
 
   return (
     <>
-      <SectionLabel light={light}>App update</SectionLabel>
-      <Card light={light}>
-        <LinkRow
-          Icon={DownloadsIcon}
-          label={label}
-          hint={hint}
-          value={status === 'none' ? `v${installed}` : undefined}
-          onPress={() => {
-            tapSelection();
-            if (status === 'none' || status === 'checking') {
-              setStatus('checking');
-              void check();
-            } else {
-              void install();
-            }
-          }}
-          tile={false}
-          iconSize={26}
-          light={light}
-        />
-        {status === 'available' ? (
-          <View style={tw`px-4 pb-4`}>
-            <Pressable
-              onPress={() => {
-                tapSelection();
-                void install();
-              }}
-              accessibilityRole="button"
-              android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
-              style={[
-                tw`rounded-full py-2.5 items-center`,
-                { backgroundColor: CYAN },
-              ]}
-            >
-              <Text style={tw`font-sans-bold text-[14px] text-white`}>
-                Download &amp; install
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
-        {status === 'downloading' ? (
+      <LinkRow
+        Icon={VersionIcon}
+        label="Version"
+        value={`v${installed}`}
+        hint={hint}
+        tone={status === 'available' ? 'warn' : undefined}
+        onPress={() => {
+          tapSelection();
+          void updateNow();
+        }}
+        tile={false}
+        last
+        chevron={!busy}
+        iconSize={24}
+        light={light}
+      />
+      {status === 'downloading' ? (
+        <View
+          style={tw`h-1 mx-4 mb-4 rounded-full bg-neutral-200 overflow-hidden`}
+        >
           <View
-            style={tw`h-1 mx-4 mb-4 rounded-full bg-neutral-200 overflow-hidden`}
-          >
-            <View
-              style={{
+            style={[
+              tw`h-full rounded-full`,
+              {
                 width: `${progress * 100}%`,
                 backgroundColor: CYAN,
-              }}
-            />
-          </View>
-        ) : null}
-      </Card>
+              },
+            ]}
+          />
+        </View>
+      ) : null}
     </>
   );
 }
@@ -1306,8 +1208,6 @@ function SettingsScreen({
         />
       </Card>
 
-      <UpdateControl light={light} />
-
       <SectionLabel light={light}>About</SectionLabel>
       <Card light={light}>
         <LinkRow
@@ -1318,16 +1218,7 @@ function SettingsScreen({
           iconSize={26}
           light={light}
         />
-        <LinkRow
-          Icon={VersionIcon}
-          label="Version"
-          value={Constants.expoConfig?.version ?? '1.2.1'}
-          tile={false}
-          last
-          chevron={false}
-          iconSize={24}
-          light={light}
-        />
+        <VersionRow light={light} />
       </Card>
     </>
   );

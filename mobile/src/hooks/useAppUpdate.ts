@@ -1,0 +1,125 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
+import Constants from 'expo-constants';
+import {
+  checkForUpdate,
+  type UpdateCheck,
+  type UpdateManifest,
+} from '../lib/updater/manifest';
+import { downloadApk, installDownloadedApk } from '../lib/updater/install';
+import {
+  hasInstallPermission,
+  openInstallPermissionSettings,
+} from '../../modules/silent-updater';
+
+export type UpdateStatus =
+  | 'checking'
+  | 'none'
+  | 'available'
+  | 'downloading'
+  | 'installing'
+  | 'error'
+  | 'permission';
+
+export function useAppUpdate(autoCheck = true) {
+  const installed = Constants.expoConfig?.version ?? '0.0.0';
+  const [status, setStatus] = useState<UpdateStatus>('checking');
+  const [manifest, setManifest] = useState<UpdateManifest | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // TEMP UI preview: EXPO_PUBLIC_PREVIEW_UPDATE_UI=1 fakes update states (dev only)
+  const previewUi = __DEV__ && process.env.EXPO_PUBLIC_PREVIEW_UPDATE_UI === '1';
+
+  const check = useCallback(async (): Promise<UpdateCheck | null> => {
+    if (previewUi) {
+      const fake: UpdateManifest = {
+        version: '9.9.9',
+        apkUrl: 'https://preview.invalid/x.apk',
+      };
+      setManifest(fake);
+      setStatus('available');
+      return { status: 'available', manifest: fake };
+    }
+    const update = await checkForUpdate(installed);
+    if (!update) {
+      setStatus('none');
+      return null;
+    }
+    setManifest(update.manifest);
+    setStatus('available');
+    return update;
+  }, [installed, previewUi]);
+
+  const install = useCallback(
+    async (explicit?: UpdateManifest) => {
+      if (previewUi) {
+        setStatus('downloading');
+        for (let step = 0; step <= 20; step += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          setProgress(step / 20);
+        }
+        setStatus('installing');
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        setProgress(0);
+        setStatus('none');
+        return;
+      }
+      const target = explicit ?? manifest;
+      if (!target) return;
+      if (!(await hasInstallPermission())) {
+        setStatus('permission');
+        await openInstallPermissionSettings();
+        return;
+      }
+      setStatus('downloading');
+      setProgress(0);
+      abortRef.current = new AbortController();
+      try {
+        const path = await downloadApk(
+          target,
+          (written, total) => setProgress(total ? written / total : 0),
+          abortRef.current.signal
+        );
+        setStatus('installing');
+        await installDownloadedApk(path);
+      } catch (err) {
+        abortRef.current = null;
+        setStatus('error');
+        setErrorMessage(err instanceof Error ? err.message : String(err));
+        console.error('update install failed', err);
+      }
+    },
+    [manifest, previewUi]
+  );
+
+  const updateNow = useCallback(async () => {
+    if (status === 'downloading' || status === 'installing') return;
+    if (status === 'available' && manifest) {
+      void install(manifest);
+      return;
+    }
+    const update = await check();
+    if (update) void install(update.manifest);
+  }, [status, manifest, check, install]);
+
+  useEffect(() => {
+    if (!autoCheck) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-time update check
+    void check();
+    return () => abortRef.current?.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
+
+  // user returns from the "allow installs" settings screen: auto-resume
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || status !== 'permission') return;
+      void install();
+    });
+    return () => sub.remove();
+  }, [status, install]);
+
+  return { installed, status, manifest, progress, errorMessage, check, install, updateNow };
+}

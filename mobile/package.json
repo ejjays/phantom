@@ -53,6 +53,7 @@
     "react": "19.2.3",
     "react-native": "0.86.2",
     "react-native-blob-util": "0.24.10",
+    "react-native-enriched-markdown": "^1.0.1",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-keyboard-controller": "1.21.9",
     "react-native-nitro-google-signin": "0.8.0",

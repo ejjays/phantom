@@ -99,7 +99,8 @@
           "enforceContrast": false,
           "style": "light"
         }
-      ]
+      ],
+      "react-native-enriched-markdown"
     ],
     "extra": {
       "expo-navigation-bar": {

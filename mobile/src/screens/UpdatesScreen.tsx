@@ -8,8 +8,6 @@ import {
   StyleSheet,
   RefreshControl,
   useWindowDimensions,
-  type NativeSyntheticEvent,
-  type TextLayoutEventData,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -19,13 +17,16 @@ import Animated, {
   withRepeat,
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
+import Constants from 'expo-constants';
 import { Inbox, CloudOff, AlertCircle, Bell, Ghost } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import tw from '../lib/tw';
 import { tapSelection, tapSuccess } from '../lib/haptics';
+import { compareVersions } from '../lib/updater/manifest';
 import BottomSheet from '../components/sheets/BottomSheet';
 import UpdateDetailSheet from '../components/sheets/UpdateDetailSheet';
 import PostDetailScreen from './PostDetailScreen';
+import PostMarkdown from '../components/PostMarkdown';
 import NotificationsPanel from '../components/social/NotificationsPanel';
 import Avatar from '../components/Avatar';
 import { CommentIcon, GoogleIcon } from '../components/icons';
@@ -154,86 +155,6 @@ function CommentButton({
   );
 }
 
-const BODY_CLAMP = 4;
-const MORE_LABEL = 'See more';
-const MORE_PAD = 14;
-
-type ClampState =
-  | { kind: 'measuring' }
-  | { kind: 'full' }
-  | { kind: 'inline'; head: string }
-  | { kind: 'below' };
-
-function ClampedBody({ text, onMore }: { text: string; onMore: () => void }) {
-  const [state, setState] = useState<ClampState>({ kind: 'measuring' });
-  const bodyStyle = tw`font-sans text-[15px] leading-6 text-white/75`;
-
-  const measure = (e: NativeSyntheticEvent<TextLayoutEventData>) => {
-    const { lines } = e.nativeEvent;
-    if (lines.length <= BODY_CLAMP) {
-      setState({ kind: 'full' });
-      return;
-    }
-    const cleaned = lines
-      .slice(0, BODY_CLAMP)
-      .map((line) => line.text)
-      .join('')
-      .replace(/\s+$/u, '');
-    if (cleaned.length === 0) {
-      setState({ kind: 'below' });
-      return;
-    }
-    const head = cleaned
-      .slice(0, Math.max(0, cleaned.length - MORE_PAD))
-      .replace(/\s+$/u, '');
-    setState({ kind: 'inline', head });
-  };
-
-  if (state.kind === 'full') {
-    return <Text style={[tw`mt-2`, bodyStyle]}>{text}</Text>;
-  }
-
-  if (state.kind === 'inline') {
-    return (
-      <Text style={[tw`mt-2`, bodyStyle]} numberOfLines={BODY_CLAMP}>
-        {state.head}…{' '}
-        <Text onPress={onMore} style={[tw`font-sans-medium`, { color: CYAN }]}>
-          {MORE_LABEL}
-        </Text>
-      </Text>
-    );
-  }
-
-  if (state.kind === 'below') {
-    return (
-      <View style={tw`mt-2`}>
-        <Text style={bodyStyle} numberOfLines={BODY_CLAMP}>
-          {text}
-        </Text>
-        <Pressable onPress={onMore} hitSlop={8} style={tw`mt-1 self-start`}>
-          <Text style={[tw`font-sans-medium text-[14px]`, { color: CYAN }]}>
-            {MORE_LABEL}
-          </Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  return (
-    <View style={tw`mt-2`}>
-      <Text style={bodyStyle} numberOfLines={BODY_CLAMP}>
-        {text}
-      </Text>
-      <Text
-        style={[bodyStyle, tw`absolute opacity-0`, { left: 0, right: 0 }]}
-        onTextLayout={measure}
-      >
-        {text}
-      </Text>
-    </View>
-  );
-}
-
 function PostCard({
   update,
   isWide,
@@ -252,6 +173,7 @@ function PostCard({
   onOpen: () => void;
 }) {
   const meta = CATEGORY_META[update.category];
+  const installed = Constants.expoConfig?.version ?? '0.0.0';
   return (
     <View style={tw`mb-9`}>
       {update.imageUrl ? (
@@ -284,7 +206,19 @@ function PostCard({
               </Text>
             </View>
             {update.version ? (
-              <Text style={tw`ml-2 font-sans text-[12px] text-white/30`}>
+              <Text
+                style={[
+                  tw`ml-2 font-sans text-[12px]`,
+                  compareVersions(installed, update.version) < 0
+                    ? tw`font-sans-semibold`
+                    : null,
+                  {
+                    color: compareVersions(installed, update.version) < 0
+                      ? CYAN
+                      : 'rgba(255,255,255,0.3)',
+                  },
+                ]}
+              >
                 v{update.version}
               </Text>
             ) : null}
@@ -298,7 +232,7 @@ function PostCard({
         >
           {update.title}
         </Text>
-        <ClampedBody text={update.body} onMore={onOpen} />
+        <PostMarkdown text={update.body} />
       </Pressable>
 
       <View

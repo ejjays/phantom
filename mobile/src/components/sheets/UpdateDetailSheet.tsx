@@ -30,12 +30,15 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Heart, Send, X } from 'lucide-react-native';
+import { Download, Heart, X } from 'lucide-react-native';
 import { CommentIcon } from '../icons';
+import PostMarkdown from '../PostMarkdown';
 import ReactionEmoji from '../social/ReactionEmoji';
 import AnimatedCount from '../social/AnimatedCount';
 import tw from '../../lib/tw';
 import { tapSelection, tapImpact } from '../../lib/haptics';
+import { useAppUpdate } from '../../hooks/useAppUpdate';
+import { compareVersions } from '../../lib/updater/manifest';
 import {
   relativeTime,
   type Update,
@@ -187,6 +190,12 @@ export default function UpdateDetailSheet({
 }) {
   const insets = useSafeAreaInsets();
   const { height: screenH, width: screenW } = useWindowDimensions();
+  const {
+    installed,
+    status: updateStatus,
+    progress: downloadProgress,
+    updateNow,
+  } = useAppUpdate(false);
   const open = update !== null;
   const [mounted, setMounted] = useState(open);
   const [focusMounted, setFocusMounted] = useState(false);
@@ -677,23 +686,47 @@ export default function UpdateDetailSheet({
                     <CommentIcon size={22} color="#94a3b8" />
                   </Pressable>
                   <View style={tw`flex-1`} />
-                  <Pressable
-                    onPress={tapSelection}
-                    style={[
-                      tw`h-9 flex-row items-center rounded-full px-4`,
-                      { backgroundColor: PRIMARY },
-                    ]}
-                  >
-                    <Send size={16} color={SHARE_FG} strokeWidth={2.2} />
-                    <Text
+                  {snap.update.version &&
+                  compareVersions(installed, snap.update.version) < 0 &&
+                  updateStatus !== 'none' ? (
+                    <Pressable
+                      onPress={() => {
+                        tapSelection();
+                        void updateNow();
+                      }}
+                      disabled={
+                        updateStatus === 'downloading' ||
+                        updateStatus === 'installing'
+                      }
+                      accessibilityRole="button"
                       style={[
-                        tw`ml-1.5 font-sans-semibold text-[13px]`,
-                        { color: SHARE_FG },
+                        tw`h-9 flex-row items-center rounded-full px-4`,
+                        { backgroundColor: PRIMARY },
+                        updateStatus === 'downloading' ||
+                        updateStatus === 'installing'
+                          ? tw`opacity-80`
+                          : null,
                       ]}
                     >
-                      Share
-                    </Text>
-                  </Pressable>
+                      <Download size={16} color={SHARE_FG} strokeWidth={2.2} />
+                      <Text
+                        style={[
+                          tw`ml-1.5 font-sans-semibold text-[13px]`,
+                          { color: SHARE_FG },
+                        ]}
+                      >
+                        {updateStatus === 'downloading'
+                          ? `Downloading ${Math.round(downloadProgress * 100)}%`
+                          : updateStatus === 'installing'
+                            ? 'Installing…'
+                            : updateStatus === 'permission'
+                              ? 'Allow installs'
+                              : updateStatus === 'error'
+                                ? 'Retry'
+                                : 'Update now'}
+                      </Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               </View>
             </GestureDetector>
@@ -717,11 +750,7 @@ export default function UpdateDetailSheet({
                       { paddingBottom: insets.bottom + TAIL + 24 },
                     ]}
                   >
-                    <Text
-                      style={tw`font-sans text-[15px] leading-6 text-white`}
-                    >
-                      {snap.update.body}
-                    </Text>
+                    <PostMarkdown text={snap.update.body} />
                   </View>
                 </Animated.ScrollView>
               </GestureDetector>
