@@ -164,13 +164,23 @@ async function fetchMedia({
     dest: File,
     base: number,
     cap: number,
-    label: string
+    label: string,
+    share?: { video: number; audio: number },
+    shareKey?: 'video' | 'audio'
   ): Promise<void> => {
     const startedAt = Date.now();
     let written = 0;
     const onProg = (done: number, total: number): void => {
       written = done;
-      if (total > 0) {
+      // concurrent video+audio: combine the two streams into one
+      // smooth 0-90 segment (video 80, audio 10 of it)
+      if (share && shareKey) {
+        share[shareKey] = total > 0 ? done / total : 0;
+        report({
+          status: 'downloading',
+          progress: Math.round(share.video * 80 + share.audio * 10),
+        });
+      } else if (total > 0) {
         report({
           status: 'downloading',
           progress: base + Math.round((done / total) * cap),
@@ -265,8 +275,13 @@ async function fetchMedia({
     const audioFile = track(
       new File(Paths.cache, `${stem}.aud.${format.muxAudioExt || 'm4a'}`)
     );
-    await fetchTo(format.url, videoFile, 0, 80, 'video');
-    await fetchTo(format.muxAudioUrl, audioFile, 80, 10, 'audio');
+    // cdn throttles per-connection, so both files download at once —
+    // two parallel region sets multiply aggregate bandwidth
+    const share = { video: 0, audio: 0 };
+    await Promise.all([
+      fetchTo(format.url, videoFile, 0, 80, 'video', share, 'video'),
+      fetchTo(format.muxAudioUrl, audioFile, 80, 10, 'audio', share, 'audio'),
+    ]);
     onState({ status: 'muxing', progress: 92 });
     const outFile = track(new File(Paths.cache, `${stem}.${ext}`));
     const mStart = Date.now();

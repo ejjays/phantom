@@ -2,9 +2,13 @@ import { File, Paths } from 'expo-file-system';
 import { startDownload, type DownloadJob } from '../../../modules/native-downloader';
 
 // native streaming download replaces the old 4MB/4x array-buffer chunks:
-// okhttp writes straight to disk on one connection, no js hop per chunk.
+// okhttp writes straight to disk on parallel byte regions, no js hop per
+// chunk. googlevideo throttles range-less full GETs to playback speed, so
+// regions always run ranged requests — parallel on every job, any size.
 // js side keeps the same sidecar contract so a failure falls back to the
 // js chunked path and resumes from the same byte count.
+
+const PARALLEL_STREAMS = 6;
 
 const JOB_PREFIX = 'dl';
 
@@ -111,10 +115,9 @@ export function nativeDownload(
               resolve();
             }
           },
-          // 4 parallel range streams for files over 50MB — the single
-          // stream caps ~1.2MB/s on googlevideo while curl hits 2.6;
-          // parallel regions multiply the same per-stream ceiling
-          prev?.total && prev.total > 50 * 1048576 ? 4 : 1
+          // 6 parallel range streams — the single-stream throttle was
+          // playback speed, not the link; regions multiply throughput
+          PARALLEL_STREAMS
         );
       } catch (err) {
         reject(err);

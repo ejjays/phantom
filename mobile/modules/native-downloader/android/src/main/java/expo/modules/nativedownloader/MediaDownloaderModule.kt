@@ -7,11 +7,17 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import javax.net.SocketFactory
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -30,10 +36,43 @@ class MediaDownloaderModule : Module() {
     get() = requireNotNull(appContext.reactContext) { "react context lost" }
 
   private val client: OkHttpClient by lazy {
-    // larger read buffer + keep-alive pool: single-stream throughput
-    // was capped ~1.2MB/s vs curl's 2.6 — pooled connections + bigger
-    // per-read chunks close the gap; parallelism multiplies it
-    OkHttpClient.Builder().build()
+    // 1MB recv buffer: default sockets capped single-stream ~1.2MB/s vs
+    // curl's 2.6; bigger buffers + pooled conns close that gap
+    OkHttpClient.Builder()
+      .connectTimeout(30, TimeUnit.SECONDS)
+      .readTimeout(60, TimeUnit.SECONDS)
+      .writeTimeout(60, TimeUnit.SECONDS)
+      .connectionPool(ConnectionPool(16, 5, TimeUnit.MINUTES))
+      .socketFactory(tunedSockets)
+      .retryOnConnectionFailure(true)
+      .build()
+  }
+
+  // buffer size must be set before connect() for the kernel to honor it
+  private val tunedSockets = object : SocketFactory() {
+    override fun createSocket(): Socket = Socket().apply {
+      receiveBufferSize = 1024 * 1024
+      sendBufferSize = 256 * 1024
+      tcpNoDelay = true
+    }
+
+    override fun createSocket(host: String, port: Int): Socket =
+      createSocket().apply { connect(InetSocketAddress(host, port)) }
+
+    override fun createSocket(host: String, port: Int, localHost: InetAddress, localPort: Int): Socket =
+      createSocket().apply {
+        bind(InetSocketAddress(localHost, localPort))
+        connect(InetSocketAddress(host, port))
+      }
+
+    override fun createSocket(host: InetAddress, port: Int): Socket =
+      createSocket().apply { connect(InetSocketAddress(host, port)) }
+
+    override fun createSocket(host: InetAddress, port: Int, localHost: InetAddress, localPort: Int): Socket =
+      createSocket().apply {
+        bind(InetSocketAddress(localHost, localPort))
+        connect(InetSocketAddress(host, port))
+      }
   }
 
   private class JobState(
@@ -95,76 +134,12 @@ class MediaDownloaderModule : Module() {
       if (allowed.contains(name.lowercase())) baseBuilder.header(name, value)
     }
 
-    if (parallel <= 1 || resumeBytes > 0) {
-      // single streaming connection; one round trip, no per-chunk js hop
-      // (resume with regions would need byte-exact splitting — keep single for now)
-      val builder = baseBuilder
-      if (resumeBytes > 0) builder.header("Range", "bytes=$resumeBytes-")
-      val call = client.newCall(builder.build())
-      job.calls.add(call)
-      call.enqueue(object : Callback {
-        override fun onFailure(call: Call, e: IOException) {
-          if (call.isCanceled()) {
-            finish(jobId, job, cancelled = true)
-          } else {
-            fail(jobId, job, e.message ?: "network error")
-          }
-        }
-
-        override fun onResponse(call: Call, response: Response) {
-          response.use { resp ->
-            if (!resp.isSuccessful) {
-              fail(jobId, job, "download HTTP ${resp.code}", resp.code)
-              return
-            }
-            try {
-              // server ignored the range (200) or range is stale (416):
-              // restart from scratch so the prefix never corrupts the file
-              var resume = resumeBytes
-              if (resume > 0 && (resp.code == 200 || resp.code == 416)) {
-                dest.delete()
-                resume = 0
-              }
-              val added = resp.body?.contentLength() ?: -1
-              job.finalSize = if (added >= 0) {
-                if (resume > 0) resume + added else added
-              } else {
-                -1
-              }
-              emitProgress(jobId, job)
-              val sink = java.io.FileOutputStream(dest, resume > 0)
-              val src = resp.body?.byteStream() ?: throw IOException("empty body")
-              sink.use { out ->
-                src.use { input ->
-                  val buf = ByteArray(256 * 1024)
-                  while (true) {
-                    val read = input.read(buf)
-                    if (read == -1) break
-                    out.write(buf, 0, read)
-                    job.bytes.addAndGet(read.toLong())
-                    val now = System.currentTimeMillis()
-                    if (now - job.lastEmitAt >= 40) {
-                      job.lastEmitAt = now
-                      emitProgress(jobId, job)
-                    }
-                  }
-                }
-              }
-              finish(jobId, job, call.isCanceled())
-            } catch (err: Throwable) {
-              fail(jobId, job, err.message ?: "download failed")
-            }
-          }
-        }
-      })
-      return
-    }
-
-    // ---- parallel: N independent range calls, each writes its own region ----
-    // learn total length via async HEAD, then fire one call per region
-    val headReq = baseBuilder.header("Range", "bytes=0-0").build()
-    val headCall = client.newCall(headReq)
-    headCall.enqueue(object : Callback {
+    // probe size with a 1-byte range: googlevideo throttles range-less
+    // full GETs to playback speed, so parallel regions are the primary
+    // path and a plain stream only runs when the server refuses ranges
+    val probeCall = client.newCall(baseBuilder.newBuilder().header("Range", "bytes=0-0").build())
+    job.calls.add(probeCall)
+    probeCall.enqueue(object : Callback {
       override fun onFailure(call: Call, e: IOException) {
         if (call.isCanceled()) return
         fail(jobId, job, e.message ?: "network error")
@@ -172,68 +147,144 @@ class MediaDownloaderModule : Module() {
 
       override fun onResponse(call: Call, response: Response) {
         response.use { resp ->
-          if (!resp.isSuccessful && resp.code != 206) {
+          if (!resp.isSuccessful) {
             fail(jobId, job, "download HTTP ${resp.code}", resp.code)
             return
           }
           val length = parseContentLength(resp.headers["Content-Range"])
-          if (length <= 0) {
-            // unknown size — single stream fallback (recursion depth 1)
-            start(jobId, job, url, destPath, headers, resumeBytes, 1)
-            return
-          }
-          dest.delete()
-          val raf = java.io.RandomAccessFile(destPath, "rw")
-          raf.setLength(length)
-          raf.close()
-          job.finalSize = length
-
           val n = if (parallel > 1) parallel.coerceIn(2, 8) else 1
-          if (n <= 1) {
-            start(jobId, job, url, destPath, headers, resumeBytes, 1)
+          if (length <= 0 || n <= 1 || length - resumeBytes < n * 256 * 1024) {
+            singleStream(jobId, job, baseBuilder, dest, resumeBytes)
             return
           }
-          val region = length / n
-          val pending = AtomicInteger(n)
-          val done = AtomicBoolean(false)
+          parallelRegions(jobId, job, baseBuilder, dest, length, resumeBytes, n)
+        }
+      }
+    })
+  }
 
-          for (i in 0 until n) {
-            val start = i * region
-            val end = if (i == n - 1) length - 1 else (i + 1) * region - 1
-            val rb = baseBuilder.header("Range", "bytes=$start-$end").build()
-            val regionCall = client.newCall(rb)
-            job.calls.add(regionCall)
-            regionCall.enqueue(object : Callback {
-              override fun onFailure(call: Call, e: IOException) {
-                if (call.isCanceled()) return
-                if (done.compareAndSet(false, true)) {
-                  fail(jobId, job, e.message ?: "network error")
+  private fun parallelRegions(
+    jobId: String,
+    job: JobState,
+    baseBuilder: Request.Builder,
+    dest: File,
+    length: Long,
+    resumeBytes: Long,
+    n: Int
+  ) {
+    // resume: keep the on-disk prefix, region-split only the remaining bytes
+    val step = (length - resumeBytes) / n
+    if (resumeBytes == 0L) dest.delete()
+    RandomAccessFile(dest.path, "rw").use { it.setLength(length) }
+    job.finalSize = length
+
+    val pending = AtomicInteger(n)
+    val done = AtomicBoolean(false)
+    for (i in 0 until n) {
+      val start = resumeBytes + i * step
+      val end = if (i == n - 1) length - 1 else start + step - 1
+      val regionCall = client.newCall(
+        baseBuilder.newBuilder().header("Range", "bytes=$start-$end").build()
+      )
+      job.calls.add(regionCall)
+      regionCall.enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+          if (call.isCanceled()) return
+          if (done.compareAndSet(false, true)) {
+            fail(jobId, job, e.message ?: "network error")
+          }
+        }
+
+        override fun onResponse(call: Call, response: Response) {
+          response.use { resp ->
+            // 200 means the cdn ignored the range: the whole body would
+            // land at this region's offset and corrupt the file
+            if (resp.code != 206) {
+              if (done.compareAndSet(false, true)) {
+                fail(jobId, job, "cdn ignored range ${resp.code}", resp.code)
+              }
+              return
+            }
+            try {
+              val body: ResponseBody = resp.body ?: throw IOException("empty body")
+              writeRegion(dest.path, start, body, job, jobId)
+            } catch (err: Throwable) {
+              if (done.compareAndSet(false, true)) {
+                fail(jobId, job, err.message ?: "download failed")
+              }
+              return
+            }
+            if (pending.decrementAndGet() == 0 && done.compareAndSet(false, true)) {
+              finish(jobId, job, cancelled = false)
+            }
+          }
+        }
+      })
+    }
+  }
+
+  private fun singleStream(
+    jobId: String,
+    job: JobState,
+    baseBuilder: Request.Builder,
+    dest: File,
+    resumeBytes: Long
+  ) {
+    val builder = baseBuilder.newBuilder()
+    if (resumeBytes > 0) builder.header("Range", "bytes=$resumeBytes-")
+    val call = client.newCall(builder.build())
+    job.calls.add(call)
+    call.enqueue(object : Callback {
+      override fun onFailure(call: Call, e: IOException) {
+        if (call.isCanceled()) {
+          finish(jobId, job, cancelled = true)
+        } else {
+          fail(jobId, job, e.message ?: "network error")
+        }
+      }
+
+      override fun onResponse(call: Call, response: Response) {
+        response.use { resp ->
+          if (!resp.isSuccessful) {
+            fail(jobId, job, "download HTTP ${resp.code}", resp.code)
+            return
+          }
+          try {
+            // server ignored the range (200) or range is stale (416):
+            // restart from scratch so the prefix never corrupts the file
+            var resume = resumeBytes
+            if (resume > 0 && (resp.code == 200 || resp.code == 416)) {
+              dest.delete()
+              resume = 0
+            }
+            val added = resp.body?.contentLength() ?: -1
+            job.finalSize = if (added >= 0) {
+              if (resume > 0) resume + added else added
+            } else {
+              -1
+            }
+            emitProgress(jobId, job)
+            val sink = java.io.FileOutputStream(dest, resume > 0)
+            val src = resp.body?.byteStream() ?: throw IOException("empty body")
+            sink.use { out ->
+              src.use { input ->
+                val buf = ByteArray(256 * 1024)
+                while (true) {
+                  val read = input.read(buf)
+                  if (read == -1) break
+                  out.write(buf, 0, read)
+                  job.bytes.addAndGet(read.toLong())
+                  val now = System.currentTimeMillis()
+                  if (now - job.lastEmitAt >= 40) {
+                    job.lastEmitAt = now
+                    emitProgress(jobId, job)
+                  }
                 }
               }
-
-              override fun onResponse(call: Call, response: Response) {
-                response.use { resp ->
-                  if (!resp.isSuccessful) {
-                    if (done.compareAndSet(false, true)) {
-                      fail(jobId, job, "download HTTP ${resp.code}", resp.code)
-                    }
-                    return
-                  }
-                  try {
-                    val body: ResponseBody = resp.body ?: throw IOException("empty body")
-                    writeRegion(destPath, start, body, job, jobId)
-                  } catch (err: Throwable) {
-                    if (done.compareAndSet(false, true)) {
-                      fail(jobId, job, err.message ?: "download failed")
-                    }
-                    return
-                  }
-                  if (pending.decrementAndGet() == 0 && done.compareAndSet(false, true)) {
-                    finish(jobId, job, cancelled = false)
-                  }
-                }
-              }
-            })
+            }
+            finish(jobId, job, call.isCanceled())
+          } catch (err: Throwable) {
+            fail(jobId, job, err.message ?: "download failed")
           }
         }
       }
@@ -241,7 +292,7 @@ class MediaDownloaderModule : Module() {
   }
 
   private fun writeRegion(destPath: String, start: Long, body: ResponseBody, job: JobState, jobId: String) {
-    java.io.RandomAccessFile(destPath, "rw").use { raf ->
+    RandomAccessFile(destPath, "rw").use { raf ->
       raf.seek(start)
       val buf = ByteArray(256 * 1024)
       body.byteStream().use { input ->
