@@ -750,7 +750,7 @@ export default function UpdateDetailSheet({
                       { paddingBottom: insets.bottom + TAIL + 24 },
                     ]}
                   >
-                    <PostMarkdown text={snap.update.body} />
+                    <PostMarkdown text={snap.update.body} selectable={false} />
                   </View>
                 </Animated.ScrollView>
               </GestureDetector>

@@ -1,0 +1,50 @@
+diff --git a/node_modules/react-native-enriched-markdown/android/src/main/java/com/swmansion/enriched/markdown/views/CodeBlockContainerView.kt b/node_modules/react-native-enriched-markdown/android/src/main/java/com/swmansion/enriched/markdown/views/CodeBlockContainerView.kt
+index 380c6be..a7dc604 100644
+--- a/node_modules/react-native-enriched-markdown/android/src/main/java/com/swmansion/enriched/markdown/views/CodeBlockContainerView.kt
++++ b/node_modules/react-native-enriched-markdown/android/src/main/java/com/swmansion/enriched/markdown/views/CodeBlockContainerView.kt
+@@ -97,7 +97,7 @@ class CodeBlockContainerView(
+       setTextColor(codeBlockStyle.color)
+       val horizontalPad = (inset - borderW).coerceAtLeast(0)
+       setPadding(horizontalPad, inset, horizontalPad, inset)
+-      setOnLongClickListener { view -> showContextMenu(view) }
++
+     }
+ 
+   private val scrollView =
+@@ -154,7 +154,7 @@ class CodeBlockContainerView(
+         }
+       }
+     isLongClickable = true
+-    setOnLongClickListener { view -> showContextMenu(view) }
++
+     addView(scrollView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+     addView(languageView, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+     addView(copyButton, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+diff --git a/node_modules/react-native-enriched-markdown/android/src/main/java/com/swmansion/enriched/markdown/views/TableContainerView.kt b/node_modules/react-native-enriched-markdown/android/src/main/java/com/swmansion/enriched/markdown/views/TableContainerView.kt
+index 736a0e8..b09f465 100644
+--- a/node_modules/react-native-enriched-markdown/android/src/main/java/com/swmansion/enriched/markdown/views/TableContainerView.kt
++++ b/node_modules/react-native-enriched-markdown/android/src/main/java/com/swmansion/enriched/markdown/views/TableContainerView.kt
+@@ -207,10 +207,7 @@ class TableContainerView(
+         val cellBg =
+           CellBackgroundView(context).apply {
+             configure(rowBg, tableStyle.borderColor, tableStyle.borderWidth)
+-            setOnLongClickListener { view ->
+-              showContextMenu(view)
+-              true
+-            }
++
+             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+           }
+ 
+@@ -288,10 +285,7 @@ class TableContainerView(
+             Layout.Alignment.ALIGN_OPPOSITE -> Gravity.END
+             else -> Gravity.START
+           }
+-        setOnLongClickListener { view ->
+-          showContextMenu(view)
+-          true
+-        }
++
+       }
+     val horizontalPadding = tableStyle.cellPaddingHorizontal
+     val verticalPadding = tableStyle.cellPaddingVertical

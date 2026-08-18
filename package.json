@@ -25,14 +25,16 @@
     "typecheck": "echo 'checking backend types...' && (cd web/backend && npx -y tsc --noEmit) && echo 'checking frontend types...' && (cd web/frontend && npx -y tsc --noEmit) && echo '✅ types passed'",
     "check": "npm run typecheck && npm run lint && echo '✅ all passed (changed lint)'",
     "check:all": "npm run typecheck && npm run lint:all && echo '✅ all passed (full lint)'",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "postinstall": "node node_modules/patch-package/dist/index.js"
   },
   "devDependencies": {
     "husky": "^9.1.7",
     "knip": "^6.32.2",
     "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
-    "pretty-quick": "^4.2.2"
+    "pretty-quick": "^4.2.2",
+    "patch-package": "^8.0.1"
   },
   "overrides": {
     "libsql": "npm:empty-npm-package@1.0.0",

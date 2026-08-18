@@ -63,7 +63,7 @@ function PostHeader({
       <Text style={tw`font-sans-bold text-[24px] leading-8 text-white`}>
         {update.title}
       </Text>
-      <PostMarkdown text={update.body} />
+      <PostMarkdown text={update.body} selectable={false} style={tw`mt-3`} />
       {update.imageUrl ? (
         <Pressable ref={imgRef} onPress={openFocus} style={tw`mt-4`}>
           {/* no transition: expo-image replays crossfade on Android relayout &

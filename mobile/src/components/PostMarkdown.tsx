@@ -61,8 +61,10 @@ const postMarkdownStyle: MarkdownStyle = {
     marginTop: 8,
     marginBottom: 4,
   },
-  strong: { fontFamily: 'Rubik-Bold' },
+  strong: { fontFamily: 'Rubik-Bold', color: '#ffffff' },
   em: { fontFamily: 'Rubik', fontStyle: 'italic' },
+  strikethrough: { color: '#94a3b8' },
+  underline: { color: '#94a3b8' },
   link: { color: '#22d3ee', underline: true },
   code: {
     fontFamily: 'IBMPlexMono',
@@ -93,6 +95,10 @@ const postMarkdownStyle: MarkdownStyle = {
     marginBottom: 8,
   },
   list: {
+    fontFamily: 'Rubik',
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#c9d2dd',
     bulletColor: '#22d3ee',
     markerColor: '#22d3ee',
     gapWidth: 8,
@@ -109,6 +115,7 @@ const postMarkdownStyle: MarkdownStyle = {
     headerTextColor: '#ffffff',
     headerBackgroundColor: 'rgba(255,255,255,0.06)',
     rowEvenBackgroundColor: 'rgba(255,255,255,0.03)',
+    rowOddBackgroundColor: 'transparent',
     borderColor: 'rgba(255,255,255,0.14)',
     borderWidth: 1,
     borderRadius: 8,
@@ -120,9 +127,13 @@ const postMarkdownStyle: MarkdownStyle = {
   },
   taskList: {
     checkedColor: '#22d3ee',
+    checkedTextColor: '#c9d2dd',
     borderColor: 'rgba(255,255,255,0.3)',
     checkmarkColor: '#030014',
   },
+  math: { color: '#c9d2dd' },
+  inlineMath: { color: '#c9d2dd' },
+  highlight: { color: '#0f172a' },
   thematicBreak: {
     color: 'rgba(255,255,255,0.15)',
     height: 1,
@@ -135,15 +146,19 @@ const postMarkdownStyle: MarkdownStyle = {
 export default function PostMarkdown({
   text,
   style,
+  selectable = true,
 }: {
   text: string;
   style?: ViewStyle;
+  selectable?: boolean;
 }) {
   return (
     <EnrichedMarkdownText
       markdown={text}
+      flavor="github"
       markdownStyle={postMarkdownStyle}
       containerStyle={style}
+      selectable={selectable}
       onLinkPress={({ url }: LinkPressEvent) => {
         void Linking.openURL(url);
       }}

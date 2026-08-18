@@ -155,6 +155,24 @@ function CommentButton({
   );
 }
 
+const PREVIEW_CHARS = 260;
+
+// native markdown can't be line-measured; clamp the source at the last block
+// boundary inside the budget so the preview never cuts mid-table or mid-list
+function clampForPreview(text: string): { head: string; clamped: boolean } {
+  const clean = text.trimEnd();
+  if (clean.length <= PREVIEW_CHARS) return { head: clean, clamped: false };
+  const budget = clean.slice(0, PREVIEW_CHARS);
+  const boundary = Math.max(
+    budget.lastIndexOf('\n\n'),
+    budget.lastIndexOf('\n'),
+    budget.lastIndexOf(' ')
+  );
+  const head =
+    boundary > PREVIEW_CHARS * 0.5 ? clean.slice(0, boundary).trimEnd() : budget;
+  return { head, clamped: true };
+}
+
 function PostCard({
   update,
   isWide,
@@ -174,6 +192,7 @@ function PostCard({
 }) {
   const meta = CATEGORY_META[update.category];
   const installed = Constants.expoConfig?.version ?? '0.0.0';
+  const { head, clamped } = clampForPreview(update.body);
   return (
     <View style={tw`mb-9`}>
       {update.imageUrl ? (
@@ -232,7 +251,15 @@ function PostCard({
         >
           {update.title}
         </Text>
-        <PostMarkdown text={update.body} />
+        <PostMarkdown text={head} />
+        {clamped ? (
+          <Text
+            onPress={onOpen}
+            style={[tw`mt-1 font-sans-medium text-[14px]`, { color: CYAN }]}
+          >
+            See more
+          </Text>
+        ) : null}
       </Pressable>
 
       <View
