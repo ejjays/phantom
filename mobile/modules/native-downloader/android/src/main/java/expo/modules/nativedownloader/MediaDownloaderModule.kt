@@ -129,15 +129,16 @@ class MediaDownloaderModule : Module() {
 
     // only map host headers through; anything else is not trusted
     val allowed = setOf("user-agent", "accept", "referer", "cookie", "origin", "range")
-    val baseBuilder = Request.Builder().url(url)
-    headers.forEach { (name, value) ->
-      if (allowed.contains(name.lowercase())) baseBuilder.header(name, value)
-    }
+    val baseRequest = Request.Builder().url(url).apply {
+      headers.forEach { (name, value) ->
+        if (allowed.contains(name.lowercase())) header(name, value)
+      }
+    }.build()
 
     // probe size with a 1-byte range: googlevideo throttles range-less
     // full GETs to playback speed, so parallel regions are the primary
     // path and a plain stream only runs when the server refuses ranges
-    val probeCall = client.newCall(baseBuilder.newBuilder().header("Range", "bytes=0-0").build())
+    val probeCall = client.newCall(baseRequest.newBuilder().header("Range", "bytes=0-0").build())
     job.calls.add(probeCall)
     probeCall.enqueue(object : Callback {
       override fun onFailure(call: Call, e: IOException) {
@@ -154,10 +155,10 @@ class MediaDownloaderModule : Module() {
           val length = parseContentLength(resp.headers["Content-Range"])
           val n = if (parallel > 1) parallel.coerceIn(2, 8) else 1
           if (length <= 0 || n <= 1 || length - resumeBytes < n * 256 * 1024) {
-            singleStream(jobId, job, baseBuilder, dest, resumeBytes)
+            singleStream(jobId, job, baseRequest, dest, resumeBytes)
             return
           }
-          parallelRegions(jobId, job, baseBuilder, dest, length, resumeBytes, n)
+          parallelRegions(jobId, job, baseRequest, dest, length, resumeBytes, n)
         }
       }
     })
@@ -166,7 +167,7 @@ class MediaDownloaderModule : Module() {
   private fun parallelRegions(
     jobId: String,
     job: JobState,
-    baseBuilder: Request.Builder,
+    baseRequest: Request,
     dest: File,
     length: Long,
     resumeBytes: Long,
@@ -184,7 +185,7 @@ class MediaDownloaderModule : Module() {
       val start = resumeBytes + i * step
       val end = if (i == n - 1) length - 1 else start + step - 1
       val regionCall = client.newCall(
-        baseBuilder.newBuilder().header("Range", "bytes=$start-$end").build()
+        baseRequest.newBuilder().header("Range", "bytes=$start-$end").build()
       )
       job.calls.add(regionCall)
       regionCall.enqueue(object : Callback {
@@ -226,11 +227,11 @@ class MediaDownloaderModule : Module() {
   private fun singleStream(
     jobId: String,
     job: JobState,
-    baseBuilder: Request.Builder,
+    baseRequest: Request,
     dest: File,
     resumeBytes: Long
   ) {
-    val builder = baseBuilder.newBuilder()
+    val builder = baseRequest.newBuilder()
     if (resumeBytes > 0) builder.header("Range", "bytes=$resumeBytes-")
     val call = client.newCall(builder.build())
     job.calls.add(call)
