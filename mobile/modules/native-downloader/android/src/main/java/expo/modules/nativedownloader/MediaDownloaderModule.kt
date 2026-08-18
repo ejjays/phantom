@@ -171,57 +171,72 @@ class MediaDownloaderModule : Module() {
     dest: File,
     length: Long,
     resumeBytes: Long,
-    n: Int
+    workers: Int
   ) {
-    // resume: keep the on-disk prefix, region-split only the remaining bytes
-    val step = (length - resumeBytes) / n
+    // workers pull small regions off a shared cursor: per-request ≤ REGION
+    // size sidesteps googlevideo's shaping of big contiguous streams
+    // (4MB chunked ranges were always the fast path); resume keeps the
+    // on-disk prefix and starts the cursor at the byte count
+    val region = 4L * 1024 * 1024
     if (resumeBytes == 0L) dest.delete()
     RandomAccessFile(dest.path, "rw").use { it.setLength(length) }
     job.finalSize = length
 
-    val pending = AtomicInteger(n)
+    val cursor = AtomicLong(resumeBytes)
+    val active = AtomicInteger(workers)
     val done = AtomicBoolean(false)
-    for (i in 0 until n) {
-      val start = resumeBytes + i * step
-      val end = if (i == n - 1) length - 1 else start + step - 1
-      val regionCall = client.newCall(
-        baseRequest.newBuilder().header("Range", "bytes=$start-$end").build()
-      )
-      job.calls.add(regionCall)
-      regionCall.enqueue(object : Callback {
-        override fun onFailure(call: Call, e: IOException) {
-          if (call.isCanceled()) return
-          if (done.compareAndSet(false, true)) {
-            fail(jobId, job, e.message ?: "network error")
-          }
-        }
 
-        override fun onResponse(call: Call, response: Response) {
-          response.use { resp ->
-            // 200 means the cdn ignored the range: the whole body would
-            // land at this region's offset and corrupt the file
-            if (resp.code != 206) {
-              if (done.compareAndSet(false, true)) {
-                fail(jobId, job, "cdn ignored range ${resp.code}", resp.code)
-              }
-              return
-            }
-            try {
-              val body: ResponseBody = resp.body ?: throw IOException("empty body")
-              writeRegion(dest.path, start, body, job, jobId)
-            } catch (err: Throwable) {
-              if (done.compareAndSet(false, true)) {
-                fail(jobId, job, err.message ?: "download failed")
-              }
-              return
-            }
-            if (pending.decrementAndGet() == 0 && done.compareAndSet(false, true)) {
-              finish(jobId, job, cancelled = false)
+    fun next() {
+      while (true) {
+        if (done.get()) return
+        val start = cursor.getAndAdd(region)
+        if (start >= length) {
+          if (active.decrementAndGet() == 0 && done.compareAndSet(false, true)) {
+            finish(jobId, job, cancelled = false)
+          }
+          return
+        }
+        val end = minOf(start + region - 1, length - 1)
+        val regionCall = client.newCall(
+          baseRequest.newBuilder().header("Range", "bytes=$start-$end").build()
+        )
+        job.calls.add(regionCall)
+        regionCall.enqueue(object : Callback {
+          override fun onFailure(call: Call, e: IOException) {
+            if (call.isCanceled()) return
+            if (done.compareAndSet(false, true)) {
+              fail(jobId, job, e.message ?: "network error")
             }
           }
-        }
-      })
+
+          override fun onResponse(call: Call, response: Response) {
+            response.use { resp ->
+              // 200 means the cdn ignored the range: the whole body would
+              // land at this region's offset and corrupt the file
+              if (resp.code != 206) {
+                if (done.compareAndSet(false, true)) {
+                  fail(jobId, job, "cdn ignored range ${resp.code}", resp.code)
+                }
+                return
+              }
+              try {
+                val body: ResponseBody = resp.body ?: throw IOException("empty body")
+                writeRegion(dest.path, start, body, job, jobId)
+              } catch (err: Throwable) {
+                if (done.compareAndSet(false, true)) {
+                  fail(jobId, job, err.message ?: "download failed")
+                }
+                return
+              }
+              // this region is done — pull the next one off the cursor
+              next()
+            }
+          }
+        })
+        return
+      }
     }
+    repeat(workers) { next() }
   }
 
   private fun singleStream(
