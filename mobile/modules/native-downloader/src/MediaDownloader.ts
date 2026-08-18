@@ -26,7 +26,8 @@ type MediaDownloaderModuleType = {
     url: string,
     destPath: string,
     headers: Record<string, string>,
-    resumeBytes: number
+    resumeBytes: number,
+    parallel: number
   ): Promise<void>;
   cancelDownload(jobId: string): Promise<void>;
   cancelAll(): Promise<void>;
@@ -55,12 +56,13 @@ export function startDownload(
   headers: Record<string, string>,
   resumeBytes: number,
   onProgress: (e: DownloadEvent) => void,
-  onDone: (e: DownloadDoneEvent) => void
+  onDone: (e: DownloadDoneEvent) => void,
+  parallel = 1
 ): DownloadJob {
   // listeners first: a finished-first race would lose the done event
   const sub1 = emitter.addListener('onDownloadProgress', onProgress);
   const sub2 = emitter.addListener('onDownloadDone', onDone);
-  void native.startDownload(jobId, url, destPath, headers, resumeBytes);
+  void native.startDownload(jobId, url, destPath, headers, resumeBytes, parallel);
   const release = (): void => {
     sub1.remove();
     sub2.remove();

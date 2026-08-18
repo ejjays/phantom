@@ -110,7 +110,11 @@ export function nativeDownload(
               clearState(file);
               resolve();
             }
-          }
+          },
+          // 4 parallel range streams for files over 50MB — the single
+          // stream caps ~1.2MB/s on googlevideo while curl hits 2.6;
+          // parallel regions multiply the same per-stream ceiling
+          prev?.total && prev.total > 50 * 1048576 ? 4 : 1
         );
       } catch (err) {
         reject(err);
