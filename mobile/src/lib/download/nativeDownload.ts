@@ -8,7 +8,7 @@ import { startDownload, type DownloadJob } from '../../../modules/native-downloa
 // js side keeps the same sidecar contract so a failure falls back to the
 // js chunked path and resumes from the same byte count.
 
-const PARALLEL_STREAMS = 6;
+const PARALLEL_STREAMS = 8;
 
 const JOB_PREFIX = 'dl';
 
