@@ -4,7 +4,7 @@ import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
-import { ChevronLeft, Check, Heart } from 'lucide-react-native';
+import { ChevronLeft, Check, Heart, Wallet } from 'lucide-react-native';
 import tw from '../lib/tw';
 import KeyboardAvoidingForm from './KeyboardAvoidingForm';
 import { tapSelection } from '../lib/haptics';
@@ -13,6 +13,7 @@ import HeroLottieCard, { textOutline } from './HeroLottieCard';
 import WavingHand from './WavingHand';
 import tipBg from '../../assets/support/tip-bg.json';
 import { PayPalIcon, GCashIcon, GoTymeIcon } from './icons';
+import PayMongoCheckoutModal from './PayMongoCheckoutModal';
 
 const CYAN = '#22d3ee';
 const ctaGlow = {
@@ -32,6 +33,16 @@ export type SupportMethod =
       amountQrs?: Record<number, number>;
     }
   | { id: string; label: string; kind: 'paypal'; url: string };
+
+// hosted checkout stays off the settings method list — extra options here
+// would break SettingsScreen's kind narrowing
+type HostedMethod = { id: string; label: string; kind: 'paymongo' };
+
+const PAYMONGO_METHOD: HostedMethod = {
+  id: 'qrph',
+  label: 'QR Ph',
+  kind: 'paymongo',
+};
 
 type Tip = { amount: number; note: string };
 const TIPS: readonly Tip[] = [
@@ -56,12 +67,17 @@ export default function SupportPage({
   const insets = useSafeAreaInsets();
   const [preset, setPreset] = useState<number | null>(TIPS[0]?.amount ?? null);
   const [custom, setCustom] = useState('');
-  const [methodId, setMethodId] = useState(methods[0]?.id ?? '');
+  const [payOpen, setPayOpen] = useState(false);
+  const allMethods: readonly (SupportMethod | HostedMethod)[] = [
+    ...methods,
+    PAYMONGO_METHOD,
+  ];
+  const [methodId, setMethodId] = useState(allMethods[0]?.id ?? '');
 
   const customNum = Number(custom.replace(/\D/gu, ''));
   const activePreset = custom.trim().length > 0 ? null : preset;
   const amount = customNum > 0 ? customNum : preset;
-  const method = methods.find((entry) => entry.id === methodId) ?? null;
+  const method = allMethods.find((entry) => entry.id === methodId) ?? null;
 
   const pickPreset = (value: number) => {
     tapSelection();
@@ -278,9 +294,9 @@ export default function SupportPage({
           >
             Select payment
           </Text>
-          {methods.map((entry, i) => {
+          {allMethods.map((entry, i) => {
             const active = entry.id === methodId;
-            const last = i === methods.length - 1;
+            const last = i === allMethods.length - 1;
             return (
               <Pressable
                 key={entry.id}
@@ -309,7 +325,20 @@ export default function SupportPage({
                 >
                   {entry.label}
                 </Text>
-                {entry.kind === 'qr' ? (
+                {entry.kind === 'paymongo' ? (
+                  <View
+                    style={tw`h-[42px] w-[42px] items-center justify-center`}
+                  >
+                    <View
+                      style={[
+                        tw`h-[35px] w-[35px] items-center justify-center rounded-full`,
+                        { backgroundColor: '#0070BA' },
+                      ]}
+                    >
+                      <Wallet size={19} color="#ffffff" strokeWidth={2.4} />
+                    </View>
+                  </View>
+                ) : entry.kind === 'qr' ? (
                   entry.id === 'gcash' ? (
                     <View
                       style={tw`h-[42px] w-[42px] items-center justify-center`}
@@ -346,7 +375,12 @@ export default function SupportPage({
 
           <Pressable
             onPress={() => {
-              if (method) onPay(method, amount);
+              if (!method) return;
+              if (method.kind === 'paymongo') {
+                setPayOpen(true);
+                return;
+              }
+              onPay(method, amount);
             }}
             disabled={!method}
             style={({ pressed }) => [
@@ -375,6 +409,12 @@ export default function SupportPage({
           </Pressable>
         </View>
       </KeyboardAvoidingForm>
+      {payOpen ? (
+        <PayMongoCheckoutModal
+          amount={amount ?? TIPS[0]?.amount ?? 50}
+          onExit={() => setPayOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }

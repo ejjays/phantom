@@ -269,3 +269,33 @@ begin
     execute 'alter publication supabase_realtime add table public.notifications';
   end if;
 end $$;
+
+-- donations: support tips via PayMongo hosted checkout (GCash). rows are
+-- inserted by the paymongo-checkout edge fn (service role), flipped to paid
+-- by paymongo-webhook; clients only read their own rows. no insert policy —
+-- the public anon key can't write here.
+
+create table if not exists public.donations (
+  id uuid primary key default gen_random_uuid(),
+  amount_centavos integer not null,
+  currency text not null default 'PHP',
+  status text not null default 'pending'
+    check (status in ('pending', 'paid', 'failed', 'cancelled')),
+  donor_id uuid references public.profiles (id) on delete set null,
+  session_id text,
+  reference_number text unique,
+  paid_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists donations_reference_idx
+  on public.donations (reference_number);
+
+create index if not exists donations_donor_idx
+  on public.donations (donor_id, created_at desc);
+
+alter table public.donations enable row level security;
+
+drop policy if exists donations_read_own on public.donations;
+create policy donations_read_own on public.donations
+  for select using (auth.uid() = donor_id);
