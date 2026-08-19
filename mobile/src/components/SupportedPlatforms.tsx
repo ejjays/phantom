@@ -1,37 +1,40 @@
-import { View, Text, Pressable } from 'react-native';
+import { useState } from 'react';
+import { View, Text, Pressable, type LayoutChangeEvent } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Check, X, Minus } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { tapSelection } from '../lib/haptics';
+import { PlatformLogo, type PlatformName } from './logos';
 
 type Cap = 'yes' | 'no' | 'na';
 
+// same matrix as root README, minus web/mobile columns — mobile-only app
 const ROWS: readonly {
   name: string;
+  logo?: PlatformName;
   video: Cap;
   audio: Cap;
   image: Cap;
-  note?: string;
 }[] = [
-  { name: 'YouTube', video: 'yes', audio: 'yes', image: 'na', note: 'playlists, shorts, 4K' },
-  { name: 'Spotify', video: 'yes', audio: 'yes', image: 'na', note: 'tracks & albums' },
-  { name: 'SoundCloud', video: 'na', audio: 'yes', image: 'na', note: 'audio-only' },
-  { name: 'Bilibili', video: 'yes', audio: 'yes', image: 'na', note: 'some videos need a cookie' },
-  { name: 'TikTok', video: 'yes', audio: 'yes', image: 'yes', note: 'videos + photo carousels' },
-  { name: 'Instagram', video: 'yes', audio: 'yes', image: 'yes', note: 'reels, posts, multi-image' },
-  { name: 'Facebook', video: 'yes', audio: 'yes', image: 'yes', note: 'public posts only' },
-  { name: 'Threads', video: 'yes', audio: 'yes', image: 'yes' },
-  { name: 'X / Twitter', video: 'yes', audio: 'yes', image: 'na', note: 'videos & gifs only' },
-  { name: 'Bluesky', video: 'yes', audio: 'no', image: 'na', note: 'hls only, no audio' },
-  { name: 'Vimeo', video: 'yes', audio: 'no', image: 'na', note: 'hls only, no audio' },
-  { name: 'Dailymotion', video: 'yes', audio: 'no', image: 'na', note: 'hls only, no audio' },
-  { name: 'Reddit', video: 'yes', audio: 'yes', image: 'na' },
-  { name: 'Pinterest', video: 'yes', audio: 'yes', image: 'yes', note: 'video pins + photos' },
-  { name: 'Twitch', video: 'yes', audio: 'no', image: 'na', note: 'clips, hls only' },
+  { name: 'YouTube', logo: 'youtube', video: 'yes', audio: 'yes', image: 'na' },
+  { name: 'Spotify', logo: 'spotify', video: 'yes', audio: 'yes', image: 'na' },
+  { name: 'SoundCloud', logo: 'soundcloud', video: 'na', audio: 'yes', image: 'na' },
+  { name: 'Bilibili', logo: 'bilibili', video: 'yes', audio: 'yes', image: 'na' },
+  { name: 'TikTok', logo: 'tiktok', video: 'yes', audio: 'yes', image: 'yes' },
+  { name: 'Instagram', logo: 'instagram', video: 'yes', audio: 'yes', image: 'yes' },
+  { name: 'Facebook', logo: 'facebook', video: 'yes', audio: 'yes', image: 'yes' },
+  { name: 'Threads', logo: 'threads', video: 'yes', audio: 'yes', image: 'yes' },
+  { name: '/ Twitter', logo: 'x', video: 'yes', audio: 'yes', image: 'na' },
+  { name: 'Bluesky', logo: 'bluesky', video: 'yes', audio: 'no', image: 'na' },
+  { name: 'Vimeo', logo: 'vimeo', video: 'yes', audio: 'no', image: 'na' },
+  { name: 'Dailymotion', logo: 'dailymotion', video: 'yes', audio: 'no', image: 'na' },
+  { name: 'Reddit', logo: 'reddit', video: 'yes', audio: 'yes', image: 'na' },
+  { name: 'Pinterest', logo: 'pinterest', video: 'yes', audio: 'yes', image: 'yes' },
+  { name: 'Twitch', logo: 'twitch', video: 'yes', audio: 'no', image: 'na' },
 ];
 
-const COL_W = 46;
+const MIN_COL_W = 46;
 
 function CapMark({ cap }: { cap: Cap }) {
   if (cap === 'yes') return <Check size={17} color="#4ade80" strokeWidth={3} />;
@@ -39,9 +42,9 @@ function CapMark({ cap }: { cap: Cap }) {
   return <Minus size={17} color="#475569" strokeWidth={3} />;
 }
 
-function CapCell({ cap }: { cap: Cap }) {
+function CapCell({ cap, width }: { cap: Cap; width: number }) {
   return (
-    <View style={[tw`items-center justify-center`, { width: COL_W }]}>
+    <View style={[tw`items-center justify-center`, { width }]}>
       <CapMark cap={cap} />
     </View>
   );
@@ -49,6 +52,25 @@ function CapCell({ cap }: { cap: Cap }) {
 
 export default function SupportedPlatforms({ onBack }: { onBack: () => void }) {
   const insets = useSafeAreaInsets();
+  // col widths measured from header text so nothing wraps at any font scale
+  const [colWs, setColWs] = useState<readonly [number, number, number]>([
+    MIN_COL_W,
+    MIN_COL_W,
+    MIN_COL_W,
+  ]);
+
+  const measureCol =
+    (i: number) =>
+    (e: LayoutChangeEvent) => {
+      const width = Math.max(MIN_COL_W, Math.ceil(e.nativeEvent.layout.width));
+      setColWs((prev) => {
+        if (prev[i] === width) return prev;
+        const next = [...prev] as [number, number, number];
+        next[i] = width;
+        return next;
+      });
+    };
+
   return (
     <View style={tw`flex-1`}>
       <View
@@ -90,12 +112,13 @@ export default function SupportedPlatforms({ onBack }: { onBack: () => void }) {
 
           <View style={tw`mt-4 flex-row items-center px-4 pb-2`}>
             <View style={tw`flex-1`} />
-            {(['Video', 'Audio', 'Images'] as const).map((label) => (
+            {(['Video', 'Audio', 'Images'] as const).map((label, i) => (
               <Text
                 key={label}
+                onLayout={measureCol(i)}
                 style={[
                   tw`text-center font-sans-semibold text-[12px] uppercase text-slate-500`,
-                  { width: COL_W },
+                  { width: colWs[i] },
                 ]}
               >
                 {label}
@@ -113,25 +136,22 @@ export default function SupportedPlatforms({ onBack }: { onBack: () => void }) {
                   i < ROWS.length - 1 && tw`border-b border-white/5`,
                 ]}
               >
-                <View style={tw`flex-1 pr-2`}>
+                <View style={tw`flex-1 flex-row items-center pr-2`}>
+                  {row.logo ? (
+                    <View style={tw`mr-2`}>
+                      <PlatformLogo name={row.logo} size={18} />
+                    </View>
+                  ) : null}
                   <Text
                     numberOfLines={1}
                     style={tw`font-sans-semibold text-[14px] text-white`}
                   >
                     {row.name}
                   </Text>
-                  {row.note ? (
-                    <Text
-                      numberOfLines={1}
-                      style={tw`mt-0.5 font-sans text-[11px] text-slate-500`}
-                    >
-                      {row.note}
-                    </Text>
-                  ) : null}
                 </View>
-                <CapCell cap={row.video} />
-                <CapCell cap={row.audio} />
-                <CapCell cap={row.image} />
+                <CapCell cap={row.video} width={colWs[0]} />
+                <CapCell cap={row.audio} width={colWs[1]} />
+                <CapCell cap={row.image} width={colWs[2]} />
               </Pressable>
             ))}
           </View>
