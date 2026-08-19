@@ -11,7 +11,7 @@ const postMarkdownStyle: MarkdownStyle = {
     fontSize: 15,
     lineHeight: 24,
     color: '#c9d2dd',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   h1: {
     fontFamily: 'Rubik-Bold',

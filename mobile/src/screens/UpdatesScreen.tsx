@@ -168,8 +168,13 @@ function clampForPreview(text: string): { head: string; clamped: boolean } {
     budget.lastIndexOf('\n'),
     budget.lastIndexOf(' ')
   );
-  const head =
+  let head =
     boundary > PREVIEW_CHARS * 0.5 ? clean.slice(0, boundary).trimEnd() : budget;
+  // a cut inside a table leaves bare pipe rows md4c renders as literal text;
+  // back off to before the table start instead of showing broken markup
+  const rowStart = head.indexOf('\n|');
+  if (rowStart >= 0) head = clean.slice(0, rowStart).trimEnd();
+  else if (head.startsWith('|')) head = '';
   return { head, clamped: true };
 }
 
@@ -251,7 +256,7 @@ function PostCard({
         >
           {update.title}
         </Text>
-        <PostMarkdown text={head} />
+        <PostMarkdown text={head} style={tw`mt-2.5`} />
         {clamped ? (
           <Text
             onPress={onOpen}
