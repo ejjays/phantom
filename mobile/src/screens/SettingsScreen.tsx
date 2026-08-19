@@ -25,8 +25,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  runOnJS,
-  Easing,
 } from 'react-native-reanimated';
 import { ChevronRight, Ghost } from 'lucide-react-native';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
@@ -34,8 +32,6 @@ import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
 import BottomSheet from '../components/sheets/BottomSheet';
 import ShareAppSheet from '../components/sheets/ShareAppSheet';
-import QrView from '../components/QrView';
-import { buildGotymeQr, buildGcashQr } from '../lib/qrph';
 import AvatarPicker from '../components/AvatarPicker';
 import Avatar from '../components/Avatar';
 import ThemeSwitch from '../components/ThemeSwitch';
@@ -45,16 +41,6 @@ import SupportCarousel from '../components/SupportCarousel';
 import SupportedPlatforms from '../components/SupportedPlatforms';
 import Card from '../components/Card';
 import AccountPanel, { AccountSkeleton } from '../components/AccountPanel';
-import gcashQr from '../../assets/support/gcash-qr.png';
-import gotymeQr from '../../assets/support/gotyme-qr.png';
-import gotyme50 from '../../assets/support/gotyme-50.webp';
-import gotyme100 from '../../assets/support/gotyme-100.webp';
-import gotyme250 from '../../assets/support/gotyme-250.webp';
-import gotyme500 from '../../assets/support/gotyme-500.webp';
-import gcash50 from '../../assets/support/gcash-50.webp';
-import gcash100 from '../../assets/support/gcash-100.webp';
-import gcash250 from '../../assets/support/gcash-250.webp';
-import gcash500 from '../../assets/support/gcash-500.webp';
 import {
   FolderIcon,
   PasteIcon,
@@ -141,31 +127,17 @@ const PALETTE = (light: boolean) => ({
 });
 const SUPPORT_METHODS: readonly SupportMethod[] = [
   {
-    id: 'gcash',
-    label: 'GCash',
-    kind: 'qr',
-    source: gcashQr,
-    amountQrs: { 50: gcash50, 100: gcash100, 250: gcash250, 500: gcash500 },
-  },
-  {
-    id: 'gotyme',
-    label: 'GoTyme',
-    kind: 'qr',
-    source: gotymeQr,
-    amountQrs: { 50: gotyme50, 100: gotyme100, 250: gotyme250, 500: gotyme500 },
+    id: 'qrph',
+    label: 'QR Ph',
+    kind: 'paymongo',
   },
   {
     id: 'paypal',
     label: 'PayPal',
     kind: 'paypal',
-    url: 'https://www.paypal.me/christson021',
+    url: 'https://www.paypal.com/ncp/payment/JNFWFRJ546TA4',
   },
 ];
-
-const QR_BUILDERS: Record<string, (amount: number) => string> = {
-  gcash: buildGcashQr,
-  gotyme: buildGotymeQr,
-};
 
 type IconType = ComponentType<{ size?: number; color?: string }>;
 
@@ -702,39 +674,8 @@ function SettingsScreen({
   const platformsScreen = useSubScreen(visible);
   const { showDialog } = useAppDialog();
 
-  const [qr, setQr] = useState<{
-    source?: number;
-    value?: string;
-    label: string;
-    note?: string;
-  } | null>(null);
-  const [qrOpen, setQrOpen] = useState(false);
-  const [qrMounted, setQrMounted] = useState(false);
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const isWide = windowWidth >= 768;
-  const qrProgress = useSharedValue(0);
-  useEffect(() => {
-    const opening = qrOpen;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mounted gates qr enter animation
-    if (opening) setQrMounted(true);
-    qrProgress.value = withTiming(
-      opening ? 1 : 0,
-      { duration: 260, easing: Easing.out(Easing.cubic) },
-      (finished) => {
-        if (finished && !opening) runOnJS(setQrMounted)(false);
-      }
-    );
-  }, [qrOpen, qrProgress]);
-  const qrStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - qrProgress.value) * windowHeight }],
-  }));
-
-  useBackHandler(() => {
-    if (!visible || !qrOpen) return false;
-    tapSelection();
-    setQrOpen(false);
-    return true;
-  }, 10);
 
   useBackHandler(() => {
     if (!visible || !formatMenuOpen) return false;
@@ -749,7 +690,6 @@ function SettingsScreen({
     avatarScreen.setOpen(false);
     supportScreen.setOpen(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset overlays on tab exit
-    setQrOpen(false);
     setShareOpen(false);
   }, [visible, accountScreen, avatarScreen, supportScreen]);
 
@@ -931,33 +871,10 @@ function SettingsScreen({
     supportScreen.setOpen(true);
   };
 
-  const openQr = (source: number, label: string, note?: string) => {
+  const paySupport = (method: SupportMethod, _amount: number | null) => {
+    if (method.kind !== 'paypal') return;
     tapSelection();
-    setQr({ source, label, note });
-    setQrOpen(true);
-  };
-
-  const paySupport = (method: SupportMethod, amount: number | null) => {
-    if (method.kind === 'paypal') {
-      tapSelection();
-      const url = amount ? `${method.url}/${amount}PHP` : method.url;
-      Linking.openURL(url).catch(() => undefined);
-      return;
-    }
-    const note = amount
-      ? `Scan in ${method.label} to send ₱${amount}. Thank you for the support!`
-      : undefined;
-    const build = QR_BUILDERS[method.id];
-    if (build && amount != null && method.amountQrs?.[amount] == null) {
-      tapSelection();
-      setQr({ value: build(amount), label: method.label, note });
-      setQrOpen(true);
-      return;
-    }
-    const source =
-      (amount != null ? method.amountQrs?.[amount] : undefined) ??
-      method.source;
-    openQr(source, method.label, note);
+    Linking.openURL(method.url).catch(() => undefined);
   };
 
   const openAvatarPicker = () => {
@@ -1396,30 +1313,6 @@ supportScreen.setOpen(false);
         <BottomSheet open={shareOpen} onClose={() => setShareOpen(false)}>
           <ShareAppSheet />
         </BottomSheet>
-        <Animated.View
-          pointerEvents={qrOpen ? 'auto' : 'none'}
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: '#000' },
-            qrStyle,
-          ]}
-        >
-          {qrMounted && qr ? (
-            <QrView
-              source={qr.source}
-              value={qr.value}
-              label={qr.label}
-              note={
-                qr.note ??
-                `Scan this in your ${qr.label} app to send a tip. Thank you for the support!`
-              }
-              onClose={() => {
-                tapSelection();
-                setQrOpen(false);
-              }}
-            />
-          ) : null}
-        </Animated.View>
 
         {formatMenuOpen ? (
           <Host matchContents>

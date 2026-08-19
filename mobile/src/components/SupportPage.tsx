@@ -12,48 +12,32 @@ import heroBg from '../../assets/support/hero-bg.json';
 import HeroLottieCard, { textOutline } from './HeroLottieCard';
 import WavingHand from './WavingHand';
 import tipBg from '../../assets/support/tip-bg.json';
-import { PayPalIcon, GCashIcon, GoTymeIcon } from './icons';
+import { PayPalIcon } from './icons';
 import PayMongoCheckoutModal from './PayMongoCheckoutModal';
 
 const CYAN = '#22d3ee';
 const ctaGlow = {
+  // no elevation — translucent bg makes android shadow the opaque children (dark text box)
   shadowColor: '#06b6d4',
   shadowOpacity: 0.5,
   shadowRadius: 12,
   shadowOffset: { width: 0, height: 0 },
-  elevation: 10,
 };
 
 export type SupportMethod =
-  | {
-      id: string;
-      label: string;
-      kind: 'qr';
-      source: number;
-      amountQrs?: Record<number, number>;
-    }
-  | { id: string; label: string; kind: 'paypal'; url: string };
+  | { id: string; label: string; kind: 'paypal'; url: string }
+  | { id: string; label: string; kind: 'paymongo' };
 
-// hosted checkout stays off the settings method list — extra options here
-// would break SettingsScreen's kind narrowing
-type HostedMethod = { id: string; label: string; kind: 'paymongo' };
-
-const PAYMONGO_METHOD: HostedMethod = {
-  id: 'qrph',
-  label: 'QR Ph',
-  kind: 'paymongo',
-};
-
-type Tip = { amount: number; note: string };
+type Tip = { amount: number };
 const TIPS: readonly Tip[] = [
-  { amount: 50, note: 'Buys a coffee' },
-  { amount: 100, note: 'Fuels a late-night build' },
-  { amount: 250, note: 'Keeps it ad-free' },
-  { amount: 500, note: 'Legend status' },
+  { amount: 50 },
+  { amount: 100 },
+  { amount: 250 },
+  { amount: 500 },
 ];
 
 const TIP_W = 140;
-const TIP_H = 152;
+const TIP_H = 108;
 
 export default function SupportPage({
   methods,
@@ -68,16 +52,12 @@ export default function SupportPage({
   const [preset, setPreset] = useState<number | null>(TIPS[0]?.amount ?? null);
   const [custom, setCustom] = useState('');
   const [payOpen, setPayOpen] = useState(false);
-  const allMethods: readonly (SupportMethod | HostedMethod)[] = [
-    ...methods,
-    PAYMONGO_METHOD,
-  ];
-  const [methodId, setMethodId] = useState(allMethods[0]?.id ?? '');
+  const [methodId, setMethodId] = useState(methods[0]?.id ?? '');
 
   const customNum = Number(custom.replace(/\D/gu, ''));
   const activePreset = custom.trim().length > 0 ? null : preset;
   const amount = customNum > 0 ? customNum : preset;
-  const method = allMethods.find((entry) => entry.id === methodId) ?? null;
+  const method = methods.find((entry) => entry.id === methodId) ?? null;
 
   const pickPreset = (value: number) => {
     tapSelection();
@@ -176,6 +156,9 @@ export default function SupportPage({
           >
             Choose your tip
           </Text>
+          <Text style={tw`mb-3 ml-1 font-sans text-[12.5px] text-slate-500`}>
+            Any amount will really be appreciated
+          </Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -196,11 +179,11 @@ export default function SupportPage({
                 >
                   <View
                     style={[
-                      tw`overflow-hidden rounded-3xl border bg-[#1b1332] p-4`,
+                      tw`overflow-hidden rounded-3xl border p-4`,
                       { height: TIP_H },
                       active
                         ? [tw`border-primary/70`, ctaGlow]
-                        : tw`border-white/5`,
+                        : tw`border-white/15`,
                     ]}
                   >
                     <LottieView
@@ -208,6 +191,18 @@ export default function SupportPage({
                       autoPlay={false}
                       progress={0}
                       resizeMode="cover"
+                      style={[
+                        tw`absolute inset-0`,
+                        { transform: [{ scale: 2.2 }], transformOrigin: 'top' },
+                      ]}
+                    />
+                    <LinearGradient
+                      colors={[
+                        'rgba(255,255,255,0.13)',
+                        'rgba(255,255,255,0.04)',
+                        'rgba(15,8,35,0.42)',
+                      ]}
+                      locations={[0, 0.45, 1]}
                       style={tw`absolute inset-0`}
                     />
                     {active ? (
@@ -238,22 +233,8 @@ export default function SupportPage({
                       />
                     </View>
                     <View style={tw`flex-1`} />
-                    <Text
-                      style={[
-                        tw`font-sans-bold text-[30px] text-white`,
-                        textOutline,
-                      ]}
-                    >
+                    <Text style={tw`font-sans-bold text-[30px] text-white`}>
                       ₱{tip.amount}
-                    </Text>
-                    <Text
-                      numberOfLines={2}
-                      style={[
-                        tw`mt-1 font-sans text-[12px] leading-4 text-white/80`,
-                        textOutline,
-                      ]}
-                    >
-                      {tip.note}
                     </Text>
                   </View>
                 </Pressable>
@@ -294,9 +275,9 @@ export default function SupportPage({
           >
             Select payment
           </Text>
-          {allMethods.map((entry, i) => {
+          {methods.map((entry, i) => {
             const active = entry.id === methodId;
-            const last = i === allMethods.length - 1;
+            const last = i === methods.length - 1;
             return (
               <Pressable
                 key={entry.id}
@@ -338,34 +319,6 @@ export default function SupportPage({
                       <Wallet size={19} color="#ffffff" strokeWidth={2.4} />
                     </View>
                   </View>
-                ) : entry.kind === 'qr' ? (
-                  entry.id === 'gcash' ? (
-                    <View
-                      style={tw`h-[42px] w-[42px] items-center justify-center`}
-                    >
-                      <View
-                        style={[
-                          tw`h-[35px] w-[35px] items-center justify-center rounded-full`,
-                          { backgroundColor: '#0070BA' },
-                        ]}
-                      >
-                        <GCashIcon size={25} />
-                      </View>
-                    </View>
-                  ) : (
-                    <View
-                      style={tw`h-[42px] w-[42px] items-center justify-center`}
-                    >
-                      <View
-                        style={[
-                          tw`h-[35px] w-[35px] items-center justify-center rounded-full`,
-                          { backgroundColor: '#0070BA' },
-                        ]}
-                      >
-                        <GoTymeIcon size={24} />
-                      </View>
-                    </View>
-                  )
                 ) : (
                   <PayPalIcon size={42} />
                 )}
