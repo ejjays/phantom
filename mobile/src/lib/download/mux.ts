@@ -8,9 +8,42 @@ import {
 import { downloadPlaylistToFile } from './hls';
 import { DESKTOP_UA } from '../userAgents';
 import { log, warn as logWarn } from '../log';
+import {
+  demuxToM4a as coreDemuxToM4a,
+  hlsConcatToMp4 as coreHlsConcatToMp4,
+  hlsMergeToMp4 as coreHlsMergeToMp4,
+  muxVideoAudio as coreMuxVideoAudio,
+  remuxToMp4 as coreRemuxToMp4,
+  tagAudio as coreTagAudio,
+} from '../media';
 
-// ffmpeg-kit logs at verbose by default; only keep errors
+// ffmpeg-kit logs at verbose at default; only keep errors
 void FFmpegKitConfig.setLogLevel(Level.AV_LOG_ERROR);
+
+// opt-in escape hatch; the pure-TS core is the primary path
+const ENABLE_FFMPEG = process.env.EXPO_PUBLIC_FFMPEG_FALLBACK === '1';
+
+// run the pure-TS core; ffmpeg only when explicitly enabled
+async function coreOrFfmpeg<T extends unknown[]>(
+  name: string,
+  core: (...args: T) => Promise<boolean>,
+  ffmpeg: (...args: T) => Promise<boolean>,
+  ...args: T
+): Promise<boolean> {
+  let ok = false;
+  try {
+    ok = await core(...args);
+  } catch (err) {
+    logWarn('mux', `[${name}] core threw: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  if (ok) return true;
+  if (ENABLE_FFMPEG) {
+    logWarn('mux', `[${name}] core refused, ffmpeg fallback`);
+    return ffmpeg(...args);
+  }
+  logWarn('mux', `[${name}] core refused, ffmpeg disabled`);
+  return false;
+}
 
 function fsPath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//u, ''));
@@ -22,7 +55,15 @@ const HLS_CONCURRENCY = 8;
 const MUXED_HLS_CONCURRENCY = 16;
 
 /* video+audio -> one container, no re-encode */
-export async function muxVideoAudio(
+export function muxVideoAudio(
+  video: File,
+  audio: File,
+  out: File
+): Promise<boolean> {
+  return coreOrFfmpeg('mux', coreMuxVideoAudio, ffmpegMuxVideoAudio, video, audio, out);
+}
+
+async function ffmpegMuxVideoAudio(
   video: File,
   audio: File,
   out: File
@@ -45,7 +86,11 @@ export async function muxVideoAudio(
 }
 
 /* pull the audio track out of a muxed file, no re-encode (lossless, ~instant) */
-export async function demuxToM4a(src: File, out: File): Promise<boolean> {
+export function demuxToM4a(src: File, out: File): Promise<boolean> {
+  return coreOrFfmpeg('demux', coreDemuxToM4a, ffmpegDemuxToM4a, src, out);
+}
+
+async function ffmpegDemuxToM4a(src: File, out: File): Promise<boolean> {
   const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -vn -c:a copy -movflags +faststart "${fsPath(out.uri)}"`;
   const session = await FFmpegKit.execute(cmd);
   const code = await session.getReturnCode();
@@ -101,7 +146,16 @@ export async function transcodeToMp3(src: File, out: File): Promise<boolean> {
 }
 
 // args form avoids shell-escaping metadata values
-export async function tagAudio(
+export function tagAudio(
+  audio: File,
+  out: File,
+  meta: { title?: string; artist?: string; album?: string },
+  cover?: File
+): Promise<boolean> {
+  return coreOrFfmpeg('tag', coreTagAudio, ffmpegTagAudio, audio, out, meta, cover);
+}
+
+async function ffmpegTagAudio(
   audio: File,
   out: File,
   meta: { title?: string; artist?: string; album?: string },
@@ -219,7 +273,7 @@ export async function parallelHlsToMp4(
       'mux',
       `[hls-parallel] ${vid.segments}+${aud.segments} chunks, ${(totalBytes / 1e6).toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
     );
-    return await muxVideoAudio(video, audio, out);
+    return await hlsMergeVideoAudio(video, audio, out);
   } catch (err: unknown) {
     logWarn(
       'mux',
@@ -233,7 +287,25 @@ export async function parallelHlsToMp4(
 }
 
 // remux concatenated segments -> clean mp4, no re-encode
-export async function remuxToMp4(src: File, out: File): Promise<boolean> {
+export function remuxToMp4(src: File, out: File): Promise<boolean> {
+  return coreOrFfmpeg('remux', coreRemuxToMp4, ffmpegRemuxToMp4, src, out);
+}
+
+// hls concat (fmp4 or ts segments) -> clean mp4/m4a, core first
+export function hlsConcatRemux(src: File, out: File): Promise<boolean> {
+  return coreOrFfmpeg('hls-concat', coreHlsConcatToMp4, ffmpegRemuxToMp4, src, out);
+}
+
+// separate video+audio hls concats -> one mp4, core first
+export function hlsMergeVideoAudio(
+  video: File,
+  audio: File,
+  out: File
+): Promise<boolean> {
+  return coreOrFfmpeg('hls-merge', coreHlsMergeToMp4, ffmpegMuxVideoAudio, video, audio, out);
+}
+
+async function ffmpegRemuxToMp4(src: File, out: File): Promise<boolean> {
   const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -c copy -movflags +faststart "${fsPath(out.uri)}"`;
   const session = await FFmpegKit.execute(cmd);
   const code = await session.getReturnCode();
@@ -265,7 +337,7 @@ export async function parallelHlsMuxedToMp4(
       MUXED_HLS_CONCURRENCY,
       signal
     );
-    const ok = await remuxToMp4(seg, out);
+    const ok = await hlsConcatRemux(seg, out);
     const secs = (Date.now() - started) / 1000;
     const mbps = secs > 0 ? ((bytes * 8) / 1e6 / secs).toFixed(1) : '0';
     log(

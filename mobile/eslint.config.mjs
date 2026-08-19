@@ -44,6 +44,7 @@ export default tseslint.config(
       'plugins/**',
       'scripts/**',
       'supabase/functions/**',
+      'tests/media/.fixtures/**',
     ],
   },
   js.configs.recommended,

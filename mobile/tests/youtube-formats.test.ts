@@ -64,7 +64,7 @@ describe('youtube buildFormats', () => {
     expect(mp3?.isAudio).toBe(true);
   });
 
-  it('prefers vp9 over av1 at the same resolution', () => {
+  it('ships both 4k rungs, webm/vp9 first for universal decoding', () => {
     const raw: RawYtResult = {
       id: 'vid',
       formats: [],
@@ -79,7 +79,44 @@ describe('youtube buildFormats', () => {
           hasAudio: false,
         },
         {
-          itag: 313,
+          itag: 315,
+          url: 'https://v.example/vp9-2160.webm',
+          mimeType: 'video/webm; codecs="vp9"',
+          width: 3840,
+          height: 2160,
+          hasVideo: true,
+          hasAudio: false,
+        },
+        {
+          itag: 140,
+          url: 'https://a.example/aac.m4a',
+          mimeType: 'audio/mp4; codecs="mp4a.40.2"',
+          hasVideo: false,
+          hasAudio: true,
+          bitrate: 128000,
+        },
+      ],
+    };
+
+    const formats = buildFormats(raw);
+    const fourK = formats.filter((f) => f.height === 2160);
+    expect(fourK).toHaveLength(2);
+    expect(fourK[0].vcodec).toBe('vp9');
+    expect(fourK[0].url).toBe('https://v.example/vp9-2160.webm');
+    expect(fourK[0].extension).toBe('webm');
+    expect(fourK[0].muxAudioUrl).toBe('https://a.example/aac.m4a');
+    expect(fourK[1].vcodec).toBe('av1');
+    expect(fourK[1].url).toBe('https://v.example/av1-2160.mp4');
+    expect(fourK[1].extension).toBe('mp4');
+  });
+
+  it('keeps a webm-only rung when no mp4 exists at that height', () => {
+    const raw: RawYtResult = {
+      id: 'vid',
+      formats: [],
+      adaptive: [
+        {
+          itag: 315,
           url: 'https://v.example/vp9-2160.webm',
           mimeType: 'video/webm; codecs="vp9"',
           width: 3840,
@@ -102,6 +139,6 @@ describe('youtube buildFormats', () => {
     const top = formats.find((f) => f.height === 2160);
     expect(top?.vcodec).toBe('vp9');
     expect(top?.url).toBe('https://v.example/vp9-2160.webm');
-    expect(top?.muxAudioUrl).toBe('https://a.example/aac.m4a');
+    expect(top?.extension).toBe('webm');
   });
 });

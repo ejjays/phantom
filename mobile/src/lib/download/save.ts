@@ -115,6 +115,12 @@ async function saveViaMediaStore(source: File): Promise<string> {
     : IMAGE_EXT.has(ext)
       ? 'Image'
       : 'Video';
+  const isMedia = !IMAGE_EXT.has(ext);
+  // moov-only output saves "successfully" as a corrupt gallery file; refuse
+  // anything implausibly small for a media track before the native copy
+  if (isMedia && (source.size ?? 0) < 8 * 1024) {
+    throw new Error(`source truncated (${source.size} bytes), refusing save`);
+  }
   // blob-util .d.ts says path but native reads name
   const fd = {
     name: source.name,
@@ -171,6 +177,9 @@ export async function saveToDevice(
     log('save', `[save] mediastore: ${source.name}`);
     return { ok: true, uri };
   } catch (error) {
+    if (error instanceof Error && /refusing save/u.test(error.message)) {
+      throw error;
+    }
     logWarn(
       'save',
       `[save] mediastore failed, falling back: ${error instanceof Error ? error.message : String(error)}`

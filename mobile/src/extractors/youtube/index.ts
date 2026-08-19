@@ -30,6 +30,12 @@ function codecRank(raw: RawYtFormat): number {
   return CODEC_RANK[videoCodecOf(raw)] ?? 3;
 }
 
+// codec preference within one container — the ladder is keyed per
+// container so mp4 vs webm never competes for the same slot
+function pickRank(raw: RawYtFormat): number {
+  return codecRank(raw);
+}
+
 function baseFormat(raw: RawYtFormat, index: number): Format {
   const webm = raw.mimeType?.includes('webm') ?? false;
   const ext = raw.hasVideo ? (webm ? 'webm' : 'mp4') : webm ? 'webm' : 'm4a';
@@ -77,32 +83,44 @@ export function buildFormats(raw: RawYtResult): Format[] {
   const aac = bestAudio(audioOnly, 'mp4');
   const opus = bestAudio(audioOnly, 'webm');
 
-  /* adaptive first: separate video (+mux audio). primary pick */
-  const byHeight = new Map<number, RawYtFormat>();
+  /* adaptive first: separate video (+mux audio), one rung per container
+     per height. webm/vp9 renders on any device (incl. software decode);
+     mp4/av1 is smaller but some phones can't handle it at 4k60. */
+  const byRung = new Map<string, RawYtFormat>();
   for (const video of videoOnly) {
-    const height = video.height ?? 0;
-    const current = byHeight.get(height);
-    if (!current || codecRank(video) < codecRank(current)) {
-      byHeight.set(height, video);
+    const webm = video.mimeType?.includes('webm') ?? false;
+    const rung = `${video.height ?? 0}:${webm ? 'webm' : 'mp4'}`;
+    const current = byRung.get(rung);
+    if (!current || pickRank(video) < pickRank(current)) {
+      byRung.set(rung, video);
     }
   }
 
   let index = 0;
-  const ladder = new Map<number, Format>();
-  for (const video of byHeight.values()) {
+  const ladder = new Map<string, Format>();
+  const coveredHeights = new Set<number>();
+  const ordered = [...byRung.values()].sort((lhs, rhs) => {
+    const dh = (rhs.height ?? 0) - (lhs.height ?? 0);
+    if (dh) return dh;
+    // webm rung first so the default pick decodes on every device
+    const webmOf = (f: RawYtFormat): number =>
+      f.mimeType?.includes('webm') ? 0 : 1;
+    return webmOf(lhs) - webmOf(rhs);
+  });
+  for (const video of ordered) {
     const height = video.height ?? 0;
-    if (ladder.has(height)) continue;
-    const audio = aac ?? opus;
+    const webm = video.mimeType?.includes('webm') ?? false;
+    const audio = webm ? (opus ?? aac) : (aac ?? opus);
     if (!audio?.url) continue;
     const format = baseFormat(video, index++);
-    format.extension = 'mp4';
     format.muxAudioUrl = audio.url;
     format.muxAudioExt = audio.mimeType?.includes('mp4') ? 'm4a' : 'webm';
     const sum =
       (video.contentLength ? Number(video.contentLength) : 0) +
       (audio.contentLength ? Number(audio.contentLength) : 0);
     format.filesize = sum > 0 ? sum : undefined;
-    ladder.set(height, format);
+    ladder.set(`${height}:${webm ? 'webm' : 'mp4'}`, format);
+    coveredHeights.add(height);
   }
 
   /* progressive (paired, mm=18) rungs fill only heights with no
@@ -111,8 +129,8 @@ export function buildFormats(raw: RawYtResult): Format[] {
   const muxed = rawAll.filter((f) => f.hasVideo && f.hasAudio);
   muxed.forEach((fmt, i) => {
     const format = baseFormat(fmt, 1000 + i);
-    if (!ladder.has(format.height ?? 0)) {
-      ladder.set(format.height ?? 0, format);
+    if (!coveredHeights.has(format.height ?? 0)) {
+      ladder.set(`prog${i}`, format);
     }
   });
 
