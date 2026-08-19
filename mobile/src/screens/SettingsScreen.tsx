@@ -42,6 +42,7 @@ import ThemeSwitch from '../components/ThemeSwitch';
 import switchTheme from 'react-native-theme-switch-animation';
 import SupportPage, { type SupportMethod } from '../components/SupportPage';
 import SupportCarousel from '../components/SupportCarousel';
+import SupportedPlatforms from '../components/SupportedPlatforms';
 import Card from '../components/Card';
 import AccountPanel, { AccountSkeleton } from '../components/AccountPanel';
 import gcashQr from '../../assets/support/gcash-qr.png';
@@ -64,6 +65,7 @@ import {
   ClearCacheIcon,
   PrivacyIcon,
   VersionIcon,
+  GridIcon,
   GoogleIcon,
   ShareAppIcon,
   FileIcon,
@@ -697,6 +699,7 @@ function SettingsScreen({
   const accountScreen = useSubScreen(visible);
   const avatarScreen = useSubScreen(visible);
   const supportScreen = useSubScreen(visible);
+  const platformsScreen = useSubScreen(visible);
   const { showDialog } = useAppDialog();
 
   const [qr, setQr] = useState<{
@@ -751,8 +754,10 @@ function SettingsScreen({
   }, [visible, accountScreen, avatarScreen, supportScreen]);
 
   useEffect(() => {
-    onFullScreen?.(avatarScreen.open || supportScreen.open);
-  }, [avatarScreen.open, supportScreen.open, onFullScreen]);
+    onFullScreen?.(
+      avatarScreen.open || supportScreen.open || platformsScreen.open
+    );
+  }, [avatarScreen.open, supportScreen.open, platformsScreen.open, onFullScreen]);
 
   useEffect(() => {
     getFilenameFormat()
@@ -1211,6 +1216,18 @@ function SettingsScreen({
       <SectionLabel light={light}>About</SectionLabel>
       <Card light={light}>
         <LinkRow
+          Icon={GridIcon}
+          label="Supported platforms"
+          hint="What you can save from each site"
+          onPress={() => {
+            tapSelection();
+            platformsScreen.setOpen(true);
+          }}
+          tile={false}
+          iconSize={26}
+          light={light}
+        />
+        <LinkRow
           Icon={PrivacyIcon}
           label="Privacy"
           hint="Everything runs on your device"
@@ -1351,7 +1368,26 @@ function SettingsScreen({
               onPay={paySupport}
               onBack={() => {
                 tapSelection();
-                supportScreen.setOpen(false);
+supportScreen.setOpen(false);
+    platformsScreen.setOpen(false);
+              }}
+            />
+          )}
+        </Animated.View>
+
+        <Animated.View
+          pointerEvents={platformsScreen.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            platformsScreen.style,
+          ]}
+        >
+          {platformsScreen.mounted && (
+            <SupportedPlatforms
+              onBack={() => {
+                tapSelection();
+                platformsScreen.setOpen(false);
               }}
             />
           )}

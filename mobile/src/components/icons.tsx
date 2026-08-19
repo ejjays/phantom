@@ -375,6 +375,29 @@ export function PrivacyIcon({ size = 24 }: IconProps) {
   );
 }
 
+export function GridIcon({ size = 24, color = '#000000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M4.5,2 H9.5 A2.5,2.5 0 0 1 12,4.5 V8.5 A2.5,2.5 0 0 1 9.5,11 H4.5 A2.5,2.5 0 0 1 2,8.5 V4.5 A2.5,2.5 0 0 1 4.5,2 Z"
+        fill={color}
+      />
+      <Path
+        d="M15.5,2 H20.5 A2.5,2.5 0 0 1 23,4.5 V8.5 A2.5,2.5 0 0 1 20.5,11 H15.5 A2.5,2.5 0 0 1 13,8.5 V4.5 A2.5,2.5 0 0 1 15.5,2 Z"
+        fill={color}
+      />
+      <Path
+        d="M4.5,13 H9.5 A2.5,2.5 0 0 1 12,15.5 V19.5 A2.5,2.5 0 0 1 9.5,22 H4.5 A2.5,2.5 0 0 1 2,19.5 V15.5 A2.5,2.5 0 0 1 4.5,13 Z"
+        fill={color}
+      />
+      <Path
+        d="M15.5,13 H20.5 A2.5,2.5 0 0 1 23,15.5 V19.5 A2.5,2.5 0 0 1 20.5,22 H15.5 A2.5,2.5 0 0 1 13,19.5 V15.5 A2.5,2.5 0 0 1 15.5,13 Z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
 export function VersionIcon({ size = 24 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="42.66 42.66 426.67 426.67">
