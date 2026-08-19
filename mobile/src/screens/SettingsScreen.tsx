@@ -51,7 +51,7 @@ import {
   ClearCacheIcon,
   PrivacyIcon,
   VersionIcon,
-  GridIcon,
+  PhantomIcon,
   GoogleIcon,
   ShareAppIcon,
   FileIcon,
@@ -1133,9 +1133,9 @@ function SettingsScreen({
       <SectionLabel light={light}>About</SectionLabel>
       <Card light={light}>
         <LinkRow
-          Icon={GridIcon}
+          Icon={PhantomIcon}
           label="Supported platforms"
-          hint="What you can save from each site"
+          hint="YouTube, Spotify, TikTok & more"
           onPress={() => {
             tapSelection();
             platformsScreen.setOpen(true);
