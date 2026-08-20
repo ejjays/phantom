@@ -20,7 +20,9 @@ import {
   MessageCircle,
   ChevronRight,
 } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { LiquidGlassView, LIQUID_GLASS_FROSTED } from '@uginy/react-native-liquid-glass';
+import GlowBlob from './backgrounds/GlowBlob';
 import tw from '../lib/tw';
 import { tapSelection } from '../lib/haptics';
 import { PlatformLogo, type PlatformName } from './logos';
@@ -117,6 +119,9 @@ function StatCard({
         <View style={StyleSheet.absoluteFill}>
           <LiquidGlassView
             {...LIQUID_GLASS_FROSTED}
+            blurRadius={60}
+            noiseIntensity={0.08}
+            saturation={1.2}
             cornerRadius={16}
             style={tw`flex-1`}
           />
@@ -246,6 +251,24 @@ export default function SupportedPlatforms({ onBack }: { onBack: () => void }) {
       >
         <View style={[tw`w-full self-center`, { maxWidth: 600 }]}>
           <View style={tw`flex-row`}>
+            {/* glass blurs a snapshot of the biggest bg view — flat bg renders
+                nothing, and smooth gradient alone shows no frost; blobs give
+                the shader soft color edges to blur */}
+            <LinearGradient
+              colors={['#0f3b57', '#2b1f6b', '#5b1e6b']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={tw`absolute inset-0 rounded-2xl`}
+            />
+            <View pointerEvents="none" style={tw`absolute inset-0`}>
+              <GlowBlob color="#22d3ee" size={150} x={-25} y={-35} />
+            </View>
+            <View
+              pointerEvents="none"
+              style={tw`absolute inset-0 items-end justify-end`}
+            >
+              <GlowBlob color="#a78bfa" size={170} x={-30} y={-25} />
+            </View>
             {CAP_STATS.map((stat, i) => (
               <StatCard
                 key={stat.label}
