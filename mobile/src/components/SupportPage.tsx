@@ -3,7 +3,6 @@ import { View, Text, Pressable, TextInput } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import LottieView from 'lottie-react-native';
 import { ChevronLeft, Check, Heart, Wallet } from 'lucide-react-native';
 import tw from '../lib/tw';
 import KeyboardAvoidingForm from './KeyboardAvoidingForm';
@@ -11,7 +10,7 @@ import { tapSelection } from '../lib/haptics';
 import heroBg from '../../assets/support/hero-bg.json';
 import HeroLottieCard, { textOutline } from './HeroLottieCard';
 import WavingHand from './WavingHand';
-import tipBg from '../../assets/support/tip-bg.json';
+import CardBackdrop from './CardBackdrop';
 import { PayPalIcon } from './icons';
 import PayMongoCheckoutModal from './PayMongoCheckoutModal';
 
@@ -186,56 +185,39 @@ export default function SupportPage({
                         : tw`border-white/15`,
                     ]}
                   >
-                    <LottieView
-                      source={tipBg}
-                      autoPlay={false}
-                      progress={0}
-                      resizeMode="cover"
-                      style={[
-                        tw`absolute inset-0`,
-                        { transform: [{ scale: 2.2 }], transformOrigin: 'top' },
-                      ]}
-                    />
-                    <LinearGradient
-                      colors={[
-                        'rgba(255,255,255,0.13)',
-                        'rgba(255,255,255,0.04)',
-                        'rgba(15,8,35,0.42)',
-                      ]}
-                      locations={[0, 0.45, 1]}
-                      style={tw`absolute inset-0`}
-                    />
-                    {active ? (
-                      <View
-                        style={[
-                          tw`absolute inset-0`,
-                          { backgroundColor: '#22d3ee22' },
-                        ]}
-                      />
-                    ) : null}
-                    <View style={tw`flex-row items-center justify-between`}>
+                    <CardBackdrop>
                       {active ? (
-                        <View style={tw`flex-row items-center`}>
-                          <Check size={15} color={CYAN} strokeWidth={3} />
-                          <Text
-                            style={tw`ml-1 font-sans-semibold text-[12px] text-primary`}
-                          >
-                            Selected
-                          </Text>
-                        </View>
-                      ) : (
-                        <View />
-                      )}
-                      <Heart
-                        size={16}
-                        color={CYAN}
-                        fill={active ? CYAN : 'transparent'}
-                      />
-                    </View>
-                    <View style={tw`flex-1`} />
-                    <Text style={tw`font-sans-bold text-[30px] text-white`}>
-                      ₱{tip.amount}
-                    </Text>
+                        <View
+                          style={[
+                            tw`absolute inset-0`,
+                            { backgroundColor: '#22d3ee22' },
+                          ]}
+                        />
+                      ) : null}
+                      <View style={tw`flex-row items-center justify-between`}>
+                        {active ? (
+                          <View style={tw`flex-row items-center`}>
+                            <Check size={15} color={CYAN} strokeWidth={3} />
+                            <Text
+                              style={tw`ml-1 font-sans-semibold text-[12px] text-primary`}
+                            >
+                              Selected
+                            </Text>
+                          </View>
+                        ) : (
+                          <View />
+                        )}
+                        <Heart
+                          size={16}
+                          color={CYAN}
+                          fill={active ? CYAN : 'transparent'}
+                        />
+                      </View>
+                      <View style={tw`flex-1`} />
+                      <Text style={tw`font-sans-bold text-[30px] text-white`}>
+                        ₱{tip.amount}
+                      </Text>
+                    </CardBackdrop>
                   </View>
                 </Pressable>
               );

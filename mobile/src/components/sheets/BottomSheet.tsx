@@ -66,6 +66,9 @@ export default function BottomSheet({
   const keyboard = useSharedValue(0);
   const grow = useSharedValue(0);
   const reveal = useSharedValue(0);
+  const settled = useSharedValue(false);
+  const kbdLock = useSharedValue(0);
+  const growLock = useSharedValue(0);
 
   const isExpand = keyboardMode === 'expand';
   const hidden = screenH * (FULL_RATIO - restRatio);
@@ -91,9 +94,16 @@ export default function BottomSheet({
     if (open) setMounted(true);
   }, [open]);
 
-  const finish = () => {
+  // resets per close so the next open waits for a fresh measurement
+  const resetSheet = () => {
     reveal.value = 0;
+    sheetH.value = screenH;
+    setReady(false);
     setMounted(false);
+  };
+
+  const finish = () => {
+    resetSheet();
     onClose();
   };
 
@@ -103,29 +113,41 @@ export default function BottomSheet({
     if (open) {
       // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- spring waits for layout-ready gate
       if (ready) {
+        settled.value = false;
         reveal.value = 1;
-        progress.value = withSpring(1, OPEN_SPRING);
+        // freeze keyboard offsets for the whole open so a focus-loss
+        // keyboard close mid-rise can't drop the sheet
+        kbdLock.value = keyboard.value;
+        growLock.value = grow.value;
+        progress.value = withSpring(1, OPEN_SPRING, (finished) => {
+          'worklet';
+          if (finished) {
+            // layouts only refreeze the sheet once the open spring has landed
+            settled.value = true;
+            // glide the frozen offsets to the live keyboard state, no pop
+            kbdLock.value = withTiming(keyboard.value, { duration: 220 });
+            growLock.value = withTiming(grow.value, { duration: 220 });
+          }
+        });
       }
     } else {
       progress.value = withTiming(
         0,
         { duration: CLOSE_DURATION, easing: Easing.out(Easing.cubic) },
         (done) => {
-          if (done) {
-            reveal.value = 0;
-            runOnJS(setMounted)(false);
-          }
+          if (done) runOnJS(resetSheet)();
         }
       );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resetSheet/settled recreated per render; re-running would re-fire the spring
   }, [open, mounted, ready, progress, reveal]);
 
   const onSheetLayout = (e: LayoutChangeEvent) => {
     const height = e.nativeEvent.layout.height;
-    if (height > 0) {
+    if (height > 0 && (settled.value || !ready)) {
       sheetH.value = height;
-      setReady(true);
     }
+    setReady(true);
   };
 
   const pan = Gesture.Pan()
@@ -154,7 +176,14 @@ export default function BottomSheet({
           }
         );
       } else {
-        progress.value = withSpring(1, OPEN_SPRING);
+        progress.value = withSpring(1, OPEN_SPRING, (finished) => {
+          'worklet';
+          if (finished) {
+            settled.value = true;
+            kbdLock.value = withTiming(keyboard.value, { duration: 220 });
+            growLock.value = withTiming(grow.value, { duration: 220 });
+          }
+        });
       }
     });
 
@@ -170,14 +199,18 @@ export default function BottomSheet({
           TAIL +
           (1 - progress.value) * (sheetH.value - TAIL) -
           overdrag.value +
-          (isExpand ? (1 - grow.value) * hidden : 0) -
-          (isExpand ? 0 : keyboard.value),
+          (isExpand ? (1 - growLock.value) * hidden : 0) -
+          (isExpand ? 0 : kbdLock.value),
       },
     ],
   }));
 
   const footerStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -((1 - grow.value) * hidden) - keyboard.value }],
+    transform: [
+      {
+        translateY: -((1 - growLock.value) * hidden) - kbdLock.value,
+      },
+    ],
   }));
 
   const expandStyle = isExpand ? { height: screenH * FULL_RATIO + TAIL } : null;
@@ -194,7 +227,9 @@ export default function BottomSheet({
     >
       <GestureHandlerRootView style={tw`flex-1`}>
         <View style={tw`flex-1 justify-end`}>
-          <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
+          <Animated.View
+            style={[StyleSheet.absoluteFill, { opacity: 0 }, backdropStyle]}
+          >
             <Pressable
               style={tw`flex-1 bg-black`}
               onPress={onClose}
@@ -239,6 +274,9 @@ export default function BottomSheet({
                   maxWidth: 560,
                 },
                 expandStyle,
+                // static off-screen fallback for the modal's first frame,
+                // before reanimated attaches the animated style
+                { opacity: 0, transform: [{ translateY: screenH }] },
                 sheetStyle,
               ]}
             >

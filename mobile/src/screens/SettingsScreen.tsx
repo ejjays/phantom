@@ -99,13 +99,19 @@ import { useAppDialog } from '../components/AppDialog';
 import {
   AlertDialog,
   Host,
+  Icon,
+  Row,
   Text as ComposeText,
   TextButton as ComposeTextButton,
   RadioButton,
   ListItem,
   Column,
 } from '@expo/ui/jetpack-compose';
-import { clickable } from '@expo/ui/jetpack-compose/modifiers';
+import { clickable, padding } from '@expo/ui/jetpack-compose/modifiers';
+import { Asset } from 'expo-asset';
+import infoIcon from '../../assets/icons/info.xml';
+
+Asset.loadAsync(infoIcon).catch(() => undefined);
 
 const CYAN = '#22d3ee';
 const DARK_BG = '#030014';
@@ -428,13 +434,8 @@ function LinkRow(props: {
 }
 
 function VersionRow({ light }: { light?: boolean }) {
-  const {
-    installed,
-    status,
-    progress,
-    errorMessage,
-    updateNow,
-  } = useAppUpdate();
+  const { installed, status, progress, errorMessage, updateNow } =
+    useAppUpdate();
   const hint =
     status === 'checking'
       ? 'Checking for updates…'
@@ -449,7 +450,8 @@ function VersionRow({ light }: { light?: boolean }) {
               : status === 'permission'
                 ? 'Tap to allow installs'
                 : (errorMessage ?? 'Update failed — tap to retry');
-  const busy = status === 'downloading' || status === 'installing';
+  const hasUpdate =
+    status === 'available' || status === 'permission' || status === 'error';
 
   return (
     <>
@@ -465,7 +467,7 @@ function VersionRow({ light }: { light?: boolean }) {
         }}
         tile={false}
         last
-        chevron={!busy}
+        chevron={hasUpdate}
         iconSize={24}
         light={light}
       />
@@ -697,7 +699,12 @@ function SettingsScreen({
     onFullScreen?.(
       avatarScreen.open || supportScreen.open || platformsScreen.open
     );
-  }, [avatarScreen.open, supportScreen.open, platformsScreen.open, onFullScreen]);
+  }, [
+    avatarScreen.open,
+    supportScreen.open,
+    platformsScreen.open,
+    onFullScreen,
+  ]);
 
   useEffect(() => {
     getFilenameFormat()
@@ -1285,8 +1292,8 @@ function SettingsScreen({
               onPay={paySupport}
               onBack={() => {
                 tapSelection();
-supportScreen.setOpen(false);
-    platformsScreen.setOpen(false);
+                supportScreen.setOpen(false);
+                platformsScreen.setOpen(false);
               }}
             />
           )}
@@ -1319,9 +1326,9 @@ supportScreen.setOpen(false);
             <AlertDialog
               onDismissRequest={() => setFormatMenuOpen(false)}
               colors={{
-                containerColor: '#2a2150',
-                titleContentColor: '#e2e8f0',
-                textContentColor: '#cbd5e1',
+                containerColor: '#2b2930',
+                titleContentColor: '#e6e0e9',
+                textContentColor: '#cac4d0',
               }}
             >
               <AlertDialog.Title>
@@ -1336,8 +1343,9 @@ supportScreen.setOpen(false);
                       key={f}
                       tonalElevation={0}
                       colors={{
-                        containerColor: '#2a2150',
-                        supportingContentColor: '#8b95b5',
+                        containerColor: '#2b2930',
+                        contentColor: '#e6e0e9',
+                        supportingContentColor: '#cac4d0',
                       }}
                       modifiers={[formatClickable(f)]}
                     >
@@ -1345,7 +1353,9 @@ supportScreen.setOpen(false);
                         <RadioButton selected={pendingFormat === f} />
                       </ListItem.LeadingContent>
                       <ListItem.HeadlineContent>
-                        <ComposeText>{FORMAT_LABELS[f]}</ComposeText>
+                        <ComposeText style={{ fontWeight: 'bold' }}>
+                          {FORMAT_LABELS[f]}
+                        </ComposeText>
                       </ListItem.HeadlineContent>
                       <ListItem.SupportingContent>
                         <ComposeText style={{ fontSize: 12 }}>
@@ -1354,6 +1364,23 @@ supportScreen.setOpen(false);
                       </ListItem.SupportingContent>
                     </ListItem>
                   ))}
+                  <Row
+                    verticalAlignment="top"
+                    modifiers={[padding(0, 10, 0, 0)]}
+                  >
+                    <Icon
+                      source={infoIcon}
+                      size={14}
+                      tint="#cac4d0"
+                    />
+                    <ComposeText
+                      color="#cac4d0"
+                      style={{ fontSize: 12 }}
+                      modifiers={[padding(6, 0, 0, 0)]}
+                    >
+                      This is what your downloaded files are named
+                    </ComposeText>
+                  </Row>
                 </Column>
               </AlertDialog.Text>
               <AlertDialog.ConfirmButton>
