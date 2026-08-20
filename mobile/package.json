@@ -26,7 +26,6 @@
     "@shopify/react-native-skia": "2.6.2",
     "@supabase/supabase-js": "^2.112.2",
     "@tanstack/react-query": "^5.101.0",
-    "@uginy/react-native-liquid-glass": "^1.2.6",
     "event-target-shim": "^6.0.2",
     "expo": "~57.0.14",
     "expo-asset": "~57.0.10",
