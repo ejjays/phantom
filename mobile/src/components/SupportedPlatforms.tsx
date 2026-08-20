@@ -21,7 +21,7 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LiquidGlassView, LIQUID_GLASS_FROSTED } from '@uginy/react-native-liquid-glass';
+import { LiquidGlassView } from '@uginy/react-native-liquid-glass';
 import GlowBlob from './backgrounds/GlowBlob';
 import tw from '../lib/tw';
 import { tapSelection } from '../lib/haptics';
@@ -118,10 +118,22 @@ function StatCard({
       <View style={[tw`flex-1`, gap]}>
         <View style={StyleSheet.absoluteFill}>
           <LiquidGlassView
-            {...LIQUID_GLASS_FROSTED}
             blurRadius={60}
-            noiseIntensity={0.08}
-            saturation={1.2}
+            refractionStrength={0.6}
+            chromaticAberration={0.05}
+            edgeGlowIntensity={0.18}
+            glassOpacity={0.05}
+            tintColor="#ffffff"
+            glareIntensity={0.3}
+            lightAngle={0.8}
+            borderIntensity={0.28}
+            edgeWidth={2.0}
+            liquidPower={1.5}
+            fresnelPower={3.0}
+            saturation={1.0}
+            brightness={1.0}
+            noiseIntensity={0}
+            iridescence={0}
             cornerRadius={16}
             style={tw`flex-1`}
           />
@@ -251,9 +263,9 @@ export default function SupportedPlatforms({ onBack }: { onBack: () => void }) {
       >
         <View style={[tw`w-full self-center`, { maxWidth: 600 }]}>
           <View style={tw`flex-row`}>
-            {/* glass blurs a snapshot of the biggest bg view — flat bg renders
-                nothing, and smooth gradient alone shows no frost; blobs give
-                the shader soft color edges to blur */}
+            {/* glass bends a snapshot of the biggest bg view — flat bg renders
+                nothing; gradient + blobs + crisp accents give the shader
+                color and sharp edges to refract */}
             <LinearGradient
               colors={['#0f3b57', '#2b1f6b', '#5b1e6b']}
               start={{ x: 0, y: 0 }}
@@ -263,12 +275,35 @@ export default function SupportedPlatforms({ onBack }: { onBack: () => void }) {
             <View pointerEvents="none" style={tw`absolute inset-0`}>
               <GlowBlob color="#22d3ee" size={150} x={-25} y={-35} />
             </View>
+            <View pointerEvents="none" style={tw`absolute inset-0`}>
+              <GlowBlob color="#f472b6" size={130} x={150} y={-25} />
+            </View>
+            <View pointerEvents="none" style={tw`absolute inset-0`}>
+              <GlowBlob color="#fbbf24" size={110} x={60} y={80} />
+            </View>
+            <View pointerEvents="none" style={tw`absolute inset-0`}>
+              <GlowBlob color="#a78bfa" size={170} x={260} y={60} />
+            </View>
             <View
               pointerEvents="none"
-              style={tw`absolute inset-0 items-end justify-end`}
-            >
-              <GlowBlob color="#a78bfa" size={170} x={-30} y={-25} />
-            </View>
+              style={tw`absolute left-6 top-4 h-6 w-6 rounded-full border border-white/25`}
+            />
+            <View
+              pointerEvents="none"
+              style={tw`absolute right-10 top-8 h-4 w-4 rounded-full border border-white/20`}
+            />
+            <View
+              pointerEvents="none"
+              style={tw`absolute left-24 bottom-6 h-3 w-3 rounded-full bg-white/25`}
+            />
+            <View
+              pointerEvents="none"
+              style={tw`absolute right-20 bottom-4 h-8 w-1.5 rounded-full bg-white/20`}
+            />
+            <View
+              pointerEvents="none"
+              style={tw`absolute left-8 bottom-2 h-1.5 w-1.5 rounded-full bg-white/30`}
+            />
             {CAP_STATS.map((stat, i) => (
               <StatCard
                 key={stat.label}
