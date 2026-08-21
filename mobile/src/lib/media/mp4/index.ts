@@ -7,6 +7,7 @@ import { interleave, planOutput, writeMuxed } from './writer';
 import type { MuxSource } from './writer';
 import { assembleSources, readFragments, hlsFileToProgressive } from './fragments';
 import { demuxTsToM4a } from '../ts/demux';
+import { remuxTsToMp4 } from '../ts/toMp4';
 import { isWebm } from '../webm/demux';
 import { webmToMp4 } from '../webm/toMp4';
 import { error as logError, log } from '../../log';
@@ -227,7 +228,12 @@ export async function hlsConcatToMp4(
     const size = await io.size(srcPath);
     if (size < 8) return false;
     const head = await io.read(srcPath, 0, Math.min(size, 16));
-    if (head[0] === 0x47) return demuxTsToM4a(io, srcPath, outPath);
+    if (head[0] === 0x47) {
+      // muxed ts (video+audio) -> full remux; audio-only ts -> m4a demux
+      const remuxed = await remuxTsToMp4(io, srcPath, outPath);
+      if (remuxed) return true;
+      return demuxTsToM4a(io, srcPath, outPath);
+    }
     if (await hlsFileToProgressive(io, srcPath, outPath)) return true;
     return remuxToMp4(io, srcPath, outPath);
   } catch {

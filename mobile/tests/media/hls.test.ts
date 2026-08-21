@@ -94,13 +94,17 @@ describe.skipIf(!SUITE)('hls pure-ts assembly', () => {
     expect(audio?.channels).toBe(1);
   });
 
-  it('refuses muxed mpegts hls (video present)', async () => {
+  it('remuxes muxed mpegts hls (video+audio) to mp4', async () => {
     const concat = `${set.hlsPlaylist}.concat.ts`;
     await fs.rm(concat, { force: true });
     await concatPlaylist(join(set.hlsPlaylist, '..'), set.hlsPlaylist, concat);
     const out = `${set.hlsPlaylist}.muxed.ts.out.mp4`;
     await fs.rm(out, { force: true });
     const ok = await hlsConcatToMp4(io, concat, out);
-    expect(ok).toBe(false);
+    expect(ok).toBe(true);
+    const probe = await ffprobeJson(out);
+    if (!probe) throw new Error('ffprobe failed');
+    expect(probe.streams.map((s) => s.codec_type).sort()).toEqual(['audio', 'video']);
+    expect(durationSec(probe)).toBeCloseTo(2.0, 0);
   });
 });

@@ -12,7 +12,7 @@ const PAT_PID = 0;
 const AAC_STREAM = 0x0f;
 const H264_STREAM = 0x1b;
 const HEVC_STREAM = 0x24;
-const RATES = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
+export const RATES = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
 
 export interface AdtsInfo {
   sampleRate: number;
