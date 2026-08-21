@@ -99,6 +99,9 @@ function isAltText(text: string): boolean {
   return /^May be a/iu.test(text) || /^No photo description/iu.test(text);
 }
 
+// url shapes that promise a video — poster-only results are a failure there
+const VIDEO_URL_RE = /(?:share\/[vr]|\/videos?\/|\/reel|\/watch\/|fb\.watch)/iu;
+
 function parseOgDescription(html: string): string {
   const match = html.match(
     /<meta property="og:description" content="([^"]*)"/u
@@ -140,7 +143,13 @@ export function parseHtml(html: string, url: string): FbParsed {
   let formats = extractDashFormats(html);
   if (formats.length === 0) formats = extractFallbackFormats(html);
 
-  if (formats.length === 0) {
+  // video-kind urls must never degrade to a poster download — the login wall
+  // serves og:image with no streams, and empty formats surface as no-video
+  if (VIDEO_URL_RE.test(url)) {
+    formats = formats.filter((format) => format.format_id !== 'photo');
+  }
+
+  if (formats.length === 0 && !VIDEO_URL_RE.test(url)) {
     const ogImage = parseOgImage(html);
     if (ogImage) formats = [{ url: ogImage, format_id: 'photo', ext: 'jpeg' }];
   }
