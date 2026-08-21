@@ -2,7 +2,7 @@
   "expo": {
     "name": "Phantom",
     "slug": "cyan-phantom",
-    "version": "1.2.22",
+    "version": "1.2.23",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -66,12 +66,6 @@
         "expo-image-picker",
         {
           "photosPermission": "Allow Phantom to attach photos to your comments."
-        }
-      ],
-      [
-        "@nikhil-cephei/ffmpeg-kit-react-native",
-        {
-          "subspec": "full-gpl"
         }
       ],
       [
