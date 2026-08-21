@@ -37,9 +37,11 @@ export function demuxToM4a(src: File, out: File): Promise<boolean> {
 
 /* still frame for media without page art; retries frame 0 on seek miss */
 export async function extractFrame(src: File, out: File): Promise<boolean> {
+  const started = Date.now();
   for (const seekMs of [1000, 0]) {
     try {
       if (await framegrabExtract(fsPath(src.uri), fsPath(out.uri), seekMs)) {
+        log('mux', `[frame] ok in ${Date.now() - started}ms`);
         return true;
       }
     } catch (err: unknown) {
@@ -54,8 +56,14 @@ export async function extractFrame(src: File, out: File): Promise<boolean> {
 
 /* container swap only; fails when codecs aren't mp4-compatible (vp9/opus…) */
 export async function encodeToMp4(src: File, out: File): Promise<boolean> {
+  const started = Date.now();
   try {
-    return await nativeEncodeToMp4(fsPath(src.uri), fsPath(out.uri));
+    const ok = await nativeEncodeToMp4(fsPath(src.uri), fsPath(out.uri));
+    log(
+      'mux',
+      `[encode-mp4] ${ok ? 'ok' : 'failed'} in ${((Date.now() - started) / 1000).toFixed(1)}s`
+    );
+    return ok;
   } catch (err: unknown) {
     logWarn(
       'mux',

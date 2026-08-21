@@ -1,6 +1,6 @@
 import { ascii, be16, be32, box, concat } from '../boxes';
 import type { MediaIO } from '../io';
-import { error as logError } from '../../log';
+import { error as logError, log } from '../../log';
 import { aacEsds } from '../mp4/fragments';
 
 // mpeg-ts (hls mpegts segments) -> m4a, aac (adts) audio only.
@@ -189,6 +189,7 @@ export function demuxChunk(bytes: Uint8Array, absStart: number, state: TsState):
 // build m4a from a ts file with adts aac. returns false when the ts has video,
 // unknown streams, no aac, or no frames.
 export async function demuxTsToM4a(io: MediaIO, srcPath: string, outPath: string): Promise<boolean> {
+  const started = Date.now();
   const size = await io.size(srcPath);
   if (size < TS_PACKET) return false;
   const head = await io.read(srcPath, 0, TS_PACKET);
@@ -267,10 +268,23 @@ export async function demuxTsToM4a(io: MediaIO, srcPath: string, outPath: string
   cursor += moovFinal.length;
   await io.write(outPath, mdatHeader, cursor);
   cursor += 8;
-  for (const frame of frames) {
-    const bytes = await io.read(srcPath, frame.offset, frame.length);
-    await io.write(outPath, bytes, cursor);
-    cursor += bytes.length;
+  if (io.copyRanges) {
+    const ranges: number[] = [];
+    for (const frame of frames) {
+      ranges.push(cursor, frame.offset, frame.length);
+      cursor += frame.length;
+    }
+    await io.copyRanges(srcPath, outPath, ranges);
+  } else {
+    for (const frame of frames) {
+      const bytes = await io.read(srcPath, frame.offset, frame.length);
+      await io.write(outPath, bytes, cursor);
+      cursor += bytes.length;
+    }
   }
+  log(
+    'core',
+    `ts m4a ${frames.length}f ${(totalBytes / 1e6).toFixed(1)}MB in ${Date.now() - started}ms (${io.copyRanges ? 'native' : 'js'})`
+  );
   return true;
 }

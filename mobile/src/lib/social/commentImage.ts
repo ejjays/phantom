@@ -7,7 +7,7 @@ import {
   saveToLibraryAsync,
 } from 'expo-media-library/legacy';
 import { supabase } from './supabase';
-import { warn as logWarn } from '../log';
+import { log, warn as logWarn } from '../log';
 import { compressToWebp as nativeToWebp, convertToJpg } from '../../../modules/imagecodec';
 
 function fsPath(uri: string): string {
@@ -74,6 +74,7 @@ export async function captureCommentImage(): Promise<{
 // min() guards prevent upscaling small images; decrease preserves aspect.
 async function compressToWebp(srcUri: string): Promise<File> {
   const out = new File(Paths.cache, `cimg-${Crypto.randomUUID()}.webp`);
+  const started = Date.now();
   try {
     const ok = await nativeToWebp(
       fsPath(srcUri),
@@ -81,7 +82,13 @@ async function compressToWebp(srcUri: string): Promise<File> {
       WEBP_QUALITY,
       MAX_EDGE
     );
-    if (ok && out.exists) return out;
+    if (ok && out.exists) {
+      log(
+        'commentImage',
+        `[webp] ${(out.size / 1024).toFixed(0)}KB in ${Date.now() - started}ms`
+      );
+      return out;
+    }
   } catch (err: unknown) {
     logWarn(
       'commentImage',

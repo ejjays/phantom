@@ -331,6 +331,7 @@ export async function runDownload({
   onState,
   seed,
 }: RunDownloadInput): Promise<DownloadOutcome> {
+  const runStarted = Date.now();
   const temps: File[] = [];
   const track = (file: File): File => {
     temps.push(file);
@@ -431,6 +432,10 @@ export async function runDownload({
         uri: saved.uri,
         savedAt: Date.now(),
       });
+      log(
+        'downloadPipeline',
+        `[Download] done ${saveTarget.name} in ${((Date.now() - runStarted) / 1000).toFixed(1)}s total`
+      );
     }
     return saved.ok
       ? { status: 'saved', uri: saved.uri }

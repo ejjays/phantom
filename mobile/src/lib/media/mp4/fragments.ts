@@ -1,5 +1,6 @@
 import { be16, be32, box, concat } from '../boxes';
 import type { MediaIO } from '../io';
+import { log } from '../../log';
 import { children, find, parseMp4, topLevelBoxes } from './reader';
 import type { Mp4Info, Mp4Track } from './reader';
 import { interleave, planOutput, writeMuxed } from './writer';
@@ -483,7 +484,13 @@ export async function assembleSources(
   };
   const plan = planOutput(info, fakes, chunks);
   const srcs: MuxSource[] = chosen.map((chosen) => ({ path: chosen.source.path, info }));
+  const started = Date.now();
   await writeMuxed(io, outPath, plan, srcs, fakes);
+  const dataBytes = chunks.reduce((acc, ch) => acc + ch.size, 0);
+  log(
+    'core',
+    `hls concat ${fakes.length}t ${(dataBytes / 1e6).toFixed(1)}MB in ${Date.now() - started}ms (${io.copyRanges ? 'native' : 'js'})`
+  );
 }
 
 // rebuild fragmented file into progressive mp4 at outPath

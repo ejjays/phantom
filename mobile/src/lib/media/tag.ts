@@ -1,5 +1,6 @@
 import { ascii, be16, be32, box, boxRaw, concat } from './boxes';
 import type { MediaIO } from './io';
+import { log } from '../log';
 import { parseMp4 } from './mp4/reader';
 import { interleave, planOutput, writeMuxed } from './mp4/writer';
 
@@ -147,12 +148,17 @@ export async function tagAudio(
   meta: TagMeta,
   coverPath?: string
 ): Promise<boolean> {
+  const started = Date.now();
   let cover: Uint8Array | null = null;
   if (coverPath !== undefined) {
     cover = await io.read(coverPath, 0, await io.size(coverPath));
   }
   if (outPath.toLowerCase().endsWith('.mp3')) {
-    return tagMp3(io, srcPath, outPath, buildId3v2(meta, cover));
+    const ok = await tagMp3(io, srcPath, outPath, buildId3v2(meta, cover));
+    if (ok) log('core', `tag mp3 in ${Date.now() - started}ms`);
+    return ok;
   }
-  return tagM4a(io, srcPath, outPath, meta, cover);
+  const ok = await tagM4a(io, srcPath, outPath, meta, cover);
+  if (ok) log('core', `tag m4a in ${Date.now() - started}ms`);
+  return ok;
 }

@@ -69,7 +69,8 @@ async function writeOp(
   io: MediaIO,
   outPath: string,
   sources: MuxSource[],
-  tracks: Mp4Track[]
+  tracks: Mp4Track[],
+  op: string
 ): Promise<boolean> {
   if (tracks.length === 0) return false;
   const plan = planOutput(sources[0].info, tracks, interleave(tracks));
@@ -79,6 +80,7 @@ async function writeOp(
   }
   const expected =
     plan.mdatPayload + plan.chunks.reduce((acc, ch) => acc + ch.size, 0);
+  const started = Date.now();
   try {
     // tail writes can silently vanish on some io backends (device repro:
     // moov-only output) — verify the real on-disk size, retry once
@@ -86,7 +88,14 @@ async function writeOp(
       if (attempt > 0) await io.create(outPath);
       await writeMuxed(io, outPath, plan, sources, tracks);
       const actual = await io.size(outPath);
-      if (actual === expected) return true;
+      if (actual === expected) {
+        const dataBytes = plan.chunks.reduce((acc, ch) => acc + ch.size, 0);
+        log(
+          'core',
+          `${op} ${tracks.length}t ${(dataBytes / 1e6).toFixed(1)}MB in ${Date.now() - started}ms (${io.copyRanges ? 'native' : 'js'})`
+        );
+        return true;
+      }
       logError(
         'core',
         `writeOp short ${outPath}: ${actual} != ${expected} (attempt ${attempt + 1})`
@@ -135,7 +144,7 @@ export async function muxVideoAudio(
       logError('core', `mux track kinds: video=${Boolean(vTrack)} audio=${Boolean(aTrack)}`);
       return false;
     }
-    return await writeOp(io, outPath, [{ path: video.path, info: video.info }, { path: audio.path, info: audio.info }], [vTrack, aTrack]);
+    return await writeOp(io, outPath, [{ path: video.path, info: video.info }, { path: audio.path, info: audio.info }], [vTrack, aTrack], 'mux');
   } catch (err) {
     logError('core', `mux failed: ${err instanceof Error ? err.message : String(err)}`);
     return false;
@@ -159,7 +168,7 @@ export async function demuxToM4a(
     const audio = parsed.info.tracks.find((t) => t.kind === 'audio');
     if (!audio) return false;
     const sources = [audio].map(() => ({ path: parsed.path, info: parsed.info }));
-    return await writeOp(io, outPath, sources, [audio]);
+    return await writeOp(io, outPath, sources, [audio], 'demux');
   } catch {
     return false;
   } finally {
@@ -188,7 +197,7 @@ export async function remuxToMp4(
     const tracks = parsed.info.tracks.filter((t) => t.kind === 'video' || t.kind === 'audio');
     if (tracks.length === 0) return false;
     const sources = tracks.map(() => ({ path: parsed.path, info: parsed.info }));
-    return await writeOp(io, outPath, sources, tracks);
+    return await writeOp(io, outPath, sources, tracks, 'remux');
   } catch {
     return false;
   } finally {
