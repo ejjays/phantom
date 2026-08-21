@@ -3,8 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  Platform,
-  StyleSheet,
   type LayoutChangeEvent,
 } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
@@ -20,7 +18,6 @@ import {
   MessageCircle,
   ChevronRight,
 } from 'lucide-react-native';
-import { LiquidGlassView, LIQUID_GLASS_FROSTED } from '@uginy/react-native-liquid-glass';
 import tw from '../lib/tw';
 import { tapSelection } from '../lib/haptics';
 import { PlatformLogo, type PlatformName } from './logos';
@@ -78,10 +75,6 @@ const CAP_COLORS = {
   na: { bg: 'rgba(255,255,255,0.06)', fg: '#64748b' },
 } as const;
 
-// AGSL shader needs Android 13+; older devices fall back to a plain card
-const GLASS_OK =
-  Platform.OS === 'android' && Number(Platform.Version) >= 33;
-
 function StatCard({
   icon: Icon,
   label,
@@ -111,20 +104,6 @@ function StatCard({
     </>
   );
   const gap = spaced ? tw`mr-2.5` : null;
-  if (GLASS_OK) {
-    return (
-      <View style={[tw`flex-1`, gap]}>
-        <View style={StyleSheet.absoluteFill}>
-          <LiquidGlassView
-            {...LIQUID_GLASS_FROSTED}
-            cornerRadius={16}
-            style={tw`flex-1`}
-          />
-        </View>
-        <View style={tw`items-center py-3.5`}>{content}</View>
-      </View>
-    );
-  }
   return (
     <View
       style={[
