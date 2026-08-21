@@ -3,6 +3,7 @@
 
 import { ascii, be16, be32, box, boxRaw, concat, mvhd } from '../boxes';
 import type { MediaIO } from '../io';
+import { log } from '../../log';
 import { scanWebm, WebmScan, WebmTrack } from './demux';
 
 export interface WebmSource {
@@ -370,6 +371,7 @@ export async function webmToMp4(
   outPath: string
 ): Promise<boolean> {
   try {
+    const started = Date.now();
     const cache = new Map<string, WebmScan>();
     const tracks: TrackPlan[] = [];
     for (const source of sources) {
@@ -377,6 +379,7 @@ export async function webmToMp4(
       if (plan) tracks.push(plan);
     }
     if (tracks.length === 0) return false;
+    const scanMs = Date.now() - started;
 
     const order = writeOrder(tracks);
     const ftyp = ftypBox();
@@ -424,6 +427,7 @@ export async function webmToMp4(
       }
       await io.write(outPath, mdatBox, cursor);
       cursor += mdatHeader;
+      const writeStarted = Date.now();
       if (io.copyRanges) {
         // one native call per source; offsets[t] is push-ordered by the
         // order traversal, so mirror that with a per-track counter
@@ -451,7 +455,14 @@ export async function webmToMp4(
           cursor += sample.size;
         }
       }
-      if ((await io.size(outPath)) === total) return true;
+      const ok = (await io.size(outPath)) === total;
+      if (ok) {
+        log(
+          'core',
+          `webm mux ${tracks.length}t ${(totalPayload / 1e6).toFixed(1)}MB: scan ${scanMs}ms, write ${Date.now() - writeStarted}ms (${io.copyRanges ? 'native' : 'js'})`
+        );
+      }
+      if (ok) return true;
     }
     return false;
   } catch (err) {
