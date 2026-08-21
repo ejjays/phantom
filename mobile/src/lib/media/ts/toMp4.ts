@@ -468,6 +468,23 @@ function mediaHeader(handler: 'vide' | 'soun'): Uint8Array {
     : box('smhd', concat(be32(0), be16(0), be16(0)));
 }
 
+function stscFrom(counts: number[]): Uint8Array {
+  const runs: { firstChunk: number; spc: number; chunks: number }[] = [];
+  counts.forEach((count, idx) => {
+    const last = runs[runs.length - 1];
+    if (last && last.spc === count) last.chunks += 1;
+    else runs.push({ firstChunk: idx + 1, spc: count, chunks: 1 });
+  });
+  return box(
+    'stsc',
+    concat(be32(0), be32(runs.length), ...runs.flatMap((run) => [be32(run.firstChunk), be32(run.spc), be32(1)]))
+  );
+}
+
+function stcoFrom(offsets: number[]): Uint8Array {
+  return box('stco', concat(be32(0), be32(offsets.length), ...offsets.map((o) => be32(o))));
+}
+
 function trakBox(opts: {
   trackId: number;
   timescale: number;
@@ -477,6 +494,9 @@ function trakBox(opts: {
   handler: 'vide' | 'soun';
   stbl: Uint8Array[];
 }): Uint8Array {
+  // empty-edit elst anchors the track timeline at media time 0 — without it
+  // strict parsers (gallery/metadata retriever) misalign b-frame streams
+  const edts = box('edts', box('elst', concat(be32(0), be32(1), be32(opts.duration), be32(0), be32(0x00010000))));
   const mdia = box(
     'mdia',
     concat(
@@ -506,7 +526,7 @@ function trakBox(opts: {
       be32(opts.height << 16)
     )
   );
-  return box('trak', concat(tkhd, mdia));
+  return box('trak', concat(tkhd, edts, mdia));
 }
 
 interface ConvertedSample {
@@ -554,49 +574,36 @@ async function convertVideoFrames(
   return samples;
 }
 
+interface WriteAction {
+  src: 'temp' | 'src';
+  ranges: Piece[];
+  dst: number;
+}
+
 async function writeAssembled(
   io: MediaIO,
   outPath: string,
   srcPath: string,
   tempPath: string,
-  samples: ConvertedSample[],
-  audio: AudioFrame[],
-  videoRun: number,
-  audioRun: number
+  order: WriteAction[]
 ): Promise<void> {
   if (io.copyRanges) {
-    const videoRanges: number[] = [];
-    let videoCursor = videoRun;
-    for (const sample of samples) {
-      videoRanges.push(videoCursor, sample.offset, sample.length);
-      videoCursor += sample.length;
-    }
-    await io.copyRanges(tempPath, outPath, videoRanges);
-    if (audio.length > 0) {
-      const audioRanges: number[] = [];
-      let audioCursor = audioRun;
-      for (const frame of audio) {
-        for (const range of frame.ranges) {
-          audioRanges.push(audioCursor, range.offset, range.length);
-          audioCursor += range.length;
-        }
+    const tempRanges: number[] = [];
+    const srcRanges: number[] = [];
+    for (const action of order) {
+      for (const range of action.ranges) {
+        const target = action.src === 'temp' ? tempRanges : srcRanges;
+        target.push(action.dst, range.offset, range.length);
       }
-      await io.copyRanges(srcPath, outPath, audioRanges);
     }
+    if (tempRanges.length > 0) await io.copyRanges(tempPath, outPath, tempRanges);
+    if (srcRanges.length > 0) await io.copyRanges(srcPath, outPath, srcRanges);
     return;
   }
-  let videoCursor = videoRun;
-  for (const sample of samples) {
-    const bytes = await io.read(tempPath, sample.offset, sample.length);
-    await io.write(outPath, bytes, videoCursor);
-    videoCursor += sample.length;
-  }
-  let audioCursor = audioRun;
-  for (const frame of audio) {
-    for (const range of frame.ranges) {
-      const bytes = await io.read(srcPath, range.offset, range.length);
-      await io.write(outPath, bytes, audioCursor);
-      audioCursor += range.length;
+  for (const action of order) {
+    for (const range of action.ranges) {
+      const bytes = await io.read(action.src === 'temp' ? tempPath : srcPath, range.offset, range.length);
+      await io.write(outPath, bytes, action.dst);
     }
   }
 }
@@ -667,9 +674,6 @@ export async function remuxTsToMp4(io: MediaIO, srcPath: string, outPath: string
     const audioDuration = state.audio.length * 1024;
     const movieMs = Math.round(Math.max((videoDuration / 90000) * 1000, (audioDuration / audioTimescale) * 1000));
 
-    const videoBytes = samples.reduce((acc, s) => acc + s.length, 0);
-    const audioBytes = state.audio.reduce((acc, f) => acc + f.length, 0);
-
     const ftyp = box('ftyp', concat(ascii('isom'), be32(0x200), ascii('isom'), ascii('iso5'), ascii('mp41')));
     const mvhd = box(
       'mvhd',
@@ -697,22 +701,41 @@ export async function remuxTsToMp4(io: MediaIO, srcPath: string, outPath: string
       aacEsds(asc)
     );
 
-    const buildMoov = (videoDataStart: number, audioDataStart: number): Uint8Array => {
+    // chunking: ~1s groups per track, interleaved v/a like real muxers —
+    // one giant chunk per track breaks stagefright's streaming reader
+    const VIDEO_PER_CHUNK = 60;
+    const audioPerChunk = Math.max(1, Math.round(audioTimescale / 1024));
+    const videoChunks: { src: 'temp' | 'src'; ranges: Piece[]; count: number }[] = [];
+    for (let i = 0; i < samples.length; i += VIDEO_PER_CHUNK) {
+      const group = samples.slice(i, i + VIDEO_PER_CHUNK);
+      const start = group[0].offset;
+      const end = group[group.length - 1].offset + group[group.length - 1].length;
+      videoChunks.push({ src: 'temp', ranges: [{ offset: start, length: end - start }], count: group.length });
+    }
+    const audioChunks: { src: 'temp' | 'src'; ranges: Piece[]; count: number }[] = [];
+    for (let i = 0; i < state.audio.length; i += audioPerChunk) {
+      const group = state.audio.slice(i, i + audioPerChunk);
+      audioChunks.push({ src: 'src', ranges: group.flatMap((f) => f.ranges), count: group.length });
+    }
+    const videoChunkCounts = videoChunks.map((chunk) => chunk.count);
+    const audioChunkCounts = audioChunks.map((chunk) => chunk.count);
+
+    const buildMoov = (videoOffsets: number[], audioOffsets: number[]): Uint8Array => {
       const videoStbl = [
         box('stsd', concat(be32(0), be32(1), avc1Box(dims.width, dims.height, spsList, ppsList))),
         sttsFrom(deltas),
         ...(ctts ? [ctts] : []),
-        box('stsc', concat(be32(0), be32(1), be32(1), be32(samples.length), be32(1))),
+        stscFrom(videoChunkCounts),
         box('stsz', concat(be32(0), be32(0), be32(samples.length), ...samples.map((s) => be32(s.length)))),
         ...(keyIndices.length > 0 ? [box('stss', concat(be32(0), be32(keyIndices.length), ...keyIndices))] : []),
-        box('stco', concat(be32(0), be32(1), be32(videoDataStart))),
+        stcoFrom(videoOffsets),
       ];
       const audioStbl = [
         box('stsd', concat(be32(0), be32(1), box('mp4a', mp4a))),
         box('stts', concat(be32(0), be32(1), be32(state.audio.length), be32(1024))),
-        box('stsc', concat(be32(0), be32(1), be32(1), be32(state.audio.length), be32(1))),
+        stscFrom(audioChunkCounts),
         box('stsz', concat(be32(0), be32(0), be32(state.audio.length), ...state.audio.map((f) => be32(f.length)))),
-        box('stco', concat(be32(0), be32(1), be32(audioDataStart))),
+        stcoFrom(audioOffsets),
       ];
       return box(
         'moov',
@@ -724,13 +747,33 @@ export async function remuxTsToMp4(io: MediaIO, srcPath: string, outPath: string
       );
     };
 
-    // phase 3: assemble final mp4
-    const probe = buildMoov(0, 0);
-    const headerSize = ftyp.length + probe.length + 8;
-    const videoRun = headerSize;
-    const audioRun = videoRun + videoBytes;
-    const moovFinal = buildMoov(videoRun, audioRun);
-    const totalBytes = videoBytes + audioBytes;
+    // phase 3: assemble final mp4 — interleave chunks v/a by index and lay
+    // them out sequentially; stco offsets come from the same walk
+    const probe = buildMoov(
+      new Array(videoChunks.length).fill(0),
+      new Array(audioChunks.length).fill(0)
+    );
+    let cursor = ftyp.length + probe.length + 8;
+    const writeOrder: { src: 'temp' | 'src'; ranges: Piece[]; dst: number }[] = [];
+    const videoOffsets: number[] = [];
+    const audioOffsets: number[] = [];
+    const maxChunks = Math.max(videoChunks.length, audioChunks.length);
+    for (let k = 0; k < maxChunks; k++) {
+      for (const [chunks, offsets] of [
+        [videoChunks, videoOffsets],
+        [audioChunks, audioOffsets],
+      ] as const) {
+        const chunk = chunks[k];
+        if (!chunk) continue;
+        offsets.push(cursor);
+        for (const range of chunk.ranges) {
+          writeOrder.push({ src: chunk.src, ranges: [range], dst: cursor });
+          cursor += range.length;
+        }
+      }
+    }
+    const moovFinal = buildMoov(videoOffsets, audioOffsets);
+    const totalBytes = cursor - (ftyp.length + probe.length + 8);
     const mdatHeader = new Uint8Array(8);
     new DataView(mdatHeader.buffer).setUint32(0, totalBytes + 8);
     mdatHeader.set([0x6d, 0x64, 0x61, 0x74], 4);
@@ -739,9 +782,9 @@ export async function remuxTsToMp4(io: MediaIO, srcPath: string, outPath: string
     await io.write(outPath, ftyp, 0);
     await io.write(outPath, moovFinal, ftyp.length);
     await io.write(outPath, mdatHeader, ftyp.length + moovFinal.length);
-    await writeAssembled(io, outPath, srcPath, tempPath, samples, state.audio, videoRun, audioRun);
+    await writeAssembled(io, outPath, srcPath, tempPath, writeOrder);
 
-    const expected = headerSize + totalBytes;
+    const expected = ftyp.length + moovFinal.length + 8 + totalBytes;
     const actual = await io.size(outPath);
     const ok = actual === expected;
     if (!ok) {
