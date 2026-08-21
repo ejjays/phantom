@@ -272,7 +272,12 @@ interface AvccResult {
   key: boolean;
 }
 
-function annexbToAvcc(es: Uint8Array, spsOut: Uint8Array[], ppsOut: Uint8Array[]): AvccResult | null {
+function annexbToAvcc(
+  es: Uint8Array,
+  spsOut: Uint8Array[],
+  ppsOut: Uint8Array[],
+  levelOverride?: number
+): AvccResult | null {
   const parts: Uint8Array[] = [];
   let total = 0;
   let key = false;
@@ -290,16 +295,21 @@ function annexbToAvcc(es: Uint8Array, spsOut: Uint8Array[], ppsOut: Uint8Array[]
       const type = nal[0] & 0x1f;
       if (type === NAL_AUD) {
         // access-unit delimiters are redundant inside mp4 samples
-      } else {
+        } else {
         // sps/pps stay in-band (mid-stream param changes keep working) and
         // are also collected for the avcC record
-        if (type === NAL_SPS) pushUnique(spsOut, nal);
+        let emit = nal;
+        if (type === NAL_SPS && levelOverride !== undefined && nal.length > 4 && nal[3] !== levelOverride) {
+          emit = nal.slice();
+          emit[3] = levelOverride;
+        }
+        if (type === NAL_SPS) pushUnique(spsOut, emit);
         else if (type === NAL_PPS) pushUnique(ppsOut, nal);
         if (type === NAL_IDR) key = true;
         const prefix = new Uint8Array(4);
-        new DataView(prefix.buffer).setUint32(0, nal.length);
-        parts.push(prefix, nal.slice());
-        total += 4 + nal.length;
+        new DataView(prefix.buffer).setUint32(0, emit.length);
+        parts.push(prefix, emit.slice());
+        total += 4 + emit.length;
       }
     }
     if (next < 0) break;
@@ -462,6 +472,27 @@ function cttsFrom(offsets: number[]): Uint8Array | null {
   return box('ctts', concat(be32(version), be32(runs.length), ...runs.flatMap((run) => [be32(run.count), be32(run.offset)])));
 }
 
+// level_idc -> [MaxFS mbs, MaxMBPS mbs/s]; hw decoders enforce these against
+// the DECLARED level, and some encoders (bluesky) under-declare it
+const LEVEL_LIMITS: [number, number, number][] = [
+  [30, 1620, 40500],
+  [31, 8192, 40500],
+  [32, 8192, 216000],
+  [40, 8192, 518400],
+  [42, 8704, 518400],
+  [50, 22080, 58982400],
+];
+
+// smallest declared level whose limits cover the stream's real geometry+rate
+export function pickLevel(width: number, height: number, fps: number): number | null {
+  const frameMbs = Math.ceil(width / 16) * Math.ceil(height / 16);
+  const mbps = Math.ceil(frameMbs * fps);
+  for (const [level, maxFs, maxMbps] of LEVEL_LIMITS) {
+    if (frameMbs <= maxFs && mbps <= maxMbps) return level;
+  }
+  return null;
+}
+
 function mediaHeader(handler: 'vide' | 'soun'): Uint8Array {
   return handler === 'vide'
     ? box('vmhd', concat(be32(0), be16(0), be16(0), be16(0), be16(0)))
@@ -543,7 +574,8 @@ async function convertVideoFrames(
   frames: VideoFrame[],
   tempPath: string,
   spsList: Uint8Array[],
-  ppsList: Uint8Array[]
+  ppsList: Uint8Array[],
+  levelOverride?: number
 ): Promise<ConvertedSample[]> {
   await io.create(tempPath);
   const samples: ConvertedSample[] = [];
@@ -559,7 +591,7 @@ async function convertVideoFrames(
       es.set(span.subarray(piece.offset - spanStart, piece.offset - spanStart + piece.length), filled);
       filled += piece.length;
     }
-    const result = annexbToAvcc(es.subarray(0, filled), spsList, ppsList);
+    const result = annexbToAvcc(es.subarray(0, filled), spsList, ppsList, levelOverride);
     if (!result) continue;
     await io.write(tempPath, result.sample, tempCursor);
     samples.push({
@@ -608,6 +640,38 @@ async function writeAssembled(
   }
 }
 
+// harvest sps from the first frame, then pick an honest declared level —
+// hw decoders enforce the DECLARED level against the real macroblock rate,
+// and some encoders (bluesky) under-declare it ~2.7x, which makes them
+// refuse every frame while software players don't care
+async function pickLevelOverride(
+  io: MediaIO,
+  srcPath: string,
+  frames: VideoFrame[]
+): Promise<{ dims: { width: number; height: number }; override?: number; declared: number }> {
+  const firstFrame = frames[0];
+  const fFirst = firstFrame.pieces[0];
+  const fLast = firstFrame.pieces[firstFrame.pieces.length - 1];
+  const span = await io.read(srcPath, fFirst.offset, fLast.offset + fLast.length - fFirst.offset);
+  const es = new Uint8Array(span.length);
+  let filled = 0;
+  for (const piece of firstFrame.pieces) {
+    es.set(span.subarray(piece.offset - fFirst.offset, piece.offset - fFirst.offset + piece.length), filled);
+    filled += piece.length;
+  }
+  const spsList: Uint8Array[] = [];
+  const ppsList: Uint8Array[] = [];
+  annexbToAvcc(es.subarray(0, filled), spsList, ppsList);
+  const dims = spsList.length > 0 ? spsDimensions(spsList[0]) : null;
+  if (!dims) return { dims: { width: 0, height: 0 }, declared: 0 };
+  const spanTicks = frames[frames.length - 1].pts - firstFrame.pts;
+  const fps = spanTicks > 0 ? ((frames.length - 1) * 90000) / spanTicks : 30;
+  const target = pickLevel(dims.width, dims.height, Math.min(Math.max(fps, 1), 240));
+  const declared = spsList[0]?.[3] ?? 0;
+  const override = target !== null && declared < target ? target : undefined;
+  return { dims, override, declared };
+}
+
 export async function remuxTsToMp4(io: MediaIO, srcPath: string, outPath: string): Promise<boolean> {
   const started = Date.now();
   const size = await io.size(srcPath);
@@ -648,16 +712,17 @@ export async function remuxTsToMp4(io: MediaIO, srcPath: string, outPath: string
   const ppsList: Uint8Array[] = [];
   if (state.video.length === 0) return false;
 
+  const { dims, override: levelOverride, declared: declaredLevel } = await pickLevelOverride(io, srcPath, state.video);
+  if (dims.width === 0) {
+    logError('core', 'ts remux refused: sps unparsable');
+    return false;
+  }
+
   const tempPath = `${srcPath}.vt`;
   try {
-    const samples = await convertVideoFrames(io, srcPath, state.video, tempPath, spsList, ppsList);
+    const samples = await convertVideoFrames(io, srcPath, state.video, tempPath, spsList, ppsList, levelOverride);
     if (samples.length === 0 || spsList.length === 0 || ppsList.length === 0) {
       logError('core', `ts remux refused: frames=${samples.length} sps=${spsList.length} pps=${ppsList.length}`);
-      return false;
-    }
-    const dims = spsDimensions(spsList[0]);
-    if (!dims) {
-      logError('core', 'ts remux refused: sps unparsable');
       return false;
     }
 
@@ -790,10 +855,11 @@ export async function remuxTsToMp4(io: MediaIO, srcPath: string, outPath: string
     if (!ok) {
       logError('core', `ts remux size mismatch ${actual} != ${expected}`);
     } else {
-      log(
-        'core',
-        `ts mp4 ${samples.length}vf+${state.audio.length}af ${(totalBytes / 1e6).toFixed(1)}MB ${dims.width}x${dims.height} in ${Date.now() - started}ms (${io.copyRanges ? 'native' : 'js'})`
-      );
+    const levelNote = levelOverride !== undefined ? ` level ${declaredLevel}->${levelOverride}` : '';
+    log(
+      'core',
+      `ts mp4 ${samples.length}vf+${state.audio.length}af ${(totalBytes / 1e6).toFixed(1)}MB ${dims.width}x${dims.height} in ${Date.now() - started}ms (${io.copyRanges ? 'native' : 'js'})${levelNote}`
+    );
     }
     return ok;
   } finally {
