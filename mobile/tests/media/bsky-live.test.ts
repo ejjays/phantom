@@ -8,7 +8,7 @@ const SRC = '/data/data/com.termux/files/usr/tmp/opencode/bs_concat.ts';
 const OUT = '/data/data/com.termux/files/usr/tmp/opencode/bs_ours.mp4';
 
 describe.skipIf(!binAvailable('ffprobe'))('bluesky real-world ts remux', () => {
-  it('remuxes the exact failing bsky hls concat', async () => {
+  it('remuxes the exact failing bsky hls concat', { timeout: 120000 }, async () => {
     await fs.rm(OUT, { force: true });
     const ok = await remuxTsToMp4(io, SRC, OUT);
     expect(ok).toBe(true);

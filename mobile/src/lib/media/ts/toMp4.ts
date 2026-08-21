@@ -34,7 +34,9 @@ interface VideoFrame {
 }
 
 interface AudioFrame {
-  offset: number;
+  // true file ranges — pes runs are not file-contiguous in muxed streams
+  // (video packets interleave), so each frame carries its own piece map
+  ranges: Piece[];
   length: number;
 }
 
@@ -46,8 +48,7 @@ interface ScanState {
   audio: AudioFrame[];
   audioInfo: AdtsInfo | null;
   vOpen: { pieces: Piece[]; pts: number; dts: number | null } | null;
-  aBase: number;
-  aParts: Uint8Array[];
+  aParts: { offset: number; bytes: Uint8Array }[];
 }
 
 function parseSection(payload: Uint8Array): Uint8Array | null {
@@ -121,7 +122,20 @@ function adtsHeader(data: Uint8Array, i: number): { len: number; header: number;
   };
 }
 
-function adtsScan(run: Uint8Array, base: number, state: ScanState): void {
+function flushAudio(state: ScanState): void {
+  if (state.aParts.length === 0) return;
+  const total = state.aParts.reduce((acc, part) => acc + part.bytes.length, 0);
+  const run = new Uint8Array(total);
+  // piece map: run coordinate -> true file offset (pes runs are not
+  // file-contiguous in muxed streams — video packets interleave)
+  const map: { runStart: number; fileOffset: number; length: number }[] = [];
+  let cursor = 0;
+  for (const part of state.aParts) {
+    map.push({ runStart: cursor, fileOffset: part.offset, length: part.bytes.length });
+    run.set(part.bytes, cursor);
+    cursor += part.bytes.length;
+  }
+  state.aParts = [];
   let i = 0;
   while (i + 7 <= run.length) {
     const hdr = adtsHeader(run, i);
@@ -136,22 +150,30 @@ function adtsScan(run: Uint8Array, base: number, state: ScanState): void {
       i += 1;
       continue;
     }
-    state.audio.push({ offset: base + i + hdr.header, length: hdr.len - hdr.header });
+    const payloadLen = hdr.len - hdr.header;
+    const start = i + hdr.header;
+    const end = start + payloadLen;
+    const ranges: Piece[] = [];
+    for (let mi = 0; mi < map.length && remaining(ranges) < payloadLen; mi += 1) {
+      const entry = map[mi];
+      const overlapStart = Math.max(start, entry.runStart);
+      const overlapEnd = Math.min(end, entry.runStart + entry.length);
+      if (overlapEnd > overlapStart) {
+        ranges.push({
+          offset: entry.fileOffset + (overlapStart - entry.runStart),
+          length: overlapEnd - overlapStart,
+        });
+      }
+    }
+    if (ranges.reduce((acc, item) => acc + item.length, 0) === payloadLen) {
+      state.audio.push({ ranges, length: payloadLen });
+    }
     i += hdr.len;
   }
-}
 
-function flushAudio(state: ScanState): void {
-  if (state.aParts.length === 0) return;
-  const total = state.aParts.reduce((acc, part) => acc + part.length, 0);
-  const run = new Uint8Array(total);
-  let cursor = 0;
-  for (const part of state.aParts) {
-    run.set(part, cursor);
-    cursor += part.length;
+  function remaining(rangeList: Piece[]): number {
+    return rangeList.reduce((acc, item) => acc + item.length, 0);
   }
-  state.aParts = [];
-  adtsScan(run, state.aBase, state);
 }
 
 function closeVideo(state: ScanState): void {
@@ -181,15 +203,14 @@ function feedVideo(state: ScanState, pusi: boolean, payload: Uint8Array, abs: nu
 function feedAudio(state: ScanState, pusi: boolean, payload: Uint8Array, abs: number): void {
   if (!pusi) {
     if (state.aParts.length > 0 && payload.length > 0) {
-      state.aParts.push(payload.slice(0));
+      state.aParts.push({ offset: abs, bytes: payload.slice(0) });
     }
     return;
   }
   flushAudio(state);
   const pes = openPes(payload);
   if (!pes) return;
-  state.aBase = abs + pes.skip;
-  state.aParts = [payload.slice(pes.skip)];
+  state.aParts = [{ offset: abs + pes.skip, bytes: payload.slice(pes.skip) }];
 }
 
 function feedPacket(state: ScanState, chunk: Uint8Array, pktPos: number, absBase: number): void {
@@ -430,13 +451,15 @@ function sttsFrom(deltas: number[]): Uint8Array {
 
 function cttsFrom(offsets: number[]): Uint8Array | null {
   if (offsets.every((o) => o === 0)) return null;
+  // version 1 = signed offsets; b-frame cts can be negative
+  const version = offsets.some((o) => o < 0) ? 0x01000000 : 0x00000000;
   const runs: { offset: number; count: number }[] = [];
   for (const offset of offsets) {
     const last = runs[runs.length - 1];
     if (last && last.offset === offset) last.count += 1;
     else runs.push({ offset, count: 1 });
   }
-  return box('ctts', concat(be32(0), be32(runs.length), ...runs.flatMap((run) => [be32(run.count), be32(run.offset)])));
+  return box('ctts', concat(be32(version), be32(runs.length), ...runs.flatMap((run) => [be32(run.count), be32(run.offset)])));
 }
 
 function mediaHeader(handler: 'vide' | 'soun'): Uint8Array {
@@ -551,8 +574,10 @@ async function writeAssembled(
       const audioRanges: number[] = [];
       let audioCursor = audioRun;
       for (const frame of audio) {
-        audioRanges.push(audioCursor, frame.offset, frame.length);
-        audioCursor += frame.length;
+        for (const range of frame.ranges) {
+          audioRanges.push(audioCursor, range.offset, range.length);
+          audioCursor += range.length;
+        }
       }
       await io.copyRanges(srcPath, outPath, audioRanges);
     }
@@ -566,9 +591,11 @@ async function writeAssembled(
   }
   let audioCursor = audioRun;
   for (const frame of audio) {
-    const bytes = await io.read(srcPath, frame.offset, frame.length);
-    await io.write(outPath, bytes, audioCursor);
-    audioCursor += frame.length;
+    for (const range of frame.ranges) {
+      const bytes = await io.read(srcPath, range.offset, range.length);
+      await io.write(outPath, bytes, audioCursor);
+      audioCursor += range.length;
+    }
   }
 }
 
@@ -587,7 +614,6 @@ export async function remuxTsToMp4(io: MediaIO, srcPath: string, outPath: string
     audio: [],
     audioInfo: null,
     vOpen: null,
-    aBase: 0,
     aParts: [],
   };
   const CHUNK = TS_PACKET * 5577;
