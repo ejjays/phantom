@@ -100,7 +100,8 @@
           "style": "light"
         }
       ],
-      "react-native-enriched-markdown"
+      "react-native-enriched-markdown",
+      "expo-video"
     ],
     "extra": {
       "expo-navigation-bar": {

@@ -5,13 +5,11 @@ import KeyboardAvoidingForm from './KeyboardAvoidingForm';
 
 function PlatformRow({
   name,
-  hint,
   set,
   onPress,
   last,
 }: {
   name: string;
-  hint: string;
   set: boolean;
   onPress: () => void;
   last?: boolean;
@@ -30,9 +28,6 @@ function PlatformRow({
         <View style={tw`flex-1`}>
           <Text style={tw`font-sans-medium text-[15px] text-white`}>
             {name}
-          </Text>
-          <Text style={tw`mt-0.5 font-sans text-[12px] text-slate-500`}>
-            {hint}
           </Text>
         </View>
         {set ? (
@@ -78,23 +73,16 @@ export default function CookiesPanel({
         <View style={tw`mt-8 overflow-hidden rounded-3xl bg-white/5`}>
           <PlatformRow
             name="YouTube"
-            hint="Unlocks age-restricted videos"
             set={youtubeSet}
             onPress={() => onOpen('youtube')}
           />
           <PlatformRow
             name="Bilibili"
-            hint="Unlocks login-gated HD"
             set={bilibiliSet}
             onPress={() => onOpen('bilibili')}
             last
           />
         </View>
-
-        <Text style={tw`ml-1 mt-3 font-sans text-[12px] leading-4 text-slate-500`}>
-          Sign in to a platform in your browser, copy the full Cookie header,
-          and paste it in. Cookies never leave your device.
-        </Text>
       </View>
     </KeyboardAvoidingForm>
   );
