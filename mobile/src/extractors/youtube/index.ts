@@ -8,6 +8,7 @@ import {
 } from './bridge';
 import { noVideo, temporaryError, classifyThrown } from '../shared/errors';
 import { DESKTOP_UA } from '../../lib/userAgents';
+import { getYoutubeCookie } from '../../lib/settings';
 import { buildVideoInfo } from '../shared/videoInfo';
 
 const YT_ID =
@@ -194,6 +195,8 @@ export async function getInfo(
   const videoId = match ? match[1] : null;
   if (!videoId) return null;
 
+  const cookie = await getYoutubeCookie();
+
   try {
     const raw = await extractViaWebView(videoId, (meta) => {
       onPartial?.(
@@ -234,6 +237,7 @@ export async function getInfo(
         Accept: '*/*',
         Referer: 'https://www.youtube.com/',
         Origin: 'https://www.youtube.com',
+        ...(cookie ? { Cookie: cookie } : {}),
       },
     };
   } catch (error) {

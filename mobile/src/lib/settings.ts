@@ -1,7 +1,31 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export function getBilibiliCookie(): string {
-  return (process.env.EXPO_PUBLIC_BILIBILI_COOKIE ?? '').trim();
+const YT_COOKIE_KEY = 'phantom.cookie.youtube';
+const BILI_COOKIE_KEY = 'phantom.cookie.bilibili';
+
+const storedCookie = async (key: string): Promise<string> =>
+  ((await AsyncStorage.getItem(key).catch(() => null)) ?? '').trim();
+
+// user cookie unlocks login-gated HD; env var stays as build-time fallback
+export async function getBilibiliCookie(): Promise<string> {
+  const stored = await storedCookie(BILI_COOKIE_KEY);
+  return stored || (process.env.EXPO_PUBLIC_BILIBILI_COOKIE ?? '').trim();
+}
+
+export function setBilibiliCookie(value: string): Promise<void> {
+  return AsyncStorage.setItem(BILI_COOKIE_KEY, value.trim()).catch(
+    () => undefined
+  );
+}
+
+export function getYoutubeCookie(): Promise<string> {
+  return storedCookie(YT_COOKIE_KEY);
+}
+
+export function setYoutubeCookie(value: string): Promise<void> {
+  return AsyncStorage.setItem(YT_COOKIE_KEY, value.trim()).catch(
+    () => undefined
+  );
 }
 
 // optional IG session cookie — unlocks authenticated media API (high rate

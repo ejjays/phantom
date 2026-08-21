@@ -9,7 +9,7 @@ import {
 import { tapSelection } from '../lib/haptics';
 import { useBackHandler } from '../lib/back';
 
-export function useSubScreen(parentVisible: boolean) {
+export function useSubScreen(parentVisible: boolean, priority = 10) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const progress = useSharedValue(0);
@@ -39,7 +39,7 @@ export function useSubScreen(parentVisible: boolean) {
     tapSelection();
     setOpen(false);
     return true;
-  }, 10);
+  }, priority);
 
   const style = useAnimatedStyle(() => ({
     opacity: progress.value,

@@ -34,6 +34,8 @@ import BottomSheet from '../components/sheets/BottomSheet';
 import ShareAppSheet from '../components/sheets/ShareAppSheet';
 import AvatarPicker from '../components/AvatarPicker';
 import Avatar from '../components/Avatar';
+import CookiePanel from '../components/CookiePanel';
+import CookiesPanel from '../components/CookiesPanel';
 import ThemeSwitch from '../components/ThemeSwitch';
 import switchTheme from 'react-native-theme-switch-animation';
 import SupportPage, { type SupportMethod } from '../components/SupportPage';
@@ -55,6 +57,7 @@ import {
   GoogleIcon,
   ShareAppIcon,
   FileIcon,
+  CookieIcon,
 } from '../components/icons';
 import { useAppUpdate } from '../hooks/useAppUpdate';
 import {
@@ -68,6 +71,10 @@ import {
   setHaptics,
   getDarkTheme,
   setDarkTheme,
+  getYoutubeCookie,
+  setYoutubeCookie,
+  getBilibiliCookie,
+  setBilibiliCookie,
   formatName,
   type FilenameFormat,
 } from '../lib/settings';
@@ -76,6 +83,7 @@ import {
   isBatteryRestricted,
   requestIgnoreBatteryOptimization,
 } from '../lib/fgservice';
+import { checkYoutubeCookie, checkBilibiliCookie } from '../lib/cookieCheck';
 import {
   isSupabaseConfigured,
   getAccount,
@@ -669,11 +677,19 @@ function SettingsScreen({
   const [nameBusy, setNameBusy] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [cookieSet, setCookieSet] = useState({ youtube: '', bilibili: '' });
+  const [cookieTarget, setCookieTarget] = useState<
+    'youtube' | 'bilibili' | null
+  >(null);
+  const [cookieValue, setCookieValue] = useState('');
+  const [cookieSaving, setCookieSaving] = useState(false);
 
   const accountScreen = useSubScreen(visible);
-  const avatarScreen = useSubScreen(visible);
+  const avatarScreen = useSubScreen(visible, 11);
   const supportScreen = useSubScreen(visible);
   const platformsScreen = useSubScreen(visible);
+  const cookiesScreen = useSubScreen(visible);
+  const cookieScreen = useSubScreen(visible, 11);
   const { showDialog } = useAppDialog();
 
   const { width: windowWidth } = useWindowDimensions();
@@ -691,18 +707,26 @@ function SettingsScreen({
     accountScreen.setOpen(false);
     avatarScreen.setOpen(false);
     supportScreen.setOpen(false);
+    cookiesScreen.setOpen(false);
+    cookieScreen.setOpen(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset overlays on tab exit
     setShareOpen(false);
-  }, [visible, accountScreen, avatarScreen, supportScreen]);
+  }, [visible, accountScreen, avatarScreen, supportScreen, cookiesScreen, cookieScreen]);
 
   useEffect(() => {
     onFullScreen?.(
-      avatarScreen.open || supportScreen.open || platformsScreen.open
+      avatarScreen.open ||
+        supportScreen.open ||
+        platformsScreen.open ||
+        cookiesScreen.open ||
+        cookieScreen.open
     );
   }, [
     avatarScreen.open,
     supportScreen.open,
     platformsScreen.open,
+    cookiesScreen.open,
+    cookieScreen.open,
     onFullScreen,
   ]);
 
@@ -721,6 +745,12 @@ function SettingsScreen({
       .catch(() => undefined);
     getDarkTheme()
       .then(setDarkOn)
+      .catch(() => undefined);
+    getYoutubeCookie()
+      .then((v) => setCookieSet((prev) => ({ ...prev, youtube: v })))
+      .catch(() => undefined);
+    getBilibiliCookie()
+      .then((v) => setCookieSet((prev) => ({ ...prev, bilibili: v })))
       .catch(() => undefined);
   }, []);
 
@@ -856,6 +886,39 @@ function SettingsScreen({
     tapSelection();
     clearCache();
     setCacheBytes(0);
+  };
+
+  const openCookie = (target: 'youtube' | 'bilibili') => {
+    tapSelection();
+    setCookieTarget(target);
+    setCookieValue(cookieSet[target]);
+    cookieScreen.setOpen(true);
+  };
+
+  const saveCookie = async () => {
+    const target = cookieTarget;
+    if (!target) return;
+    setCookieSaving(true);
+    try {
+      if (target === 'youtube') await setYoutubeCookie(cookieValue);
+      else await setBilibiliCookie(cookieValue);
+      tapSuccess();
+      setCookieSet((prev) => ({ ...prev, [target]: cookieValue.trim() }));
+      cookieScreen.setOpen(false);
+    } finally {
+      setCookieSaving(false);
+    }
+  };
+
+  const clearCookie = async () => {
+    const target = cookieTarget;
+    if (!target) return;
+    tapSelection();
+    setCookieValue('');
+    if (target === 'youtube') await setYoutubeCookie('');
+    else await setBilibiliCookie('');
+    setCookieSet((prev) => ({ ...prev, [target]: '' }));
+    cookieScreen.setOpen(false);
   };
 
   const openBattery = () => {
@@ -1137,6 +1200,29 @@ function SettingsScreen({
         />
       </Card>
 
+      <SectionLabel light={light}>Advanced</SectionLabel>
+      <Card light={light}>
+        <LinkRow
+          Icon={CookieIcon}
+          label="Cookies"
+          hint="YouTube & Bilibili"
+          value={
+            cookieSet.youtube || cookieSet.bilibili
+              ? `${[cookieSet.youtube, cookieSet.bilibili].filter(Boolean).length} set`
+              : 'Off'
+          }
+          tone={cookieSet.youtube || cookieSet.bilibili ? 'good' : undefined}
+          onPress={() => {
+            tapSelection();
+            cookiesScreen.setOpen(true);
+          }}
+          tile={false}
+          last
+          iconSize={26}
+          light={light}
+        />
+      </Card>
+
       <SectionLabel light={light}>About</SectionLabel>
       <Card light={light}>
         <LinkRow
@@ -1315,6 +1401,60 @@ function SettingsScreen({
               }}
             />
           )}
+        </Animated.View>
+
+        <Animated.View
+          pointerEvents={cookiesScreen.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            cookiesScreen.style,
+          ]}
+        >
+          {cookiesScreen.mounted && (
+            <CookiesPanel
+              youtubeSet={Boolean(cookieSet.youtube)}
+              bilibiliSet={Boolean(cookieSet.bilibili)}
+              onOpen={openCookie}
+              onBack={() => {
+                tapSelection();
+                cookiesScreen.setOpen(false);
+              }}
+            />
+          )}
+        </Animated.View>
+
+        <Animated.View
+          pointerEvents={cookieScreen.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            cookieScreen.style,
+          ]}
+        >
+          {cookieScreen.mounted && cookieTarget ? (
+            <CookiePanel
+              title={
+                cookieTarget === 'youtube'
+                  ? 'YouTube cookie'
+                  : 'Bilibili cookie'
+              }
+              value={cookieValue}
+              onChangeValue={setCookieValue}
+              onSave={() => void saveCookie()}
+              saving={cookieSaving}
+              onCheck={
+                cookieTarget === 'youtube'
+                  ? checkYoutubeCookie
+                  : checkBilibiliCookie
+              }
+              onClear={() => void clearCookie()}
+              onBack={() => {
+                tapSelection();
+                cookieScreen.setOpen(false);
+              }}
+            />
+          ) : null}
         </Animated.View>
 
         <BottomSheet open={shareOpen} onClose={() => setShareOpen(false)}>
