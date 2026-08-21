@@ -266,7 +266,8 @@ async function fetchMedia({
       fetchTo(format.muxAudioUrl, audioFile, 80, 10, 'audio', share, 'audio'),
     ]);
     onState({ status: 'muxing', progress: 92 });
-    const outFile = track(new File(Paths.cache, `${stem}.${ext}`));
+    // the core muxer always writes an mp4 container, whatever the source ext
+    const outFile = track(new File(Paths.cache, `${stem}.mp4`));
     const mStart = Date.now();
     const ok = await muxVideoAudio(videoFile, audioFile, outFile);
     log(

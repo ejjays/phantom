@@ -2,6 +2,11 @@ import { File, FileMode } from 'expo-file-system';
 import type { MediaIO } from './io';
 import { copyRanges as nativeCopyRanges } from '../../../modules/mediacopy';
 
+// expo File api accepts file:// uris; the native mover needs raw paths
+function fsPath(uri: string): string {
+  return decodeURIComponent(uri.replace(/^file:\/\//u, ''));
+}
+
 // expo FileHandle-backed io — handle per call, sequential chunk access.
 // reads/writes never exceed a chunk, so no full-file RAM use.
 export const expoIo: MediaIO = {
@@ -46,6 +51,6 @@ export const expoIo: MediaIO = {
     return Promise.resolve();
   },
   copyRanges(src, dst, ranges) {
-    return nativeCopyRanges(src, dst, ranges);
+    return nativeCopyRanges(fsPath(src), fsPath(dst), ranges);
   },
 };

@@ -1,5 +1,6 @@
 import { box, be16, be32, concat } from '../boxes';
 import type { MediaIO } from '../io';
+import { error as logError } from '../../log';
 import type { Mp4Info, Mp4Track } from './reader';
 import { spliceStco } from './reader';
 
@@ -160,18 +161,27 @@ export async function writeMuxed(
     await writeMdatHeader(io, outPath, plan.mdatPayload, total);
   }
   if (io.copyRanges) {
-    // one native call per source; bytes never enter js
-    for (let t = 0; t < sources.length; t++) {
-      const ranges: number[] = [];
-      for (const ch of plan.chunks) {
-        if (ch.track !== t) continue;
-        ranges.push(ch.offset, tracks[t].stco.values[ch.chunk], ch.size);
+    // one native call per source; bytes never enter js. on any failure the
+    // js loop below rewrites every chunk at absolute offsets, so a partial
+    // native pass is harmless
+    try {
+      for (let t = 0; t < sources.length; t++) {
+        const ranges: number[] = [];
+        for (const ch of plan.chunks) {
+          if (ch.track !== t) continue;
+          ranges.push(ch.offset, tracks[t].stco.values[ch.chunk], ch.size);
+        }
+        if (ranges.length > 0) {
+          await io.copyRanges(sources[t].path, outPath, ranges);
+        }
       }
-      if (ranges.length > 0) {
-        await io.copyRanges(sources[t].path, outPath, ranges);
-      }
+      return;
+    } catch (err: unknown) {
+      logError(
+        'core',
+        `copyRanges failed, falling back to chunked io: ${err instanceof Error ? err.message : String(err)}`
+      );
     }
-    return;
   }
   for (const ch of plan.chunks) {
     const src = sources[ch.track];
