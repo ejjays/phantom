@@ -424,11 +424,32 @@ export async function webmToMp4(
       }
       await io.write(outPath, mdatBox, cursor);
       cursor += mdatHeader;
-      for (const o of order) {
-        const sample = tracks[o.track].samples[o.sample];
-        const bytes = await io.read(tracks[o.track].path, sample.offset, sample.size);
-        await io.write(outPath, bytes, cursor);
-        cursor += sample.size;
+      if (io.copyRanges) {
+        // one native call per source; offsets[t] is push-ordered by the
+        // order traversal, so mirror that with a per-track counter
+        const seen = tracks.map(() => 0);
+        const rangesByTrack: number[][] = tracks.map(() => []);
+        for (const o of order) {
+          const sample = tracks[o.track].samples[o.sample];
+          rangesByTrack[o.track].push(
+            offsets[o.track][seen[o.track]],
+            sample.offset,
+            sample.size
+          );
+          seen[o.track] += 1;
+        }
+        for (let t = 0; t < tracks.length; t++) {
+          if (rangesByTrack[t].length > 0) {
+            await io.copyRanges(tracks[t].path, outPath, rangesByTrack[t]);
+          }
+        }
+      } else {
+        for (const o of order) {
+          const sample = tracks[o.track].samples[o.sample];
+          const bytes = await io.read(tracks[o.track].path, sample.offset, sample.size);
+          await io.write(outPath, bytes, cursor);
+          cursor += sample.size;
+        }
       }
       if ((await io.size(outPath)) === total) return true;
     }
