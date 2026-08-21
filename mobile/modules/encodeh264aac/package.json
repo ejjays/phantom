@@ -1,0 +1,12 @@
+{
+  "name": "encodeh264aac",
+  "version": "1.0.0",
+  "description": "Last-resort transcode to mp4 via MediaCodec (h264+aac) + MediaMuxer",
+  "main": "index.ts",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "expo-modules-core": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

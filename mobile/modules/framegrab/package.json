@@ -1,0 +1,12 @@
+{
+  "name": "framegrab",
+  "version": "1.0.0",
+  "description": "Video still-frame extraction via MediaMetadataRetriever",
+  "main": "index.ts",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "expo-modules-core": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "platforms": ["android"],
+  "android": {
+    "modules": ["expo.modules.encodeh264aac.EncodeModule"]
+  }
+}
