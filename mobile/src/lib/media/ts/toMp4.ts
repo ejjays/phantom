@@ -281,10 +281,10 @@ function annexbToAvcc(es: Uint8Array, spsOut: Uint8Array[], ppsOut: Uint8Array[]
   let nalStart = first + 3;
   while (nalStart < es.length) {
     const next = findStartCode(es, nalStart);
-    // only the single optional zero_byte of the next code is stripped —
-    // deeper trailing zeros are real nal payload (cabac zero words)
-    let end = next < 0 ? es.length : next;
-    if (end > nalStart && es[end - 1] === 0) end -= 1;
+    // include everything up to the next code — decoders ignore trailing
+    // zeros, but stripping one that's real payload truncates the nal
+    // (a cut pps in avcC crashes strict parsers like the gallery)
+    const end = next < 0 ? es.length : next;
     const nal = es.subarray(nalStart, Math.max(end, nalStart));
     if (nal.length > 0) {
       const type = nal[0] & 0x1f;
