@@ -290,11 +290,11 @@ function annexbToAvcc(es: Uint8Array, spsOut: Uint8Array[], ppsOut: Uint8Array[]
       const type = nal[0] & 0x1f;
       if (type === NAL_AUD) {
         // access-unit delimiters are redundant inside mp4 samples
-      } else if (type === NAL_SPS) {
-        pushUnique(spsOut, nal);
-      } else if (type === NAL_PPS) {
-        pushUnique(ppsOut, nal);
       } else {
+        // sps/pps stay in-band (mid-stream param changes keep working) and
+        // are also collected for the avcC record
+        if (type === NAL_SPS) pushUnique(spsOut, nal);
+        else if (type === NAL_PPS) pushUnique(ppsOut, nal);
         if (type === NAL_IDR) key = true;
         const prefix = new Uint8Array(4);
         new DataView(prefix.buffer).setUint32(0, nal.length);
@@ -499,7 +499,9 @@ function trakBox(opts: {
       be16(0),
       be16(0x0100),
       new Uint8Array(2),
-      new Uint8Array(36),
+      // unity matrix — a zero matrix is a degenerate transform that crashes
+      // strict parsers (gallery/metadata retriever)
+      concat(be32(0x00010000), be32(0), be32(0), be32(0), be32(0x00010000), be32(0), be32(0), be32(0), be32(0x40000000)),
       be32(opts.width << 16),
       be32(opts.height << 16)
     )
