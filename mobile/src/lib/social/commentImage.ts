@@ -2,13 +2,13 @@ import { File, FileMode, Paths } from 'expo-file-system';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import * as ImagePicker from 'expo-image-picker';
 import * as Crypto from 'expo-crypto';
-import { FFmpegKit, ReturnCode } from '@nikhil-cephei/ffmpeg-kit-react-native';
 import {
   requestPermissionsAsync,
   saveToLibraryAsync,
 } from 'expo-media-library/legacy';
 import { supabase } from './supabase';
 import { warn as logWarn } from '../log';
+import { compressToWebp as nativeToWebp, convertToJpg } from '../../../modules/imagecodec';
 
 function fsPath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//u, ''));
@@ -74,16 +74,20 @@ export async function captureCommentImage(): Promise<{
 // min() guards prevent upscaling small images; decrease preserves aspect.
 async function compressToWebp(srcUri: string): Promise<File> {
   const out = new File(Paths.cache, `cimg-${Crypto.randomUUID()}.webp`);
-  const scale = `scale=w='min(${MAX_EDGE},iw)':h='min(${MAX_EDGE},ih)':force_original_aspect_ratio=decrease`;
-  const cmd = `-hide_banner -loglevel error -y -i "${fsPath(srcUri)}" -vf "${scale}" -c:v libwebp -quality ${WEBP_QUALITY} "${fsPath(out.uri)}"`;
-  const session = await FFmpegKit.execute(cmd);
-  const code = await session.getReturnCode();
-  if (ReturnCode.isSuccess(code) && out.exists) return out;
-  const output = await session.getOutput();
-  logWarn(
-    'commentImage',
-    `[webp] ffmpeg failed (${code}): ${String(output).slice(-400)}`
-  );
+  try {
+    const ok = await nativeToWebp(
+      fsPath(srcUri),
+      fsPath(out.uri),
+      WEBP_QUALITY,
+      MAX_EDGE
+    );
+    if (ok && out.exists) return out;
+  } catch (err: unknown) {
+    logWarn(
+      'commentImage',
+      `[webp] ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
   if (out.exists) out.delete();
   throw new Error('Could not process image');
 }
@@ -123,17 +127,11 @@ export async function uploadCommentImage(
   }
 }
 
-// transcode via mjpeg encoder; q=2 is visually lossless (mjpeg range 2-31).
+// q95 is visually lossless for gallery saves
 async function webpToJpg(src: File, out: File): Promise<void> {
-  const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -q:v 2 "${fsPath(out.uri)}"`;
-  const session = await FFmpegKit.execute(cmd);
-  const code = await session.getReturnCode();
-  if (ReturnCode.isSuccess(code) && out.exists) return;
-  const output = await session.getOutput();
-  logWarn(
-    'commentImage',
-    `[jpg] ffmpeg failed (${code}): ${String(output).slice(-400)}`
-  );
+  const ok = await convertToJpg(fsPath(src.uri), fsPath(out.uri), 95);
+  if (ok && out.exists) return;
+  logWarn('commentImage', '[jpg] conversion failed');
   throw new Error('Could not convert image');
 }
 

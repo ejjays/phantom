@@ -46,52 +46,23 @@ export function titleFor(format: Format): string {
 export function subtitleFor(format: Format): string {
   const size = formatSize(format.filesize);
   if (isAudioOnly(format)) {
-    const tag =
-      format.extension === 'mp3' && !format.noTranscode
-        ? 'Converted'
-        : 'Original';
-    return size ? `${tag} · ${size}` : tag;
+    return size ? `Original · ${size}` : 'Original';
   }
   return size ? `${size} · ${extLabel(format)}` : extLabel(format);
 }
 
 export function badgeFor(format: Format): BadgeInfo | null {
   if (isAudioOnly(format)) {
-    // converted mp3 HIGH, native source MAX
-    return format.extension === 'mp3' && !format.noTranscode
-      ? { label: 'HIGH', tone: 'cyan' }
-      : { label: 'MAX', tone: 'amber' };
+    return { label: 'MAX', tone: 'amber' };
   }
   return null;
 }
 
-// synthetic mp3 option (HIGH / Converted) transcoded from a direct source.
-function mp3Option(src: Format): Format {
-  return {
-    ...src,
-    formatId: 'audio-mp3',
-    extension: 'mp3',
-    isAudio: true,
-    isVideo: false,
-    isMuxed: false,
-    noTranscode: false,
-    audioDemux: false,
-    quality: undefined,
-    resolution: undefined,
-    width: undefined,
-    height: undefined,
-    filesize: undefined,
-    muxAudioUrl: undefined,
-    hlsAudioUrl: undefined,
-  };
-}
-
 /*
- * audio mode's dropdown = a consistent MAX (original/lossless) + HIGH (mp3,
- * converted) pair on every platform. native audio-only formats are used as-is
- * for MAX; platforms with only muxed video get their audio demuxed (m4a, copy)
- * or transcoded (mp3). hls sources skip the mp3 path (needs a direct file).
- * returns [] when there's genuinely no audio (silent video / image post).
+ * audio mode's dropdown = the original/lossless source on every platform.
+ * native audio-only formats are used as-is; platforms with only muxed video
+ * get their audio demuxed (m4a, copy). returns [] when there's genuinely no
+ * audio (silent video / image post).
  */
 export function buildAudioOptions(info: VideoInfo): Format[] {
   const { formats } = info;
@@ -101,17 +72,7 @@ export function buildAudioOptions(info: VideoInfo): Format[] {
       (first, second) => (second.tbr ?? 0) - (first.tbr ?? 0)
     )[0] ?? natives[0];
 
-  if (bestNative) {
-    const options: Format[] = [bestNative];
-    if (
-      !bestNative.isHls &&
-      !bestNative.hlsAudioUrl &&
-      bestNative.extension !== 'mp3'
-    ) {
-      options.push(mp3Option(bestNative));
-    }
-    return options;
-  }
+  if (bestNative) return [bestNative];
 
   // no audio-only track — a video format may carry a separate progressive audio
   // track (reddit DASH, bilibili); it's already audio bytes, download directly
@@ -137,7 +98,7 @@ export function buildAudioOptions(info: VideoInfo): Format[] {
       hlsAudioUrl: undefined,
       noTranscode: undefined,
     };
-    return [max, mp3Option(max)];
+    return [max];
   }
 
   // else derive from a progressive muxed video (not hls, since demux/transcode
@@ -166,7 +127,6 @@ export function buildAudioOptions(info: VideoInfo): Format[] {
       hlsAudioUrl: undefined,
       noTranscode: undefined,
     },
-    mp3Option(muxed),
   ];
 }
 

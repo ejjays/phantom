@@ -161,7 +161,7 @@ function buildFormats(variants: Variant[], durationSec: number): Format[] {
 
 /**
  * getBlob = raw upload off slow pds origin (one quality); cdn serves
- * same clip as fast multi-quality hls, so take that & let ffmpeg-kit remux.
+ * same clip as fast multi-quality hls, so take that & remux on-device.
  */
 export async function getInfo(url: string): Promise<VideoInfo | null> {
   try {

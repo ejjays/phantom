@@ -95,7 +95,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       'User-Agent': DESKTOP_UA,
       Referer: REFERER,
     });
-    // master unparsed -> hand the master to ffmpeg directly
+    // master unparsed -> pass the master playlist through as-is
     if (formats.length === 0) {
       formats.push({
         formatId: 'auto',

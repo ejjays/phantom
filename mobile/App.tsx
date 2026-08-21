@@ -100,7 +100,7 @@ function AppRoot() {
   const [playlistInfo, setPlaylistInfo] = useState<VideoInfo | null>(null);
   const [playlistOpen, setPlaylistOpen] = useState(false);
   const { downloads, startDownload, clearDownloads } = useDownload(info);
-  const [mode, setMode] = useState<DownloadMode>('mp4');
+  const [mode, setMode] = useState<DownloadMode>('auto');
   const dismissedRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
@@ -389,7 +389,7 @@ function AppRoot() {
                 <PickerModal
                   info={info}
                   downloads={downloads}
-                  preferAudio={mode === 'mp3'}
+                  preferAudio={mode === 'audio'}
                   onClose={closePicker}
                   onDownload={(format, meta) => void onDownload(format, meta)}
                 />

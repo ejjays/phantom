@@ -6,9 +6,7 @@ import { refererFor, type DownloadState } from '../format';
 import { chunkedDownload } from './download';
 import {
   muxVideoAudio,
-  transcodeToMp3,
   demuxToM4a,
-  hlsToMp4,
   parallelHlsToMp4,
   parallelHlsMuxedToMp4,
   tagAudio,
@@ -244,21 +242,6 @@ async function fetchMedia({
     );
   };
 
-  if (format.extension === 'mp3') {
-    if (format.noTranscode) {
-      const outFile = track(new File(Paths.cache, `${stem}.mp3`));
-      await fetchTo(format.url, outFile, 0, 100, 'audio');
-      return outFile;
-    }
-    const srcFile = track(new File(Paths.cache, `${stem}.audtmp`));
-    await fetchTo(format.url, srcFile, 0, 85, 'audio');
-    onState({ status: 'muxing', progress: 90 });
-    const outFile = track(new File(Paths.cache, `${stem}.mp3`));
-    const ok = await transcodeToMp3(srcFile, outFile);
-    await removeFile(srcFile);
-    if (!ok) throw new Error('MP3 conversion failed');
-    return outFile;
-  }
   if (format.audioDemux) {
     // audio-only from a muxed video: download it, copy the audio track out
     const srcFile = track(new File(Paths.cache, `${stem}.srctmp`));
@@ -297,25 +280,13 @@ async function fetchMedia({
   }
   if (format.isHls) {
     const outFile = track(new File(Paths.cache, `${stem}.${ext}`));
-    let durationSec = info.duration ?? 0;
-    if (!durationSec) {
-      try {
-        const playlist = await (await fetch(format.url, { headers })).text();
-        durationSec = [...playlist.matchAll(/#EXTINF:([\d.]+)/gu)].reduce(
-          (sum, hit) => sum + Number(hit[1]),
-          0
-        );
-      } catch {
-        /* progress optional */
-      }
-    }
     onState({ status: 'downloading', progress: 0 });
     const hStart = Date.now();
     const onHls = (pct: number): void =>
       onState({ status: 'downloading', progress: Math.min(98, pct) });
-    // separate video+audio hls -> parallel fetch; else ffmpeg
+    // separate video+audio hls -> parallel fetch; else muxed single playlist
     let ok = false;
-    let path = 'ffmpeg';
+    let path = 'parallel-muxed';
     if (format.hlsAudioUrl) {
       ok = await parallelHlsToMp4(
         format.url,
@@ -333,18 +304,6 @@ async function fetchMedia({
         headers,
         onHls,
         signal
-      );
-      if (ok) path = 'parallel-muxed';
-    }
-    if (signal.aborted) throw new Error(ABORT_MESSAGE);
-    if (!ok) {
-      ok = await hlsToMp4(
-        format.url,
-        outFile,
-        durationSec,
-        onHls,
-        format.hlsAudioUrl,
-        format.hlsKeepAlive
       );
     }
     log(

@@ -227,7 +227,7 @@ export async function hlsConcatToMp4(
 }
 
 // two separate hls concats (video playlist + audio playlist) -> one mp4.
-// both must be fragmented mp4; anything else falls back to ffmpeg.
+// both must be fragmented mp4; anything else refuses.
 export async function hlsMergeToMp4(
   io: MediaIO,
   videoPath: string,

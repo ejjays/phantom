@@ -236,19 +236,6 @@ describe('titleFor', () => {
 describe('subtitleFor', () => {
   const size = 5 * 1024 * 1024; // "5.0 MB"
 
-  it('labels transcoded mp3 as Converted', () => {
-    expect(
-      subtitleFor(
-        makeFormat({
-          isAudio: true,
-          isVideo: false,
-          extension: 'mp3',
-          filesize: size,
-        })
-      )
-    ).toBe('Converted · 5.0 MB');
-  });
-
   it('labels native audio as Original', () => {
     expect(
       subtitleFor(
@@ -262,7 +249,7 @@ describe('subtitleFor', () => {
     ).toBe('Original · 5.0 MB');
   });
 
-  it('labels passthrough mp3 (noTranscode) as Original', () => {
+  it('labels passthrough mp3 as Original', () => {
     expect(
       subtitleFor(
         makeFormat({
@@ -285,33 +272,20 @@ describe('subtitleFor', () => {
   it('omits size when it is unknown', () => {
     expect(
       subtitleFor(
-        makeFormat({ isAudio: true, isVideo: false, extension: 'mp3' })
+        makeFormat({ isAudio: true, isVideo: false, extension: 'm4a' })
       )
-    ).toBe('Converted');
+    ).toBe('Original');
     expect(subtitleFor(makeFormat({ extension: 'mp4' }))).toBe('MP4');
   });
 });
 
 describe('badgeFor', () => {
-  it('flags transcoded mp3 as HIGH', () => {
-    expect(
-      badgeFor(makeFormat({ isAudio: true, isVideo: false, extension: 'mp3' }))
-    ).toEqual({ label: 'HIGH', tone: 'cyan' });
-  });
-
-  it('flags native audio as MAX', () => {
+  it('flags all audio as MAX', () => {
     expect(
       badgeFor(makeFormat({ isAudio: true, isVideo: false, extension: 'm4a' }))
     ).toEqual({ label: 'MAX', tone: 'amber' });
     expect(
-      badgeFor(
-        makeFormat({
-          isAudio: true,
-          isVideo: false,
-          extension: 'mp3',
-          noTranscode: true,
-        })
-      )
+      badgeFor(makeFormat({ isAudio: true, isVideo: false, extension: 'mp3' }))
     ).toEqual({ label: 'MAX', tone: 'amber' });
   });
 
@@ -348,7 +322,7 @@ describe('formatName', () => {
 });
 
 describe('buildAudioOptions', () => {
-  it('native audio-only → MAX (original) + HIGH (mp3)', () => {
+  it('native audio-only → single MAX (original) option', () => {
     const opts = buildAudioOptions(
       makeInfo([
         makeFormat({
@@ -363,13 +337,10 @@ describe('buildAudioOptions', () => {
         makeFormat({ formatId: 'v', extension: 'mp4' }),
       ])
     );
-    expect(opts).toHaveLength(2);
+    expect(opts).toHaveLength(1);
     expect(opts[0].extension).toBe('m4a');
     expect(isAudioOnly(opts[0])).toBe(true);
     expect(badgeFor(opts[0])).toEqual({ label: 'MAX', tone: 'amber' });
-    expect(opts[1].extension).toBe('mp3');
-    expect(opts[1].formatId).toBe('audio-mp3');
-    expect(badgeFor(opts[1])).toEqual({ label: 'HIGH', tone: 'cyan' });
   });
 
   it('picks the highest-bitrate native track for MAX', () => {
@@ -398,7 +369,7 @@ describe('buildAudioOptions', () => {
     expect(opts[0].formatId).toBe('hi');
   });
 
-  it('native mp3 passthrough → MAX only (no redundant convert)', () => {
+  it('native mp3 passthrough → single option', () => {
     const opts = buildAudioOptions(
       makeInfo([
         makeFormat({
@@ -416,7 +387,7 @@ describe('buildAudioOptions', () => {
     expect(opts[0].extension).toBe('mp3');
   });
 
-  it('native hls audio → MAX only (mp3 needs a direct file)', () => {
+  it('native hls audio → single option', () => {
     const opts = buildAudioOptions(
       makeInfo([
         makeFormat({
@@ -448,14 +419,13 @@ describe('buildAudioOptions', () => {
         }),
       ])
     );
-    expect(opts).toHaveLength(2);
+    expect(opts).toHaveLength(1);
     expect(opts[0].url).toBe('https://x/a.m4a');
     expect(opts[0].audioDemux).toBeFalsy();
     expect(opts[0].extension).toBe('m4a');
-    expect(opts[1].extension).toBe('mp3');
   });
 
-  it('progressive muxed video → demux MAX (m4a) + HIGH (mp3)', () => {
+  it('progressive muxed video → demux MAX (m4a)', () => {
     const opts = buildAudioOptions(
       makeInfo([
         makeFormat({
@@ -468,10 +438,9 @@ describe('buildAudioOptions', () => {
         }),
       ])
     );
-    expect(opts).toHaveLength(2);
+    expect(opts).toHaveLength(1);
     expect(opts[0].audioDemux).toBe(true);
     expect(opts[0].extension).toBe('m4a');
-    expect(opts[1].extension).toBe('mp3');
   });
 
   it('muxed hls only → no audio option (needs a direct file)', () => {

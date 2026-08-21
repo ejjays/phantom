@@ -4,8 +4,8 @@ import { tagAudio as tagCore } from './tag';
 import type { TagMeta } from './tag';
 import { expoIo } from './ioExpo';
 
-// File-typed wrappers mirroring the ffmpeg mux.ts signatures so the
-// pipeline can swap implementations without changing call sites.
+// File-typed wrappers over the pure-TS core matching the pipeline's
+// op signatures so call sites stay implementation-agnostic.
 export function muxVideoAudio(video: File, audio: File, out: File): Promise<boolean> {
   return muxCore(expoIo, video.uri, audio.uri, out.uri);
 }

@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import tw from '../lib/tw';
 import { AutoIcon, MusicIcon, PasteIcon } from './FormatIcons';
 
-export type DownloadMode = 'mp4' | 'mp3';
+export type DownloadMode = 'auto' | 'audio';
 
 type ButtonProps = {
   active?: boolean;
@@ -64,17 +64,17 @@ export default function FormatBar({ mode, setMode, onPaste }: Props) {
       ]}
     >
       <PillButton
-        active={mode === 'mp4'}
+        active={mode === 'auto'}
         label="Auto"
         icon={<AutoIcon size={26} />}
-        onPress={() => setMode('mp4')}
+        onPress={() => setMode('auto')}
       />
       <View style={tw`w-px bg-white/30`} />
       <PillButton
-        active={mode === 'mp3'}
+        active={mode === 'audio'}
         label="Audio"
         icon={<MusicIcon size={22} />}
-        onPress={() => setMode('mp3')}
+        onPress={() => setMode('audio')}
       />
       <View style={tw`w-px bg-white/30`} />
       <PillButton

@@ -4,7 +4,7 @@ import { error as logError } from '../../log';
 import { aacEsds } from '../mp4/fragments';
 
 // mpeg-ts (hls mpegts segments) -> m4a, aac (adts) audio only.
-// video or unknown streams -> null (caller falls back to ffmpeg).
+// video or unknown streams -> null (caller refuses the op).
 
 const TS_PACKET = 188;
 const SYNC = 0x47;

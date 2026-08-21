@@ -125,7 +125,7 @@ function stssBox(keys: number[]): Uint8Array {
 function vpcCBox(track: WebmTrack): Uint8Array {
   const priv = track.codecPrivate;
   // webm vp9 priv: profile, level, bitdepth/chroma/range, colour, transfer,
-  // matrix — mirror ffmpeg's fallback when absent
+  // matrix — bt709/limited defaults when priv is absent
   const config =
     priv && priv.length >= 3
       ? new Uint8Array([

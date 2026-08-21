@@ -61,8 +61,6 @@ type DownloadMode = 'audio' | 'video';
 type RowState = { status: RowStatus; progress: number; message?: string };
 
 function pickAudioFormat(info: VideoInfo): Format | null {
-  const mp3 = info.formats.find((fmt) => fmt.extension === 'mp3');
-  if (mp3) return mp3;
   const audio = info.formats
     .filter((fmt) => fmt.isAudio && !fmt.isVideo)
     .sort((x, y) => (y.tbr ?? 0) - (x.tbr ?? 0))[0];
