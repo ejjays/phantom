@@ -495,7 +495,7 @@ export function pickLevel(width: number, height: number, fps: number): number | 
 
 function mediaHeader(handler: 'vide' | 'soun'): Uint8Array {
   return handler === 'vide'
-    ? box('vmhd', concat(be32(0), be16(0), be16(0), be16(0), be16(0)))
+    ? box('vmhd', concat(be32(0x00000001), be16(0), new Uint8Array(6)))
     : box('smhd', concat(be32(0), be16(0), be16(0)));
 }
 
@@ -534,14 +534,14 @@ function trakBox(opts: {
     'mdia',
     concat(
       box('mdhd', concat(be32(0), be32(0), be32(0), be32(opts.timescale), be32(opts.mediaDuration), be16(0x55c4), be16(0))),
-      box('hdlr', concat(be32(0), be32(0), ascii(opts.handler), new Uint8Array(12), new Uint8Array(1))),
+      box('hdlr', concat(be32(0), be32(0), ascii(opts.handler === 'vide' ? 'VideoHandler' : 'SoundHandler'), new Uint8Array(1))),
       box('minf', concat(mediaHeader(opts.handler), box('dinf', box('dref', concat(be32(0), be32(1), box('url ', be32(1))))), box('stbl', concat(...opts.stbl))))
     )
   );
   const tkhd = box(
     'tkhd',
     concat(
-      be32(7),
+      be32(3),
       be32(0),
       be32(0),
       be32(opts.trackId),
@@ -741,7 +741,7 @@ export async function remuxTsToMp4(io: MediaIO, srcPath: string, outPath: string
     const audioDuration = state.audio.length * 1024;
     const movieMs = Math.round(Math.max((videoDuration / 90000) * 1000, (audioDuration / audioTimescale) * 1000));
 
-    const ftyp = box('ftyp', concat(ascii('isom'), be32(0x200), ascii('isom'), ascii('iso5'), ascii('mp41')));
+    const ftyp = box('ftyp', concat(ascii('isom'), be32(0x200), ascii('isom'), ascii('iso2'), ascii('avc1'), ascii('mp41')));
     const mvhd = box(
       'mvhd',
       concat(be32(0), be32(0), be32(0), be32(1000), be32(movieMs), be32(0x00010000), be16(0x0100), be16(0), new Uint8Array(8), new Uint8Array(36), new Uint8Array(24), be32(3))
