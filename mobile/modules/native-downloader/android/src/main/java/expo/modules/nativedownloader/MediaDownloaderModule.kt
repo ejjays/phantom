@@ -154,7 +154,9 @@ class MediaDownloaderModule : Module() {
           }
           val length = parseContentLength(resp.headers["Content-Range"])
           val n = if (parallel > 1) parallel.coerceIn(2, 8) else 1
-          if (length <= 0 || n <= 1 || length - resumeBytes < n * 256 * 1024) {
+          // googlevideo shapes per-connection, so a small file on one conn
+          // crawls at playback speed — anything ≥64KB goes wide instead
+          if (length <= 0 || n <= 1 || length - resumeBytes < 64L * 1024) {
             singleStream(jobId, job, baseRequest, dest, resumeBytes)
             return
           }
@@ -175,9 +177,11 @@ class MediaDownloaderModule : Module() {
   ) {
     // workers pull small regions off a shared cursor: per-request ≤ REGION
     // size sidesteps googlevideo's shaping of big contiguous streams
-    // (4MB chunked ranges were always the fast path); resume keeps the
-    // on-disk prefix and starts the cursor at the byte count
-    val region = 4L * 1024 * 1024
+    // (4MB chunked ranges were always the fast path); region shrinks for
+    // small files so every worker engages instead of one lone connection.
+    // resume keeps the on-disk prefix and starts the cursor at the byte count
+    val usable = length - resumeBytes
+    val region = maxOf(64L * 1024, minOf(4L * 1024 * 1024, (usable + workers - 1) / workers))
     if (resumeBytes == 0L) dest.delete()
     RandomAccessFile(dest.path, "rw").use { it.setLength(length) }
     job.finalSize = length
