@@ -21,7 +21,7 @@ Phantom downloads 4K+ video and audio, and breaks songs into stems + chords for 
 | Target          | What runs where                                                                | Repo path |
 | --------------- | ------------------------------------------------------------------------------ | --------- |
 | **Web app**     | Extraction/mux on server (Node), browser mux via `mediabunny`, server fallback | `web/`    |
-| **Android app** | Full pipeline on-device (Expo RN, Hermes, ffmpeg-kit)                          | `mobile/` |
+| **Android app** | Full pipeline on-device (Expo RN, Hermes, pure-TS mux core)                      | `mobile/` |
 | **Remix Lab**   | ML stem/chord/beat/key analysis on free Kaggle/Colab GPUs                      | `remix/`  |
 
 ---

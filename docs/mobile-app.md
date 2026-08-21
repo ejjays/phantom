@@ -13,7 +13,7 @@ This doesn't mean the server build is bad. With a capable host — enough RAM, p
 - **15 platforms** resolve through dedicated on-device pure-JS extractors — no `yt-dlp`, no native subprocess.
 - **YouTube** runs in a hidden WebView that generates a BotGuard **PO token** and deciphers streams on the device's residential IP.
 - **Downloads** pull `googlevideo` in parallel 4 MB ranged chunks to beat the playback-rate throttle.
-- **Muxing** stitches adaptive HD video + audio with `ffmpeg-kit` (`-c copy`, no re-encode) and saves straight to the gallery.
+- **Muxing** stitches adaptive HD video + audio with the on-device pure-TS remux core (stream copy, no re-encode) and saves straight to the gallery.
 - A small **Updates tab** (Supabase) adds app news, reactions, and comments.
 
 > Android only — iOS code ships in some deps but is untested and unsupported.

@@ -20,7 +20,7 @@ resolve(url) → dispatch(host) → extractor.getInfo() → VideoInfo/Format[]
                                   ↓
 PickerModal → useDownload → downloadPipeline.ts
                                   ↓
-              ranged chunks (4 MB, 4× parallel) → ffmpeg-kit -c copy → gallery
+              ranged chunks (4 MB, 4× parallel) → pure-TS remux → gallery
                                   ↓
                           notify + foreground service
 ```
@@ -50,13 +50,13 @@ All extractors return common `VideoInfo` / `Format[]` (`types.ts`). Pure-JS extr
 ### Download pipeline (`lib/download/downloadPipeline.ts`)
 
 1. **Chunked ranged download** (`download.ts`) — 4 MB ranges, 4× parallel for YouTube/Spotify `googlevideo`; HLS segments 8–16× parallel (`hls.ts`)
-2. **Mux** (`mux.ts`) — `ffmpeg-kit -c copy` (no re-encode), or transcode to MP3, or assemble HLS
+2. **Mux** (`mux.ts`) — pure-TS remux/demux/HLS core (`lib/media/`, no re-encode); last-resort h264/aac transcode via `modules/encodeh264aac`
 3. **Tag & save** (`save.ts`/`gallery.ts`) — `expo-media-library` → gallery
 4. **Notify** (`notify.ts` + `fgservice.ts`) — download progress + foreground service
 
 **Memory discipline:** Never buffer full media in RAM. Stream/chunk to disk. Temp files tracked & deleted in `finally` (mirror `downloadPipeline.ts`'s `track()`).
 
-**Thread discipline:** Heavy work (mux, hashing) runs native (ffmpeg-kit) or in worklets. Long ops report progress, cancelable via `AbortSignal`.
+**Thread discipline:** Heavy work (mux, hashing) runs native (local Kotlin modules) or in worklets. Long ops report progress, cancelable via `AbortSignal`.
 
 **Network discipline:**
 
@@ -72,7 +72,7 @@ All extractors return common `VideoInfo` / `Format[]` (`types.ts`). Pure-JS extr
 | ---------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | Styling    | `twrnc` (runtime Tailwind)                                                      | NativeWind's `lightningcss` has no Termux/aarch64 prebuild |
 | UI/Motion  | Reanimated 4, Gesture Handler, Skia, Lottie, SVG                                | New Arch required                                          |
-| Media      | `ffmpeg-kit-react-native` (community fork, `full-gpl`)                          | On-device mux, GPL-3.0 → app is effectively GPL-3.0        |
+| Media      | pure-TS mux core (`lib/media/`) + local modules (`framegrab`, `imagecodec`, `encodeh264aac`) | Android framework MediaCodec/MediaMuxer/Bitmap; no ffmpeg-kit |
 | Extraction | `react-native-webview` (YouTube), `youtubei.js` + `bgutils-js` (CDN in WebView) | Hermes has no `eval`/DOM; BotGuard + cipher need both      |
 | Auth       | Supabase: native Google (nitro) + anonymous fallback                            | Dual path; anon backs signed-out reactions/comments        |
 | State      | React local + TanStack Query                                                    | No Zustand (unlike web)                                    |
@@ -97,7 +97,7 @@ Two coexisting paths in `lib/social/googleAuth.ts` + `lib/social/updates.ts`:
 - **Managed / CNG** — no `android/`/`ios/` committed; EAS generates native at build. Package `com.phantom.app`.
 - `app.json`: no iOS config; `eas.json` builds APKs only.
 - Profiles: `development` (dev client, internal, `EAS_SKIP_AUTO_FINGERPRINT=1`), `preview` (internal, arm64-v8a), `production` (apk, arm64-v8a). `appVersionSource: remote`.
-- Config plugins: notify-kit (fg service `dataSync`), ffmpeg-kit (`full-gpl`), media-library, splash, font/image/sharing/status-bar, `react-native-nitro-google-signin` (needs `iosUrlScheme` placeholder or prebuild throws), `./plugins/withLargeHeap`, `./plugins/withNotificationIcon`.
+- Config plugins: notify-kit (fg service `dataSync`), media-library, splash, font/image/sharing/status-bar, `react-native-nitro-google-signin` (needs `iosUrlScheme` placeholder or prebuild throws), `./plugins/withLargeHeap`, `./plugins/withNotificationIcon`.
 - **OTA:** `expo-updates` (`runtimeVersion: appVersion`) ships JS only. **Any native change = new EAS build** — bump version when adding native modules.
 
 ---
@@ -137,6 +137,6 @@ Local `.env` is gitignored. Preview/prod builds need vars in `eas.json` `env`; d
 - **New Architecture required** (nitro, reanimated 4, worklets).
 - **YouTube must run in WebView** — Hermes lacks `eval`/DOM; BotGuard + cipher need both. `DEBUG` flag in `extractors/youtube/webviewSource.ts` logs steps to Metro.
 - **`googlevideo` full-file GET throttled** to ~playback speed → 4 MB ranged chunks restore full bandwidth.
-- **ffmpeg-kit is community fork** (`full-gpl`) → app is effectively **GPL-3.0**; binaries 4 KB-page aligned (Play Store 16 KB-page needs rebuilt `.aar`).
+- **ffmpeg-kit is gone** — replaced by the pure-TS media core + local framework-API modules; never reintroduce it (GPL license + 16 KB-page alignment blockers).
 - **Android only** — iOS code in deps but untested/unsupported (no Apple account).
 - **Nitro Google One-Tap:** silent `signIn()` → `presentExplicitSignIn()` fallback on `isNoSavedCredentialFoundResponse`, `null` on cancel. Avoid `createAccount()` — can **hang** on first sign-in.
