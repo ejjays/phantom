@@ -159,6 +159,20 @@ export async function writeMuxed(
   if (total > 0) {
     await writeMdatHeader(io, outPath, plan.mdatPayload, total);
   }
+  if (io.copyRanges) {
+    // one native call per source; bytes never enter js
+    for (let t = 0; t < sources.length; t++) {
+      const ranges: number[] = [];
+      for (const ch of plan.chunks) {
+        if (ch.track !== t) continue;
+        ranges.push(ch.offset, tracks[t].stco.values[ch.chunk], ch.size);
+      }
+      if (ranges.length > 0) {
+        await io.copyRanges(sources[t].path, outPath, ranges);
+      }
+    }
+    return;
+  }
   for (const ch of plan.chunks) {
     const src = sources[ch.track];
     const track = tracks[ch.track];

@@ -6,4 +6,7 @@ export interface MediaIO {
   write(path: string, bytes: Uint8Array, offset: number): Promise<void>;
   create(path: string): Promise<void>;
   delete(path: string): Promise<void>;
+  // native zero-copy range mover (flat [dstOffset, srcOffset, length]
+  // triplets); absent in node tests, which fall back to read/write
+  copyRanges?(src: string, dst: string, ranges: number[]): Promise<boolean>;
 }

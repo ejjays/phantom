@@ -1,0 +1,12 @@
+{
+  "name": "mediacopy",
+  "version": "1.0.0",
+  "description": "Zero-copy byte-range mover (FileChannel.transferTo) for the remux core",
+  "main": "index.ts",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "expo-modules-core": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

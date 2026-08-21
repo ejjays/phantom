@@ -1,5 +1,6 @@
 import { File, FileMode } from 'expo-file-system';
 import type { MediaIO } from './io';
+import { copyRanges as nativeCopyRanges } from '../../../modules/mediacopy';
 
 // expo FileHandle-backed io — handle per call, sequential chunk access.
 // reads/writes never exceed a chunk, so no full-file RAM use.
@@ -43,5 +44,8 @@ export const expoIo: MediaIO = {
     const file = new File(path);
     if (file.exists) file.delete();
     return Promise.resolve();
+  },
+  copyRanges(src, dst, ranges) {
+    return nativeCopyRanges(src, dst, ranges);
   },
 };
