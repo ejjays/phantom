@@ -519,6 +519,7 @@ function stcoFrom(offsets: number[]): Uint8Array {
 function trakBox(opts: {
   trackId: number;
   timescale: number;
+  mediaDuration: number;
   duration: number;
   width: number;
   height: number;
@@ -526,12 +527,13 @@ function trakBox(opts: {
   stbl: Uint8Array[];
 }): Uint8Array {
   // empty-edit elst anchors the track timeline at media time 0 — without it
-  // strict parsers (gallery/metadata retriever) misalign b-frame streams
+  // strict parsers (gallery/metadata retriever) misalign b-frame streams.
+  // tkhd/elst run in MOVIE timescale; mdhd stays in TRACK timescale
   const edts = box('edts', box('elst', concat(be32(0), be32(1), be32(opts.duration), be32(0), be32(0x00010000))));
   const mdia = box(
     'mdia',
     concat(
-      box('mdhd', concat(be32(0), be32(0), be32(0), be32(opts.timescale), be32(opts.duration), be16(0x55c4), be16(0))),
+      box('mdhd', concat(be32(0), be32(0), be32(0), be32(opts.timescale), be32(opts.mediaDuration), be16(0x55c4), be16(0))),
       box('hdlr', concat(be32(0), be32(0), ascii(opts.handler), new Uint8Array(12), new Uint8Array(1))),
       box('minf', concat(mediaHeader(opts.handler), box('dinf', box('dref', concat(be32(0), be32(1), box('url ', be32(1))))), box('stbl', concat(...opts.stbl))))
     )
@@ -806,8 +808,11 @@ export async function remuxTsToMp4(io: MediaIO, srcPath: string, outPath: string
         'moov',
         concat(
           mvhd,
-          trakBox({ trackId: 1, timescale: 90000, duration: videoDuration, width: dims.width, height: dims.height, handler: 'vide', stbl: videoStbl }),
-          trakBox({ trackId: 2, timescale: audioTimescale, duration: audioDuration, width: 0, height: 0, handler: 'soun', stbl: audioStbl })
+          // tkhd/elst durations live in the MOVIE timescale (1000), not the
+          // track's own — track ticks there inflate timelines ~90x, which
+          // crashes strict players and breaks seeking
+          trakBox({ trackId: 1, timescale: 90000, mediaDuration: videoDuration, duration: Math.round((videoDuration * 1000) / 90000), width: dims.width, height: dims.height, handler: 'vide', stbl: videoStbl }),
+          trakBox({ trackId: 2, timescale: audioTimescale, mediaDuration: audioDuration, duration: Math.round((audioDuration * 1000) / audioTimescale), width: 0, height: 0, handler: 'soun', stbl: audioStbl })
         )
       );
     };
