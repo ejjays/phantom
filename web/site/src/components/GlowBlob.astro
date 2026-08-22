@@ -1,0 +1,17 @@
+---
+interface Props {
+  color: string;
+  size: number;
+  x: string;
+  y: string;
+}
+
+const { color, size, x, y } = Astro.props;
+---
+
+<div
+  aria-hidden="true"
+  class="pointer-events-none absolute rounded-full opacity-20"
+  style={`left:${x};top:${y};width:${size}px;height:${size}px;background-color:${color};filter:blur(${Math.round(size / 4)}px);`}
+>
+</div>

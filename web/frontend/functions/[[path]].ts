@@ -9,54 +9,19 @@ const SITE_CONFIG = {
   name: 'Phantom',
   defaultDescription:
     'A simple tool for high-quality YouTube and Spotify media extraction. Supports 4K video and MP3 downloads from various social platforms.',
-  defaultImage: '/og-image.webp',
+  defaultImage: '/app/og-image.webp',
 };
 
 const PAGE_METADATA: Record<string, Metadata> = {
-  '/tools/key-changer': {
+  '/app/tools/key-changer': {
     title: 'Song Key Changer | Detect & Transpose Audio',
     description:
       'A utility to detect the key of a song and adjust its pitch or tempo without losing audio quality.',
   },
-  '/tools/remix-lab': {
+  '/app/tools/remix-lab': {
     title: 'Remix Lab | Stem Separation & Analysis',
     description:
       'Tools for isolating vocals, drums, and instruments from any track using AI-assisted processing.',
-  },
-  '/resources/story': {
-    title: 'Our Story | The Phantom Mission',
-    description:
-      'The background of Phantom and our goal to provide clean, accessible media tools for everyone.',
-  },
-  '/resources/architecture': {
-    title: 'Technical Architecture | Media Orchestration Core',
-    description:
-      'A look into how Phantom handles media processing and high-fidelity extraction.',
-  },
-  '/resources/stack': {
-    title: 'Tech Stack | The Tools Behind the Magic',
-    description:
-      'A list of the technologies we use to build and maintain Phantom.',
-  },
-  '/resources/audio-guide': {
-    title: 'Audio Guide | Mastering MP3 Extraction',
-    description:
-      'Tips on getting the best audio results when downloading music through Phantom.',
-  },
-  '/resources/video-guide': {
-    title: 'Video Guide | 4K & HDR Downloads',
-    description:
-      'Information on how to save high-resolution videos while maintaining their original quality.',
-  },
-  '/resources/security': {
-    title: 'Security & Privacy | Our Commitment',
-    description:
-      'How we protect your privacy by keeping the platform ad-free and tracking-free.',
-  },
-  '/resources/remix-guide': {
-    title: 'Remix Guide | AI Audio Separation',
-    description:
-      'A quick walkthrough on using our AI tools to isolate individual tracks for your projects.',
   },
 };
 

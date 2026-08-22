@@ -1,0 +1,5 @@
+/app/*        /app/index.html   200
+/resources/*  /                 301
+/guide/*      /                 301
+/docs/*       /                 301
+/about        /                 301

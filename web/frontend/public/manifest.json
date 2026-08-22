@@ -2,32 +2,33 @@
   "name": "Phantom",
   "short_name": "Phantom",
   "description": "Download and convert videos from YouTube, Spotify, and more.",
-  "start_url": "/",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "background_color": "#030014",
   "theme_color": "#030014",
   "orientation": "any",
   "icons": [
     {
-      "src": "/logo.webp",
+      "src": "logo.webp",
       "type": "image/webp",
       "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "/logo.webp",
+      "src": "logo.webp",
       "type": "image/webp",
       "sizes": "192x192",
       "purpose": "maskable"
     },
     {
-      "src": "/logo.webp",
+      "src": "logo.webp",
       "type": "image/webp",
       "sizes": "512x512",
       "purpose": "any"
     },
     {
-      "src": "/logo.webp",
+      "src": "logo.webp",
       "type": "image/webp",
       "sizes": "512x512",
       "purpose": "maskable"

@@ -1,0 +1,29 @@
+User-agent: *
+Allow: /
+
+# AI search/retrieval crawlers — explicitly welcome (these decide AI citations)
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+Sitemap: https://c-phantom.pages.dev/sitemap-index.xml

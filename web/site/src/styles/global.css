@@ -1,0 +1,109 @@
+@import 'tailwindcss';
+@import '@fontsource/rubik/400.css';
+@import '@fontsource/rubik/500.css';
+@import '@fontsource/rubik/600.css';
+@import '@fontsource/rubik/700.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+@import '@fontsource/ibm-plex-mono/700.css';
+
+@theme {
+  --color-background: #030014;
+  --color-surface: #0a0a1a;
+  --color-primary: #06b6d4;
+
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-sans: 'Rubik', system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-background);
+  color: #fff;
+  font-family: var(--font-mono);
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: rgba(6, 182, 212, 0.35);
+}
+
+.text-glow {
+  text-shadow:
+    0 0 24px rgba(34, 211, 238, 0.45),
+    0 0 64px rgba(6, 182, 212, 0.2);
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: marquee 36s linear infinite;
+}
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes twinkle-star {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes shooting-star {
+  0% {
+    transform: translate(0, 0) rotate(-32deg);
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  18% {
+    transform: translate(-46vw, 26vh) rotate(-32deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-46vw, 26vh) rotate(-32deg);
+    opacity: 0;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.7s ease-out 0.15s backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track,
+  .rise-in,
+  .shooting-star,
+  .twinkle-star {
+    animation: none !important;
+  }
+}

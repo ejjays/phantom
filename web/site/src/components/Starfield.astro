@@ -1,0 +1,44 @@
+---
+interface StarSpec {
+  left: string;
+  top: string;
+  size: string;
+  duration: string;
+  delay: string;
+}
+
+const stars: StarSpec[] = Array.from({ length: 54 }, () => ({
+  left: `${Math.random() * 100}%`,
+  top: `${Math.random() * 100}%`,
+  size: `${1 + Math.random() * 1.8}px`,
+  duration: `${(2.4 + Math.random() * 2).toFixed(2)}s`,
+  delay: `${(Math.random() * 3).toFixed(2)}s`,
+}));
+
+const shooters = [0, 1, 2].map((index) => ({
+  top: `${8 + index * 26}%`,
+  right: `${4 + index * 22}%`,
+  width: `${Math.round(46 + Math.random() * 30)}px`,
+  duration: `${(9 + Math.random() * 5).toFixed(1)}s`,
+  delay: `${(2.5 + index * 4).toFixed(1)}s`,
+}));
+---
+
+<div aria-hidden="true" class="pointer-events-none absolute inset-0 overflow-hidden">
+  {
+    stars.map((star) => (
+      <span
+        class="twinkle-star absolute rounded-full bg-white"
+        style={`left:${star.left};top:${star.top};width:${star.size};height:${star.size};animation:twinkle-star ${star.duration} ease-in-out ${star.delay} infinite;`}
+      />
+    ))
+  }
+  {
+    shooters.map((star) => (
+      <span
+        class="shooting-star absolute h-px rounded-full"
+        style={`top:${star.top};right:${star.right};width:${star.width};background:linear-gradient(90deg, transparent, #22d3ee);animation:shooting-star ${star.duration} linear ${star.delay} infinite;`}
+      />
+    ))
+  }
+</div>

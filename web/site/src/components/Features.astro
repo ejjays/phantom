@@ -1,0 +1,72 @@
+---
+import { BellRing, Gauge, ImageDown, Music4, Radar, Smartphone } from '@lucide/astro';
+import { ACCENTS } from '../lib/accents';
+
+const FEATURES = [
+  {
+    icon: Smartphone,
+    title: 'Your phone is the engine',
+    body: 'Resolve, download and mux run entirely on-device. A residential IP sails past the bot-walls that kill datacenter downloaders.',
+  },
+  {
+    icon: Radar,
+    title: '15 platforms, one paste box',
+    body: 'Auto mode detects the site for you. YouTube runs through a stealth in-app session that solves BotGuard & PO tokens on your behalf.',
+  },
+  {
+    icon: Gauge,
+    title: 'Full-bandwidth chunking',
+    body: 'Parallel 4 MB ranged requests restore the speed YouTube throttles down to playback pace.',
+  },
+  {
+    icon: Music4,
+    title: 'Up to 8K — or just the audio',
+    body: 'Stream-copy muxing skips re-encoding entirely. Audio lands as properly tagged MP3 or M4A.',
+  },
+  {
+    icon: ImageDown,
+    title: 'Straight to your gallery',
+    body: 'Finished files appear in Photos instantly via the media library — replay or share them like any other video.',
+  },
+  {
+    icon: BellRing,
+    title: 'Live progress, cancel anytime',
+    body: 'A persistent notification tracks percent & speed. Abort mid-flight and temp files never linger behind.',
+  },
+] as const;
+---
+
+<section id="features" class="relative py-14 sm:py-20">
+  <div class="mx-auto mb-10 max-w-2xl text-center">
+    <p class="mb-3 text-xs tracking-[0.25em] text-cyan-400 uppercase">{'// features'}</p>
+    <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">Everything a downloader should be</h2>
+    <p class="mt-4 font-sans text-base text-slate-400">
+      No ads, no queues, no &ldquo;free tier&rdquo;. Just the fastest path from a link to your
+      gallery.
+    </p>
+  </div>
+  <div class="mx-auto grid max-w-6xl gap-6 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
+    {
+      FEATURES.map((feature, index) => {
+        const accent = ACCENTS[index % 2 === 0 ? 'cyan' : 'violet'];
+        return (
+          <div
+            class={`group relative rounded-xl border-2 bg-surface p-6 transition-all duration-300 hover:-translate-x-1 hover:-translate-y-1 active:translate-x-0 active:translate-y-0 active:shadow-none ${accent.card}`}
+          >
+            <div
+              class={`mb-4 flex w-fit rounded-lg border-2 bg-gradient-to-br p-2.5 transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-105 ${accent.chip}`}
+            >
+              <feature.icon size={20} strokeWidth={1.9} />
+            </div>
+            <h3
+              class={`relative mb-3 inline-block text-lg font-semibold after:absolute after:bottom-[-4px] after:left-0 after:h-[3px] after:w-full after:origin-left after:scale-x-0 after:bg-gradient-to-r after:transition-transform after:duration-300 group-hover:after:scale-x-100 ${accent.line}`}
+            >
+              {feature.title}
+            </h3>
+            <p class="font-sans text-sm leading-relaxed text-slate-400">{feature.body}</p>
+          </div>
+        );
+      })
+    }
+  </div>
+</section>

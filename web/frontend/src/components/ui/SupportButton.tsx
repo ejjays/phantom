@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router';
 
 const SteamEffect = () => (
   <div className="absolute -top-5 left-1/2 -translate-x-1/2 flex gap-1">
@@ -17,8 +16,8 @@ const SteamEffect = () => (
 const SupportButton = () => {
   return (
     // skipcq: JS-0415
-    <Link
-      to="/resources/story"
+    <a
+      href="/"
       target="_blank"
       rel="noopener noreferrer"
       className="block p-4 -m-4"
@@ -55,7 +54,7 @@ const SupportButton = () => {
         }
       `}</style>
       </motion.div>
-    </Link>
+    </a>
   );
 };
 export default SupportButton;

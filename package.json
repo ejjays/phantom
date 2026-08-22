@@ -8,6 +8,7 @@
     "web/backend",
     "web/frontend",
     "web/shared",
+    "web/site",
     "mobile",
     "packages/*"
   ],
@@ -29,6 +30,7 @@
     "postinstall": "node node_modules/patch-package/dist/index.js"
   },
   "devDependencies": {
+    "cookie": "^2.0.1",
     "husky": "^9.1.7",
     "knip": "^6.32.2",
     "lint-staged": "^17.3.0",

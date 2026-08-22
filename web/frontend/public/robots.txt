@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://nex-stream.pages.dev/sitemap.xml

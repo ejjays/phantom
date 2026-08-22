@@ -1,0 +1,29 @@
+---
+interface Props {
+  src: string;
+  alt: string;
+}
+
+const { src, alt } = Astro.props;
+---
+
+<div
+  class="relative rounded-[2.6rem] border border-white/10 bg-black p-2 shadow-[0_0_36px_-14px_rgba(6,182,212,0.5)]"
+>
+  <div class="overflow-hidden rounded-[2rem] border border-white/5">
+    <img
+      src={`/screenshots/${src}.webp`}
+      alt={alt}
+      width="408"
+      height="900"
+      decoding="async"
+      draggable="false"
+      class="block h-auto w-full"
+      loading="lazy"
+    />
+  </div>
+  <div
+    class="pointer-events-none absolute top-3 left-1/2 h-5 w-28 -translate-x-1/2 rounded-full bg-black"
+  >
+  </div>
+</div>

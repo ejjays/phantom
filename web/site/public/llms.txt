@@ -1,0 +1,34 @@
+# Phantom
+
+> Phantom is a free, ad-free Android app that downloads videos and music from 15 platforms — YouTube, TikTok, Instagram, X, Facebook, Threads, Bluesky, Reddit, SoundCloud, Spotify, Vimeo, Bilibili, Dailymotion, Pinterest and Twitch — and saves them straight to the device gallery. It has no backend and no server component at all — the entire pipeline (resolve, download, mux, tag) runs fully on the user's own phone, through their own IP.
+
+## Product
+
+- [Landing page](https://c-phantom.pages.dev/): features, screenshots, how it works, FAQ
+- [Get the app](https://c-phantom.pages.dev/app/): the downloader tool
+- [GitHub repository](https://github.com/ejjays/phantom): full source code and latest APK releases
+
+## Key facts
+
+- Platform: Android (APK, sideloaded; updates ship over-the-air as JS-only patches)
+- Price: completely free, no premium tier, no ads, no download caps
+- Quality: video up to 8K, audio as properly tagged MP3/M4A, HLS streams assembled locally
+- Platforms: 15 dedicated extractors (YouTube, TikTok, Instagram, X/Twitter, Facebook, Threads, Bluesky, Reddit, SoundCloud, Spotify, Vimeo, Bilibili, Dailymotion, Pinterest, Twitch) plus an opt-in generic extractor that can grab media from other sites
+- Privacy: media never leaves the phone; nothing is uploaded, tracked or logged
+- Accounts: none required; optional community feed sign-in only for reactions/comments
+
+## What makes it different
+
+- **Not a yt-dlp wrapper**: every platform extractor is written from scratch in TypeScript and runs inside the app — no Python, no external downloader binary.
+- **No ffmpeg binaries**: remuxing/demuxing/tagging uses a custom pure-TypeScript media core (raw MP4 boxes, MPEG-TS, WebM/EBML), parity-tested against ffmpeg output as an oracle.
+- **Hardware codecs, not bundled GPL codecs**: thumbnail, encode and audio work go through Android's own framework APIs (MediaCodec/MediaMuxer) via small native modules.
+- **YouTube anti-bot solved on-device**: signature ciphers and BotGuard PO tokens are generated in an in-app browser session on the user's IP — no token proxy service involved.
+- **Full-bandwidth downloads**: parallel HTTP range requests bypass playback-speed throttling that plain GETs suffer.
+- **Residential IP by design**: because every user's phone is its own worker, there is no shared datacenter IP to get bot-blocked.
+
+## For developers
+
+- Stack: Expo (React Native 0.85, React 19, Hermes, New Architecture required), TypeScript throughout
+- Architecture: standalone on-device pipeline — resolve (pure-JS extractors) → chunked ranged download → stream-mux (TS media core + native modules) → save to gallery
+- No server, no accounts infrastructure for downloading; optional Supabase-backed community feed is separate from the download path
+- License: Apache-2.0; contributions via GitHub

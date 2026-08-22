@@ -44,7 +44,7 @@ createRoot(rootElement).render(
     <Sentry.ErrorBoundary
       fallback={<p>Something went wrong. Please refresh the page.</p>}
     >
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <App />
       </BrowserRouter>
     </Sentry.ErrorBoundary>

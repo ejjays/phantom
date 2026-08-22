@@ -1,0 +1,31 @@
+---
+import { PLATFORMS } from '../content/site';
+---
+
+<section aria-label="Supported platforms" class="border-y border-white/5 bg-surface/40 py-7">
+  <p class="mb-5 text-center text-[11px] tracking-[0.3em] text-slate-500 uppercase">works with</p>
+  <div
+    class="overflow-hidden"
+    style="mask-image:linear-gradient(90deg, transparent, black 12%, black 88%, transparent)"
+  >
+    <div class="marquee-track flex w-max">
+      {
+        [false, true].map((hidden) => (
+          <div aria-hidden={hidden || undefined} class="flex shrink-0 items-center gap-10 pr-10">
+            {PLATFORMS.map((platform) => (
+              <img
+                src={`/logos/${platform.id}.svg`}
+                alt={hidden ? '' : platform.name}
+                title={platform.name}
+                width="26"
+                height="26"
+                loading="lazy"
+                class="opacity-50 transition-opacity hover:opacity-100"
+              />
+            ))}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
