@@ -27,31 +27,9 @@ const DURATION_S = 36 * (RUNS / 2);
                 title={platform.name}
                 width={logoSize(platform.id)}
                 height={logoSize(platform.id)}
-                loading="lazy"
+                decoding="async"
+                draggable="false"
                 class="shrink-0"
-              />
-            ))}
-          </div>
-        ))
-      }
-    </div>
-
-    <div
-      aria-hidden="true"
-      class="marquee-track pointer-events-none absolute inset-0 flex w-max"
-      style={`animation-duration:${DURATION_S}s;mask-image:linear-gradient(90deg, black 0%, transparent 32%, transparent 68%, black 100%)`}
-    >
-      {
-        Array.from({ length: RUNS }, () => (
-          <div class="flex shrink-0 items-center gap-10 pr-10">
-            {PLATFORMS.map((platform) => (
-              <img
-                src={`/logos/${platform.id}.svg`}
-                alt=""
-                width={logoSize(platform.id)}
-                height={logoSize(platform.id)}
-                loading="lazy"
-                class="shrink-0 opacity-40"
               />
             ))}
           </div>

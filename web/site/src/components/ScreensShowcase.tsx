@@ -71,7 +71,6 @@ function PhoneFrame({ src, alt }: { src: string; alt: string }) {
           height={900}
           decoding="async"
           draggable={false}
-          loading="lazy"
           className="block h-auto w-full"
         />
       </div>

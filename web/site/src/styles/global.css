@@ -52,8 +52,11 @@ body {
 .marquee-track {
   animation: marquee 36s linear infinite;
 }
-.marquee:hover .marquee-track {
-  animation-play-state: paused;
+/* tap on touch fires sticky :hover and froze the marquee — honor real pointers only */
+@media (hover: hover) {
+  .marquee:hover .marquee-track {
+    animation-play-state: paused;
+  }
 }
 
 @keyframes twinkle-star {
