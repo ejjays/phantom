@@ -133,7 +133,8 @@ export default function ScreensShowcase() {
   const isNarrow = useIsNarrow();
   const [emblaRef, emblaApi] = useEmblaCarousel(
     {
-      align: 'start',
+      // phones center the active card on swipe; first snap trims to flush-left
+      align: isNarrow ? 'center' : 'start',
       axis: 'x',
       containScroll: 'trimSnaps',
       dragFree: !isNarrow,
