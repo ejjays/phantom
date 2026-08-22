@@ -4,27 +4,37 @@ export const REPO_URL = 'https://github.com/ejjays/phantom';
 export const DOWNLOAD_URL = `${REPO_URL}/releases/latest`;
 export const SITE_URL = 'https://c-phantom.pages.dev';
 
+export type Cap = 'yes' | 'no' | 'na';
+
+export interface Caps {
+  readonly video: Cap;
+  readonly audio: Cap;
+  readonly image: Cap;
+}
+
 export interface Platform {
   readonly id: string;
   readonly name: string;
+  readonly caps: Caps;
 }
 
+// mirrors mobile SupportedPlatforms ROWS — keep both in sync when adding a platform
 export const PLATFORMS: readonly Platform[] = [
-  { id: 'youtube', name: 'YouTube' },
-  { id: 'tiktok', name: 'TikTok' },
-  { id: 'instagram', name: 'Instagram' },
-  { id: 'x', name: 'X' },
-  { id: 'facebook', name: 'Facebook' },
-  { id: 'threads', name: 'Threads' },
-  { id: 'bluesky', name: 'Bluesky' },
-  { id: 'reddit', name: 'Reddit' },
-  { id: 'soundcloud', name: 'SoundCloud' },
-  { id: 'spotify', name: 'Spotify' },
-  { id: 'vimeo', name: 'Vimeo' },
-  { id: 'bilibili', name: 'Bilibili' },
-  { id: 'dailymotion', name: 'Dailymotion' },
-  { id: 'pinterest', name: 'Pinterest' },
-  { id: 'twitch', name: 'Twitch' },
+  { id: 'youtube', name: 'YouTube', caps: { video: 'yes', audio: 'yes', image: 'na' } },
+  { id: 'tiktok', name: 'TikTok', caps: { video: 'yes', audio: 'yes', image: 'yes' } },
+  { id: 'instagram', name: 'Instagram', caps: { video: 'yes', audio: 'yes', image: 'yes' } },
+  { id: 'x', name: 'X', caps: { video: 'yes', audio: 'yes', image: 'na' } },
+  { id: 'facebook', name: 'Facebook', caps: { video: 'yes', audio: 'yes', image: 'yes' } },
+  { id: 'threads', name: 'Threads', caps: { video: 'yes', audio: 'yes', image: 'yes' } },
+  { id: 'bluesky', name: 'Bluesky', caps: { video: 'yes', audio: 'no', image: 'na' } },
+  { id: 'reddit', name: 'Reddit', caps: { video: 'yes', audio: 'yes', image: 'na' } },
+  { id: 'soundcloud', name: 'SoundCloud', caps: { video: 'na', audio: 'yes', image: 'na' } },
+  { id: 'spotify', name: 'Spotify', caps: { video: 'yes', audio: 'yes', image: 'na' } },
+  { id: 'vimeo', name: 'Vimeo', caps: { video: 'yes', audio: 'no', image: 'na' } },
+  { id: 'bilibili', name: 'Bilibili', caps: { video: 'yes', audio: 'yes', image: 'na' } },
+  { id: 'dailymotion', name: 'Dailymotion', caps: { video: 'yes', audio: 'no', image: 'na' } },
+  { id: 'pinterest', name: 'Pinterest', caps: { video: 'yes', audio: 'yes', image: 'yes' } },
+  { id: 'twitch', name: 'Twitch', caps: { video: 'yes', audio: 'no', image: 'na' } },
 ];
 
 export const PLATFORM_NAMES = PLATFORMS.map((platform) => platform.name);
@@ -62,7 +72,7 @@ export const FAQS: readonly Faq[] = [
   {
     question: 'Is Phantom really free?',
     answer:
-      "Yes — fully. No premium tier, no ads, no per-download caps. The whole pipeline runs on your own hardware, so there's no server bill to pass on to you.",
+      "Yes — 100%. No premium tier, no ads, no per-download caps. The whole pipeline runs on your own hardware, so there's no server bill to pass on to you.",
   },
   {
     question: 'Why an APK instead of the Play Store?',
