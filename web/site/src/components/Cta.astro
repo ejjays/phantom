@@ -1,23 +1,16 @@
 ---
 import Ghost from './Ghost.astro';
+import GlowBlob from './GlowBlob.astro';
+import Starfield from './Starfield.astro';
 ---
 
 <section class="relative px-4 pt-10 pb-20 sm:px-6">
   <div
-    class="relative mx-auto flex max-w-6xl flex-col items-center justify-center overflow-hidden rounded-[48px] border border-white/10 bg-[#05041a] px-6 py-24 text-center sm:py-32 lg:py-44"
+    class="relative mx-auto flex max-w-6xl flex-col items-center justify-center overflow-hidden rounded-[48px] border-2 border-cyan-400/60 bg-[#05041a] px-6 py-24 text-center shadow-[0_0_70px_-14px_rgba(6,182,212,0.55),0_0_24px_-6px_rgba(6,182,212,0.35),inset_0_0_46px_rgba(6,182,212,0.05)] sm:py-32 lg:py-44"
   >
-    <div
-      aria-hidden="true"
-      class="pointer-events-none absolute -top-[30%] -left-[15%] h-[420px] w-[420px] rounded-full opacity-25"
-      style="background:#7c3aed;filter:blur(110px)"
-    >
-    </div>
-    <div
-      aria-hidden="true"
-      class="pointer-events-none absolute -right-[15%] -bottom-[30%] h-[460px] w-[460px] rounded-full opacity-25"
-      style="background:#06b6d4;filter:blur(110px)"
-    >
-    </div>
+    <Starfield />
+    <GlowBlob color="#7c3aed" size={520} x="-10%" y="-16%" />
+    <GlowBlob color="#06b6d4" size={560} x="68%" y="52%" />
 
     <Ghost class="mx-auto mb-6 h-36 w-auto drop-shadow-[0_0_28px_rgba(34,211,238,0.45)] sm:h-44" />
     <h2 class="text-glow relative z-20 mb-4 max-w-[800px] text-balance text-3xl font-bold tracking-tight sm:text-5xl">

@@ -3,6 +3,11 @@ import { PLATFORMS } from '../content/site';
 
 // x glyph fills its viewBox edge-to-edge; render it smaller to optically match
 const logoSize = (id: string) => (id === 'x' ? 21 : 26);
+
+// keyframe slides -50% (= RUNS/2 runs); enough runway that even ultrawide
+// viewports never see past the last logo. duration scales to keep speed.
+const RUNS = 8;
+const DURATION_S = 36 * (RUNS / 2);
 ---
 
 <section aria-label="Supported platforms" class="border-y border-white/5 bg-surface/40 py-7">
@@ -11,14 +16,14 @@ const logoSize = (id: string) => (id === 'x' ? 21 : 26);
     class="marquee relative overflow-hidden"
     style="mask-image:linear-gradient(90deg, transparent, black 12%, black 88%, transparent)"
   >
-    <div class="marquee-track flex w-max">
+    <div class="marquee-track flex w-max" style={`animation-duration:${DURATION_S}s`}>
       {
-        [false, true].map((hidden) => (
-          <div aria-hidden={hidden || undefined} class="flex shrink-0 items-center gap-10 pr-10">
+        Array.from({ length: RUNS }, (_, run) => (
+          <div aria-hidden={run > 0 || undefined} class="flex shrink-0 items-center gap-10 pr-10">
             {PLATFORMS.map((platform) => (
               <img
                 src={`/logos/${platform.id}.svg`}
-                alt={hidden ? '' : platform.name}
+                alt={run === 0 ? platform.name : ''}
                 title={platform.name}
                 width={logoSize(platform.id)}
                 height={logoSize(platform.id)}
@@ -34,10 +39,10 @@ const logoSize = (id: string) => (id === 'x' ? 21 : 26);
     <div
       aria-hidden="true"
       class="marquee-track pointer-events-none absolute inset-0 flex w-max"
-      style="mask-image:linear-gradient(90deg, black 0%, transparent 32%, transparent 68%, black 100%)"
+      style={`animation-duration:${DURATION_S}s;mask-image:linear-gradient(90deg, black 0%, transparent 32%, transparent 68%, black 100%)`}
     >
       {
-        [false, true].map(() => (
+        Array.from({ length: RUNS }, () => (
           <div class="flex shrink-0 items-center gap-10 pr-10">
             {PLATFORMS.map((platform) => (
               <img

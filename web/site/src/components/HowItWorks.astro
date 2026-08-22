@@ -37,23 +37,25 @@ const ORDER: readonly Accent[] = ['cyan', 'violet', 'cyan'];
       STEPS.map((step, index) => {
         const accent = ACCENTS[ORDER[index % ORDER.length]];
         return (
-          <li
-            class={`group relative rounded-xl border-2 bg-surface p-6 transition-all duration-300 hover:-translate-x-1 hover:-translate-y-1 active:translate-x-0 active:translate-y-0 active:shadow-none ${accent.card}`}
-          >
-            <span class="pointer-events-none absolute top-4 right-5 font-mono text-5xl font-bold text-cyan-400/40 transition-colors duration-300 group-hover:text-cyan-300/70">
+          <li class={`group relative rounded-xl p-px ${accent.side}`}>
+            <span
+              class={`pointer-events-none absolute top-4 right-5 z-10 font-mono text-5xl font-bold transition-colors duration-300 ${accent.num}`}
+            >
               {String(index + 1).padStart(2, '0')}
             </span>
-            <div
-              class={`mb-4 flex w-fit rounded-lg border-2 bg-gradient-to-br p-2.5 transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-105 ${accent.chip}`}
-            >
-              <step.icon size={20} strokeWidth={1.9} />
+            <div class={`relative flex h-full flex-col rounded-xl border-2 bg-surface p-6 transition-transform duration-150 ease-out -translate-x-[5px] -translate-y-[5px] group-hover:-translate-x-[9px] group-hover:-translate-y-[9px] group-active:translate-x-0 group-active:translate-y-0 ${accent.face}`}>
+              <div
+                class={`mb-4 flex w-fit rounded-lg border-2 bg-gradient-to-br p-2.5 transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-105 ${accent.chip}`}
+              >
+                <step.icon size={20} strokeWidth={1.9} />
+              </div>
+              <h3
+                class={`relative mb-3 inline-block text-base font-semibold after:absolute after:bottom-[-4px] after:left-0 after:h-[3px] after:w-full after:origin-left after:scale-x-0 after:bg-gradient-to-r after:transition-transform after:duration-300 group-hover:after:scale-x-100 ${accent.line}`}
+              >
+                {step.title}
+              </h3>
+              <p class="font-sans text-sm leading-relaxed text-slate-400">{step.body}</p>
             </div>
-            <h3
-              class={`relative mb-3 inline-block text-base font-semibold after:absolute after:bottom-[-4px] after:left-0 after:h-[3px] after:w-full after:origin-left after:scale-x-0 after:bg-gradient-to-r after:transition-transform after:duration-300 group-hover:after:scale-x-100 ${accent.line}`}
-            >
-              {step.title}
-            </h3>
-            <p class="font-sans text-sm leading-relaxed text-slate-400">{step.body}</p>
           </li>
         );
       })

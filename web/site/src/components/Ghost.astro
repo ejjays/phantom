@@ -6,7 +6,12 @@ interface Props {
 const { class: className = '' } = Astro.props;
 ---
 
-<svg viewBox="80 40 240 360" role="img" aria-label="Phantom mascot" class={className}>
+<svg
+  viewBox="80 40 240 360"
+  role="img"
+  aria-label="Phantom mascot"
+  class={`overflow-visible ${className}`}
+>
   <defs>
     <linearGradient id="ghost-body-grad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#E0F7FA"></stop>
