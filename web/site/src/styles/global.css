@@ -52,7 +52,7 @@ body {
 .marquee-track {
   animation: marquee 36s linear infinite;
 }
-.marquee-track:hover {
+.marquee:hover .marquee-track {
   animation-play-state: paused;
 }
 
@@ -92,6 +92,23 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* smooth details accordion (chrome 131+; others snap open instantly) */
+@supports (interpolate-size: allow-keywords) {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+  details::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition:
+      block-size 0.35s ease,
+      content-visibility 0.35s allow-discrete;
+  }
+  details[open]::details-content {
+    block-size: auto;
   }
 }
 

@@ -1,11 +1,14 @@
 ---
 import { PLATFORMS } from '../content/site';
+
+// x glyph fills its viewBox edge-to-edge; render it smaller to optically match
+const logoSize = (id: string) => (id === 'x' ? 21 : 26);
 ---
 
 <section aria-label="Supported platforms" class="border-y border-white/5 bg-surface/40 py-7">
   <p class="mb-5 text-center text-[11px] tracking-[0.3em] text-slate-500 uppercase">works with</p>
   <div
-    class="overflow-hidden"
+    class="marquee relative overflow-hidden"
     style="mask-image:linear-gradient(90deg, transparent, black 12%, black 88%, transparent)"
   >
     <div class="marquee-track flex w-max">
@@ -17,10 +20,33 @@ import { PLATFORMS } from '../content/site';
                 src={`/logos/${platform.id}.svg`}
                 alt={hidden ? '' : platform.name}
                 title={platform.name}
-                width="26"
-                height="26"
+                width={logoSize(platform.id)}
+                height={logoSize(platform.id)}
                 loading="lazy"
-                class="opacity-50 transition-opacity hover:opacity-100"
+                class="shrink-0"
+              />
+            ))}
+          </div>
+        ))
+      }
+    </div>
+
+    <div
+      aria-hidden="true"
+      class="marquee-track pointer-events-none absolute inset-0 flex w-max"
+      style="mask-image:linear-gradient(90deg, black 0%, transparent 32%, transparent 68%, black 100%)"
+    >
+      {
+        [false, true].map(() => (
+          <div class="flex shrink-0 items-center gap-10 pr-10">
+            {PLATFORMS.map((platform) => (
+              <img
+                src={`/logos/${platform.id}.svg`}
+                alt=""
+                width={logoSize(platform.id)}
+                height={logoSize(platform.id)}
+                loading="lazy"
+                class="shrink-0 opacity-40"
               />
             ))}
           </div>
