@@ -4,26 +4,77 @@ import GlowBlob from './GlowBlob.astro';
 import Starfield from './Starfield.astro';
 ---
 
-<section class="relative px-4 pt-10 pb-20 sm:px-6">
-  <div
-    class="relative mx-auto flex max-w-6xl flex-col items-center justify-center overflow-hidden rounded-[48px] border-2 border-cyan-400/60 bg-[#05041a] px-6 py-24 text-center shadow-[0_0_70px_-14px_rgba(6,182,212,0.55),0_0_24px_-6px_rgba(6,182,212,0.35),inset_0_0_46px_rgba(6,182,212,0.05)] sm:py-32 lg:py-44"
-  >
-    <Starfield />
-    <GlowBlob color="#7c3aed" size={520} x="-10%" y="-16%" />
-    <GlowBlob color="#06b6d4" size={560} x="68%" y="52%" />
-
-    <Ghost class="mx-auto mb-6 h-36 w-auto drop-shadow-[0_0_28px_rgba(34,211,238,0.45)] sm:h-44" />
-    <h2 class="text-glow relative z-20 mb-4 max-w-[800px] text-balance text-3xl font-bold tracking-tight sm:text-5xl">
-      Ready to make some magic?
-    </h2>
-    <p class="relative z-20 max-w-md font-sans text-base text-slate-400 sm:text-lg">
-      Grab the APK, paste your first link, and watch it land in your gallery. Free forever.
-    </p>
-    <a
-      href="/app/"
-      class="relative z-20 mt-9 inline-flex items-center gap-2.5 rounded-full border border-primary/40 bg-[#22d3ee40] px-7 py-4 font-sans text-base font-semibold text-[#22d3ee] shadow-[0_0_10px_rgba(6,182,212,0.35),0_0_26px_rgba(6,182,212,0.3)] transition-all hover:scale-[1.03] hover:bg-[#22d3ee59] active:scale-95 active:opacity-90"
+<section class="relative pb-12 pt-10">
+  <div class="mx-auto max-w-[1400px] md:px-10 lg:px-12 xl:px-20">
+    <div
+      id="cta-card"
+      class="cta-card relative flex flex-col items-center justify-center overflow-hidden rounded-[40px] border-2 border-cyan-400/60 bg-[#05041a] px-6 py-24 text-center shadow-[0_0_70px_-14px_rgba(6,182,212,0.55),0_0_24px_-6px_rgba(6,182,212,0.35),inset_0_0_46px_rgba(6,182,212,0.05)] transition-[margin] duration-150 ease-out sm:rounded-[48px] sm:py-36 lg:py-52"
     >
-      Download Phantom
-    </a>
+      <Starfield />
+      <GlowBlob color="#7c3aed" size={520} x="-10%" y="-16%" />
+      <GlowBlob color="#06b6d4" size={560} x="68%" y="52%" />
+
+      <Ghost
+        class="mx-auto mb-6 h-36 w-auto drop-shadow-[0_0_28px_rgba(34,211,238,0.45)] sm:h-44"
+      />
+      <h2
+        class="text-glow relative z-20 mb-4 max-w-[800px] text-balance text-3xl font-bold tracking-tight sm:text-5xl"
+      >
+        Ready to make some magic?
+      </h2>
+      <p class="relative z-20 max-w-md font-sans text-base text-prey-200 sm:text-lg">
+        Grab the APK, paste your first link, and watch it land in your gallery. Free forever.
+      </p>
+      <a
+        href="/app/"
+        class="relative z-20 mt-9 inline-flex items-center gap-2.5 rounded-full border border-primary/40 bg-[#22d3ee40] px-7 py-4 font-sans text-base font-semibold text-[#22d3ee] shadow-[0_0_10px_rgba(6,182,212,0.35),0_0_26px_rgba(6,182,212,0.3)] transition-all hover:scale-[1.03] hover:bg-[#22d3ee59] active:scale-95 active:opacity-90"
+      >
+        Download Phantom
+      </a>
+    </div>
   </div>
 </section>
+
+<style>
+  /* scroll drift widens the card — margin-inline interpolates via --drift (set in script) */
+  .cta-card {
+    margin-inline: calc(0.75rem + var(--drift, 0px));
+  }
+  @media (min-width: 640px) {
+    .cta-card {
+      margin-inline: var(--drift, 0px);
+    }
+  }
+</style>
+
+<script>
+  const card = document.getElementById('cta-card');
+
+  if (card && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const wide = matchMedia('(min-width: 640px)');
+
+    const update = () => {
+      const rect = card.getBoundingClientRect();
+      const progress = Math.min(
+        1,
+        Math.max(0, (window.innerHeight - rect.top) / (window.innerHeight * 0.8))
+      );
+      const drift = wide.matches ? 72 * (1 - progress) : 0;
+      card.style.setProperty('--drift', `${drift.toFixed(1)}px`);
+    };
+
+    let raf = 0;
+    const schedule = () => {
+      if (!raf) {
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          update();
+        });
+      }
+    };
+
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+    update();
+  }
+</script>

@@ -13,6 +13,15 @@
   --color-surface: #0a0a1a;
   --color-primary: #06b6d4;
 
+  /* kiro.dev text/border palette */
+  --color-prey-200: hsl(264 7% 86%);
+  --color-prey-300: hsl(263 7% 76%);
+  --color-prey-400: hsl(260 6% 58%);
+  --color-prey-500: hsl(0 0% 36%);
+  --color-prey-600: hsl(267 6% 29%);
+  --color-prey-700: hsl(266 13% 21%);
+  --color-link-hover: hsl(264 100% 81%);
+
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --font-sans: 'Rubik', system-ui, sans-serif;
 }
