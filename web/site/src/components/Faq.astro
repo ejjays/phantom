@@ -33,7 +33,10 @@ import { FAQS } from '../content/site';
               </svg>
             </span>
           </summary>
-          <p class="pr-10 pb-5 font-sans text-sm leading-relaxed text-slate-400">{faq.answer}</p>
+          <p
+            class="pr-10 pb-5 font-sans text-sm leading-relaxed text-slate-400"
+            set:html={faq.answer}
+          />
         </details>
       ))
     }
