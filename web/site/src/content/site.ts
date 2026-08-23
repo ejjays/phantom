@@ -16,25 +16,91 @@ export interface Platform {
   readonly id: string;
   readonly name: string;
   readonly caps: Caps;
+  readonly note?: string;
 }
 
 // mirrors mobile SupportedPlatforms ROWS — keep both in sync when adding a platform
 export const PLATFORMS: readonly Platform[] = [
-  { id: 'youtube', name: 'YouTube', caps: { video: 'yes', audio: 'yes', image: 'na' } },
-  { id: 'tiktok', name: 'TikTok', caps: { video: 'yes', audio: 'yes', image: 'yes' } },
-  { id: 'instagram', name: 'Instagram', caps: { video: 'yes', audio: 'yes', image: 'yes' } },
-  { id: 'x', name: 'X', caps: { video: 'yes', audio: 'yes', image: 'na' } },
-  { id: 'facebook', name: 'Facebook', caps: { video: 'yes', audio: 'yes', image: 'yes' } },
+  {
+    id: 'youtube',
+    name: 'YouTube',
+    caps: { video: 'yes', audio: 'yes', image: 'na' },
+    note: 'playlists, shorts, up to 8K',
+  },
+  {
+    id: 'tiktok',
+    name: 'TikTok',
+    caps: { video: 'yes', audio: 'yes', image: 'yes' },
+    note: 'videos + photo carousels',
+  },
+  {
+    id: 'instagram',
+    name: 'Instagram',
+    caps: { video: 'yes', audio: 'yes', image: 'yes' },
+    note: 'reels, posts, multi-image picker',
+  },
+  {
+    id: 'x',
+    name: 'X',
+    caps: { video: 'yes', audio: 'yes', image: 'na' },
+    note: 'videos & gifs only',
+  },
+  {
+    id: 'facebook',
+    name: 'Facebook',
+    caps: { video: 'yes', audio: 'yes', image: 'yes' },
+    note: 'public posts only',
+  },
   { id: 'threads', name: 'Threads', caps: { video: 'yes', audio: 'yes', image: 'yes' } },
-  { id: 'bluesky', name: 'Bluesky', caps: { video: 'yes', audio: 'no', image: 'na' } },
+  {
+    id: 'bluesky',
+    name: 'Bluesky',
+    caps: { video: 'yes', audio: 'no', image: 'na' },
+    note: 'hls streams — no mp3 yet',
+  },
   { id: 'reddit', name: 'Reddit', caps: { video: 'yes', audio: 'yes', image: 'na' } },
-  { id: 'soundcloud', name: 'SoundCloud', caps: { video: 'na', audio: 'yes', image: 'na' } },
-  { id: 'spotify', name: 'Spotify', caps: { video: 'yes', audio: 'yes', image: 'na' } },
-  { id: 'vimeo', name: 'Vimeo', caps: { video: 'yes', audio: 'no', image: 'na' } },
-  { id: 'bilibili', name: 'Bilibili', caps: { video: 'yes', audio: 'yes', image: 'na' } },
-  { id: 'dailymotion', name: 'Dailymotion', caps: { video: 'yes', audio: 'no', image: 'na' } },
-  { id: 'pinterest', name: 'Pinterest', caps: { video: 'yes', audio: 'yes', image: 'yes' } },
-  { id: 'twitch', name: 'Twitch', caps: { video: 'yes', audio: 'no', image: 'na' } },
+  {
+    id: 'soundcloud',
+    name: 'SoundCloud',
+    caps: { video: 'na', audio: 'yes', image: 'na' },
+    note: 'audio-only platform',
+  },
+  {
+    id: 'spotify',
+    name: 'Spotify',
+    caps: { video: 'yes', audio: 'yes', image: 'na' },
+    note: 'tracks & albums found automatically',
+  },
+  {
+    id: 'vimeo',
+    name: 'Vimeo',
+    caps: { video: 'yes', audio: 'no', image: 'na' },
+    note: 'hls streams — no mp3 yet',
+  },
+  {
+    id: 'bilibili',
+    name: 'Bilibili',
+    caps: { video: 'yes', audio: 'yes', image: 'na' },
+    note: 'some videos need a cookie',
+  },
+  {
+    id: 'dailymotion',
+    name: 'Dailymotion',
+    caps: { video: 'yes', audio: 'no', image: 'na' },
+    note: 'hls streams — no mp3 yet',
+  },
+  {
+    id: 'pinterest',
+    name: 'Pinterest',
+    caps: { video: 'yes', audio: 'yes', image: 'yes' },
+    note: 'video pins + photos',
+  },
+  {
+    id: 'twitch',
+    name: 'Twitch',
+    caps: { video: 'yes', audio: 'no', image: 'na' },
+    note: 'clips, hls only',
+  },
 ];
 
 export const PLATFORM_NAMES = PLATFORMS.map((platform) => platform.name);
@@ -77,7 +143,7 @@ export const FAQS: readonly Faq[] = [
   {
     question: 'Why an APK instead of the Play Store?',
     answer:
-      "Phantom bundles a GPL ffmpeg build that store policies don't play nice with. Sideloading takes about a minute, and app updates ship silently over-the-air after that.",
+      'Phantom bundles a <a href="https://www.ffmpeg.org/legal.html" target="_blank" rel="noopener noreferrer" class="text-cyan-400 underline underline-offset-2 hover:text-cyan-300">GPL ffmpeg</a> build that store policies don\'t play nice with. Sideloading takes about a minute, and app updates ship silently over-the-air after that.',
   },
   {
     question: 'Does it need an account?',

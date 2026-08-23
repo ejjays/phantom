@@ -32,7 +32,7 @@ const counts = {
     </p>
   </div>
 
-  <div class="mx-auto max-w-xl px-4 sm:px-6">
+  <div class="mx-auto max-w-xl px-4 sm:px-6 md:max-w-3xl">
     <div class="overflow-hidden rounded-3xl border border-white/10 bg-surface/40">
       <table class="w-full text-left text-sm">
         <thead>
@@ -53,6 +53,12 @@ const counts = {
                 </th>
               ))
             }
+            <th
+              scope="col"
+              class="hidden pr-4 pl-7 py-4 text-left text-xs font-semibold tracking-wider text-slate-400 uppercase md:table-cell"
+            >
+              Notes
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -86,6 +92,9 @@ const counts = {
                     </td>
                   );
                 })}
+                <td class="hidden pr-4 pl-7 py-3 font-sans text-xs text-slate-500 md:table-cell">
+                  {platform.note ?? '—'}
+                </td>
               </tr>
             ))
           }
