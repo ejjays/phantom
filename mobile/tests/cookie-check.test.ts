@@ -16,13 +16,13 @@ describe('youtubeCookieShapeOk', () => {
       'SAPISID=x; __Secure-1PAPISID=y; __Secure-3PAPISID=z; LOGIN_INFO=w',
       [],
     ],
-    ['SAPISID=x; LOGIN_INFO=w', []],
   ])('accepts a youtube-session cookie: %s', (cookie, expected) => {
     expect(youtubeCookieShapeOk(cookie).missing).toEqual(expected);
     expect(youtubeCookieShapeOk(cookie).ok).toBe(true);
   });
 
   it.each<[string, string[]]>([
+    ['SAPISID=x; LOGIN_INFO=w', ['__Secure-1PAPISID', '__Secure-3PAPISID']],
     ['SAPISID=x; __Secure-1PAPISID=y', ['__Secure-3PAPISID', 'LOGIN_INFO']],
     ['SID=x; HSID=y; LOGIN_INFO=w', ['SAPISID', '__Secure-1PAPISID', '__Secure-3PAPISID']],
     ['SAPISID=x', ['__Secure-1PAPISID', '__Secure-3PAPISID', 'LOGIN_INFO']],
