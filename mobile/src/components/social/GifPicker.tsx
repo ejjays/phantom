@@ -21,8 +21,6 @@ const CELL_H = 118;
 const CYAN = '#22d3ee';
 const REFRESH_CAP = 200;
 
-// pull-to-refresh jumps to a random offset so it surfaces different GIFs
-// instead of re-showing the same top results
 function randomStart(total: number): number {
   const max = Math.min(total - PAGE, REFRESH_CAP);
   return max > 0 ? Math.floor(Math.random() * max) : 0;
@@ -55,7 +53,6 @@ export default function GifPicker({
 
   const load = useCallback(async (term: string, mode: Mode) => {
     if (mode === 'more' && (moreBusy.current || !hasMore.current)) return;
-    // newer request wins; stale awaits are dropped on return
     const id = (reqId.current += 1);
     const start =
       mode === 'more'
@@ -89,7 +86,7 @@ export default function GifPicker({
         offset.current = start + page.gifs.length;
       }
     } catch {
-      // aborted or network hiccup — keep whatever is already shown
+      // search can fail mid-scroll; treat as end of results
     } finally {
       if (mode === 'more') moreBusy.current = false;
       if (id === reqId.current) {
@@ -103,7 +100,6 @@ export default function GifPicker({
   useEffect(() => {
     // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- gates reset & trending fetch on open
     if (!open) return;
-    // load trending on open; typed queries only fire on submit (below)
     // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset before trending fetch on open
     setQuery('');
     // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- reset before trending fetch on open

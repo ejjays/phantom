@@ -3,17 +3,13 @@ import React, {
   useContext,
   useState,
   useCallback,
-  useRef,
-  useMemo,
 } from 'react';
 import {
-  View,
+  Host,
+  AlertDialog,
+  TextButton,
   Text,
-  TouchableOpacity,
-  StyleSheet,
-  Modal,
-  Animated,
-} from 'react-native';
+} from '@expo/ui/jetpack-compose';
 
 interface DialogConfig {
   title?: string;
@@ -21,13 +17,13 @@ interface DialogConfig {
   cancelLabel?: string;
   confirmLabel?: string;
   showCancel?: boolean;
+  destructive?: boolean;
   onCancel?: () => void;
   onConfirm?: () => void;
 }
 
 interface DialogContextValue {
   showDialog: (config: DialogConfig) => void;
-  hideDialog: () => void;
 }
 
 const DialogContext = createContext<DialogContextValue | null>(null);
@@ -39,162 +35,88 @@ export function useAppDialog(): DialogContextValue {
   return ctx;
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 40,
-  },
-  dialog: {
-    width: '85%',
-    backgroundColor: '#2a2a2a',
-    borderRadius: 24,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    alignItems: 'flex-start',
-    borderWidth: 1,
-  },
-  title: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'left',
-  },
-  message: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'left',
-    lineHeight: 22,
-    marginBottom: 18,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignSelf: 'stretch',
-  },
-  button: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 24,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#22d3ee',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-});
+const dialogColors = {
+  containerColor: '#15152c',
+  titleContentColor: '#ffffff',
+  textContentColor: '#cbd5e1',
+};
+
+const confirmColor = '#06b6d4';
+const dismissColor = '#94a3b8';
 
 export function AppDialogProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<DialogConfig | null>(null);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const hideLock = useRef(false);
+  const [locked, setLocked] = useState(false);
 
-  const showDialog = useCallback(
-    (cfg: DialogConfig) => {
-      fadeAnim.setValue(0);
-      slideAnim.setValue(30);
-      setConfig(cfg);
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    },
-    [fadeAnim, slideAnim]
-  );
-
-  const hideDialog = useCallback(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 30,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setConfig(null);
-      hideLock.current = false;
-    });
-  }, [fadeAnim, slideAnim]);
+  const showDialog = useCallback((cfg: DialogConfig) => {
+    setLocked(false);
+    setConfig(cfg);
+  }, []);
 
   const handleCancel = useCallback(() => {
-    if (hideLock.current) return;
-    hideLock.current = true;
+    if (locked) return;
+    setLocked(true);
     config?.onCancel?.();
-    hideDialog();
-  }, [config, hideDialog]);
+    setConfig(null);
+  }, [locked, config]);
 
   const handleConfirm = useCallback(() => {
-    if (hideLock.current) return;
-    hideLock.current = true;
+    if (locked) return;
+    setLocked(true);
     config?.onConfirm?.();
-    hideDialog();
-  }, [config, hideDialog]);
-
-  const contextValue = useMemo(
-    () => ({ showDialog, hideDialog }),
-    [showDialog, hideDialog]
-  );
+    setConfig(null);
+  }, [locked, config]);
 
   return (
-    <DialogContext.Provider value={contextValue}>
+    <DialogContext.Provider value={{ showDialog }}>
       {children}
-      <Modal
-        visible={!!config}
-        transparent
-        animationType="none"
-        onRequestClose={handleCancel}
-      >
-        <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-          <Animated.View
-            style={[styles.dialog, { transform: [{ translateY: slideAnim }] }]}
+      {config && (
+        <Host matchContents>
+          <AlertDialog
+            onDismissRequest={handleCancel}
+            colors={dialogColors}
           >
-            {config?.title && <Text style={styles.title}>{config.title}</Text>}
-            {config?.message && (
-              <Text style={styles.message}>{config.message}</Text>
+            {config.title && (
+              <AlertDialog.Title>
+                <Text style={{ fontFamily: 'Rubik-SemiBold', fontSize: 20 }}>
+                  {config.title}
+                </Text>
+              </AlertDialog.Title>
             )}
-            <View style={styles.buttonRow}>
-              {(config?.showCancel ?? true) && (
-                <TouchableOpacity
-                  style={styles.button}
-                  onPress={handleCancel}
-                  activeOpacity={0.7}
+            <AlertDialog.Text>
+              <Text style={{ fontFamily: 'Rubik', fontSize: 16, lineHeight: 22 }}>
+                {config.message}
+              </Text>
+            </AlertDialog.Text>
+            {(config.showCancel ?? true) && (
+              <AlertDialog.DismissButton>
+                <TextButton
+                  onClick={handleCancel}
+                  colors={{ contentColor: dismissColor }}
                 >
-                  <Text style={styles.buttonText}>
-                    {config?.cancelLabel ?? 'Cancel'}
+                  <Text style={{ fontFamily: 'Rubik-SemiBold', fontSize: 15 }}>
+                    {config.cancelLabel ?? 'Cancel'}
                   </Text>
-                </TouchableOpacity>
-              )}
-              {config?.confirmLabel && (
-                <TouchableOpacity
-                  style={styles.button}
-                  onPress={handleConfirm}
-                  activeOpacity={0.7}
+                </TextButton>
+              </AlertDialog.DismissButton>
+            )}
+            {config.confirmLabel && (
+              <AlertDialog.ConfirmButton>
+                <TextButton
+                  onClick={handleConfirm}
+                  colors={{
+                    contentColor: config.destructive ? '#ef4444' : confirmColor,
+                  }}
                 >
-                  <Text style={styles.buttonText}>{config.confirmLabel}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </Animated.View>
-        </Animated.View>
-      </Modal>
+                  <Text style={{ fontFamily: 'Rubik-SemiBold', fontSize: 15 }}>
+                    {config.confirmLabel}
+                  </Text>
+                </TextButton>
+              </AlertDialog.ConfirmButton>
+            )}
+          </AlertDialog>
+        </Host>
+      )}
     </DialogContext.Provider>
   );
 }

@@ -1,7 +1,7 @@
 import { File, Paths } from 'expo-file-system';
 import { deleteAsync, moveAsync } from 'expo-file-system/legacy';
 import { DESKTOP_UA } from '../userAgents';
-import type { Format, VideoInfo } from '../../extractors/types';
+import type { Format, VideoInfo } from '../../extractors/shared/types';
 import { refererFor, type DownloadState } from '../format';
 import { chunkedDownload } from './download';
 import {
@@ -12,11 +12,23 @@ import {
   parallelHlsToMp4,
   parallelHlsMuxedToMp4,
   tagAudio,
+  extractFrame,
+  remuxToMp4,
+  encodeToMp4,
 } from './mux';
 import { saveToDevice } from './save';
+import { checkStorageBeforeDownload } from './storagePreflight';
 import { log } from '../log';
+import { ABORT_MESSAGE } from '../retry';
 import { upsertInflight, removeInflight, type InflightItem } from '../inflight';
 import { addHistory } from '../downloadHistory';
+import { resolve } from '../../extractors';
+import {
+  acquireCpuLock,
+  acquireWifiLock,
+  releaseCpuLock,
+  releaseWifiLock,
+} from '../../../modules/wake-lock';
 
 export type DownloadOutcome = { status: 'saved' | 'denied'; uri?: string };
 
@@ -34,7 +46,8 @@ export type RunDownloadInput = {
 const removeFile = (file: File): Promise<void> =>
   deleteAsync(file.uri, { idempotent: true }).catch(() => undefined);
 
-const mb = (bytes: number): string => (bytes / 1048576).toFixed(1);
+const BYTES_PER_MB = 1048576;
+const mb = (bytes: number): string => (bytes / BYTES_PER_MB).toFixed(1);
 
 function buildInflight(
   info: VideoInfo,
@@ -43,7 +56,7 @@ function buildInflight(
   tag: { title?: string; artist?: string } | undefined,
   seed?: InflightItem
 ): InflightItem {
-  const pick = <T,>(a: T | undefined, fallback: T): T =>
+  const pick = <T>(a: T | undefined, fallback: T): T =>
     a !== undefined ? a : fallback;
   return {
     id: stem,
@@ -62,10 +75,7 @@ function buildInflight(
       thumbnail: pick(seed?.info.thumbnail, info.thumbnail),
       duration: pick(seed?.info.duration, info.duration),
       extractorKey: pick(seed?.info.extractorKey, info.extractorKey),
-      downloadHeaders: pick(
-        seed?.info.downloadHeaders,
-        info.downloadHeaders
-      ),
+      downloadHeaders: pick(seed?.info.downloadHeaders, info.downloadHeaders),
     },
     format: pick(seed?.format, format),
     tag: pick(seed?.tag, tag),
@@ -107,6 +117,23 @@ async function tagAudioInPlace(
   }
 }
 
+// signed cdn urls expire (googlevideo, spotify) — match the failed stream
+// against a fresh resolve so a retry never reuses the dead url
+async function refreshStreamUrl(
+  info: VideoInfo,
+  format: Format,
+  url: string
+): Promise<string | null> {
+  const fresh = await resolve(info.webpageUrl, undefined, { fresh: true });
+  if (!fresh || fresh.formats.length === 0) return null;
+  const match =
+    fresh.formats.find((f) => f.formatId === format.formatId) ??
+    fresh.formats[0];
+  if (url === format.url) return match.url || null;
+  if (url === format.muxAudioUrl) return match.muxAudioUrl || null;
+  return null;
+}
+
 type FetchMediaInput = {
   info: VideoInfo;
   format: Format;
@@ -131,48 +158,94 @@ async function fetchMedia({
     'User-Agent': DESKTOP_UA,
     Referer: refererFor(info.extractorKey),
   };
-  const chunked =
-    info.extractorKey === 'youtube' || info.extractorKey === 'spotify';
 
   const fetchTo = async (
     dlUrl: string,
     dest: File,
     base: number,
     cap: number,
-    label: string
+    label: string,
+    share?: { video: number; audio: number },
+    shareKey?: 'video' | 'audio'
   ): Promise<void> => {
     const startedAt = Date.now();
     let written = 0;
     const onProg = (done: number, total: number): void => {
       written = done;
-      if (total > 0) {
+      // concurrent video+audio: combine the two streams into one
+      // smooth 0-90 segment (video 80, audio 10 of it)
+      if (share && shareKey) {
+        share[shareKey] = total > 0 ? done / total : 0;
+        report({
+          status: 'downloading',
+          progress: Math.round(share.video * 80 + share.audio * 10),
+        });
+      } else if (total > 0) {
         report({
           status: 'downloading',
           progress: base + Math.round((done / total) * cap),
         });
       }
     };
-    if (chunked) {
-      await chunkedDownload(dlUrl, headers, dest, onProg, signal);
-    } else {
-      await File.downloadFileAsync(dlUrl, dest, {
-        idempotent: true,
-        headers,
-        onProgress: ({ bytesWritten, totalBytes }) =>
-          onProg(bytesWritten, totalBytes),
-      });
+    const attempt = async (targetUrl: string): Promise<void> => {
+      try {
+        await chunkedDownload(targetUrl, headers, dest, onProg, signal);
+      } catch (error) {
+        if (!(error instanceof Error && /unknown size/iu.test(error.message))) {
+          throw error;
+        }
+        // server without range support: plain single-shot download
+        await File.downloadFileAsync(targetUrl, dest, {
+          idempotent: true,
+          headers,
+          onProgress: ({ bytesWritten, totalBytes }) =>
+            onProg(bytesWritten, totalBytes),
+        });
+      }
+    };
+    try {
+      await attempt(dlUrl);
+    } catch (error) {
+      // cdn 403: the signed url got rejected on that edge node — some
+      // (geo) nodes 403 what a sibling node serves. each fresh resolve
+      // rolls a new node; try up to 3 rolls before giving up
+      if (!(error instanceof Error && /chunked: HTTP/u.test(error.message))) {
+        throw error;
+      }
+      let lastError = error;
+      let reResolved = false;
+      for (let roll = 0; roll < 3; roll += 1) {
+        const freshUrl = await refreshStreamUrl(info, format, dlUrl);
+        if (!freshUrl) throw lastError;
+        try {
+          await attempt(freshUrl);
+          reResolved = true;
+          break;
+        } catch (retryError) {
+          if (
+            !(
+              retryError instanceof Error &&
+              /chunked: HTTP/u.test(retryError.message)
+            )
+          ) {
+            throw retryError;
+          }
+          lastError = retryError;
+        }
+      }
+      if (!reResolved) throw lastError;
+      log('downloadPipeline', `[Download] ${label} url expired, re-resolved`);
     }
-    if (signal.aborted) throw new Error('cancelled');
+    if (signal.aborted) throw new Error(ABORT_MESSAGE);
     const secs = Math.max((Date.now() - startedAt) / 1000, 0.1);
     log(
       'downloadPipeline',
-      `[Download] ${label} ${mb(written)}MB in ${secs.toFixed(1)}s (${(written / 1048576 / secs).toFixed(1)} MB/s)`
+      `[Download] ${label} ${mb(written)}MB in ${secs.toFixed(1)}s (${(written / BYTES_PER_MB / secs).toFixed(1)} MB/s)`
     );
   };
 
   if (format.extension === 'mp3') {
     if (format.noTranscode) {
-      // already native mp3; download & keep untouched
       const outFile = track(new File(Paths.cache, `${stem}.mp3`));
       await fetchTo(format.url, outFile, 0, 100, 'audio');
       return outFile;
@@ -202,8 +275,13 @@ async function fetchMedia({
     const audioFile = track(
       new File(Paths.cache, `${stem}.aud.${format.muxAudioExt || 'm4a'}`)
     );
-    await fetchTo(format.url, videoFile, 0, 80, 'video');
-    await fetchTo(format.muxAudioUrl, audioFile, 80, 10, 'audio');
+    // cdn throttles per-connection, so both files download at once —
+    // two parallel region sets multiply aggregate bandwidth
+    const share = { video: 0, audio: 0 };
+    await Promise.all([
+      fetchTo(format.url, videoFile, 0, 80, 'video', share, 'video'),
+      fetchTo(format.muxAudioUrl, audioFile, 80, 10, 'audio', share, 'audio'),
+    ]);
     onState({ status: 'muxing', progress: 92 });
     const outFile = track(new File(Paths.cache, `${stem}.${ext}`));
     const mStart = Date.now();
@@ -219,7 +297,6 @@ async function fetchMedia({
   }
   if (format.isHls) {
     const outFile = track(new File(Paths.cache, `${stem}.${ext}`));
-    // sum segment durations for progress
     let durationSec = info.duration ?? 0;
     if (!durationSec) {
       try {
@@ -259,7 +336,7 @@ async function fetchMedia({
       );
       if (ok) path = 'parallel-muxed';
     }
-    if (signal.aborted) throw new Error('cancelled');
+    if (signal.aborted) throw new Error(ABORT_MESSAGE);
     if (!ok) {
       ok = await hlsToMp4(
         format.url,
@@ -274,7 +351,7 @@ async function fetchMedia({
       'downloadPipeline',
       `[Download] hls (${path}) ${ok ? 'ok' : 'failed'} in ${((Date.now() - hStart) / 1000).toFixed(1)}s`
     );
-    if (signal.aborted) throw new Error('cancelled');
+    if (signal.aborted) throw new Error(ABORT_MESSAGE);
     if (!ok) throw new Error('HLS download failed');
     // big 4k saves are slow; avoid a frozen-looking 98%
     onState({ status: 'muxing', progress: 99 });
@@ -300,6 +377,13 @@ export async function runDownload({
     return file;
   };
 
+  // keep CPU + Wi-Fi radio awake for the whole download; best-effort,
+  // a lock failure must never fail the download itself
+  await Promise.allSettled([
+    acquireCpuLock('phantom-download'),
+    acquireWifiLock('phantom-download'),
+  ]);
+
   const inflight = buildInflight(info, format, stem, tag, seed);
   await upsertInflight(inflight);
 
@@ -318,9 +402,21 @@ export async function runDownload({
     }
   };
 
+  // fail before writing anything: a half-empty disk kills downloads
+  // midway and the kept partial bloats the resume path
+  const gate = await checkStorageBeforeDownload(
+    format.filesize ?? 0,
+    info.duration
+  );
+  if (!gate.ok) {
+    onState({ status: 'error', progress: 0 });
+    await removeInflight(stem);
+    throw new Error(gate.message);
+  }
+
   let threw: unknown;
   try {
-    const saveTarget = await fetchMedia({
+    let saveTarget = await fetchMedia({
       info,
       format,
       stem,
@@ -330,7 +426,23 @@ export async function runDownload({
       track,
     });
 
-    // tag audio so players show title/artist/art
+    // every video lands as .mp4; copy when codecs allow, else re-encode
+    if (
+      format.isVideo &&
+      !format.isAudio &&
+      !saveTarget.name.toLowerCase().endsWith('.mp4')
+    ) {
+      onState({ status: 'muxing', progress: 99 });
+      const mp4 = track(new File(Paths.cache, `${stem}.mp4`));
+      const ok =
+        (await remuxToMp4(saveTarget, mp4)) ||
+        (await encodeToMp4(saveTarget, mp4));
+      if (signal.aborted) throw new Error(ABORT_MESSAGE);
+      if (!ok) throw new Error('MP4 conversion failed');
+      await removeFile(saveTarget);
+      saveTarget = mp4;
+    }
+
     if (format.isAudio && !format.isVideo) {
       await tagAudioInPlace(saveTarget, stem, info, tag, track);
     }
@@ -338,6 +450,14 @@ export async function runDownload({
     const saved = await saveToDevice(saveTarget, (pct) =>
       onState({ status: 'saving', progress: pct })
     );
+    // paste-target media has no page art; grab a still before the temp dies
+    let frameUri: string | undefined;
+    if (saved.ok && format.isVideo && !inflight.thumbnail) {
+      const thumb = new File(Paths.cache, `${stem}.thumb.jpg`);
+      const ok = await extractFrame(saveTarget, thumb);
+      if (ok) frameUri = thumb.uri;
+      else await removeFile(thumb);
+    }
     await removeFile(saveTarget);
     if (saved.ok) {
       await addHistory({
@@ -345,9 +465,9 @@ export async function runDownload({
         title: inflight.title,
         author: inflight.author,
         platform: inflight.platform,
-        ext: inflight.ext,
         isAudio: inflight.isAudio,
-        thumbnail: inflight.thumbnail,
+        thumbnail: frameUri ?? inflight.thumbnail,
+        ext: saveTarget.name.split('.').pop() || inflight.ext,
         uri: saved.uri,
         savedAt: Date.now(),
       });
@@ -366,6 +486,7 @@ export async function runDownload({
       await removeInflight(stem);
       await Promise.all(temps.map(removeFile));
     }
+    await Promise.allSettled([releaseCpuLock(), releaseWifiLock()]);
   }
 }
 

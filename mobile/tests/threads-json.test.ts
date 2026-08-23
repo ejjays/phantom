@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractFromJson } from '../src/extractors/threads/json-extractor';
+import { extractFromJson } from '@phantom/extractors/threads/json-extractor';
 
 const jsonScript = (payload: unknown): string =>
   `<html><script type="application/json">${JSON.stringify(payload)}</script></html>`;

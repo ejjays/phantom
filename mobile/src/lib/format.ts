@@ -1,4 +1,4 @@
-import { Format, VideoInfo } from '../extractors/types';
+import { Format, VideoInfo } from '../extractors/shared/types';
 
 export type DownloadState = {
   status: 'downloading' | 'muxing' | 'saving' | 'saved' | 'error';
@@ -203,14 +203,25 @@ export function dlLabel(state?: DownloadState): string {
   return 'Download';
 }
 
+function hashString(input: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 export function prettyName(title: string): string {
   const cleaned = title
     .replace(/[<>:"/\\|?*[\]{}#%^`]/gu, '')
     .replace(/[\r\n\t]+/gu, ' ')
     .replace(/\s+/gu, ' ')
     .trim();
-  if (cleaned.length > 64) return `${cleaned.slice(0, 64).trim()}...`;
-  return cleaned || 'video';
+  if (!cleaned) return 'video';
+  if (cleaned.length <= 64) return cleaned;
+  const suffix = hashString(cleaned).slice(0, 4);
+  return `${cleaned.slice(0, 59).trim()} ${suffix}`;
 }
 
 export function refererFor(extractorKey: string): string {

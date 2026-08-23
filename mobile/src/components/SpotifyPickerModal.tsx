@@ -41,7 +41,7 @@ import PreviewAudioWebView, {
   type PreviewAudioMessage,
 } from './webviews/PreviewAudioWebView';
 import { useScreenSize } from '../hooks/useScreenSize';
-import { VideoInfo, Format } from '../extractors/types';
+import { VideoInfo, Format } from '../extractors/shared/types';
 import {
   DownloadState,
   DownloadMeta,
@@ -176,7 +176,6 @@ function VinylDisc({
         )}
         <VinylGrooves size={90} />
       </Animated.View>
-      {/* dark center spindle — stays still while disc rotates */}
       <View
         style={tw`absolute inset-0 items-center justify-center`}
         pointerEvents="none"
@@ -501,7 +500,6 @@ function PickerContent({
     });
   };
 
-  // mode="wait" style edit⇄view crossfade, matches PickerModal video picker
   const editOpacity = useSharedValue(1);
   const editTx = useSharedValue(0);
   const transitioning = useRef(false);

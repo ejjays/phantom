@@ -1,9 +1,11 @@
-import { VideoInfo, Format } from './types';
+import { VideoInfo, Format } from './shared/types';
 import { getBilibiliCookie } from '../lib/settings';
 import { gatedFetch } from '../lib/net';
-import { noVideo, fromStatus, classifyThrown } from './errors';
+import { noVideo, fromStatus, classifyThrown } from './shared/errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError } from '../lib/log';
+import { decodeEntities } from './shared/utils';
+import { buildVideoInfo } from './shared/videoInfo';
 
 // international bilibili.tv (bstar), not mainland .com
 const PLAYURL_API = 'https://api.bilibili.tv/intl/gateway/web/playurl';
@@ -47,32 +49,6 @@ function ogTag(html: string, prop: string): string | undefined {
   );
   const match = re.exec(html);
   return match ? match[1] : undefined;
-}
-
-function decodeEntities(text: string): string {
-  return text.replace(
-    /&(#x[0-9a-fA-F]+|#\d+|amp|lt|gt|quot|apos);/giu,
-    (entity, code: string) => {
-      if (code.startsWith('#x')) {
-        return String.fromCodePoint(parseInt(code.slice(2), 16));
-      }
-      if (code.startsWith('#')) {
-        return String.fromCodePoint(parseInt(code.slice(1), 10));
-      }
-      switch (code.toLowerCase()) {
-        case 'amp':
-          return '&';
-        case 'lt':
-          return '<';
-        case 'gt':
-          return '>';
-        case 'quot':
-          return '"';
-        default:
-          return "'";
-      }
-    }
-  );
 }
 
 // prefer clean ld+json cover
@@ -187,17 +163,12 @@ async function resolveTarget(
 ): Promise<{ target: string; aid?: string; epId?: string }> {
   const direct = parseIds(url);
   if (direct.aid || direct.epId) return { target: url, ...direct };
-  // follow short-link redirect
-  try {
-    const res = await gatedFetch(url, {
-      headers: { 'User-Agent': DESKTOP_UA },
-      redirect: 'follow',
-    });
-    const target = res.url || url;
-    return { target, ...parseIds(target) };
-  } catch {
-    return { target: url };
-  }
+  const res = await gatedFetch(url, {
+    headers: { 'User-Agent': DESKTOP_UA },
+    redirect: 'follow',
+  });
+  const target = res.url || url;
+  return { target, ...parseIds(target) };
 }
 
 export async function getInfo(url: string): Promise<VideoInfo | null> {
@@ -205,7 +176,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     const { target, aid, epId } = await resolveTarget(url);
     if (!aid && !epId) return null;
 
-    const cookieValue = getBilibiliCookie();
+    const cookieValue = await getBilibiliCookie();
     // cookie unlocks login-gated HD
     const cookie: Record<string, string> = cookieValue
       ? { Cookie: cookieValue }
@@ -239,8 +210,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       ? Math.round(playurl.duration / 1000)
       : undefined;
 
-    return {
-      type: 'video',
+    return buildVideoInfo({
       id: aid || epId || target,
       title: meta.title || 'Bilibili Video',
       uploader: 'Bilibili',
@@ -249,17 +219,12 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       duration: durationSec,
       formats,
       extractorKey: 'bilibili',
-      isJsInfo: true,
-      fromBrain: false,
-      isPartial: false,
-      isIsrcMatch: false,
-      isFullData: true,
       downloadHeaders: {
         'User-Agent': DESKTOP_UA,
         Referer: REFERER,
         Range: 'bytes=0-',
       },
-    };
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     logError('bilibili', `[JS-Bilibili] Error extracting ${url}: ${message}`);

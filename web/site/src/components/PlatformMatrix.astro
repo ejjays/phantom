@@ -1,0 +1,127 @@
+---
+import { Check, X as XIcon, Minus } from '@lucide/astro';
+import { PLATFORMS, type Cap } from '../content/site';
+
+const CAP_META = {
+  yes: { Icon: Check, class: 'text-green-400', label: 'Yes' },
+  no: { Icon: XIcon, class: 'text-red-400', label: 'No' },
+  na: { Icon: Minus, class: 'text-slate-500', label: 'N/A' },
+} as const;
+
+const COLS = ['video', 'audio', 'image'] as const;
+
+// x glyph fills its viewBox edge-to-edge; render it smaller to optically match
+const logoSize = (id: string) => (id === 'x' ? 14 : 18);
+// same label as the mobile matrix
+const displayName = (id: string, name: string) => (id === 'x' ? '/ Twitter' : name);
+
+const counts = {
+  video: PLATFORMS.filter((p) => p.caps.video === 'yes').length,
+  audio: PLATFORMS.filter((p) => p.caps.audio === 'yes').length,
+  image: PLATFORMS.filter((p) => p.caps.image === 'yes').length,
+};
+---
+
+<section id="platforms" class="relative py-14 sm:py-20">
+  <div class="mx-auto mb-10 max-w-2xl text-center">
+    <p class="mb-3 text-xs tracking-[0.25em] text-cyan-400 uppercase">{'// the matrix'}</p>
+    <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">Every platform, every format</h2>
+    <p class="mt-4 font-sans text-base text-slate-400">
+      {counts.video} video sources, {counts.audio} audio rips, {counts.image} image savers —
+      exactly what Phantom pulls from each site. No fine print.
+    </p>
+  </div>
+
+  <div class="mx-auto max-w-xl px-4 sm:px-6 md:max-w-3xl">
+    <div class="overflow-hidden rounded-3xl border border-white/10 bg-surface/40">
+      <table class="w-full text-left text-sm">
+        <thead>
+          <tr class="border-b border-white/10">
+            <th
+              scope="col"
+              class="py-4 pr-3 pl-5 text-xs font-semibold tracking-wider text-slate-400 uppercase"
+            >
+              Platform
+            </th>
+            {
+              COLS.map((col) => (
+                <th
+                  scope="col"
+                  class="w-16 px-2 py-4 text-center text-xs font-semibold tracking-wider text-slate-400 uppercase"
+                >
+                  {col}
+                </th>
+              ))
+            }
+            <th
+              scope="col"
+              class="hidden pr-4 pl-7 py-4 text-left text-xs font-semibold tracking-wider text-slate-400 uppercase md:table-cell"
+            >
+              Notes
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            PLATFORMS.map((platform) => (
+              <tr class="border-b border-white/5 transition-colors last:border-b-0 hover:bg-white/5">
+                <th scope="row" class="py-3 pr-3 pl-5 text-left font-medium text-slate-200">
+                  <span class="flex items-center gap-2.5">
+                    <img
+                      src={`/logos/${platform.id}.svg`}
+                      alt=""
+                      width={logoSize(platform.id)}
+                      height={logoSize(platform.id)}
+                      loading="lazy"
+                      class="shrink-0"
+                    />
+                    {displayName(platform.id, platform.name)}
+                  </span>
+                </th>
+                {COLS.map((col) => {
+                  const cap: Cap = platform.caps[col];
+                  const {
+                    Icon,
+                    class: colorClass,
+                    label,
+                  } = CAP_META[cap];
+                  return (
+                    <td class="px-2 py-3 text-center">
+                      <Icon size={15} strokeWidth={3} class={`inline-block ${colorClass}`} />
+                      <span class="sr-only">{`${platform.name} ${col}: ${label}`}</span>
+                    </td>
+                  );
+                })}
+                <td class="hidden pr-4 pl-7 py-3 font-sans text-xs text-slate-500 md:table-cell">
+                  {platform.note ?? '—'}
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+      {
+        (['yes', 'na', 'no'] as const).map((cap) => {
+          const {
+            Icon,
+            class: colorClass,
+            label,
+          } = CAP_META[cap];
+          return (
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs text-slate-400">
+              <Icon size={11} strokeWidth={3} class={colorClass} />
+              {label}
+            </span>
+          );
+        })
+      }
+    </div>
+
+    <p class="mt-5 text-center font-sans text-xs leading-relaxed text-slate-500">
+      More platforms land in every update — this table grows with the app.
+    </p>
+  </div>
+</section>

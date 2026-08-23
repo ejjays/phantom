@@ -93,7 +93,6 @@ export default function NotificationsPanel({
       .catch(() => setLoaded(true));
   }, []);
 
-  // load snapshot, then clear badge
   useEffect(() => {
     if (!visible) return undefined;
     load();

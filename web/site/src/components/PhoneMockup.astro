@@ -1,0 +1,68 @@
+---
+interface Props {
+  src: string;
+  alt: string;
+  video?: boolean;
+}
+
+const { src, alt, video = false } = Astro.props;
+---
+
+<div
+  class="relative rounded-[2.6rem] border border-white/10 bg-black p-2 shadow-[0_0_36px_-14px_rgba(6,182,212,0.5)]"
+>
+  <div class="overflow-hidden rounded-[2rem] border border-white/5">
+    {
+      video ? (
+        <video
+          src={`/videos/${src}.mp4`}
+          muted
+          loop
+          playsinline
+          preload="metadata"
+          disablepictureinpicture
+          disableremoteplayback
+          data-viewplay
+          width="1160"
+          height="2560"
+          class="block h-auto w-full"
+        />
+      ) : (
+        <img
+          src={`/screenshots/${src}.webp`}
+          alt={alt}
+          width="408"
+          height="900"
+          decoding="async"
+          draggable="false"
+          class="block h-auto w-full"
+          loading="lazy"
+        />
+      )
+    }
+  </div>
+  <div
+    class="pointer-events-none absolute top-3 left-1/2 h-8 w-32 -translate-x-1/2 rounded-full bg-black"
+  >
+  </div>
+</div>
+
+<script>
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        const video = entry.target as HTMLVideoElement;
+        if (entry.isIntersecting) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      }
+    },
+    { threshold: 0.4 },
+  );
+
+  document.querySelectorAll('video[data-viewplay]').forEach((video) => {
+    observer.observe(video);
+  });
+</script>

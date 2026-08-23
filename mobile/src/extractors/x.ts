@@ -1,9 +1,10 @@
-import { VideoInfo, Format } from './types';
-import { normalizeTitle, normalizeArtist } from './social';
+import { VideoInfo, Format } from './shared/types';
+import { normalizeTitle, normalizeArtist, probeFileSize } from './shared/utils';
 import { gatedFetch, mapLimit } from '../lib/net';
-import { noVideo, fromStatus, classifyThrown } from './errors';
+import { noVideo, fromStatus, classifyThrown } from './shared/errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError } from '../lib/log';
+import { buildVideoInfo } from './shared/videoInfo';
 
 interface XVariant {
   content_type?: string;
@@ -94,16 +95,11 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     // twimg omits filesize
     await mapLimit(formats, 2, async (format) => {
       if (format.filesize) return;
-      try {
-        const head = await gatedFetch(format.url, {
-          method: 'HEAD',
-          headers: { 'User-Agent': DESKTOP_UA, Referer: 'https://x.com/' },
-        });
-        const len = head.headers.get('content-length');
-        if (len) format.filesize = parseInt(len, 10);
-      } catch {
-        // best-effort: HEAD can fail; keep going without filesize
-      }
+      const size = await probeFileSize(format.url, {
+        'User-Agent': DESKTOP_UA,
+        Referer: 'https://x.com/',
+      });
+      if (size) format.filesize = size;
     });
 
     // drop trailing media t.co link
@@ -111,8 +107,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       .replace(/\s*https:\/\/t\.co\/\S+\s*$/u, '')
       .trim();
 
-    const info: VideoInfo = {
-      type: 'video',
+    const info: VideoInfo = buildVideoInfo({
       id,
       title: caption || 'X Video',
       uploader: tweet.user?.name || tweet.user?.screen_name || 'X User',
@@ -120,12 +115,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       thumbnail: media.media_url_https || undefined,
       formats,
       extractorKey: 'x',
-      isJsInfo: true,
-      fromBrain: false,
-      isPartial: false,
-      isIsrcMatch: false,
-      isFullData: true,
-    };
+    });
 
     info.title = normalizeTitle(info as unknown as Record<string, unknown>);
     info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);

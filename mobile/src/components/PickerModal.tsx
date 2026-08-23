@@ -37,7 +37,7 @@ import {
   FilePlay,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
-import { VideoInfo, Format } from '../extractors/types';
+import { VideoInfo, Format } from '../extractors/shared/types';
 import VideoPreviewModal from './VideoPreviewModal';
 import {
   DownloadState,
@@ -99,10 +99,8 @@ type ContentProps = {
   onPreview: (url: string, aspectRatio: number) => void;
 };
 
-// edit-form baseline, avoids first-open grow
 const EDIT_MIN_HEIGHT = 210;
 
-// skipcq: JS-R1005
 function PickerContent({
   info,
   downloads,
@@ -145,14 +143,12 @@ function PickerContent({
     []
   );
 
-  // lift follows the keyboard frame-by-frame on the UI thread, no didShow lag
   const lift = useDerivedValue(
     () => computeLift(fieldBottom.value, kb.value, screenH, insets.bottom),
     [screenH, insets.bottom]
   );
 
   const onFocusField = (windowBottom: number) => {
-    // strip the current lift so we store the field's resting bottom
     fieldBottom.value = windowBottom - lift.value;
   };
 
@@ -174,7 +170,6 @@ function PickerContent({
     transform: [{ translateX: editTx.value }],
   }));
 
-  /* mode="wait": exit current, swap, then enter */
   const startEditTransition = (next: boolean, onSwap?: () => void) => {
     if (transitioning.current || editing === next) return;
     transitioning.current = true;
@@ -339,7 +334,6 @@ function PickerContent({
               />
             </View>
           ) : (
-            // skipcq: JS-0415
             <View
               onLayout={(event) => {
                 const height = event.nativeEvent.layout.height;
@@ -402,7 +396,6 @@ function PickerContent({
               ) : null}
 
               {selected ? (
-                // skipcq: JS-0415
                 <View style={tw`mt-5`}>
                   <Text
                     style={tw`ml-1 font-mono-bold text-[10px] uppercase tracking-wider text-primary/80`}
@@ -503,7 +496,6 @@ function PickerContent({
                   </View>
                 </View>
               ) : info.isPartial ? (
-                // skipcq: JS-0415
                 <View style={tw`mt-5`}>
                   <Text
                     style={tw`ml-1 font-mono-bold text-[10px] uppercase tracking-wider text-primary/80`}
@@ -573,11 +565,9 @@ export default function PickerModal({
     aspectRatio: number;
   } | null>(null);
 
-  // keep content mounted during fade-out
   const [shownInfo, setShownInfo] = useState(info);
   if (info && info !== shownInfo) setShownInfo(info);
 
-  // native modal flashes empty on close
   const [mounted, setMounted] = useState(Boolean(info));
   const dim = useSharedValue(0);
   const fade = useSharedValue(0);
@@ -586,7 +576,6 @@ export default function PickerModal({
     if (info) {
       // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- keep content mounted during fade-out
       setMounted(true);
-      // dim fast, card glides in
       dim.value = withTiming(1, {
         duration: 120,
         easing: Easing.out(Easing.quad),

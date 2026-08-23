@@ -52,14 +52,12 @@ const VIDEO_ATTRS =
 
 const buildHtml = (url: string, poster?: string) => {
   const posterAttr = poster ? ` poster="${escapeAttr(poster)}"` : '';
-  // android webview needs hls.js for m3u8
   if (isHlsUrl(url)) {
     return `<!DOCTYPE html><html><head>${HEAD}</head><body><div class="wrap"><video id="v"${posterAttr} ${VIDEO_ATTRS}></video></div><script src="${HLS_JS_URL}" integrity="${HLS_JS_SRI}" crossorigin="anonymous"></script><script>(function(){var v=document.getElementById('v');var src=${JSON.stringify(url).replace(/</gu, '\\u003c')};if(window.Hls&&window.Hls.isSupported()){var h=new Hls({maxBufferLength:10});h.on(Hls.Events.ERROR,function(_e,d){if(d&&d.fatal)window.ReactNativeWebView.postMessage('error');});h.loadSource(src);h.attachMedia(v);}else if(v.canPlayType('application/vnd.apple.mpegurl')){v.src=src;}else{window.ReactNativeWebView.postMessage('error');}})();</script></body></html>`;
   }
   return `<!DOCTYPE html><html><head>${HEAD}</head><body><div class="wrap"><video src="${escapeAttr(url)}"${posterAttr} ${VIDEO_ATTRS}></video></div></body></html>`;
 };
 
-/* autoplay may fire before listener attaches */
 const INJECTED =
   "(function(){var v=document.querySelector('video');if(!v)return;var ok=function(){window.ReactNativeWebView.postMessage('playing');};v.addEventListener('playing',ok);v.addEventListener('timeupdate',ok);v.addEventListener('loadeddata',ok);v.addEventListener('error',function(){window.ReactNativeWebView.postMessage('error');});var ar=function(){if(v.videoWidth&&v.videoHeight)window.ReactNativeWebView.postMessage('ar:'+(v.videoWidth/v.videoHeight));};v.addEventListener('loadedmetadata',ar);ar();if(v.readyState>=2||!v.paused)ok();})();true;";
 

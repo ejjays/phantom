@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Music, SquarePen, ListMusic } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router';
 import FormatIcon from '../../assets/icons/FormatIcon';
 import ModalHeader from './ModalHeader';
 import {
@@ -293,12 +292,14 @@ const FooterContent = ({
       selectedOption.height >= 2160 && (
         <span className="text-cyan-500/80">
           Choosing 4k+? Let&apos;s check if your device supports it. &nbsp;
-          <Link
-            to="/resources/video-guide"
+          <a
+            href="/#faq"
+            target="_blank"
+            rel="noopener noreferrer"
             className="underline font-bold hover:text-cyan-400 transition-colors"
           >
             Read guide
-          </Link>
+          </a>
         </span>
       )
     )}

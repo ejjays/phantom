@@ -1,0 +1,61 @@
+---
+import { Download } from '@lucide/astro';
+
+const LINKS = [
+  { href: '#features', label: 'Features' },
+  { href: '#screens', label: 'Screens' },
+  { href: '#how', label: 'How it works' },
+  { href: '#faq', label: 'FAQ' },
+] as const;
+---
+
+<header id="site-nav" class="fixed inset-x-0 top-0 z-50">
+  <nav class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+    <a href="#top" class="flex items-center gap-2.5">
+      <img src="/brand/icon.png" alt="" width="30" height="30" class="rounded-lg" />
+      <span class="text-lg font-semibold tracking-tight">Phantom</span>
+    </a>
+    <div class="hidden items-center gap-7 md:flex">
+      {
+        LINKS.map((link) => (
+          <a
+            href={link.href}
+            class="text-sm text-slate-400 transition-colors hover:text-cyan-300"
+          >
+            {link.label}
+          </a>
+        ))
+      }
+    </div>
+    <a
+      href="/app/"
+      class="flex items-center gap-2 rounded-full border border-primary/40 bg-[#22d3ee40] px-4 py-2 font-sans text-sm font-semibold text-[#22d3ee] shadow-[0_0_8px_rgba(6,182,212,0.35),0_0_20px_rgba(6,182,212,0.25)] transition-transform hover:scale-105 hover:bg-[#22d3ee59] active:scale-95 active:opacity-90"
+    >
+      <Download size={15} strokeWidth={2.5} />
+      Download
+    </a>
+  </nav>
+</header>
+
+<style>
+  #site-nav {
+    border-bottom: 1px solid transparent;
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease,
+      backdrop-filter 0.3s ease;
+  }
+  #site-nav.scrolled {
+    background-color: rgba(3, 0, 20, 0.85);
+    border-bottom-color: rgba(6, 182, 212, 0.25);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+</style>
+
+<script>
+  const nav = document.getElementById('site-nav');
+  const onScroll = () => nav?.classList.toggle('scrolled', window.scrollY > 24);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>

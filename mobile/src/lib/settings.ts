@@ -1,7 +1,31 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export function getBilibiliCookie(): string {
-  return (process.env.EXPO_PUBLIC_BILIBILI_COOKIE ?? '').trim();
+const YT_COOKIE_KEY = 'phantom.cookie.youtube';
+const BILI_COOKIE_KEY = 'phantom.cookie.bilibili';
+
+const storedCookie = async (key: string): Promise<string> =>
+  ((await AsyncStorage.getItem(key).catch(() => null)) ?? '').trim();
+
+// user cookie unlocks login-gated HD; env var stays as build-time fallback
+export async function getBilibiliCookie(): Promise<string> {
+  const stored = await storedCookie(BILI_COOKIE_KEY);
+  return stored || (process.env.EXPO_PUBLIC_BILIBILI_COOKIE ?? '').trim();
+}
+
+export function setBilibiliCookie(value: string): Promise<void> {
+  return AsyncStorage.setItem(BILI_COOKIE_KEY, value.trim()).catch(
+    () => undefined
+  );
+}
+
+export function getYoutubeCookie(): Promise<string> {
+  return storedCookie(YT_COOKIE_KEY);
+}
+
+export function setYoutubeCookie(value: string): Promise<void> {
+  return AsyncStorage.setItem(YT_COOKIE_KEY, value.trim()).catch(
+    () => undefined
+  );
 }
 
 // optional IG session cookie — unlocks authenticated media API (high rate
@@ -19,6 +43,7 @@ const NOTIFY_PRIMED_KEY = 'phantom.notify.primed';
 const HAPTICS_KEY = 'phantom.haptics';
 const SC_CLIENTID_KEY = 'phantom.soundcloud.clientid';
 const ONBOARDED_KEY = 'phantom.onboarded';
+const GENERIC_SNIFFER_KEY = 'phantom.genericSniffer';
 
 export async function getOnboarded(): Promise<boolean> {
   const v = await AsyncStorage.getItem(ONBOARDED_KEY).catch(() => null);
@@ -142,6 +167,18 @@ export async function getNotifyPrimed(): Promise<boolean> {
   return v === '1';
 }
 
+// generic webview sniffer is best-effort: opt-in only, off by default
+export async function getGenericSnifferEnabled(): Promise<boolean> {
+  const v = await AsyncStorage.getItem(GENERIC_SNIFFER_KEY).catch(() => null);
+  return v === '1';
+}
+
+export async function setGenericSnifferEnabled(value: boolean): Promise<void> {
+  await AsyncStorage.setItem(GENERIC_SNIFFER_KEY, value ? '1' : '0').catch(
+    () => undefined
+  );
+}
+
 export async function setNotifyPrimed(value: boolean): Promise<void> {
   await AsyncStorage.setItem(NOTIFY_PRIMED_KEY, value ? '1' : '0').catch(
     () => undefined
@@ -187,14 +224,15 @@ export async function setHaptics(value: boolean): Promise<void> {
 
 export function formatName(
   fmt: FilenameFormat,
-  title: string,
+  title: string | undefined,
   artist: string | undefined,
   platform: string
 ): string {
-  if (fmt === 'title') return title;
+  const t = (title ?? '').toString().trim() || 'Untitled';
+  if (fmt === 'title') return t;
   if (fmt === 'title-platform') {
     const tag = platform.charAt(0).toUpperCase() + platform.slice(1);
-    return `${title} (${tag})`;
+    return `${t} (${tag})`;
   }
-  return artist ? `${artist} - ${title}` : title;
+  return artist ? `${artist} - ${t}` : t;
 }

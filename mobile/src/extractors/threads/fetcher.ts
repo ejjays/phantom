@@ -1,18 +1,12 @@
 import { HEADERS, DESKTOP_UA } from './constants';
-import { gatedFetch } from '../../lib/net';
-import { log } from '../../lib/log';
+import { gatedFetch, timeoutSignal } from '../../lib/net';
+import { probeFileSize } from '../shared/utils';
 
 type FetchOptions = {
   cookie?: string;
 };
 
 type FetchResult = { html: string; targetUrl: string };
-
-function timeoutSignal(ms: number): AbortSignal {
-  const controller = new AbortController();
-  setTimeout(() => controller.abort(), ms);
-  return controller.signal;
-}
 
 // public embed endpoint, often ungated
 function buildEmbedUrl(url: string): string {
@@ -51,21 +45,6 @@ export function fetchEmbed(
   return fetchPage(buildEmbedUrl(url), options);
 }
 
-export async function fetchFileSize(url: string): Promise<number | undefined> {
-  try {
-    const headResponse = await gatedFetch(url, {
-      method: 'HEAD',
-      headers: { 'User-Agent': DESKTOP_UA },
-      redirect: 'follow',
-      signal: timeoutSignal(5000),
-    });
-    if (headResponse.ok) {
-      const contentLength = headResponse.headers.get('content-length');
-      if (contentLength) return parseInt(contentLength, 10);
-    }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    log('fetcher', '[ThreadsExtractor] Size fetch error:', message);
-  }
-  return undefined;
+export function fetchFileSize(url: string): Promise<number | undefined> {
+  return probeFileSize(url, { 'User-Agent': DESKTOP_UA });
 }

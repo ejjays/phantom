@@ -1,11 +1,12 @@
-import { VideoInfo, Format, ExtractorError } from '../types';
+import { VideoInfo, Format, ExtractorError } from '../shared/types';
 import { gatedFetch, mapLimit } from '../../lib/net';
 import { getInstagramCookie } from '../../lib/settings';
 import { cookieGet } from '../../lib/authFetch';
-import { noVideo, fromStatus, classifyThrown } from '../errors';
+import { noVideo, fromStatus, classifyThrown } from '../shared/errors';
 import { DESKTOP_UA } from '../../lib/userAgents';
 import { error as logError } from '../../lib/log';
 import { webviewFetch } from './bridge';
+import { buildVideoInfo } from '../shared/videoInfo';
 
 function isInstagramHost(url: string): boolean {
   try {
@@ -139,8 +140,7 @@ async function fetchGraphqlMedia(shortcode: string): Promise<GqlNode | null> {
 
   const lsd = (objFrom('LSD', html)?.token as string) || randomToken();
   const csrf = objFrom('InstagramSecurityConfig', html)?.csrf_token as
-    | string
-    | undefined;
+    string | undefined;
   const webConfig = objFrom('DGWWebConfig', html) ?? {};
   const siteData = objFrom('SiteData', html) ?? {};
 
@@ -245,8 +245,7 @@ async function getSession(shortcode: string): Promise<IgSession> {
   const csrf =
     jar.csrftoken ||
     (objFrom('InstagramSecurityConfig', html)?.csrf_token as
-      | string
-      | undefined);
+      string | undefined);
   const cookie = Object.entries(jar)
     .map(([key, val]) => `${key}=${val}`)
     .join('; ');
@@ -626,8 +625,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       if (size) format.filesize = size;
     });
 
-    return {
-      type: 'video',
+    const info: VideoInfo = buildVideoInfo({
       id: parsed.id || url,
       title: parsed.title || 'Instagram Video',
       uploader: parsed.uploader || 'Instagram User',
@@ -635,11 +633,6 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       thumbnail: parsed.thumbnail,
       formats,
       extractorKey: 'instagram',
-      isJsInfo: true,
-      fromBrain: false,
-      isPartial: false,
-      isIsrcMatch: false,
-      isFullData: true,
       downloadHeaders: {
         'User-Agent': DESKTOP_UA,
         Referer: REFERER,
@@ -647,7 +640,9 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
         'Accept-Language': 'en-US,en;q=0.9',
         Range: 'bytes=0-',
       },
-    };
+    });
+
+    return info;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     logError('instagram', `[JS-IG] Error extracting ${url}: ${message}`);

@@ -1,0 +1,95 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Hero from '../components/Hero.astro';
+import PlatformMarquee from '../components/PlatformMarquee.astro';
+import PlatformMatrix from '../components/PlatformMatrix.astro';
+import Features from '../components/Features.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import Faq from '../components/Faq.astro';
+import Cta from '../components/Cta.astro';
+import Footer from '../components/Footer.astro';
+import ScreensShowcase from '../components/ScreensShowcase';
+import {
+  APP_VERSION,
+  DOWNLOAD_URL,
+  FAQS,
+  FEATURE_LIST,
+  HOWTO_STEPS,
+  PLATFORM_NAMES,
+  REPO_URL,
+  SITE_URL,
+} from '../content/site';
+
+const softwareApp = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Phantom',
+  operatingSystem: 'Android',
+  applicationCategory: 'MultimediaApplication',
+  softwareVersion: APP_VERSION,
+  url: SITE_URL,
+  downloadUrl: DOWNLOAD_URL,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  description:
+    'Free, ad-free Android app that downloads videos and music from 15 platforms and saves them straight to your gallery — up to 8K video, tagged MP3/M4A audio, fully on-device with no servers, accounts or limits.',
+  featureList: FEATURE_LIST,
+  keywords:
+    'video downloader, youtube downloader, tiktok downloader, spotify to mp3, instagram downloader, facebook downloader, soundcloud downloader, android app',
+  author: { '@type': 'Organization', name: 'Phantom', url: REPO_URL },
+};
+
+const faqPage = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQS.map((faq) => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: { '@type': 'Answer', text: faq.answer },
+  })),
+};
+
+const howTo = {
+  '@context': 'https://schema.org',
+  '@type': 'HowTo',
+  name: 'How to download a video with Phantom',
+  description:
+    'Paste a link, pick quality and format, and the finished file lands in your gallery — all on-device.',
+  step: HOWTO_STEPS.map((step, index) => ({
+    '@type': 'HowToStep',
+    position: index + 1,
+    name: step.name,
+    text: step.text,
+  })),
+};
+
+const website = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Phantom',
+  url: SITE_URL,
+  description: `Download videos & music from ${PLATFORM_NAMES.length} platforms right on your phone.`,
+};
+---
+
+<Layout
+  title="Phantom — Download videos & music, right on your phone"
+  description="Phantom grabs videos, audio and playlists from 15 platforms and saves them straight to your gallery. No servers, no accounts, no limits — everything runs on your Android."
+>
+  <script type="application/ld+json" set:html={JSON.stringify(softwareApp)} />
+  <script type="application/ld+json" set:html={JSON.stringify(faqPage)} />
+  <script type="application/ld+json" set:html={JSON.stringify(howTo)} />
+  <script type="application/ld+json" set:html={JSON.stringify(website)} />
+  <Navbar />
+  <main>
+    <Hero />
+    <PlatformMarquee />
+    <PlatformMatrix />
+    <Features />
+    <ScreensShowcase client:visible />
+    <HowItWorks />
+    <Faq />
+    <Cta />
+  </main>
+  <Footer />
+</Layout>

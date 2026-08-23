@@ -16,52 +16,36 @@ import {
   StyleSheet,
   Linking,
   AppState,
-  BackHandler,
   StatusBar,
   Dimensions,
   useWindowDimensions,
 } from 'react-native';
+import { useBackHandler } from '../lib/back';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  runOnJS,
-  Easing,
 } from 'react-native-reanimated';
-import { ChevronRight, Check, Ghost } from 'lucide-react-native';
-import Constants from 'expo-constants';
+import { ChevronRight, Ghost } from 'lucide-react-native';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
 import tw from '../lib/tw';
 import BottomSheet from '../components/sheets/BottomSheet';
 import ShareAppSheet from '../components/sheets/ShareAppSheet';
-import QrView from '../components/QrView';
-import { buildGotymeQr, buildGcashQr } from '../lib/qrph';
 import AvatarPicker from '../components/AvatarPicker';
 import Avatar from '../components/Avatar';
+import CookiePanel from '../components/CookiePanel';
+import CookiesPanel from '../components/CookiesPanel';
 import ThemeSwitch from '../components/ThemeSwitch';
 import switchTheme from 'react-native-theme-switch-animation';
 import SupportPage, { type SupportMethod } from '../components/SupportPage';
 import SupportCarousel from '../components/SupportCarousel';
+import SupportedPlatforms from '../components/SupportedPlatforms';
 import Card from '../components/Card';
 import AccountPanel, { AccountSkeleton } from '../components/AccountPanel';
-import LottieView from 'lottie-react-native';
-import filenameAnim from '../../assets/filename.json';
-import gcashQr from '../../assets/support/gcash-qr.png';
-import gotymeQr from '../../assets/support/gotyme-qr.png';
-import gotyme50 from '../../assets/support/gotyme-50.webp';
-import gotyme100 from '../../assets/support/gotyme-100.webp';
-import gotyme250 from '../../assets/support/gotyme-250.webp';
-import gotyme500 from '../../assets/support/gotyme-500.webp';
-import gcash50 from '../../assets/support/gcash-50.webp';
-import gcash100 from '../../assets/support/gcash-100.webp';
-import gcash250 from '../../assets/support/gcash-250.webp';
-import gcash500 from '../../assets/support/gcash-500.webp';
 import {
   FolderIcon,
-  FileIcon,
   PasteIcon,
-  DownloadsIcon,
   NotificationIcon,
   SocialIcon,
   HapticsIcon,
@@ -69,18 +53,13 @@ import {
   ClearCacheIcon,
   PrivacyIcon,
   VersionIcon,
+  PhantomIcon,
   GoogleIcon,
   ShareAppIcon,
+  FileIcon,
+  CookieIcon,
 } from '../components/icons';
-import {
-  checkForUpdate,
-  type UpdateManifest,
-} from '../lib/updater/manifest';
-import { downloadApk, installDownloadedApk } from '../lib/updater/install';
-import {
-  hasInstallPermission,
-  openInstallPermissionSettings,
-} from '../../modules/silent-updater';
+import { useAppUpdate } from '../hooks/useAppUpdate';
 import {
   getFilenameFormat,
   setFilenameFormat,
@@ -92,6 +71,10 @@ import {
   setHaptics,
   getDarkTheme,
   setDarkTheme,
+  getYoutubeCookie,
+  setYoutubeCookie,
+  getBilibiliCookie,
+  setBilibiliCookie,
   formatName,
   type FilenameFormat,
 } from '../lib/settings';
@@ -100,6 +83,7 @@ import {
   isBatteryRestricted,
   requestIgnoreBatteryOptimization,
 } from '../lib/fgservice';
+import { checkYoutubeCookie, checkBilibiliCookie } from '../lib/cookieCheck';
 import {
   isSupabaseConfigured,
   getAccount,
@@ -119,6 +103,23 @@ import {
 import { signInWithGoogle, signOutGoogle } from '../lib/social/googleAuth';
 import { AVATAR_CATEGORIES, presetMarker } from '../lib/avatars';
 import { useSubScreen } from '../hooks/useSubScreen';
+import { useAppDialog } from '../components/AppDialog';
+import {
+  AlertDialog,
+  Host,
+  Icon,
+  Row,
+  Text as ComposeText,
+  TextButton as ComposeTextButton,
+  RadioButton,
+  ListItem,
+  Column,
+} from '@expo/ui/jetpack-compose';
+import { clickable, padding } from '@expo/ui/jetpack-compose/modifiers';
+import { Asset } from 'expo-asset';
+import infoIcon from '../../assets/icons/info.xml';
+
+Asset.loadAsync(infoIcon).catch(() => undefined);
 
 const CYAN = '#22d3ee';
 const DARK_BG = '#030014';
@@ -138,41 +139,21 @@ const PALETTE = (light: boolean) => ({
   warn: light ? '#d97706' : '#fbbf24',
   error: light ? '#dc2626' : '#f87171',
 });
-const buttonGlow = {
-  shadowColor: '#06b6d4',
-  shadowOpacity: 0.5,
-  shadowRadius: 12,
-  shadowOffset: { width: 0, height: 0 },
-  elevation: 10,
-};
-
 const SUPPORT_METHODS: readonly SupportMethod[] = [
   {
-    id: 'gcash',
-    label: 'GCash',
-    kind: 'qr',
-    source: gcashQr,
-    amountQrs: { 50: gcash50, 100: gcash100, 250: gcash250, 500: gcash500 },
-  },
-  {
-    id: 'gotyme',
-    label: 'GoTyme',
-    kind: 'qr',
-    source: gotymeQr,
-    amountQrs: { 50: gotyme50, 100: gotyme100, 250: gotyme250, 500: gotyme500 },
+    id: 'qrph',
+    label: 'QR Ph',
+    kind: 'paymongo',
   },
   {
     id: 'paypal',
     label: 'PayPal',
     kind: 'paypal',
-    url: 'https://www.paypal.me/christson021',
+    url: 'https://www.paypal.com/ncp/payment/JNFWFRJ546TA4',
   },
 ];
 
-const QR_BUILDERS: Record<string, (amount: number) => string> = {
-  gcash: buildGcashQr,
-  gotyme: buildGotymeQr,
-};
+type IconType = ComponentType<{ size?: number; color?: string }>;
 
 const FORMAT_ORDER: FilenameFormat[] = [
   'artist-title',
@@ -184,8 +165,6 @@ const FORMAT_LABELS: Record<FilenameFormat, string> = {
   title: 'Title only',
   'title-platform': 'Title (platform)',
 };
-
-type IconType = ComponentType<{ size?: number; color?: string }>;
 
 function Toggle({ value, light }: { value: boolean; light?: boolean }) {
   const knobStyle = useAnimatedStyle(() => ({
@@ -244,7 +223,9 @@ function SettingsSupport({
 }) {
   return (
     <View style={isWide ? { width: 380 } : tw`w-full`}>
-      <SectionLabel center={isWide} light={light}>Support</SectionLabel>
+      <SectionLabel center={isWide} light={light}>
+        Support
+      </SectionLabel>
       <SupportCarousel
         visible={visible}
         layout={isWide ? 'stack' : 'carousel'}
@@ -274,9 +255,7 @@ function SettingsBody({
 }) {
   return (
     <View style={[tw`w-full`, { maxWidth: isWide ? 1060 : 600 }]}>
-      <View
-        style={tw`mb-1 flex-row items-center justify-between`}
-      >
+      <View style={tw`mb-1 flex-row items-center justify-between`}>
         <Text
           style={[
             tw`font-sans-bold text-[32px] tracking-tight`,
@@ -333,15 +312,28 @@ function RowShell({
       <View
         style={[
           tw`ml-3.5 flex-1 flex-row items-center py-4 pr-4`,
-          !last && { borderBottomWidth: 1, borderBottomColor: palette.rowBorder },
+          !last && {
+            borderBottomWidth: 1,
+            borderBottomColor: palette.rowBorder,
+          },
         ]}
       >
         <View style={tw`flex-1`}>
-          <Text style={[tw`font-sans-semibold text-[15px]`, { color: palette.text }]}>
+          <Text
+            style={[
+              tw`font-sans-semibold text-[15px]`,
+              { color: palette.text },
+            ]}
+          >
             {label}
           </Text>
           {hint ? (
-            <Text style={[tw`mt-0.5 font-sans text-[12px]`, { color: palette.hint }]}>
+            <Text
+              style={[
+                tw`mt-0.5 font-sans text-[12px]`,
+                { color: palette.hint },
+              ]}
+            >
               {hint}
             </Text>
           ) : null}
@@ -430,8 +422,9 @@ function LinkRow(props: {
   tile?: boolean;
   iconSize?: number;
   light?: boolean;
+  chevron?: boolean;
 }) {
-  const { value, onPress, tone, light, ...rest } = props;
+  const { value, onPress, tone, light, chevron = true, ...rest } = props;
   return (
     <Pressable
       onPress={onPress}
@@ -440,149 +433,67 @@ function LinkRow(props: {
     >
       <RowShell {...rest} light={light}>
         {value ? <ValueLabel value={value} tone={tone} light={light} /> : null}
-        <ChevronRight size={18} color={PALETTE(!!light).chevron} />
+        {chevron ? (
+          <ChevronRight size={18} color={PALETTE(!!light).chevron} />
+        ) : null}
       </RowShell>
     </Pressable>
   );
 }
 
-function UpdateControl({ light }: { light?: boolean }) {
-  const installed = Constants.expoConfig?.version ?? '0.0.0';
-  const [status, setStatus] = useState<
-    'checking' | 'none' | 'available' | 'downloading' | 'installing' | 'error' | 'permission'
-  >('checking');
-  const [manifest, setManifest] = useState<UpdateManifest | null>(null);
-  const [progress, setProgress] = useState(0);
-  const abortRef = useRef<AbortController | null>(null);
-
-  const check = useCallback(async () => {
-    const update = await checkForUpdate(installed);
-    if (!update) {
-      setStatus('none');
-      return;
-    }
-    setManifest(update.manifest);
-    setStatus('available');
-  }, [installed]);
-
-  const install = useCallback(async () => {
-    if (!manifest) return;
-    if (!(await hasInstallPermission())) {
-      setStatus('permission');
-      await openInstallPermissionSettings();
-      return;
-    }
-    setStatus('downloading');
-    setProgress(0);
-    abortRef.current = new AbortController();
-    try {
-      const path = await downloadApk(
-        manifest,
-        (written, total) => setProgress(total ? written / total : 0),
-        abortRef.current.signal
-      );
-      setStatus('installing');
-      await installDownloadedApk(path);
-    } catch {
-      abortRef.current = null;
-      setStatus('error');
-    }
-  }, [manifest]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-time update check
-    void check();
-    return () => abortRef.current?.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
-  }, []);
-
-  // user returns from the "allow installs" settings screen: auto-resume
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active' || status !== 'permission') return;
-      void install();
-    });
-    return () => sub.remove();
-  }, [status, install]);
-
-  const label =
+function VersionRow({ light }: { light?: boolean }) {
+  const { installed, status, progress, errorMessage, updateNow } =
+    useAppUpdate();
+  const hint =
     status === 'checking'
       ? 'Checking for updates…'
-      : status === 'available' && manifest
-        ? `Phantom ${manifest.version} available`
-        : status === 'downloading'
-          ? `Downloading ${Math.round(progress * 100)}%`
-          : status === 'installing'
-            ? 'Installing…'
-            : status === 'permission'
-              ? 'Allow installs to update'
-              : status === 'error'
-                ? 'Update failed'
-                : 'Up to date';
-  const hint =
-    status === 'none'
-      ? `You're on the latest version`
-      : status === 'available' && manifest
-        ? (manifest.notes ?? 'Includes fixes and improvements')
-        : status === 'permission'
-          ? 'Tap to grant "Install unknown apps" in settings'
-          : status === 'error'
-            ? 'Tap to retry'
-            : 'Downloads silently — no Play Store needed';
+      : status === 'none'
+        ? "You're on latest version"
+        : status === 'available'
+          ? 'Update available'
+          : status === 'downloading'
+            ? `Downloading ${Math.round(progress * 100)}%`
+            : status === 'installing'
+              ? 'Installing…'
+              : status === 'permission'
+                ? 'Tap to allow installs'
+                : (errorMessage ?? 'Update failed — tap to retry');
+  const hasUpdate =
+    status === 'available' || status === 'permission' || status === 'error';
 
   return (
     <>
-      <SectionLabel light={light}>App update</SectionLabel>
-      <Card light={light}>
-        <LinkRow
-          Icon={DownloadsIcon}
-          label={label}
-          hint={hint}
-          value={status === 'none' ? `v${installed}` : undefined}
-          onPress={() => {
-            tapSelection();
-            if (status === 'none' || status === 'checking') {
-              setStatus('checking');
-              void check();
-            } else {
-              void install();
-            }
-          }}
-          tile={false}
-          iconSize={26}
-          light={light}
-        />
-        {status === 'available' ? (
-          <View style={tw`px-4 pb-4`}>
-            <Pressable
-              onPress={() => {
-                tapSelection();
-                void install();
-              }}
-              accessibilityRole="button"
-              android_ripple={{ color: 'rgba(255,255,255,0.03)' }}
-              style={[
-                tw`rounded-full py-2.5 items-center`,
-                { backgroundColor: CYAN },
-              ]}
-            >
-              <Text style={tw`font-sans-bold text-[14px] text-white`}>
-                Download &amp; install
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
-        {status === 'downloading' ? (
-          <View style={tw`h-1 mx-4 mb-4 rounded-full bg-neutral-200 overflow-hidden`}>
-            <View
-              style={{
+      <LinkRow
+        Icon={VersionIcon}
+        label="Version"
+        value={`v${installed}`}
+        hint={hint}
+        tone={status === 'available' ? 'warn' : undefined}
+        onPress={() => {
+          tapSelection();
+          void updateNow();
+        }}
+        tile={false}
+        last
+        chevron={hasUpdate}
+        iconSize={24}
+        light={light}
+      />
+      {status === 'downloading' ? (
+        <View
+          style={tw`h-1 mx-4 mb-4 rounded-full bg-neutral-200 overflow-hidden`}
+        >
+          <View
+            style={[
+              tw`h-full rounded-full`,
+              {
                 width: `${progress * 100}%`,
                 backgroundColor: CYAN,
-              }}
-            />
-          </View>
-        ) : null}
-      </Card>
+              },
+            ]}
+          />
+        </View>
+      ) : null}
     </>
   );
 }
@@ -629,7 +540,10 @@ function AccountCard({
           <View style={tw`ml-3.5 flex-1`}>
             <Text
               numberOfLines={1}
-              style={[tw`font-sans-semibold text-[16px]`, { color: palette.text }]}
+              style={[
+                tw`font-sans-semibold text-[16px]`,
+                { color: palette.text },
+              ]}
             >
               {account.isGuest
                 ? displayName(account.username)
@@ -639,7 +553,10 @@ function AccountCard({
             </Text>
             <Text
               numberOfLines={1}
-              style={[tw`mt-0.5 font-sans text-[12px]`, { color: palette.hint }]}
+              style={[
+                tw`mt-0.5 font-sans text-[12px]`,
+                { color: palette.hint },
+              ]}
             >
               {account.isGuest
                 ? 'Guest — link Google to keep your reactions'
@@ -692,7 +609,10 @@ function SignInCard({
           <Ghost size={18} color={palette.ghostText} strokeWidth={2} />
         )}
         <Text
-          style={[tw`ml-3 font-sans-semibold text-[15px]`, { color: palette.ghostText }]}
+          style={[
+            tw`ml-3 font-sans-semibold text-[15px]`,
+            { color: palette.ghostText },
+          ]}
         >
           Continue as Anonymous
         </Text>
@@ -737,8 +657,10 @@ function SettingsScreen({
   const fadeStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
   const [format, setFormat] = useState<FilenameFormat>('artist-title');
+  const [pendingFormat, setPendingFormat] =
+    useState<FilenameFormat>('artist-title');
+  const [formatMenuOpen, setFormatMenuOpen] = useState(false);
   const [autopaste, setAutopaste] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [notifs, setNotifs] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(true);
   const [darkOn, setDarkOn] = useState(false);
@@ -754,69 +676,59 @@ function SettingsScreen({
   const [nameValue, setNameValue] = useState('');
   const [nameBusy, setNameBusy] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
-  const [signOutOpen, setSignOutOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [cookieSet, setCookieSet] = useState({ youtube: '', bilibili: '' });
+  const [cookieTarget, setCookieTarget] = useState<
+    'youtube' | 'bilibili' | null
+  >(null);
+  const [cookieValue, setCookieValue] = useState('');
+  const [cookieSaving, setCookieSaving] = useState(false);
 
-  // sub-screen hooks cut animation boilerplate
   const accountScreen = useSubScreen(visible);
-  const avatarScreen = useSubScreen(visible);
+  const avatarScreen = useSubScreen(visible, 11);
   const supportScreen = useSubScreen(visible);
+  const platformsScreen = useSubScreen(visible);
+  const cookiesScreen = useSubScreen(visible);
+  const cookieScreen = useSubScreen(visible, 11);
+  const { showDialog } = useAppDialog();
 
-  // qr slide-up vs slide-right
-  const [qr, setQr] = useState<{
-    source?: number;
-    value?: string;
-    label: string;
-    note?: string;
-  } | null>(null);
-  const [qrOpen, setQrOpen] = useState(false);
-  const [qrMounted, setQrMounted] = useState(false);
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const isWide = windowWidth >= 768;
-  const qrProgress = useSharedValue(0);
-  useEffect(() => {
-    const opening = qrOpen;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mounted gates qr enter animation
-    if (opening) setQrMounted(true);
-    qrProgress.value = withTiming(
-      opening ? 1 : 0,
-      { duration: 260, easing: Easing.out(Easing.cubic) },
-      (finished) => {
-        if (finished && !opening) runOnJS(setQrMounted)(false);
-      }
-    );
-  }, [qrOpen, qrProgress]);
-  const qrStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - qrProgress.value) * windowHeight }],
-  }));
+
+  useBackHandler(() => {
+    if (!visible || !formatMenuOpen) return false;
+    setFormatMenuOpen(false);
+    return true;
+  }, 10);
 
   useEffect(() => {
-    if (!visible || !qrOpen) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      tapSelection();
-      setQrOpen(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [visible, qrOpen]);
-
-  // reset scroll on tab exit
-  useEffect(() => {
-      if (visible) return;
+    if (visible) return;
     scrollRef.current?.scrollTo({ y: 0, animated: false });
     accountScreen.setOpen(false);
     avatarScreen.setOpen(false);
     supportScreen.setOpen(false);
+    cookiesScreen.setOpen(false);
+    cookieScreen.setOpen(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset overlays on tab exit
-    setQrOpen(false);
-        setPickerOpen(false);
-        setSignOutOpen(false);
-        setShareOpen(false);
-  }, [visible, accountScreen, avatarScreen, supportScreen]);
+    setShareOpen(false);
+  }, [visible, accountScreen, avatarScreen, supportScreen, cookiesScreen, cookieScreen]);
 
   useEffect(() => {
-        onFullScreen?.(avatarScreen.open || supportScreen.open);
-  }, [avatarScreen.open, supportScreen.open, onFullScreen]);
+    onFullScreen?.(
+      avatarScreen.open ||
+        supportScreen.open ||
+        platformsScreen.open ||
+        cookiesScreen.open ||
+        cookieScreen.open
+    );
+  }, [
+    avatarScreen.open,
+    supportScreen.open,
+    platformsScreen.open,
+    cookiesScreen.open,
+    cookieScreen.open,
+    onFullScreen,
+  ]);
 
   useEffect(() => {
     getFilenameFormat()
@@ -833,6 +745,12 @@ function SettingsScreen({
       .catch(() => undefined);
     getDarkTheme()
       .then(setDarkOn)
+      .catch(() => undefined);
+    getYoutubeCookie()
+      .then((v) => setCookieSet((prev) => ({ ...prev, youtube: v })))
+      .catch(() => undefined);
+    getBilibiliCookie()
+      .then((v) => setCookieSet((prev) => ({ ...prev, bilibili: v })))
       .catch(() => undefined);
   }, []);
 
@@ -856,7 +774,7 @@ function SettingsScreen({
         setDarkOn(targetDark);
         setDarkTheme(targetDark).catch(() => undefined);
       },
-animationConfig: {
+      animationConfig: {
         type: 'circular',
         duration: 900,
         startingPoint: {
@@ -910,7 +828,7 @@ animationConfig: {
 
   const wasVisible = useRef(visible);
   useEffect(() => {
-      if (visible && !wasVisible.current && isSupabaseConfigured) {
+    if (visible && !wasVisible.current && isSupabaseConfigured) {
       getAccount()
         .then((acc) => setAccount(acc))
         .catch(() => undefined);
@@ -919,7 +837,7 @@ animationConfig: {
   }, [visible]);
 
   useEffect(() => {
-      if (account?.username) {
+    if (account?.username) {
       getSocialNotify()
         .then(setSocialNotifyState)
         .catch(() => undefined);
@@ -935,8 +853,11 @@ animationConfig: {
     tapSelection();
     setFormat(f);
     setFilenameFormat(f).catch(() => undefined);
-    setTimeout(() => setPickerOpen(false), 150);
+    setFormatMenuOpen(false);
   };
+
+  const formatClickable = (f: FilenameFormat) =>
+    clickable(() => setPendingFormat(f), { indication: false });
 
   const toggleAutopaste = (v: boolean) => {
     setAutopaste(v);
@@ -967,6 +888,39 @@ animationConfig: {
     setCacheBytes(0);
   };
 
+  const openCookie = (target: 'youtube' | 'bilibili') => {
+    tapSelection();
+    setCookieTarget(target);
+    setCookieValue(cookieSet[target]);
+    cookieScreen.setOpen(true);
+  };
+
+  const saveCookie = async () => {
+    const target = cookieTarget;
+    if (!target) return;
+    setCookieSaving(true);
+    try {
+      if (target === 'youtube') await setYoutubeCookie(cookieValue);
+      else await setBilibiliCookie(cookieValue);
+      tapSuccess();
+      setCookieSet((prev) => ({ ...prev, [target]: cookieValue.trim() }));
+      cookieScreen.setOpen(false);
+    } finally {
+      setCookieSaving(false);
+    }
+  };
+
+  const clearCookie = async () => {
+    const target = cookieTarget;
+    if (!target) return;
+    tapSelection();
+    setCookieValue('');
+    if (target === 'youtube') await setYoutubeCookie('');
+    else await setBilibiliCookie('');
+    setCookieSet((prev) => ({ ...prev, [target]: '' }));
+    cookieScreen.setOpen(false);
+  };
+
   const openBattery = () => {
     tapSelection();
     requestIgnoreBatteryOptimization().catch(() => undefined);
@@ -987,34 +941,10 @@ animationConfig: {
     supportScreen.setOpen(true);
   };
 
-  const openQr = (source: number, label: string, note?: string) => {
+  const paySupport = (method: SupportMethod, _amount: number | null) => {
+    if (method.kind !== 'paypal') return;
     tapSelection();
-    setQr({ source, label, note });
-    setQrOpen(true);
-  };
-
-  const paySupport = (method: SupportMethod, amount: number | null) => {
-    if (method.kind === 'paypal') {
-      tapSelection();
-      const url = amount ? `${method.url}/${amount}PHP` : method.url;
-      Linking.openURL(url).catch(() => undefined);
-      return;
-    }
-    const note = amount
-      ? `Scan in ${method.label} to send ₱${amount}. Thank you for the support!`
-      : undefined;
-    // amount w/o preset card -> generate QR Ph dynamically
-    const build = QR_BUILDERS[method.id];
-    if (build && amount != null && method.amountQrs?.[amount] == null) {
-      tapSelection();
-      setQr({ value: build(amount), label: method.label, note });
-      setQrOpen(true);
-      return;
-    }
-    const source =
-      (amount != null ? method.amountQrs?.[amount] : undefined) ??
-      method.source;
-    openQr(source, method.label, note);
+    Linking.openURL(method.url).catch(() => undefined);
   };
 
   const openAvatarPicker = () => {
@@ -1102,7 +1032,6 @@ animationConfig: {
   };
 
   const doSignOut = async () => {
-    setSignOutOpen(false);
     accountScreen.setOpen(false);
     try {
       await signOutGoogle();
@@ -1111,6 +1040,16 @@ animationConfig: {
       setAuthError(messageOf(err));
     }
   };
+
+  const handleSignOut = useCallback(() => {
+    showDialog({
+      title: 'Log out',
+      message: 'You can sign back in anytime.',
+      confirmLabel: 'Log out',
+      destructive: true,
+      onConfirm: () => void doSignOut(),
+    });
+  }, [showDialog]);
 
   const settingsSections = (light: boolean) => (
     <>
@@ -1167,7 +1106,11 @@ animationConfig: {
           Icon={FileIcon}
           label="Filename format"
           hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
-          onPress={() => setPickerOpen(true)}
+          onPress={() => {
+            tapSelection();
+            setPendingFormat(format);
+            setFormatMenuOpen(true);
+          }}
           tile={false}
           iconSize={26}
           light={light}
@@ -1257,10 +1200,43 @@ animationConfig: {
         />
       </Card>
 
-      <UpdateControl light={light} />
+      <SectionLabel light={light}>Advanced</SectionLabel>
+      <Card light={light}>
+        <LinkRow
+          Icon={CookieIcon}
+          label="Cookies"
+          hint="YouTube & Bilibili"
+          value={
+            cookieSet.youtube || cookieSet.bilibili
+              ? `${[cookieSet.youtube, cookieSet.bilibili].filter(Boolean).length} set`
+              : 'Off'
+          }
+          tone={cookieSet.youtube || cookieSet.bilibili ? 'good' : undefined}
+          onPress={() => {
+            tapSelection();
+            cookiesScreen.setOpen(true);
+          }}
+          tile={false}
+          last
+          iconSize={26}
+          light={light}
+        />
+      </Card>
 
       <SectionLabel light={light}>About</SectionLabel>
       <Card light={light}>
+        <LinkRow
+          Icon={PhantomIcon}
+          label="Supported platforms"
+          hint="YouTube, Spotify, TikTok & more"
+          onPress={() => {
+            tapSelection();
+            platformsScreen.setOpen(true);
+          }}
+          tile={false}
+          iconSize={26}
+          light={light}
+        />
         <LinkRow
           Icon={PrivacyIcon}
           label="Privacy"
@@ -1269,15 +1245,7 @@ animationConfig: {
           iconSize={26}
           light={light}
         />
-        <LinkRow
-          Icon={VersionIcon}
-          label="Version"
-          value={Constants.expoConfig?.version ?? '1.2.1'}
-          tile={false}
-          last
-          iconSize={24}
-          light={light}
-        />
+        <VersionRow light={light} />
       </Card>
     </>
   );
@@ -1287,8 +1255,8 @@ animationConfig: {
       <View style={tw`mx-[-20px] mt-3 bg-cyan-500 px-5 py-1.5`}>
         <Text style={tw`font-sans text-[12px] leading-4 text-white`}>
           <Text style={tw`font-sans-bold`}>Note: </Text>
-          Sign-in is only for reactions and comments in Updates tab —
-          it&apos;s not used in the actual downloads.
+          Sign-in is only for reactions and comments in Updates tab — it&apos;s
+          not used in the actual downloads.
         </Text>
       </View>
     ) : null;
@@ -1315,257 +1283,268 @@ animationConfig: {
           ]}
         />
         <Animated.ScrollView
-        ref={scrollRef}
-        style={[tw`flex-1`, fadeStyle]}
-        contentContainerStyle={tw`items-center px-5 pb-36 pt-16`}
-        showsVerticalScrollIndicator={false}
-      >
-        <SettingsBody
-          isWide={isWide}
-          light={!darkOn}
-          themeSwitch={
-            <ThemeSwitch
-              dark={darkOn}
-              instant
-              visible={visible}
-              onToggle={toggleTheme}
-              onOrigin={handleSwitchOrigin}
-            />
-          }
-          note={noteBanner}
-          support={
-            <SettingsSupport
-              isWide={isWide}
-              visible={visible}
-              light={!darkOn}
-              onOpenSupport={openSupportPage}
-              onOpenSource={openSourceCode}
-              onOpenSocial={openSocial}
-            />
-          }
+          ref={scrollRef}
+          style={[tw`flex-1`, fadeStyle]}
+          contentContainerStyle={tw`items-center px-5 pb-36 pt-16`}
+          showsVerticalScrollIndicator={false}
         >
-          {settingsSections(!darkOn)}
-        </SettingsBody>
-      </Animated.ScrollView>
-
-      <Animated.View
-        pointerEvents={accountScreen.open ? 'auto' : 'none'}
-        style={[
-          StyleSheet.absoluteFill,
-          tw`bg-background`,
-          accountScreen.style,
-        ]}
-      >
-        {accountScreen.mounted && (
-          <AccountPanel
-            account={account}
-            nameValue={nameValue}
-            onChangeName={setNameValue}
-            onSave={() => void saveName()}
-            saving={nameBusy}
-            error={nameError}
-            onBack={() => {
-              tapSelection();
-              accountScreen.setOpen(false);
-            }}
-            onSignOut={() => setSignOutOpen(true)}
-            onEditAvatar={openAvatarPicker}
-            onLinkGoogle={() => void handleSignIn()}
-          />
-        )}
-      </Animated.View>
-
-      <Animated.View
-        pointerEvents={avatarScreen.open ? 'auto' : 'none'}
-        style={[StyleSheet.absoluteFill, tw`bg-background`, avatarScreen.style]}
-      >
-        {avatarScreen.mounted && (
-          <AvatarPicker
-            categories={AVATAR_CATEGORIES}
-            current={account?.avatarUrl ?? null}
-            onPick={pickAvatar}
-            onBack={() => {
-              tapSelection();
-              avatarScreen.setOpen(false);
-            }}
-          />
-        )}
-      </Animated.View>
-
-      <Animated.View
-        pointerEvents={supportScreen.open ? 'auto' : 'none'}
-        style={[
-          StyleSheet.absoluteFill,
-          tw`bg-background`,
-          supportScreen.style,
-        ]}
-      >
-        {supportScreen.mounted && (
-          <SupportPage
-            methods={SUPPORT_METHODS}
-            onPay={paySupport}
-            onBack={() => {
-              tapSelection();
-              supportScreen.setOpen(false);
-            }}
-          />
-        )}
-      </Animated.View>
-
-      <BottomSheet open={pickerOpen} onClose={() => setPickerOpen(false)}>
-        <View style={tw`items-center pb-1`}>
-          <LottieView
-            source={filenameAnim}
-            autoPlay
-            loop
-            style={tw`h-32 w-32`}
-          />
-          <Text
-            style={tw`mt-1 font-sans-bold text-[22px] tracking-tight text-white`}
-          >
-            Filename format
-          </Text>
-          <Text style={tw`mt-1 font-sans text-[13px] text-slate-400`}>
-            How your saved files are named
-          </Text>
-        </View>
-        <View style={tw`mt-5`}>
-          {FORMAT_ORDER.map((f, i) => {
-            const active = f === format;
-            const last = i === FORMAT_ORDER.length - 1;
-            return (
-              <Pressable
-                key={f}
-                onPress={() => choose(f)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: active }}
-                style={({ pressed }) => [
-                  tw`flex-row items-center rounded-full border px-5 py-3.5`,
-                  last ? null : tw`mb-2.5`,
-                  active
-                    ? [
-                        tw`border-primary/40`,
-                        { backgroundColor: '#22d3ee40' },
-                        buttonGlow,
-                      ]
-                    : tw`border-white/10 bg-[#131d36]`,
-                  pressed ? { transform: [{ scale: 0.985 }] } : null,
-                ]}
-              >
-                <View style={tw`flex-1`}>
-                  <View
-                    style={[
-                      tw`self-start rounded-full px-2 py-0.5`,
-                      { backgroundColor: active ? CYAN : `${CYAN}1a` },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        tw`font-sans-semibold text-[11px]`,
-                        { color: active ? '#030014' : CYAN },
-                      ]}
-                    >
-                      {FORMAT_LABELS[f]}
-                    </Text>
-                  </View>
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      tw`mt-1.5 ml-1 font-mono text-[11px]`,
-                      active ? tw`text-white/80` : tw`text-slate-400`,
-                    ]}
-                  >
-                    {formatName(f, 'Best video', 'MrBeast', 'youtube')}.mp4
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    tw`ml-3 h-6 w-6 items-center justify-center rounded-full`,
-                    active ? tw`bg-primary` : tw`border-2 border-white/20`,
-                  ]}
-                >
-                  {active ? (
-                    <Check size={14} color="#030014" strokeWidth={3} />
-                  ) : null}
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-      </BottomSheet>
-
-      <BottomSheet
-        open={signOutOpen}
-        onClose={() => setSignOutOpen(false)}
-        border="subtle"
-      >
-        <View style={tw`items-center px-2 pt-2`}>
-          <Text
-            style={tw`font-sans-bold text-[22px] tracking-tight text-white`}
-          >
-            Log out
-          </Text>
-          <Text
-            style={tw`mt-2 text-center font-sans text-[14px] leading-5 text-slate-400`}
-          >
-            You can sign back in anytime.
-          </Text>
-        </View>
-        <View style={tw`mt-7 flex-row`}>
-          <Pressable
-            onPress={() => setSignOutOpen(false)}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel sign out"
-            style={({ pressed }) => [
-              tw`flex-1 items-center rounded-full border border-white/10 bg-white/5 py-4`,
-              pressed ? { transform: [{ scale: 0.97 }] } : null,
-            ]}
-          >
-            <Text style={tw`font-sans-semibold text-[15px] text-slate-200`}>
-              Cancel
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => void doSignOut()}
-            accessibilityRole="button"
-            accessibilityLabel="Confirm log out"
-            style={({ pressed }) => [
-              tw`ml-3 flex-1 items-center rounded-full bg-red-500 py-4`,
-              pressed ? { transform: [{ scale: 0.97 }] } : null,
-            ]}
-          >
-            <Text style={tw`font-sans-bold text-[15px] text-white`}>
-              Log out
-            </Text>
-          </Pressable>
-        </View>
-      </BottomSheet>
-
-      <BottomSheet open={shareOpen} onClose={() => setShareOpen(false)}>
-        <ShareAppSheet />
-      </BottomSheet>
-
-      <Animated.View
-        pointerEvents={qrOpen ? 'auto' : 'none'}
-        style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }, qrStyle]}
-      >
-        {qrMounted && qr ? (
-          <QrView
-            source={qr.source}
-            value={qr.value}
-            label={qr.label}
-            note={
-              qr.note ??
-              `Scan this in your ${qr.label} app to send a tip. Thank you for the support!`
+          <SettingsBody
+            isWide={isWide}
+            light={!darkOn}
+            themeSwitch={
+              <ThemeSwitch
+                dark={darkOn}
+                instant
+                visible={visible}
+                onToggle={toggleTheme}
+                onOrigin={handleSwitchOrigin}
+              />
             }
-            onClose={() => {
-              tapSelection();
-              setQrOpen(false);
-            }}
-          />
+            note={noteBanner}
+            support={
+              <SettingsSupport
+                isWide={isWide}
+                visible={visible}
+                light={!darkOn}
+                onOpenSupport={openSupportPage}
+                onOpenSource={openSourceCode}
+                onOpenSocial={openSocial}
+              />
+            }
+          >
+            {settingsSections(!darkOn)}
+          </SettingsBody>
+        </Animated.ScrollView>
+
+        <Animated.View
+          pointerEvents={accountScreen.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            accountScreen.style,
+          ]}
+        >
+          {accountScreen.mounted && (
+            <AccountPanel
+              account={account}
+              nameValue={nameValue}
+              onChangeName={setNameValue}
+              onSave={() => void saveName()}
+              saving={nameBusy}
+              error={nameError}
+              onBack={() => {
+                tapSelection();
+                accountScreen.setOpen(false);
+              }}
+              onSignOut={handleSignOut}
+              onEditAvatar={openAvatarPicker}
+              onLinkGoogle={() => void handleSignIn()}
+            />
+          )}
+        </Animated.View>
+
+        <Animated.View
+          pointerEvents={avatarScreen.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            avatarScreen.style,
+          ]}
+        >
+          {avatarScreen.mounted && (
+            <AvatarPicker
+              categories={AVATAR_CATEGORIES}
+              current={account?.avatarUrl ?? null}
+              onPick={pickAvatar}
+              onBack={() => {
+                tapSelection();
+                avatarScreen.setOpen(false);
+              }}
+            />
+          )}
+        </Animated.View>
+
+        <Animated.View
+          pointerEvents={supportScreen.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            supportScreen.style,
+          ]}
+        >
+          {supportScreen.mounted && (
+            <SupportPage
+              methods={SUPPORT_METHODS}
+              onPay={paySupport}
+              onBack={() => {
+                tapSelection();
+                supportScreen.setOpen(false);
+                platformsScreen.setOpen(false);
+              }}
+            />
+          )}
+        </Animated.View>
+
+        <Animated.View
+          pointerEvents={platformsScreen.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            platformsScreen.style,
+          ]}
+        >
+          {platformsScreen.mounted && (
+            <SupportedPlatforms
+              onBack={() => {
+                tapSelection();
+                platformsScreen.setOpen(false);
+              }}
+            />
+          )}
+        </Animated.View>
+
+        <Animated.View
+          pointerEvents={cookiesScreen.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            cookiesScreen.style,
+          ]}
+        >
+          {cookiesScreen.mounted && (
+            <CookiesPanel
+              youtubeSet={Boolean(cookieSet.youtube)}
+              bilibiliSet={Boolean(cookieSet.bilibili)}
+              onOpen={openCookie}
+              onBack={() => {
+                tapSelection();
+                cookiesScreen.setOpen(false);
+              }}
+            />
+          )}
+        </Animated.View>
+
+        <Animated.View
+          pointerEvents={cookieScreen.open ? 'auto' : 'none'}
+          style={[
+            StyleSheet.absoluteFill,
+            tw`bg-background`,
+            cookieScreen.style,
+          ]}
+        >
+          {cookieScreen.mounted && cookieTarget ? (
+            <CookiePanel
+              title={
+                cookieTarget === 'youtube'
+                  ? 'YouTube cookie'
+                  : 'Bilibili cookie'
+              }
+              value={cookieValue}
+              onChangeValue={setCookieValue}
+              onSave={() => void saveCookie()}
+              saving={cookieSaving}
+              onCheck={
+                cookieTarget === 'youtube'
+                  ? checkYoutubeCookie
+                  : checkBilibiliCookie
+              }
+              onClear={() => void clearCookie()}
+              onBack={() => {
+                tapSelection();
+                cookieScreen.setOpen(false);
+              }}
+            />
+          ) : null}
+        </Animated.View>
+
+        <BottomSheet open={shareOpen} onClose={() => setShareOpen(false)}>
+          <ShareAppSheet />
+        </BottomSheet>
+
+        {formatMenuOpen ? (
+          <Host matchContents>
+            <AlertDialog
+              onDismissRequest={() => setFormatMenuOpen(false)}
+              colors={{
+                containerColor: '#2b2930',
+                titleContentColor: '#e6e0e9',
+                textContentColor: '#cac4d0',
+              }}
+            >
+              <AlertDialog.Title>
+                <ComposeText style={{ fontWeight: 'bold', fontSize: 20 }}>
+                  Filename format
+                </ComposeText>
+              </AlertDialog.Title>
+              <AlertDialog.Text>
+                <Column>
+                  {FORMAT_ORDER.map((f) => (
+                    <ListItem
+                      key={f}
+                      tonalElevation={0}
+                      colors={{
+                        containerColor: '#2b2930',
+                        contentColor: '#e6e0e9',
+                        supportingContentColor: '#cac4d0',
+                      }}
+                      modifiers={[formatClickable(f)]}
+                    >
+                      <ListItem.LeadingContent>
+                        <RadioButton selected={pendingFormat === f} />
+                      </ListItem.LeadingContent>
+                      <ListItem.HeadlineContent>
+                        <ComposeText style={{ fontWeight: 'bold' }}>
+                          {FORMAT_LABELS[f]}
+                        </ComposeText>
+                      </ListItem.HeadlineContent>
+                      <ListItem.SupportingContent>
+                        <ComposeText style={{ fontSize: 12 }}>
+                          {`${formatName(f, 'Best video', 'MrBeast', 'youtube')}.mp4`}
+                        </ComposeText>
+                      </ListItem.SupportingContent>
+                    </ListItem>
+                  ))}
+                  <Row
+                    verticalAlignment="top"
+                    modifiers={[padding(0, 10, 0, 0)]}
+                  >
+                    <Icon
+                      source={infoIcon}
+                      size={14}
+                      tint="#cac4d0"
+                    />
+                    <ComposeText
+                      color="#cac4d0"
+                      style={{ fontSize: 12 }}
+                      modifiers={[padding(6, 0, 0, 0)]}
+                    >
+                      This is what your downloaded files are named
+                    </ComposeText>
+                  </Row>
+                </Column>
+              </AlertDialog.Text>
+              <AlertDialog.ConfirmButton>
+                <ComposeTextButton
+                  onClick={() => choose(pendingFormat)}
+                  colors={{ contentColor: '#22d3ee' }}
+                >
+                  <ComposeText style={{ fontWeight: 'bold' }}>OK</ComposeText>
+                </ComposeTextButton>
+              </AlertDialog.ConfirmButton>
+              <AlertDialog.DismissButton>
+                <ComposeTextButton
+                  onClick={() => setFormatMenuOpen(false)}
+                  colors={{ contentColor: '#94a3b8' }}
+                >
+                  <ComposeText style={{ fontWeight: 'bold' }}>
+                    Cancel
+                  </ComposeText>
+                </ComposeTextButton>
+              </AlertDialog.DismissButton>
+            </AlertDialog>
+          </Host>
         ) : null}
-      </Animated.View>
-    </View>
+      </View>
     </>
   );
 }

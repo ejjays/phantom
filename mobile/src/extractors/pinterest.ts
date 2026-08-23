@@ -1,8 +1,10 @@
-import { VideoInfo, Format } from './types';
+import { VideoInfo, Format } from './shared/types';
 import { gatedFetch } from '../lib/net';
-import { notFound, noVideo, fromStatus, classifyThrown } from './errors';
+import { notFound, noVideo, fromStatus, classifyThrown } from './shared/errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError } from '../lib/log';
+import { decodeEntities } from './shared/utils';
+import { buildVideoInfo } from './shared/videoInfo';
 
 const REFERER = 'https://www.pinterest.com/';
 const PIDGETS_API = 'https://widgets.pinterest.com/v3/pidgets/pins/info/';
@@ -37,32 +39,6 @@ interface PidgetsPin {
 interface PidgetsResponse {
   status?: string;
   data?: (PidgetsPin | null)[] | null;
-}
-
-function decodeEntities(text: string): string {
-  return text.replace(
-    /&(#x[0-9a-fA-F]+|#\d+|amp|quot|lt|gt|apos);/giu,
-    (entity, code: string) => {
-      if (code.startsWith('#x')) {
-        return String.fromCodePoint(parseInt(code.slice(2), 16));
-      }
-      if (code.startsWith('#')) {
-        return String.fromCodePoint(parseInt(code.slice(1), 10));
-      }
-      switch (code.toLowerCase()) {
-        case 'amp':
-          return '&';
-        case 'quot':
-          return '"';
-        case 'lt':
-          return '<';
-        case 'gt':
-          return '>';
-        default:
-          return "'";
-      }
-    }
-  );
 }
 
 // descriptions double as titles; keep them one line and readable
@@ -219,8 +195,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     const first = Object.values(videoList).find((entry) => entry.url);
     const durationMs = first?.duration ?? 0;
 
-    return {
-      type: 'video',
+    return buildVideoInfo({
       id: pin.id || id,
       title: titleFrom(pin),
       uploader: uploaderFrom(pin),
@@ -229,13 +204,8 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
       duration: durationMs > 0 ? Math.round(durationMs / 1000) : undefined,
       formats,
       extractorKey: 'pinterest',
-      isJsInfo: true,
-      fromBrain: false,
-      isPartial: false,
-      isIsrcMatch: false,
-      isFullData: true,
       downloadHeaders: { 'User-Agent': DESKTOP_UA, Referer: REFERER },
-    };
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     logError('pinterest', `[JS-Pinterest] Error extracting ${url}: ${message}`);

@@ -1,6 +1,6 @@
 import type { SabrConfig } from '../../lib/download/youtubeSabr';
 import { YT_INTERNAL_UA } from '../../lib/userAgents';
-import { ExtractorError } from '../types';
+import { ExtractorError } from '../shared/types';
 import {
   privateVideo,
   ageRestricted,
@@ -9,8 +9,9 @@ import {
   notFound,
   noVideo,
   temporaryError,
-} from '../errors';
+} from '../shared/errors';
 import { log, warn as logWarn } from '../../lib/log';
+import { getYoutubeCookie } from '../../lib/settings';
 
 export interface RawYtFormat {
   itag?: number;
@@ -170,16 +171,20 @@ function handleRnFetch(req: RnFetchRequest): void {
     logWarn('bridge', `[YT-DIAG] headers=${JSON.stringify(finalHeaders)}`);
     logWarn('bridge', `[YT-DIAG] body=${bodyOut}`);
   }
-  void fetch(req.url, {
-    method: req.method,
-    headers: {
-      ...req.headers,
-      'User-Agent': YT_API_UA,
-      Origin: YT_API_ORIGIN,
-    },
-    body: req.body,
-    credentials: 'omit',
-  })
+  void getYoutubeCookie()
+    .then((cookie) =>
+      fetch(req.url, {
+        method: req.method,
+        headers: {
+          ...req.headers,
+          'User-Agent': YT_API_UA,
+          Origin: YT_API_ORIGIN,
+          ...(cookie ? { Cookie: cookie } : {}),
+        },
+        body: req.body,
+        credentials: 'omit',
+      })
+    )
     .then(async (res) => {
       const body = await res.text();
       const headers: Record<string, string> = {};

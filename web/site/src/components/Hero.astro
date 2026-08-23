@@ -1,0 +1,100 @@
+---
+import { ArrowDown, Download } from '@lucide/astro';
+import GlowBlob from './GlowBlob.astro';
+import PhoneMockup from './PhoneMockup.astro';
+import Starfield from './Starfield.astro';
+
+const DOWNLOAD_URL = '/app/';
+const BUBBLE_TEXT = "paste a link, get the file — that's the whole trick";
+---
+
+<section id="top" class="relative overflow-hidden pt-32 pb-20 sm:pt-36">
+  <Starfield />
+  <GlowBlob color="#7c3aed" size={620} x="-10%" y="-14%" />
+  <GlowBlob color="#06b6d4" size={700} x="70%" y="55%" />
+
+  <div
+    class="relative mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[1.1fr_0.9fr]"
+  >
+    <div class="flex flex-col items-start gap-6">
+      <div
+        class="relative rounded-2xl rounded-bl-sm border border-cyan-400/20 bg-surface px-4 py-3 text-sm text-cyan-100/90"
+      >
+        <!-- ghost reserves final bubble size so nothing shifts while typing -->
+        <span aria-hidden="true" class="invisible">{BUBBLE_TEXT}</span>
+        <span aria-hidden="true" class="pointer-events-none absolute inset-0 block px-4 py-3">
+          <span id="hero-typed" data-text={BUBBLE_TEXT}></span><span
+            id="hero-caret"
+            class="ml-0.5 inline-block h-[1em] w-0.5 animate-pulse bg-cyan-200/80 align-middle"
+          ></span>
+        </span>
+        <span
+          class="absolute -bottom-2 left-5 h-3 w-3 rotate-45 border-b border-l border-cyan-400/20 bg-surface"
+        ></span>
+      </div>
+
+      <h1
+        class="text-glow text-4xl leading-[1.08] font-bold tracking-tight sm:text-5xl lg:text-6xl"
+      >
+        Any video.<br />
+        Any music.<br />
+        <span class="bg-gradient-to-r from-cyan-300 to-violet-400 bg-clip-text text-transparent">
+          One paste.
+        </span>
+      </h1>
+
+      <p class="max-w-lg font-sans text-base leading-relaxed text-slate-400 sm:text-lg">
+        Phantom pulls videos &amp; music from <span class="text-slate-200">15 platforms</span> straight
+        into your gallery — muxed, tagged and saved right on your phone. No servers in the way. No
+        accounts. No limits.
+      </p>
+
+      <div class="flex flex-wrap items-center gap-4">
+        <a
+          href={DOWNLOAD_URL}
+          class="flex items-center gap-2.5 rounded-full border border-primary/40 bg-[#22d3ee40] px-7 py-4 font-sans text-base font-semibold text-[#22d3ee] shadow-[0_0_10px_rgba(6,182,212,0.35),0_0_26px_rgba(6,182,212,0.3)] transition-all hover:scale-[1.03] hover:bg-[#22d3ee59] active:scale-95 active:opacity-90"
+        >
+          <Download size={19} strokeWidth={2.5} />
+          Download now — free
+        </a>
+        <a
+          href="#screens"
+          class="flex items-center gap-2 rounded-full border border-white/10 px-6 py-3.5 text-sm text-slate-300 transition-colors hover:border-cyan-400/40 hover:text-cyan-300"
+        >
+          See it in action
+          <ArrowDown size={15} />
+        </a>
+      </div>
+    </div>
+
+    <div class="rise-in relative mx-auto w-full max-w-[300px]">
+      <PhoneMockup src="home_screen" alt="Phantom home screen demo video" video />
+    </div>
+  </div>
+</section>
+
+<script>
+  const typedEl = document.getElementById('hero-typed');
+  const caretEl = document.getElementById('hero-caret');
+
+  if (typedEl && caretEl) {
+    const text = typedEl.dataset.text ?? '';
+
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      typedEl.textContent = text;
+      caretEl.remove();
+    } else {
+      let i = 0;
+      const tick = () => {
+        i += 1;
+        typedEl.textContent = text.slice(0, i);
+        if (i < text.length) {
+          setTimeout(tick, 26 + Math.random() * 44);
+        } else {
+          setTimeout(() => caretEl.remove(), 1400);
+        }
+      };
+      setTimeout(tick, 400);
+    }
+  }
+</script>

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { View, StatusBar, InteractionManager, AppState } from 'react-native';
+import { useBackHandler } from './src/lib/back';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -11,7 +12,7 @@ import tw from './src/lib/tw';
 import TwinkleStars from './src/components/backgrounds/TwinkleStars';
 import ShootingStars from './src/components/backgrounds/ShootingStars';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import BottomNav from './src/components/BottomNav';
+import BottomNav, { type Tab } from './src/components/BottomNav';
 import HomeScreen from './src/screens/HomeScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import UpdatesScreen from './src/screens/UpdatesScreen';
@@ -21,7 +22,7 @@ import PlaylistScreen from './src/screens/PlaylistScreen';
 import { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
 import { prewarmClientId } from './src/extractors/soundcloud';
-import { Format, VideoInfo, ExtractorError } from './src/extractors/types';
+import { Format, VideoInfo, ExtractorError } from './src/extractors/shared/types';
 import PickerModal from './src/components/PickerModal';
 import SpotifyPickerModal from './src/components/SpotifyPickerModal';
 import NotificationPermissionSheet from './src/components/sheets/NotificationPermissionSheet';
@@ -29,8 +30,10 @@ import ErrorSheet from './src/components/sheets/ErrorSheet';
 import { AppDialogProvider } from './src/components/AppDialog';
 import YouTubeExtractorWebView from './src/components/webviews/YouTubeExtractorWebView';
 import InstagramExtractorWebView from './src/components/webviews/InstagramExtractorWebView';
+import GenericExtractorWebView from './src/components/webviews/GenericExtractorWebView';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { type DownloadMeta } from './src/lib/format';
+import { isVpnActive } from './modules/vpn-detector';
 import { getOnboarded, setOnboarded, getAutoPaste } from './src/lib/settings';
 import { addDownloadTapListener } from './src/lib/notify';
 import { registerDownloadService } from './src/lib/fgservice';
@@ -70,9 +73,7 @@ function AppRoot() {
     'Rubik-SemiBold': RubikSemiBold,
     'Rubik-Bold': RubikBold,
   });
-  const [tab, setTab] = useState<'home' | 'downloads' | 'settings' | 'updates'>(
-    'home'
-  );
+  const [tab, setTab] = useState<Tab>('home');
   const [visited, setVisited] = useState({
     downloads: false,
     settings: false,
@@ -94,6 +95,7 @@ function AppRoot() {
     canRetry: boolean;
   } | null>(null);
   const [invalidLink, setInvalidLink] = useState(false);
+  const [vpnWarning, setVpnWarning] = useState(false);
   const [info, setInfo] = useState<VideoInfo | null>(null);
   const [playlistInfo, setPlaylistInfo] = useState<VideoInfo | null>(null);
   const [playlistOpen, setPlaylistOpen] = useState(false);
@@ -196,6 +198,8 @@ function AppRoot() {
   const handleResolve = async () => {
     if (!link.trim() || loading) return;
     tapImpact();
+    // tunnel check is prompt-only; resolve proceeds either way
+    void isVpnActive().then(setVpnWarning).catch(() => setVpnWarning(false));
     const url = cleanUrl(link);
     dismissedRef.current = false;
     setLoading(true);
@@ -256,20 +260,36 @@ function AppRoot() {
       setSuccessSignal((count) => count + 1);
     }
   };
-  const goTab = (next: 'home' | 'downloads' | 'settings' | 'updates') => {
+  const tabHistory = useRef<Tab[]>([]);
+  const goTab = (next: Tab, opts: { fromBack?: boolean } = {}) => {
+    if (!opts.fromBack && next !== tab) {
+      if (next === 'home') tabHistory.current = [];
+      else tabHistory.current = [...tabHistory.current, tab];
+    }
     setTab(next);
     if (next === 'downloads' || next === 'settings' || next === 'updates') {
       setVisited((v) => (v[next] ? v : { ...v, [next]: true }));
     }
   };
+  // lowest priority: walk the tab stack back, else home; home owns the exit dialog
+  useBackHandler(() => {
+    if (tabHistory.current.length > 0) {
+      const prev = tabHistory.current[tabHistory.current.length - 1];
+      tabHistory.current = tabHistory.current.slice(0, -1);
+      setTab(prev);
+      return true;
+    }
+    if (tab !== 'home') {
+      setTab('home');
+      return true;
+    }
+    return false;
+  }, -100);
   const onLayoutRoot = useCallback(() => {
     if (fontsLoaded || fontError) {
       void SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
   if (!fontsLoaded && !fontError) {
     return null;
   }
@@ -324,6 +344,8 @@ function AppRoot() {
                   muted={notifPriming.visible}
                   invalidLink={invalidLink}
                   successSignal={successSignal}
+                  vpnWarning={vpnWarning}
+                  onDismissVpnWarning={() => setVpnWarning(false)}
                 />
               </View>
               {visited.settings && (
@@ -343,7 +365,11 @@ function AppRoot() {
                   onDeepLinkHandled={() => setDeepLink(null)}
                 />
               )}
-              <BottomNav onChange={goTab} hidden={navHidden || playlistOpen} />
+              <BottomNav
+                tab={tab}
+                onChange={goTab}
+                hidden={navHidden || playlistOpen}
+              />
               {playlistOpen && playlistInfo ? (
                 <PlaylistScreen
                   info={playlistInfo}
@@ -379,6 +405,7 @@ function AppRoot() {
               />
               <YouTubeExtractorWebView />
               <InstagramExtractorWebView />
+              <GenericExtractorWebView />
               <NotificationPermissionSheet
                 visible={notifPriming.visible}
                 onAllow={() => void notifPriming.allow()}

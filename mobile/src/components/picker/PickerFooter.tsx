@@ -13,7 +13,7 @@ import Animated, {
   FadeOut,
 } from 'react-native-reanimated';
 import tw from '../../lib/tw';
-import { Format } from '../../extractors/types';
+import { Format } from '../../extractors/shared/types';
 import { type DownloadState, formatSize, extLabel } from '../../lib/format';
 
 const SHIMMER_BAND = 64;

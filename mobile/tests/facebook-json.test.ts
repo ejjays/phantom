@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractFromJson } from '../src/extractors/facebook/json-extractor';
+import { extractFromJson } from '@phantom/extractors/facebook/json-extractor';
 
 const jsonScript = (payload: unknown): string =>
   `<html><script type="application/json">${JSON.stringify(payload)}</script></html>`;

@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, type ComponentType } from 'react';
+import { useEffect, useRef, memo, type ComponentType } from 'react';
 import {
   View,
   Text,
@@ -34,7 +34,7 @@ import {
   type IconProps,
 } from './icons';
 
-type Tab = 'home' | 'downloads' | 'updates' | 'settings';
+export type Tab = 'home' | 'downloads' | 'updates' | 'settings';
 
 const TABS: { id: Tab; label: string; Icon: ComponentType<IconProps> }[] = [
   { id: 'home', label: 'Home', Icon: HomeIcon },
@@ -152,9 +152,11 @@ function BadgeDot({ show }: { show: boolean }) {
   );
 }
 function BottomNav({
+  tab,
   onChange,
   hidden = false,
 }: {
+  tab: Tab;
   onChange?: (tab: Tab) => void;
   hidden?: boolean;
 }) {
@@ -165,29 +167,20 @@ function BottomNav({
   const tabW = width / TABS.length;
   const centerOf = (i: number) => tabW * (i + 0.5);
 
-  const [active, setActive] = useState(0);
-  const cx = useSharedValue(centerOf(0));
+  const activeIndex = TABS.findIndex((t) => t.id === tab);
+  const cx = useSharedValue(centerOf(activeIndex));
   const lift = useSharedValue(1);
   const hide = useSharedValue(0);
+  const prevIndex = useRef(activeIndex);
 
   useEffect(() => {
-    cx.value = centerOf(active);
+    cx.value = centerOf(activeIndex);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- width-only recenter; active moved by spring, centerOf per-render
   }, [width]);
 
   useEffect(() => {
-    hide.value = withTiming(hidden ? 1 : 0, {
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [hidden, hide]);
-
-  const select = (index: number) => {
-    if (index === active) return;
-    const dist = Math.abs(index - active);
-    setActive(index);
-    onChange?.(TABS[index].id);
-    cx.value = withSpring(centerOf(index), {
+    const dist = Math.abs(activeIndex - prevIndex.current);
+    cx.value = withSpring(centerOf(activeIndex), {
       damping: 20,
       stiffness: 260,
       mass: 0.6,
@@ -201,6 +194,18 @@ function BottomNav({
       }),
       withSpring(1, { damping: 14, stiffness: 300 })
     );
+    prevIndex.current = activeIndex;
+  }, [activeIndex, cx, lift]);
+
+  useEffect(() => {
+    hide.value = withTiming(hidden ? 1 : 0, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [hidden, hide]);
+
+  const select = (index: number) => {
+    onChange?.(TABS[index].id);
   };
 
   const pathProps = useAnimatedProps(() => ({
@@ -220,7 +225,7 @@ function BottomNav({
     transform: [{ translateY: hide.value * (totalH + 20) }],
   }));
 
-  const ActiveIcon = TABS[active].Icon;
+  const ActiveIcon = TABS[activeIndex].Icon;
 
   return (
     <Animated.View
@@ -257,7 +262,7 @@ function BottomNav({
 
         <View style={styles.row} pointerEvents="box-none">
           {TABS.map(({ id, label, Icon }, index) => {
-            const isActive = index === active;
+            const isActive = index === activeIndex;
             return (
               <Pressable
                 key={id}

@@ -6,18 +6,17 @@ import {
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
-import { BackHandler } from 'react-native';
 import { tapSelection } from '../lib/haptics';
+import { useBackHandler } from '../lib/back';
 
-// slide-right sub-screen pattern used by SettingsScreen overlays
-export function useSubScreen(parentVisible: boolean) {
+export function useSubScreen(parentVisible: boolean, priority = 10) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const progress = useSharedValue(0);
 
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-chain-state-updates -- mounted gates delayed-unmount animation
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mounted gates delayed-unmount animation
       setMounted(true);
       progress.value = withTiming(1, {
         duration: 260,
@@ -34,16 +33,13 @@ export function useSubScreen(parentVisible: boolean) {
     }
   }, [open, progress]);
 
-  // back button closes the sub-screen
-  useEffect(() => {
-    if (!parentVisible || !open) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      tapSelection();
-      setOpen(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [parentVisible, open]);
+  // back button closes the sub-screen (higher priority than app go-home)
+  useBackHandler(() => {
+    if (!parentVisible || !open) return false;
+    tapSelection();
+    setOpen(false);
+    return true;
+  }, priority);
 
   const style = useAnimatedStyle(() => ({
     opacity: progress.value,

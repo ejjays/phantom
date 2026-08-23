@@ -1,0 +1,40 @@
+---
+import { PLATFORMS } from '../content/site';
+
+// x glyph fills its viewBox edge-to-edge; render it smaller to optically match
+const logoSize = (id: string) => (id === 'x' ? 21 : 26);
+
+// keyframe slides -50% (= RUNS/2 runs); enough runway that even ultrawide
+// viewports never see past the last logo. duration scales to keep speed.
+const RUNS = 8;
+const DURATION_S = 36 * (RUNS / 2);
+---
+
+<section aria-label="Supported platforms" class="border-y border-white/5 bg-surface/40 py-7">
+  <p class="mb-5 text-center text-[11px] tracking-[0.3em] text-slate-500 uppercase">works with</p>
+  <div
+    class="marquee relative overflow-hidden"
+    style="mask-image:linear-gradient(90deg, transparent, black 12%, black 88%, transparent)"
+  >
+    <div class="marquee-track flex w-max" style={`animation-duration:${DURATION_S}s`}>
+      {
+        Array.from({ length: RUNS }, (_, run) => (
+          <div aria-hidden={run > 0 || undefined} class="flex shrink-0 items-center gap-10 pr-10">
+            {PLATFORMS.map((platform) => (
+              <img
+                src={`/logos/${platform.id}.svg`}
+                alt={run === 0 ? platform.name : ''}
+                title={platform.name}
+                width={logoSize(platform.id)}
+                height={logoSize(platform.id)}
+                decoding="async"
+                draggable="false"
+                class="shrink-0"
+              />
+            ))}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

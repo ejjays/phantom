@@ -2,7 +2,7 @@
   "expo": {
     "name": "Phantom",
     "slug": "cyan-phantom",
-    "version": "1.2.2",
+    "version": "1.2.22",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -99,7 +99,9 @@
           "enforceContrast": false,
           "style": "light"
         }
-      ]
+      ],
+      "react-native-enriched-markdown",
+      "expo-video"
     ],
     "extra": {
       "expo-navigation-bar": {

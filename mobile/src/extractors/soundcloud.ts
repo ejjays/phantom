@@ -1,9 +1,10 @@
-import { VideoInfo, Format, ExtractorError } from './types';
+import { VideoInfo, Format, ExtractorError } from './shared/types';
 import { gatedFetch } from '../lib/net';
-import { noVideo, fromStatus, temporaryError, classifyThrown } from './errors';
+import { probeFileSize } from './shared/utils';
+import { noVideo, fromStatus, temporaryError, classifyThrown } from './shared/errors';
 import { getScClientId, setScClientId } from '../lib/settings';
 import { DESKTOP_UA } from '../lib/userAgents';
-import { buildVideoInfo } from './videoInfo';
+import { buildVideoInfo } from './shared/videoInfo';
 import {
   resolveViaYoutube,
   buildFromYoutube,
@@ -276,16 +277,10 @@ async function buildAudioFormat(
 ): Promise<Format> {
   let filesize: number | undefined;
   if (!isHls) {
-    try {
-      const head = await gatedFetch(streamUrl, {
-        method: 'HEAD',
-        headers: { 'User-Agent': DESKTOP_UA },
-      });
-      const len = head?.headers?.get('content-length');
-      if (len) filesize = parseInt(len, 10);
-    } catch {
-      // best-effort: HEAD can fail; keep going without filesize
-    }
+    const size = await probeFileSize(streamUrl, {
+      'User-Agent': DESKTOP_UA,
+    });
+    if (size) filesize = size;
   }
   return {
     formatId: 'audio',

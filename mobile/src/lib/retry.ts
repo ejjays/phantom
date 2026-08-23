@@ -1,3 +1,5 @@
+export const ABORT_MESSAGE = 'aborted';
+
 type RetryOptions = {
   retries: number;
   delayMs?: number;
@@ -10,7 +12,7 @@ export async function withRetry<T>(
 ): Promise<T> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt += 1) {
-    if (signal?.aborted) throw new Error('aborted');
+    if (signal?.aborted) throw new Error(ABORT_MESSAGE);
     try {
       return await task(attempt);
     } catch (error) {

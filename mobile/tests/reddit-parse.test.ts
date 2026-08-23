@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../src/lib/net', () => ({
   gatedFetch: vi.fn(),
+  timeoutSignal: (ms: number) => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), ms);
+    return controller.signal;
+  },
   mapLimit: <T>(
     items: T[],
     _limit: number,
@@ -85,7 +90,7 @@ describe('reddit getInfo', () => {
     expect(info?.title).toBe('3 guys attacked random jeep passengers');
     expect(info?.uploader).toBe('WashHappy5391');
     expect(info?.duration).toBe(90);
-    // 3 distinct video qualities, sorted by height desc
+
     expect(info?.formats).toHaveLength(3);
     const top = info?.formats[0];
     expect(top?.formatId).toBe('720p');
@@ -96,7 +101,6 @@ describe('reddit getInfo', () => {
       'https://v.redd.it/yzxzty7ymd9h1/CMAF_AUDIO_128.mp4'
     );
     expect(top?.isMuxed).toBe(false);
-    // exact picker size = video + audio content-length
     expect(top?.filesize).toBe(20714387 + 1467810);
   });
 

@@ -12,13 +12,9 @@ import { useScreenSize } from '../hooks/useScreenSize';
 import tw from '../lib/tw';
 
 type Props = ComponentProps<typeof ScrollView> & {
-  /** clearance kept between focused field & keyboard */
   gap?: number;
 };
 
-// plug-and-play keyboard-avoiding scroll form: auto-lifts focused TextInput above keyboard via transform (smooth, no scroll jank).
-// auto-detects focused field w/ useReanimatedFocusedInput — absoluteY is screen-relative so no inset math; drop any TextInput inside, no per-field ref.
-// mount only while screen visible — keyboard handler is global; always-mounted instance bleeds into other screens.
 export default function KeyboardAvoidingForm({
   children,
   gap = 24,

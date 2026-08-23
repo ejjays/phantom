@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import sitemap from 'vite-plugin-sitemap';
 import { mkdirSync } from 'node:fs';
 
 // https://vite.dev/config/
 export default defineConfig({
+  // served as an island under the astro site at c-phantom.pages.dev/app/
+  base: '/app/',
   plugins: [
     {
       // rolldown creates outDir only during bundle write; sitemap plugin
@@ -15,25 +16,6 @@ export default defineConfig({
       },
     },
     react(),
-    sitemap({
-      hostname: 'https://nex-stream.pages.dev',
-      exclude: [
-        '/google47cf4c017c18cb87',
-        '/google4990a479c64e9cd1',
-        '/googleaf6894b78a699043',
-      ],
-      dynamicRoutes: [
-        '/tools/key-changer',
-        '/tools/remix-lab',
-        '/resources/story',
-        '/resources/architecture',
-        '/resources/stack',
-        '/resources/audio-guide',
-        '/resources/video-guide',
-        '/resources/security',
-        '/resources/remix-guide',
-      ],
-    }),
   ],
   build: {
     // no inline modulepreload polyfill (csp-friendly)

@@ -12,11 +12,22 @@ on:
           - development
           - preview
           - production
+      publish:
+        description: Publish APK as release + update manifest
+        required: true
+        default: false
+        type: boolean
+      notes:
+        description: Release notes (used when publish is on)
+        required: false
+        type: string
 
 jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    permissions:
+      contents: write
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
@@ -82,3 +93,17 @@ jobs:
           name: phantom-${{ inputs.profile }}-apk
           path: mobile/app-release.apk
           retention-days: 14
+
+      - name: Publish release + update manifest
+        if: inputs.publish && inputs.profile == 'production'
+        env:
+          SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          AAPT2=$(ls "$ANDROID_SDK_ROOT"/build-tools/*/aapt2 | sort -V | tail -1)
+          VERSION=$("$AAPT2" dump badging mobile/app-release.apk | grep -oP "versionName='\K[^']+")
+          CODE=$("$AAPT2" dump badging mobile/app-release.apk | grep -oP "versionCode='\K[^']+")
+          echo "built versionName: $VERSION (versionCode $CODE)"
+          bash scripts/publish-apk.sh mobile/app-release.apk "$VERSION" "${NOTES:-updated via silent updater}"

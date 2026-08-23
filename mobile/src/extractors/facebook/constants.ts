@@ -1,4 +1,3 @@
-export * from '@phantom/extractors/facebook/constants';
 
 import { DESKTOP_UA } from '../../lib/userAgents';
 

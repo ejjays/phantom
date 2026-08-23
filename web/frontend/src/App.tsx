@@ -6,7 +6,7 @@ import React, {
   lazy,
   Suspense,
 } from 'react';
-import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router';
+import { Routes, Route, useLocation } from 'react-router';
 import { useRemixStore } from './store/useRemixStore';
 import { VideoInfo } from '@shared/schemas/media.schema.js';
 import { getDynamicBackendUrl } from './lib/config';
@@ -15,21 +15,14 @@ import { handleSseMessage } from './hooks/useSSE';
 import Layout from './components/Layout';
 
 // lazy load pages
-const DocsLayout = lazy(() => import('./components/docs/DocsLayout'));
 const MainContent = lazy(() => import('./components/MainContent'));
 const SongKeyChanger = lazy(() => import('./pages/Tools/SongKeyChanger'));
 const RemixLab = lazy(() => import('./pages/Tools/RemixLab'));
-const FormatGuide = lazy(() => import('./pages/Guide/FormatGuide'));
-const AboutPage = lazy(() => import('./pages/About/AboutPage'));
-const SecurityPrivacy = lazy(() => import('./pages/Guide/SecurityPrivacy'));
-const VideoGuide = lazy(() => import('./pages/Guide/VideoGuide'));
-const ArchitectureDeepDive = lazy(
-  () => import('./pages/Guide/ArchitectureDeepDive')
-);
-const TechStack = lazy(() => import('./pages/Guide/TechStack'));
-const RemixLabGuide = lazy(() => import('./pages/Guide/RemixLabGuide'));
 const UpdatesPage = lazy(() => import('./pages/Updates/UpdatesPage'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+
+// doc pages (pages/Guide/*, pages/About/*) intentionally unrouted — content is
+// seeded into the astro site guides later; git history keeps them alive
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -46,7 +39,7 @@ const ScrollToTop = () => {
 
 const RemixLabRoute = () => {
   const handleExit = useCallback(() => {
-    window.location.href = '/';
+    window.location.href = import.meta.env.BASE_URL || '/';
   }, []);
 
   return <RemixLab onExit={handleExit} />;
@@ -234,71 +227,6 @@ const App = () => {
           />
           <Route path="/tools/key-changer" element={<SongKeyChanger />} />
           <Route path="/tools/remix-lab" element={<RemixLabRoute />} />
-
-          <Route
-            element={
-              <DocsLayout>
-                <Outlet />
-              </DocsLayout>
-            }
-          >
-            <Route path="/resources/story" element={<AboutPage />} />
-            <Route
-              path="/resources/architecture"
-              element={<ArchitectureDeepDive />}
-            />
-            <Route path="/resources/stack" element={<TechStack />} />
-            <Route path="/resources/audio-guide" element={<FormatGuide />} />
-            <Route path="/resources/video-guide" element={<VideoGuide />} />
-            <Route path="/resources/security" element={<SecurityPrivacy />} />
-            <Route path="/resources/remix-guide" element={<RemixLabGuide />} />
-          </Route>
-
-          <Route
-            path="/about"
-            element={<Navigate to="/resources/story" replace />}
-          />
-          <Route
-            path="/guide/architecture"
-            element={<Navigate to="/resources/architecture" replace />}
-          />
-          <Route
-            path="/guide/formats"
-            element={<Navigate to="/resources/audio-guide" replace />}
-          />
-          <Route
-            path="/guide/video"
-            element={<Navigate to="/resources/video-guide" replace />}
-          />
-          <Route
-            path="/guide/security"
-            element={<Navigate to="/resources/security" replace />}
-          />
-          <Route
-            path="/guide/stack"
-            element={<Navigate to="/resources/stack" replace />}
-          />
-
-          <Route
-            path="/docs/story"
-            element={<Navigate to="/resources/story" replace />}
-          />
-          <Route
-            path="/docs/architecture"
-            element={<Navigate to="/resources/architecture" replace />}
-          />
-          <Route
-            path="/docs/audio-guide"
-            element={<Navigate to="/resources/audio-guide" replace />}
-          />
-          <Route
-            path="/docs/video-guide"
-            element={<Navigate to="/resources/video-guide" replace />}
-          />
-          <Route
-            path="/docs/security"
-            element={<Navigate to="/resources/security" replace />}
-          />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

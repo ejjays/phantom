@@ -1,4 +1,4 @@
-import { VideoInfo, ExtractorError } from './types';
+import { VideoInfo, Format, ExtractorError } from './shared/types';
 import { getInfo as facebookGetInfo } from './facebook';
 import { getInfo as tiktokGetInfo } from './tiktok';
 import { getInfo as xGetInfo } from './x';
@@ -16,6 +16,12 @@ import { getInfo as pinterestGetInfo } from './pinterest';
 import { getInfo as twitchGetInfo } from './twitch';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 import { reportError } from '../lib/crash';
+import { log } from '../lib/log';
+import { mapLimit } from '../lib/net';
+import { getGenericSnifferEnabled } from '../lib/settings';
+import { extractFromPage } from '../lib/webviewExtraction/host';
+import { pageScanToVideoInfo } from '../lib/webviewExtraction/normalize';
+import { probeFileSize } from './shared/utils';
 
 export type OnPartial = (info: VideoInfo) => void;
 
@@ -111,6 +117,18 @@ function dispatch(
 const FAST_RESOLVE_DISABLED =
   process.env.EXPO_PUBLIC_DISABLE_FAST_RESOLVE === '1';
 
+// native paths are better (PO-token / audio-only): never scan their DOM
+const WEBVIEW_GUARDED = [
+  'youtube.com',
+  'youtu.be',
+  'spotify.com',
+  'soundcloud.com',
+];
+
+function webviewGuarded(host: string): boolean {
+  return WEBVIEW_GUARDED.some((domain) => matches(host, domain));
+}
+
 // benign content-state fails (private/removed/geo/login) & client network drops
 // aren't our bug — keep out of sentry so real extractor breaks stand out.
 function reportFailure(host: string, error: unknown): void {
@@ -128,25 +146,78 @@ function reportFailure(host: string, error: unknown): void {
 
 export async function resolve(
   url: string,
-  onPartial?: OnPartial
+  onPartial?: OnPartial,
+  options?: { fresh?: boolean }
 ): Promise<VideoInfo | null> {
   const host = hostOf(url);
 
-  if (!FAST_RESOLVE_DISABLED) {
+  if (!FAST_RESOLVE_DISABLED && !options?.fresh) {
     const cached = getCachedInfo(url);
     if (cached) return cached;
   }
 
-  let info: VideoInfo | null;
+  const partialSink = FAST_RESOLVE_DISABLED ? undefined : onPartial;
+
+  let info: VideoInfo | null = null;
+  let originalError: unknown = null;
   try {
-    info = await dispatch(
-      host,
-      url,
-      FAST_RESOLVE_DISABLED ? undefined : onPartial
-    );
+    info = await dispatch(host, url, partialSink);
   } catch (error) {
-    reportFailure(host, error);
-    throw error;
+    originalError = error;
+    if (webviewGuarded(host) || !(error instanceof ExtractorError)) {
+      reportFailure(host, error);
+      throw error;
+    }
+  }
+
+  // unknown host or typed extractor failure → generic DOM scan in hidden
+  // webview; experimental, opt-in (default off): a 30s scan that usually
+  // finds nothing is worse than an instant "unsupported"
+  if (!info && !webviewGuarded(host) && !(await getGenericSnifferEnabled())) {
+    if (originalError !== null) {
+      reportFailure(host, originalError);
+      throw originalError;
+    }
+    return null;
+  }
+
+  if (!info && !webviewGuarded(host)) {
+    log(
+      'Resolve',
+      'webview fallback',
+      url,
+      originalError ? `after error: ${originalError}` : '(unknown host)'
+    );
+    const scan = await extractFromPage(url, (scan) => {
+      const partial = pageScanToVideoInfo(scan, host, true);
+      if (partial) partialSink?.(partial);
+    });
+    info = scan ? pageScanToVideoInfo(scan, host, false) : null;
+    if (info && !info.isPartial && info.formats.length > 0) {
+      const headers = info.downloadHeaders ?? {};
+      await mapLimit(info.formats, 2, async (format) => {
+        if (!format.url || format.filesize || format.isHls) return;
+        const size = await probeFileSize(format.url, headers);
+        if (size) format.filesize = size;
+      });
+      const sizeLabel = (format: Format): string =>
+        format.filesize
+          ? `${Math.round(format.filesize / 1024 / 1024)}MB`
+          : '?size';
+      log(
+        'Resolve',
+        'webview info',
+        info.title,
+        '|',
+        info.formats.map(
+          (format) => `${format.extension} ${sizeLabel(format)} @ ${format.url}`
+        )
+      );
+    }
+    if (!info && originalError !== null) {
+      reportFailure(host, originalError);
+      throw originalError;
+    }
   }
 
   if (

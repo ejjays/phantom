@@ -81,6 +81,8 @@ nexstream.xml
 web/backend/deno-wrapper
 *.mp4
 *.mp3
+# site hero demo video is required content
+!web/site/public/videos/*.mp4
 .scannerwork/
 SEO.md
  

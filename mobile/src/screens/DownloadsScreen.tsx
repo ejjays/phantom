@@ -7,8 +7,12 @@ import {
   RefreshControl,
   useWindowDimensions,
   AppState,
+  StyleSheet,
+  Modal,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBackHandler } from '../lib/back';
 import { Image } from 'expo-image';
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 import {
@@ -17,12 +21,16 @@ import {
   Play,
   FolderOpen,
   RotateCcw,
-  UndoDot,
+  MoreVertical,
+  Search,
   X,
 } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import tw from '../lib/tw';
 import ufo from '../../assets/UFO.json';
+import SearchOverlay, {
+  SearchHighlight,
+} from '../components/SearchOverlay';
 import {
   useDownloadHistory,
   removeHistory,
@@ -50,6 +58,11 @@ import { PlatformLogo, type PlatformName } from '../components/logos';
 import TwinkleStars from '../components/backgrounds/TwinkleStars';
 import ShootingStars from '../components/backgrounds/ShootingStars';
 import SwipeToDelete from '../components/SwipeToDelete';
+import {
+  Host,
+  SnackbarHost,
+  type SnackbarHostRef,
+} from '@expo/ui/jetpack-compose';
 
 type Props = {
   visible: boolean;
@@ -71,20 +84,46 @@ const LOGO_FOR: Partial<Record<string, PlatformName>> = {
   youtube: 'youtube',
 };
 
+type MenuActionProps = {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+};
+
+function MenuAction({ icon, label, onPress }: MenuActionProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) =>
+        tw`flex-row items-center gap-2 px-4 py-3.5 ${pressed ? 'bg-white/10' : ''}`
+      }
+    >
+      {icon}
+      <Text style={tw`font-sans text-[15px] text-slate-200`}>{label}</Text>
+    </Pressable>
+  );
+}
+
 function Row({
   item,
   missing,
   onDelete,
+  onPress,
 }: {
   item: HistoryItem;
   missing?: boolean;
   onDelete: (item: HistoryItem) => void;
+  onPress?: () => void;
 }) {
   const open = useCallback(() => {
+    if (onPress) {
+      onPress();
+      return;
+    }
     if (missing) return;
     tapImpact();
     void openSavedTarget({ isAudio: item.isAudio, uri: item.uri });
-  }, [item.isAudio, item.uri, missing]);
+  }, [item.isAudio, item.uri, missing, onPress]);
 
   const del = useCallback(() => {
     tapSelection();
@@ -442,9 +481,52 @@ function DownloadsScreenInner({ visible }: Props) {
   const { width } = useWindowDimensions();
   const ufoSize = Math.min(320, Math.max(200, width * 0.6));
   const [missing, setMissing] = useState<Record<string, boolean>>({});
-  const [view, setView] = useState<'list' | 'grid'>('grid');
+  const [view, setView] = useState<'list' | 'grid'>('list');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [focusEntryId, setFocusEntryId] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const entryPositions = useRef<Map<string, number>>(new Map());
   const itemsRef = useRef(items);
   itemsRef.current = items;
+
+  const closeSearch = useCallback(() => {
+    Keyboard.dismiss();
+    setSearchOpen(false);
+    const term = query.trim().toLowerCase();
+    if (term) {
+      const matched = items.find((it) =>
+        it.title.toLowerCase().includes(term)
+      );
+      if (matched) setFocusEntryId(matched.id);
+    }
+    setQuery('');
+  }, [query, items]);
+
+  useEffect(() => {
+    if (!focusEntryId) return;
+    const scrollTimer = setTimeout(() => {
+      const y = entryPositions.current.get(focusEntryId);
+      if (y != null && scrollRef.current) {
+        scrollRef.current.scrollTo({ y, animated: true });
+      }
+    }, 150);
+    const clearTimer = setTimeout(() => setFocusEntryId(null), 2600);
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(clearTimer);
+    };
+  }, [focusEntryId]);
+
+  useBackHandler(() => {
+    if (!visible) return false;
+    if (searchOpen) {
+      closeSearch();
+      return true;
+    }
+    return false;
+  }, 10);
 
   useEffect(() => {
     void getHistoryView().then(setView);
@@ -459,37 +541,36 @@ function DownloadsScreenInner({ visible }: Props) {
     });
   }, []);
 
-  const [undoItem, setUndoItem] = useState<{
-    item: HistoryItem;
-    index: number;
-  } | null>(null);
-  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snackbarRef = useRef<SnackbarHostRef>(null);
 
-  const clearUndo = useCallback(() => {
-    if (undoTimer.current) clearTimeout(undoTimer.current);
-    undoTimer.current = null;
-    setUndoItem(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+
+  const askUndo = useCallback(async (item: HistoryItem, index: number) => {
+    setSnackbarOpen(true);
+    try {
+      const result = await snackbarRef.current?.showSnackbar({
+        message: 'Download deleted',
+        actionLabel: 'Undo',
+        duration: 'long',
+      });
+      if (result === 'actionPerformed') {
+        tapImpact();
+        void restoreHistory(item, index);
+      }
+    } finally {
+      setSnackbarOpen(false);
+    }
   }, []);
-
-  const undoDelete = useCallback(() => {
-    tapImpact();
-    if (!undoItem) return;
-    void restoreHistory(undoItem.item, undoItem.index);
-    clearUndo();
-  }, [undoItem, clearUndo]);
 
   const onDelete = useCallback(
     (item: HistoryItem) => {
+      tapImpact();
       const index = itemsRef.current.findIndex((it) => it.id === item.id);
       void removeHistory(item.id).then(refresh);
-      if (undoTimer.current) clearTimeout(undoTimer.current);
-      setUndoItem({ item, index: Math.max(0, index) });
-      undoTimer.current = setTimeout(() => setUndoItem(null), 4000);
+      void askUndo(item, Math.max(0, index));
     },
-    [refresh]
+    [refresh, askUndo]
   );
-
-  useEffect(() => () => clearUndo(), [clearUndo]);
 
   const recheck = useCallback((list: HistoryItem[]) => {
     void Promise.all(
@@ -529,6 +610,10 @@ function DownloadsScreenInner({ visible }: Props) {
   }, [items.length, showDialog, refresh]);
 
   const empty = items.length === 0 && inflight.length === 0;
+  const trimmedQuery = query.trim().toLowerCase();
+  const filteredItems = trimmedQuery
+    ? items.filter((it) => it.title.toLowerCase().includes(trimmedQuery))
+    : items;
 
   return (
     <View
@@ -545,7 +630,7 @@ function DownloadsScreenInner({ visible }: Props) {
       )}
       <View
         style={[
-          tw`z-10 flex-row items-center justify-between bg-background px-4 pb-2 pt-3`,
+          tw`flex-row items-center justify-between bg-background pl-4 pr-2 pb-2 pt-3`,
           { paddingTop: insets.top + 12 },
         ]}
       >
@@ -553,35 +638,88 @@ function DownloadsScreenInner({ visible }: Props) {
           Downloads
         </Text>
         {items.length > 0 && (
-          <View style={tw`flex-row items-center gap-1`}>
-            <Pressable
-              onPress={toggleView}
-              accessibilityLabel={
-                view === 'list' ? 'Switch to grid' : 'Switch to list'
-              }
-              style={tw`flex-row items-center gap-1 rounded-lg px-2 py-1.5`}
-            >
-              {view === 'list' ? (
-                <LayoutGrid size={14} color="#64748b" />
-              ) : (
-                <List size={14} color="#64748b" />
-              )}
-            </Pressable>
-            <Pressable
-              onPress={clearAll}
-              style={tw`flex-row items-center gap-1 rounded-lg px-2 py-1.5`}
-            >
-              <FolderOpen size={14} color="#64748b" />
-              <Text style={tw`font-mono text-[11px] text-slate-400`}>
-                Clear
-              </Text>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() => {
+              tapSelection();
+              setMenuOpen(true);
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
+            style={tw`rounded-lg pl-2 pr-0.5 py-2`}
+            accessibilityLabel="More options"
+          >
+            <MoreVertical size={20} color="#94a3b8" />
+          </Pressable>
         )}
       </View>
 
+      {menuOpen && (
+        <Modal
+          transparent
+          visible
+          animationType="none"
+          onRequestClose={() => setMenuOpen(false)}
+        >
+          <Pressable
+            style={tw`flex-1 bg-black/40`}
+            onPress={() => {
+              tapSelection();
+              setMenuOpen(false);
+            }}
+            accessibilityLabel="Close menu"
+          >
+            <View
+              style={tw`mr-3 flex-1 items-end`}
+              accessibilityViewIsModal
+            >
+<View
+                style={[
+                  tw`overflow-hidden rounded-2xl border border-white/10 bg-[#15152c]`,
+                  { marginTop: insets.top + 44 },
+                ]}
+                accessibilityViewIsModal
+              >
+                <MenuAction
+                  icon={<Search size={16} color="#e2e8f0" />}
+                  label="Search"
+                  onPress={() => {
+                    setMenuOpen(false);
+                    tapSelection();
+                    Keyboard.dismiss();
+                    setSearchOpen(true);
+                  }}
+                />
+                <MenuAction
+                  icon={
+                    view === 'list' ? (
+                      <LayoutGrid size={16} color="#e2e8f0" />
+                    ) : (
+                      <List size={16} color="#e2e8f0" />
+                    )
+                  }
+                  label={view === 'list' ? 'Grid' : 'List'}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    void toggleView();
+                  }}
+                />
+                <MenuAction
+                  icon={<FolderOpen size={16} color="#e2e8f0" />}
+                  label="Clear all"
+                  onPress={() => {
+                    setMenuOpen(false);
+                    clearAll();
+                  }}
+                />
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+      )}
+
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={tw`pb-32 ${empty ? 'flex-1' : 'pt-1'}`}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -655,25 +793,49 @@ function DownloadsScreenInner({ visible }: Props) {
                         items.length % 2 === 1 &&
                         index === items.length - 1;
                       return (
-                        <GridCard
+                        <View
                           key={item.id}
-                          item={item}
-                          missing={missing[item.id]}
-                          width={width}
-                          full={cols === 1 || lastOdd}
-                          onDelete={onDelete}
-                        />
+                          onLayout={(e) =>
+                            entryPositions.current.set(
+                              item.id,
+                              e.nativeEvent.layout.y
+                            )
+                          }
+                        >
+                          <SearchHighlight
+                            active={focusEntryId === item.id}
+                          >
+                            <GridCard
+                              item={item}
+                              missing={missing[item.id]}
+                              width={width}
+                              full={cols === 1 || lastOdd}
+                              onDelete={onDelete}
+                            />
+                          </SearchHighlight>
+                        </View>
                       );
                     })}
                   </View>
                 ) : (
                   items.map((item) => (
-                    <Row
+                    <View
                       key={item.id}
-                      item={item}
-                      missing={missing[item.id]}
-                      onDelete={onDelete}
-                    />
+                      onLayout={(e) =>
+                        entryPositions.current.set(
+                          item.id,
+                          e.nativeEvent.layout.y
+                        )
+                      }
+                    >
+                      <SearchHighlight active={focusEntryId === item.id}>
+                        <Row
+                          item={item}
+                          missing={missing[item.id]}
+                          onDelete={onDelete}
+                        />
+                      </SearchHighlight>
+                    </View>
                   ))
                 )}
               </>
@@ -681,28 +843,54 @@ function DownloadsScreenInner({ visible }: Props) {
           </>
         )}
       </ScrollView>
-      {undoItem && (
-        <Animated.View
-          entering={FadeInUp.duration(200)}
-          exiting={FadeOutDown.duration(200)}
-          style={[
-            tw`absolute right-4 flex-row items-center gap-3 rounded-full border border-white/10 bg-slate-900/95 px-4 py-2.5`,
-            { bottom: 98 + insets.bottom + 12 },
-          ]}
-        >
-          <Pressable
-            onPress={undoDelete}
-            hitSlop={8}
-            style={tw`flex-row items-center gap-1.5`}
-            accessibilityLabel="Undo delete"
-          >
-            <UndoDot size={14} color="#22d3ee" strokeWidth={2.5} />
-            <Text style={tw`font-mono text-[12px] font-semibold text-cyan-400`}>
-              Undo
-            </Text>
-          </Pressable>
-        </Animated.View>
-      )}
+
+      <SearchOverlay
+        visible={searchOpen}
+        searchQuery={query}
+        query={trimmedQuery}
+        results={filteredItems}
+        hint={`Search ${items.length} downloads`}
+        placeholder="Search downloads…"
+        bgClass="bg-background"
+        modal={false}
+        onSearchChange={setQuery}
+        onClear={() => {
+          tapSelection();
+          setQuery('');
+        }}
+        onBack={() => {
+          tapSelection();
+          closeSearch();
+        }}
+        renderRow={(item) => (
+          <Row
+            key={item.id}
+            item={item}
+            missing={missing[item.id]}
+            onDelete={onDelete}
+            onPress={() => {
+              tapSelection();
+              setFocusEntryId(item.id);
+              setSearchOpen(false);
+              Keyboard.dismiss();
+            }}
+          />
+        )}
+      />
+
+      <View
+        pointerEvents={snackbarOpen ? 'box-none' : 'none'}
+        style={[
+          StyleSheet.absoluteFill,
+          { justifyContent: 'flex-end', paddingBottom: 98 + insets.bottom },
+        ]}
+      >
+        <View style={{ height: 84 }}>
+          <Host colorScheme="light" seedColor="#06b6d4" style={{ flex: 1 }}>
+<SnackbarHost ref={snackbarRef} />
+          </Host>
+        </View>
+      </View>
     </View>
   );
 }

@@ -1,4 +1,4 @@
-import { VideoInfo, ExtractorError } from '../types';
+import { VideoInfo, ExtractorError } from '../shared/types';
 import { resolveViaYoutube, buildFromYoutube } from '../youtube/isrcMatch';
 
 // reexported for callers/tests that predate the shared isrcMatch module
@@ -13,8 +13,8 @@ import {
   type OdesliResult,
 } from './api';
 import { lookupSpotifyMapping } from '../../lib/social/registry';
-import { noVideo, temporaryError } from '../errors';
-import { buildVideoInfo } from '../videoInfo';
+import { noVideo, temporaryError } from '../shared/errors';
+import { buildVideoInfo } from '../shared/videoInfo';
 import { log } from '../../lib/log';
 
 type Meta = {
@@ -107,24 +107,6 @@ async function firstPaintMeta(
   }
 }
 
-function resolveVideoUrl(
-  odesliYoutube: string | undefined,
-  meta: Meta
-): Promise<string | null> {
-  return resolveViaYoutube(meta, odesliYoutube);
-}
-
-// extract the matched youtube video on-device; cached stream urls are
-// ip-bound so we re-extract, reusing only the mapping
-function buildResult(
-  meta: Meta,
-  url: string,
-  videoUrl: string,
-  fromBrain: boolean
-): Promise<VideoInfo | null> {
-  return buildFromYoutube(meta, url, videoUrl, 'spotify', fromBrain);
-}
-
 const firstOf = <T>(...values: (T | undefined | null)[]): T | undefined =>
   values.find((value): value is T => Boolean(value));
 
@@ -169,7 +151,13 @@ async function resolveFromRegistry(
   };
   onPartial?.(partial(meta, url));
   try {
-    return await buildResult(meta, url, cached.youtubeUrl, true);
+    return await buildFromYoutube(
+      meta,
+      url,
+      cached.youtubeUrl,
+      'spotify',
+      true
+    );
   } catch {
     return null;
   }
@@ -215,14 +203,20 @@ export async function getInfo(
     painted = true;
     onPartial?.(partial(meta, url));
 
-    const videoUrl = await resolveVideoUrl(odesli?.youtubeUrl, meta);
+    const videoUrl = await resolveViaYoutube(meta, odesli?.youtubeUrl);
     if (!videoUrl) throw noVideo('Spotify', 'track');
 
     log(
       'index',
       `[Spotify] resolved -> ${videoUrl} (isrc=${meta.isrc || 'none'})`
     );
-    const result = await buildResult(meta, url, videoUrl, false);
+    const result = await buildFromYoutube(
+      meta,
+      url,
+      videoUrl,
+      'spotify',
+      false
+    );
     if (!result) throw noVideo('Spotify', 'track');
     return result;
   } catch (error) {

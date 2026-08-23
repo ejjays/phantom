@@ -1,17 +1,23 @@
 package expo.modules.silentupdater
 
 import android.app.PendingIntent
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.provider.Settings
+import androidx.core.content.FileProvider
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.security.MessageDigest
 
 class SilentUpdaterModule : Module() {
 
@@ -36,6 +42,92 @@ class SilentUpdaterModule : Module() {
     AsyncFunction("installApk") { path: String ->
       install(path)
     }
+
+    AsyncFunction("installViaSystem") { path: String ->
+      installViaSystem(path)
+    }
+
+    AsyncFunction("saveToDownloads") { sourcePath: String, name: String ->
+      saveToDownloads(sourcePath, name)
+    }
+
+    AsyncFunction("hashFile") { path: String ->
+      hashFile(path)
+    }
+  }
+
+  // native sha-256 of the downloaded apk; js-thread hashing of ~100mb froze
+  // the ui for the whole digest
+  private fun hashFile(path: String): String {
+    val file = File(path)
+    if (!file.exists()) {
+      throw CodedException("apk file missing: $path")
+    }
+    val digest = MessageDigest.getInstance("SHA-256")
+    file.inputStream().use { input ->
+      val buffer = ByteArray(1 shl 20)
+      while (true) {
+        val read = input.read(buffer)
+        if (read < 0) break
+        digest.update(buffer, 0, read)
+      }
+    }
+    return digest.digest().joinToString("") { "%02x".format(it) }
+  }
+
+  // mediator downloads collection: the same public folder browsers use, so
+  // the installer stages it without oem quirks and without any picker
+  private fun saveToDownloads(sourcePath: String, name: String): String {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+      throw CodedException("mediastore downloads needs api 29+")
+    }
+    val source = File(sourcePath)
+    if (!source.exists()) {
+      throw CodedException("apk file missing: $sourcePath")
+    }
+    val values = ContentValues().apply {
+      put(MediaStore.Downloads.DISPLAY_NAME, name)
+      put(MediaStore.Downloads.MIME_TYPE, "application/vnd.android.package-archive")
+      put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+    }
+    val resolver = context.contentResolver
+    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+      ?: throw CodedException("mediastore insert failed")
+    try {
+      val output = resolver.openOutputStream(uri)
+        ?: throw CodedException("mediastore open failed")
+      output.use { out ->
+        source.inputStream().use { input -> input.copyTo(out) }
+      }
+    } catch (err: Throwable) {
+      resolver.delete(uri, null, null)
+      if (err is CodedException) throw err
+      throw CodedException("mediastore write failed: ${err.message}")
+    }
+    return uri.toString()
+  }
+
+  // visible installer path; the only flow oem roms never block
+  private fun installViaSystem(path: String): String {
+    val uri = if (path.startsWith("content://")) {
+      Uri.parse(path)
+    } else {
+      val file = File(path)
+      if (!file.exists()) {
+        throw CodedException("apk file missing: $path")
+      }
+      FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.updatefileprovider",
+        file
+      )
+    }
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+      setDataAndType(uri, "application/vnd.android.package-archive")
+      addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(intent)
+    return "started"
   }
 
   private fun install(path: String): String {
@@ -52,7 +144,7 @@ class SilentUpdaterModule : Module() {
       context,
       0x5E1F,
       Intent(context, SilentUpdateReceiver::class.java),
-      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
     ).intentSender
 
     val params = PackageInstaller.SessionParams(

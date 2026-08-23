@@ -4,7 +4,10 @@ let workerPromise: Promise<ServiceWorker> | null = null;
 function ensureWorker(): Promise<ServiceWorker> {
   if (workerPromise) return workerPromise;
   workerPromise = (async () => {
-    await navigator.serviceWorker.register('/download-sw.js', { scope: '/' });
+    await navigator.serviceWorker.register(
+      `${import.meta.env.BASE_URL}download-sw.js`,
+      { scope: import.meta.env.BASE_URL }
+    );
     await navigator.serviceWorker.ready;
     if (navigator.serviceWorker.controller) {
       return navigator.serviceWorker.controller;

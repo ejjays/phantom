@@ -25,7 +25,6 @@ export default function YouTubeExtractorWebView() {
   };
 
   return (
-    /* offscreen wrapper; out of layout flow */
     <View
       pointerEvents="none"
       style={{
@@ -70,11 +69,9 @@ export default function YouTubeExtractorWebView() {
             `[JS-YT/wv] http error: ${nativeEvent.statusCode} @ ${nativeEvent.url}`
           )
         }
-        // android: renderer killed (phantom killer / oom)
         onRenderProcessGone={({ nativeEvent }) =>
           recover(`render process gone (crashed=${nativeEvent?.didCrash})`)
         }
-        // ios: content process died
         onContentProcessDidTerminate={() =>
           recover('content process terminated')
         }

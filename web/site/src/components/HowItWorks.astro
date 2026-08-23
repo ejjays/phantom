@@ -1,0 +1,64 @@
+---
+import { CheckCircle2, Link2, Music4 } from '@lucide/astro';
+import { ACCENTS, type Accent } from '../lib/accents';
+
+const STEPS = [
+  {
+    icon: Link2,
+    title: 'Paste any link',
+    body: 'YouTube, TikTok, Spotify, Reddit — Auto mode knows the site before you do.',
+  },
+  {
+    icon: Music4,
+    title: 'Pick quality & format',
+    body: '8K to 360p, full video or audio-only MP3 — sizes shown up front.',
+  },
+  {
+    icon: CheckCircle2,
+    title: 'Saved to your gallery',
+    body: 'Phantom muxes everything on-device and drops the file straight into Photos.',
+  },
+] as const;
+
+const ORDER: readonly Accent[] = ['cyan', 'violet', 'cyan'];
+---
+
+<section id="how" class="relative py-14 sm:py-20">
+  <div class="mx-auto mb-10 max-w-2xl text-center">
+    <p class="mb-3 text-xs tracking-[0.25em] text-cyan-400 uppercase">{'// how it works'}</p>
+    <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">Three steps. Zero friction.</h2>
+    <p class="mt-4 font-sans text-base text-slate-400">
+      The whole pipeline — resolve, download, mux, save — happens between your fingers and your
+      gallery.
+    </p>
+  </div>
+  <ol class="mx-auto grid max-w-5xl gap-6 px-4 sm:grid-cols-3 sm:px-6">
+    {
+      STEPS.map((step, index) => {
+        const accent = ACCENTS[ORDER[index % ORDER.length]];
+        return (
+          <li class={`group relative rounded-xl p-px ${accent.side}`}>
+            <span
+              class={`pointer-events-none absolute top-4 right-5 z-10 font-mono text-5xl font-bold transition-colors duration-300 ${accent.num}`}
+            >
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <div class={`relative flex h-full flex-col rounded-xl border-2 bg-surface p-6 transition-transform duration-150 ease-out -translate-x-[5px] -translate-y-[5px] group-hover:-translate-x-[9px] group-hover:-translate-y-[9px] group-active:translate-x-0 group-active:translate-y-0 ${accent.face}`}>
+              <div
+                class={`mb-4 flex w-fit rounded-lg border-2 bg-gradient-to-br p-2.5 transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-105 ${accent.chip}`}
+              >
+                <step.icon size={20} strokeWidth={1.9} />
+              </div>
+              <h3
+                class={`relative mb-3 inline-block text-base font-semibold after:absolute after:bottom-[-4px] after:left-0 after:h-[3px] after:w-full after:origin-left after:scale-x-0 after:bg-gradient-to-r after:transition-transform after:duration-300 group-hover:after:scale-x-100 ${accent.line}`}
+              >
+                {step.title}
+              </h3>
+              <p class="font-sans text-sm leading-relaxed text-slate-400">{step.body}</p>
+            </div>
+          </li>
+        );
+      })
+    }
+  </ol>
+</section>

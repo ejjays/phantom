@@ -1,0 +1,44 @@
+---
+import { FAQS } from '../content/site';
+---
+
+<section id="faq" class="relative py-14 sm:py-20">
+  <div class="mx-auto mb-10 max-w-2xl text-center">
+    <p class="mb-3 text-xs tracking-[0.25em] text-cyan-400 uppercase">{'// faq'}</p>
+    <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">Fair questions</h2>
+  </div>
+  <div class="mx-auto max-w-3xl px-4 sm:px-6">
+    {
+      FAQS.map((faq, index) => (
+        <details class="group border-b border-white/10" open={index === 0}>
+          <summary class="flex w-full cursor-pointer list-none items-center justify-between gap-4 py-5 text-left [&::-webkit-details-marker]:hidden">
+            <span class="flex-1 text-sm font-semibold transition-colors duration-300 group-hover:text-cyan-200 sm:text-base">
+              {faq.question}
+            </span>
+            <span class="relative flex shrink-0 items-center justify-center overflow-hidden rounded-md p-2">
+              <span
+                aria-hidden="true"
+                class="absolute inset-0 z-10 origin-bottom scale-0 bg-gradient-to-r from-cyan-400 to-violet-500 transition-transform duration-500 translate-y-1/2 group-hover:translate-y-0 group-hover:scale-x-[150%] group-hover:scale-y-[220%]"
+              />
+              <svg
+                class="relative z-20 h-5 w-5 text-slate-300 transition-colors duration-300 group-hover:text-[#030014] group-open:text-white"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" class="origin-center transition-transform duration-300 group-open:rotate-90" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </span>
+          </summary>
+          <p
+            class="pr-10 pb-5 font-sans text-sm leading-relaxed text-slate-400"
+            set:html={faq.answer}
+          />
+        </details>
+      ))
+    }
+  </div>
+</section>

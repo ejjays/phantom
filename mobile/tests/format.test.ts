@@ -14,7 +14,8 @@ import {
   badgeFor,
   buildAudioOptions,
 } from '../src/lib/format';
-import type { Format, VideoInfo } from '../src/extractors/types';
+import { formatName } from '../src/lib/settings';
+import type { Format, VideoInfo } from '../src/extractors/shared/types';
 
 const makeInfo = (formats: Format[]): VideoInfo => ({
   type: 'video',
@@ -104,10 +105,18 @@ describe('prettyName', () => {
     expect(prettyName('/\\:*?')).toBe('video');
   });
 
-  it('truncates long titles to 64 chars plus ellipsis', () => {
+  it('truncates long titles to 64 chars with a short hash suffix (no ellipsis)', () => {
     const out = prettyName('x'.repeat(100));
-    expect(out).toBe(`${'x'.repeat(64)}...`);
-    expect(out).toHaveLength(67);
+    expect(out).toHaveLength(64);
+    expect(out.startsWith('x'.repeat(59))).toBe(true);
+    expect(out.endsWith('...')).toBe(false);
+  });
+
+  it('keeps distinct long titles from colliding via the hash suffix', () => {
+    const a = prettyName('A'.repeat(80));
+    const second = prettyName('B'.repeat(80));
+    expect(a).not.toBe(second);
+    expect(prettyName('A'.repeat(80))).toBe(a);
   });
 
   it('passes a clean title through unchanged', () => {
@@ -312,6 +321,29 @@ describe('badgeFor', () => {
 
   it('returns null for split (non-muxed) video', () => {
     expect(badgeFor(makeFormat({ isMuxed: false }))).toBeNull();
+  });
+});
+
+describe('formatName', () => {
+  it('falls back to a safe title when title is missing', () => {
+    expect(formatName('title', undefined, 'MrBeast', 'youtube')).toBe(
+      'Untitled'
+    );
+    expect(
+      formatName('artist-title', undefined, 'MrBeast', 'youtube')
+    ).toBe('MrBeast - Untitled');
+  });
+
+  it('drops the artist when absent for artist-title', () => {
+    expect(formatName('artist-title', 'Best video', undefined, 'youtube')).toBe(
+      'Best video'
+    );
+  });
+
+  it('tags the platform for title-platform', () => {
+    expect(formatName('title-platform', 'Best video', 'MrBeast', 'youtube')).toBe(
+      'Best video (Youtube)'
+    );
   });
 });
 

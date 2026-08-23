@@ -1,13 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router';
 import bookIcon from '../../assets/images/book.webp';
 
 const DocsButton = () => {
   return (
     // skipcq: JS-0415
-    <Link
-      to="/resources/story"
+    <a
+      href="/"
       target="_blank"
       rel="noopener noreferrer"
       className="block"
@@ -46,7 +45,7 @@ const DocsButton = () => {
           </div>
         </div>
       </motion.div>
-    </Link>
+    </a>
   );
 };
 

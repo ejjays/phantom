@@ -1,16 +1,10 @@
 import { HEADERS, DESKTOP_UA } from './constants';
-import { gatedFetch } from '../../lib/net';
-import { log } from '../../lib/log';
+import { gatedFetch, timeoutSignal } from '../../lib/net';
+import { probeFileSize } from '../shared/utils';
 
 type FetchHtmlOptions = {
   cookie?: string;
 };
-
-function timeoutSignal(ms: number): AbortSignal {
-  const controller = new AbortController();
-  setTimeout(() => controller.abort(), ms);
-  return controller.signal;
-}
 
 export async function fetchHtml(
   url: string,
@@ -33,24 +27,6 @@ export async function fetchHtml(
   return { html, targetUrl };
 }
 
-export async function fetchFileSize(url: string): Promise<number | undefined> {
-  try {
-    const headResponse = await gatedFetch(url, {
-      method: 'HEAD',
-      headers: { 'User-Agent': DESKTOP_UA },
-      redirect: 'follow',
-      signal: timeoutSignal(5000),
-    });
-    if (headResponse.ok) {
-      const contentLength = headResponse.headers.get('content-length');
-      if (contentLength) return parseInt(contentLength, 10);
-    }
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      log('fetcher', '[FacebookExtractor] Size fetch error:', error.message);
-    } else {
-      log('fetcher', '[FacebookExtractor] Size fetch error:', String(error));
-    }
-  }
-  return undefined;
+export function fetchFileSize(url: string): Promise<number | undefined> {
+  return probeFileSize(url, { 'User-Agent': DESKTOP_UA });
 }

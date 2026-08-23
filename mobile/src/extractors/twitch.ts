@@ -1,10 +1,11 @@
-import { VideoInfo, Format } from './types';
+import { VideoInfo, Format } from './shared/types';
 import { gatedFetch, mapLimit } from '../lib/net';
-import { noVideo, notFound, classifyThrown } from './errors';
+import { noVideo, notFound, classifyThrown } from './shared/errors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError, log, warn as logWarn } from '../lib/log';
 import { OnPartial } from '../extractors/index';
-import { buildVideoInfo } from './videoInfo';
+import { buildVideoInfo } from './shared/videoInfo';
+import { probeFileSize } from './shared/utils';
 
 const REFERER = 'https://www.twitch.tv/';
 const TW_DEBUG = false;
@@ -282,14 +283,6 @@ async function parseHlsMaster(
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    if (line.startsWith('#EXT-X-MEDIA:') && /TYPE=VIDEO/u.test(line)) {
-      const groupMatch = line.match(/GROUP-ID="([^"]+)"/u);
-      if (groupMatch?.[1]) {
-        // GROUP-ID captured but not currently used
-      }
-      continue;
-    }
-
     if (!line.startsWith('#EXT-X-STREAM-INF:')) continue;
 
     const attrs = line;
@@ -381,7 +374,7 @@ async function extractClip(
   const thumb =
     clip.thumbnailURL ?? clip.assets?.[0]?.thumbnailURL ?? undefined;
 
-  const initialInfo = buildVideoInfo({
+  const info = buildVideoInfo({
     id: clip.id || slug,
     title: clip.title || 'Twitch Clip',
     uploader,
@@ -393,35 +386,18 @@ async function extractClip(
   });
 
   // emit result early for faster UI feedback
-  onPartial?.(initialInfo);
+  onPartial?.(info);
 
   await mapLimit(formats, 3, async (format) => {
-    try {
-      const head = await gatedFetch(format.url, {
-        method: 'HEAD',
-        headers: { 'User-Agent': DESKTOP_UA, Referer: REFERER },
-      });
-      const len = head?.headers?.get('content-length');
-      if (len) format.filesize = parseInt(len, 10);
-    } catch {
-      // best-effort: HEAD can fail; keep going without filesize
-    }
+    const size = await probeFileSize(format.url, {
+      'User-Agent': DESKTOP_UA,
+      Referer: REFERER,
+    });
+    if (size) format.filesize = size;
   });
 
-  const finalInfo = buildVideoInfo({
-    id: clip.id || slug,
-    title: clip.title || 'Twitch Clip',
-    uploader,
-    webpageUrl: url,
-    thumbnail: thumb,
-    formats,
-    duration: parseIntSafe(clip.durationSeconds),
-    extractorKey: 'twitch',
-  });
-
-  onPartial?.(finalInfo);
-
-  return finalInfo;
+  onPartial?.(info);
+  return info;
 }
 
 async function extractVod(

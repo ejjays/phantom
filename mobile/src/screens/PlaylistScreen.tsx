@@ -3,26 +3,23 @@ import {
   useRef,
   useCallback,
   useEffect,
-  type ReactNode,
 } from 'react';
 import {
   ScrollView,
   View,
   Text,
-  TextInput,
   Pressable,
   Image,
-  BackHandler,
   Keyboard,
   StyleSheet,
 } from 'react-native';
+import { useBackHandler } from '../lib/back';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withDelay,
   Easing,
 } from 'react-native-reanimated';
 import {
@@ -33,9 +30,9 @@ import {
   Check,
   AlertCircle,
   Loader,
-  X,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
+import SearchOverlay, { SearchHighlight } from '../components/SearchOverlay';
 import { tapSelection, tapSuccess } from '../lib/haptics';
 import { resolve } from '../extractors';
 import { runDownload } from '../lib/download/downloadPipeline';
@@ -48,7 +45,7 @@ import {
   updateDownloadProgress,
   setDownloadCancelHandler,
 } from '../lib/fgservice';
-import type { VideoInfo, PlaylistEntry, Format } from '../extractors/types';
+import type { VideoInfo, PlaylistEntry, Format } from '../extractors/shared/types';
 
 type Props = {
   info: VideoInfo;
@@ -91,155 +88,9 @@ function formatDuration(sec?: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-function SearchHighlight({
-  active,
-  children,
-}: {
-  active: boolean;
-  children: ReactNode;
-}) {
-  const glow = useSharedValue(active ? 1 : 0);
-  useEffect(() => {
-    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- highlight glow anim gated on prop
-    if (!active) return;
-    glow.value = 1;
-    glow.value = withDelay(
-      800,
-      withTiming(0, { duration: 650, easing: Easing.in(Easing.quad) })
-    );
-  }, [active, glow]);
-  const style = useAnimatedStyle(() => ({ opacity: glow.value }));
-  return (
-    <View>
-      {active ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            {
-              position: 'absolute',
-              left: -16,
-              right: -16,
-              top: -8,
-              bottom: -8,
-              backgroundColor: 'rgba(34,211,238,0.12)',
-              borderRadius: 4,
-            },
-            style,
-          ]}
-        />
-      ) : null}
-      {children}
-    </View>
-  );
-}
-
-function SearchOverlayContent({
-  showSearch,
-  searchQuery,
-  query,
-  filteredEntries,
-  total,
-  rows,
-  selectedIds,
-  onSearchChange,
-  onClear,
-  onBack,
-  onResultPress,
-}: {
-  showSearch: boolean;
-  searchQuery: string;
-  query: string;
-  filteredEntries: PlaylistEntry[];
-  total: number;
-  rows: Record<string, RowState>;
-  selectedIds: Set<string>;
-  onSearchChange: (text: string) => void;
-  onClear: () => void;
-  onBack: () => void;
-  onResultPress: (id: string) => void;
-}) {
-  if (!showSearch) return null;
-  return (
-    <>
-      <View
-        style={tw`flex-row items-center border-b border-white/10 bg-white/5`}
-      >
-        <View style={tw`flex-1 flex-row items-center px-3 py-2.5`}>
-          <Pressable hitSlop={12} onPress={onBack}>
-            <ArrowLeft size={24} color="#ffffff" />
-          </Pressable>
-          <TextInput
-            autoFocus
-            value={searchQuery}
-            onChangeText={onSearchChange}
-            placeholder="Search in playlist…"
-            placeholderTextColor="#666"
-            style={tw`ml-3 flex-1 text-[15px] text-white`}
-            selectionColor="#22d3ee"
-          />
-          {searchQuery.length > 0 ? (
-            <Pressable hitSlop={8} onPress={onClear}>
-              <X size={18} color="#888" />
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
-
-      {query ? (
-        <View style={tw`px-4 pb-1 pt-2`}>
-          <Text style={tw`text-[12px] text-slate-500`}>
-            {filteredEntries.length}{' '}
-            {filteredEntries.length === 1 ? 'result' : 'results'}
-          </Text>
-        </View>
-      ) : (
-        <View style={tw`flex-1 items-center justify-center px-4 pb-20`}>
-          <Search size={40} color="#333" />
-          <Text style={tw`mt-3 text-[14px] text-slate-600`}>
-            Search {total} videos
-          </Text>
-        </View>
-      )}
-
-      {query ? (
-        <ScrollView
-          style={tw`flex-1`}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {filteredEntries.length === 0 ? (
-            <View style={tw`items-center px-4 py-10`}>
-              <Search size={32} color="#444" />
-              <Text style={tw`mt-3 text-center text-[14px] text-slate-500`}>
-                {'No results for "'}
-                {query}
-                {'"'}
-              </Text>
-              <Text style={tw`mt-1 text-center text-[12px] text-slate-600`}>
-                Try a different search term
-              </Text>
-            </View>
-          ) : null}
-          {filteredEntries.map((entry) => (
-            <Pressable key={entry.id} onPress={() => onResultPress(entry.id)}>
-              <PlaylistRow
-                entry={entry}
-                state={rows[entry.id]}
-                checked={selectedIds.has(entry.id)}
-                onToggle={() => {}}
-              />
-            </Pressable>
-          ))}
-        </ScrollView>
-      ) : null}
-    </>
-  );
-}
-
 export default function PlaylistScreen({ info, visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const progress = useSharedValue(0);
-  const searchFade = useSharedValue(0);
   const playlist = info.playlist;
 
   const [rows, setRows] = useState<Record<string, RowState>>({});
@@ -256,7 +107,6 @@ export default function PlaylistScreen({ info, visible, onClose }: Props) {
 
   const closeSearch = useCallback(() => {
     Keyboard.dismiss();
-    searchFade.value = 0;
     setShowSearch(false);
     const term = searchQuery.trim().toLowerCase();
     if (term && playlist) {
@@ -266,7 +116,7 @@ export default function PlaylistScreen({ info, visible, onClose }: Props) {
       if (matched.length > 0) setFocusEntryId(matched[0].id);
     }
     setSearchQuery('');
-  }, [searchQuery, playlist, searchFade]);
+  }, [searchQuery, playlist]);
 
   const toggleEntry = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -299,21 +149,18 @@ export default function PlaylistScreen({ info, visible, onClose }: Props) {
     }
   }, [visible, progress]);
 
-  useEffect(() => {
-    if (!visible) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (showSearch) {
-        closeSearch();
-        return true;
-      }
-      if (!batchRunning) {
-        tapSelection();
-        onClose();
-      }
+  useBackHandler(() => {
+    if (!visible) return false;
+    if (showSearch) {
+      closeSearch();
       return true;
-    });
-    return () => sub.remove();
-  }, [visible, onClose, batchRunning, showSearch, closeSearch]);
+    }
+    if (!batchRunning) {
+      tapSelection();
+      onClose();
+    }
+    return true;
+  }, 10);
 
   useEffect(() => {
     if (!focusEntryId) return;
@@ -333,10 +180,6 @@ export default function PlaylistScreen({ info, visible, onClose }: Props) {
   const containerStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
     transform: [{ translateX: (1 - progress.value) * 80 }],
-  }));
-
-  const searchOverlayStyle = useAnimatedStyle(() => ({
-    opacity: searchFade.value,
   }));
 
   const setRow = useCallback((id: string, patch: Partial<RowState>) => {
@@ -538,14 +381,7 @@ export default function PlaylistScreen({ info, visible, onClose }: Props) {
                   if (showSearch) {
                     closeSearch();
                   } else {
-                    searchFade.value = 0;
                     setShowSearch(true);
-                    requestAnimationFrame(() => {
-                      searchFade.value = withTiming(1, {
-                        duration: 150,
-                        easing: Easing.out(Easing.cubic),
-                      });
-                    });
                   }
                 }}
                 accessibilityLabel="Search"
@@ -714,41 +550,41 @@ export default function PlaylistScreen({ info, visible, onClose }: Props) {
         </View>
       </ScrollView>
 
-      <Animated.View
-        pointerEvents={showSearch ? 'auto' : 'none'}
-        style={[
-          StyleSheet.absoluteFill,
-          tw`bg-[#0f0f0f]`,
-          { paddingTop: insets.top },
-          searchOverlayStyle,
-        ]}
-      >
-        <SearchOverlayContent
-          showSearch={showSearch}
-          searchQuery={searchQuery}
-          query={query}
-          filteredEntries={filteredEntries}
-          total={total}
-          rows={rows}
-          selectedIds={selectedIds}
-          onSearchChange={setSearchQuery}
-          onClear={() => {
-            tapSelection();
-            setSearchQuery('');
-          }}
-          onBack={() => {
-            tapSelection();
-            closeSearch();
-          }}
-          onResultPress={(id: string) => {
-            tapSelection();
-            setFocusEntryId(id);
-            searchFade.value = 0;
-            setShowSearch(false);
-            Keyboard.dismiss();
-          }}
-        />
-      </Animated.View>
+      <SearchOverlay
+        visible={showSearch}
+        searchQuery={searchQuery}
+        query={query}
+        results={filteredEntries}
+        hint={`Search ${total} videos`}
+        placeholder="Search in playlist…"
+        onSearchChange={setSearchQuery}
+        onClear={() => {
+          tapSelection();
+          setSearchQuery('');
+        }}
+        onBack={() => {
+          tapSelection();
+          closeSearch();
+        }}
+        renderRow={(entry) => (
+          <Pressable
+            key={entry.id}
+            onPress={() => {
+              tapSelection();
+              setFocusEntryId(entry.id);
+              setShowSearch(false);
+              Keyboard.dismiss();
+            }}
+          >
+            <PlaylistRow
+              entry={entry}
+              state={rows[entry.id]}
+              checked={selectedIds.has(entry.id)}
+              onToggle={() => {}}
+            />
+          </Pressable>
+        )}
+      />
     </Animated.View>
   );
 }

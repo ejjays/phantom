@@ -1,1 +1,8 @@
-export { installApk, hasInstallPermission, openInstallPermissionSettings } from './src/SilentUpdater';
+export {
+  installApk,
+  installViaSystem,
+  hasInstallPermission,
+  openInstallPermissionSettings,
+  saveToDownloads,
+  hashFile,
+} from './src/SilentUpdater';

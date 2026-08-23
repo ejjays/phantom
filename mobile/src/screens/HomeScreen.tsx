@@ -1,11 +1,22 @@
 import { useRef, useEffect, useState } from 'react';
 import {
   View,
+  Text,
   TextInput,
+  Pressable,
   RefreshControl,
   ScrollView,
   AppState,
+  Keyboard,
+  BackHandler,
 } from 'react-native';
+import {
+  AlertDialog,
+  Host,
+  Text as ComposeText,
+  TextButton as ComposeTextButton,
+} from '@expo/ui/jetpack-compose';
+import { useBackHandler } from '../lib/back';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -114,6 +125,8 @@ type Props = {
   muted: boolean;
   invalidLink: boolean;
   successSignal: number;
+  vpnWarning: boolean;
+  onDismissVpnWarning: () => void;
 };
 
 export default function HomeScreen({
@@ -135,6 +148,8 @@ export default function HomeScreen({
   muted,
   invalidLink,
   successSignal,
+  vpnWarning,
+  onDismissVpnWarning,
 }: Props) {
   const linkInputRef = useRef<TextInput>(null);
   useBlurOnKeyboardHide(linkInputRef);
@@ -145,6 +160,7 @@ export default function HomeScreen({
   const moonX = useSharedValue(0);
   const [showSpinner, setShowSpinner] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  const [exitOpen, setExitOpen] = useState(false);
   const [gazeTick, setGazeTick] = useState(0);
   const [quip, setQuip] = useState<string | null>(null);
   const [idleMsg, setIdleMsg] = useState<string | null>(null);
@@ -255,7 +271,7 @@ export default function HomeScreen({
     // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler -- link validity checked post-debounce
     if (!link.trim() || looksLikeLink(link)) {
       badLinkVisible.current = false;
-      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-chain-state-updates, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- clears warning once link becomes valid
+      // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- clears warning once link becomes valid
       setBadLinkMsg(null);
     }
   }, [link, badLinkMsg]);
@@ -410,6 +426,16 @@ export default function HomeScreen({
     });
   };
 
+  useBackHandler(() => {
+    if (!active) return false;
+    if (Keyboard.isVisible()) {
+      Keyboard.dismiss();
+      return true;
+    }
+    setExitOpen(true);
+    return true;
+  }, 0);
+
   return (
     <View style={tw`flex-1`}>
       <Animated.View
@@ -453,6 +479,18 @@ export default function HomeScreen({
           />
         }
       >
+        {vpnWarning && (
+          <View
+            style={tw`mb-4 w-full flex-row items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-400/10 px-3 py-2.5`}
+          >
+            <Text style={tw`flex-1 text-xs leading-4 text-amber-100`}>
+              VPN detected — downloads may not work, sites can block VPN IPs.
+            </Text>
+            <Pressable onPress={onDismissVpnWarning} hitSlop={8}>
+              <Text style={tw`text-base text-amber-300`}>×</Text>
+            </Pressable>
+          </View>
+        )}
         <Animated.View
           style={[tw`flex-1 items-center justify-center`, liftStyle]}
         >
@@ -520,7 +558,6 @@ export default function HomeScreen({
                     ghostStyle,
                   ]}
                 >
-                  {/* reenable w/ focusSignal */}
                   <PhantomHero
                     amazeSignal={0}
                     focusSignal={gazeTick}
@@ -581,6 +618,43 @@ export default function HomeScreen({
           </View>
         </Animated.View>
       </ScrollView>
+      {exitOpen && (
+        <Host matchContents>
+          <AlertDialog
+            onDismissRequest={() => setExitOpen(false)}
+            colors={{
+              containerColor: '#15152c',
+              titleContentColor: '#e2e8f0',
+              textContentColor: '#94a3b8',
+            }}
+          >
+            <AlertDialog.Title>
+              <ComposeText style={{ fontWeight: 'bold' }}>
+                Exit Phantom?
+              </ComposeText>
+            </AlertDialog.Title>
+            <AlertDialog.Text>
+              <ComposeText>Are you sure you want to quit?</ComposeText>
+            </AlertDialog.Text>
+            <AlertDialog.ConfirmButton>
+              <ComposeTextButton
+                onClick={() => BackHandler.exitApp()}
+                colors={{ contentColor: '#22d3ee' }}
+              >
+                <ComposeText style={{ fontWeight: 'bold' }}>Exit</ComposeText>
+              </ComposeTextButton>
+            </AlertDialog.ConfirmButton>
+            <AlertDialog.DismissButton>
+              <ComposeTextButton
+                onClick={() => setExitOpen(false)}
+                colors={{ contentColor: '#94a3b8' }}
+              >
+                <ComposeText style={{ fontWeight: 'bold' }}>Cancel</ComposeText>
+              </ComposeTextButton>
+            </AlertDialog.DismissButton>
+          </AlertDialog>
+        </Host>
+      )}
     </View>
   );
 }

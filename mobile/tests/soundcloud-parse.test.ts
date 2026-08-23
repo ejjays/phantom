@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../src/lib/net', () => ({
   gatedFetch: vi.fn(),
+  timeoutSignal: (ms: number) => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), ms);
+    return controller.signal;
+  },
 }));
 
 import { gatedFetch } from '../src/lib/net';
@@ -156,7 +161,8 @@ describe('soundcloud getInfo', () => {
       if (reqUrl.includes('/assets/')) return Promise.resolve(textRes(ASSET));
       if (reqUrl.includes('/resolve'))
         return Promise.resolve(jsonRes(labelTrack(['progressive', 'hls'])));
-      if (reqUrl.includes('/media/')) return Promise.resolve(textRes('{}', false));
+      if (reqUrl.includes('/media/'))
+        return Promise.resolve(textRes('{}', false));
       return Promise.resolve(textRes('', false));
     });
     await expect(

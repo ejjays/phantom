@@ -1,4 +1,4 @@
-import { VideoInfo, Format } from '../types';
+import { VideoInfo, Format } from '../shared/types';
 import {
   extractViaWebView,
   playlistViaWebView,
@@ -6,15 +6,18 @@ import {
   type RawYtResult,
   type RawYtPlaylist,
 } from './bridge';
-import { noVideo, temporaryError, classifyThrown } from '../errors';
+import { noVideo, temporaryError, classifyThrown } from '../shared/errors';
 import { DESKTOP_UA } from '../../lib/userAgents';
-import { buildVideoInfo } from '../videoInfo';
+import { getYoutubeCookie } from '../../lib/settings';
+import { buildVideoInfo } from '../shared/videoInfo';
 
 const YT_ID =
   /(?:v=|\/v\/|youtu\.be\/|shorts\/|live\/|embed\/)([0-9A-Za-z_-]{11})/u;
 const YT_PLAYLIST_ID = /[&?]list=([0-9A-Za-z_-]+)/u;
 
 const CODEC_RANK: Record<string, number> = { h264: 0, vp9: 1, av1: 2 };
+
+const MP3_BITRATE_BPS = 190000;
 
 function videoCodecOf(raw: RawYtFormat): string {
   const mime = raw.mimeType?.toLowerCase() ?? '';
@@ -65,20 +68,17 @@ export function buildFormats(raw: RawYtResult): Format[] {
   const rawAll = [...(raw.formats || []), ...(raw.adaptive || [])].filter(
     (f) => f.url
   );
-  const muxed = rawAll.filter((f) => f.hasVideo && f.hasAudio);
+  // progressive (muxed) urls come back in paired mode (mm=18) and the
+  // googlevideo cdn 403s those for some isps — it serves adaptive (mm=31)
+  // fine. build the video ladder from the separate video stream and mux
+  // the audio in (zero regression: that path already exists).
   const videoOnly = rawAll.filter((f) => f.hasVideo && !f.hasAudio);
   const audioOnly = rawAll.filter((f) => f.hasAudio && !f.hasVideo);
 
   const aac = bestAudio(audioOnly, 'mp4');
   const opus = bestAudio(audioOnly, 'webm');
 
-  /* dedupe by height; prefer muxed */
-  const ladder = new Map<number, Format>();
-  muxed.forEach((fmt, i) => {
-    const format = baseFormat(fmt, 1000 + i);
-    ladder.set(format.height ?? 0, format);
-  });
-
+  /* adaptive first: separate video (+mux audio). primary pick */
   const byHeight = new Map<number, RawYtFormat>();
   for (const video of videoOnly) {
     const height = video.height ?? 0;
@@ -89,6 +89,7 @@ export function buildFormats(raw: RawYtResult): Format[] {
   }
 
   let index = 0;
+  const ladder = new Map<number, Format>();
   for (const video of byHeight.values()) {
     const height = video.height ?? 0;
     if (ladder.has(height)) continue;
@@ -105,6 +106,17 @@ export function buildFormats(raw: RawYtResult): Format[] {
     ladder.set(height, format);
   }
 
+  /* progressive (paired, mm=18) rungs fill only heights with no
+     separate streams (live archives) — the cdn 403s paired urls on
+     some isps, so adaptive must own every height it covers */
+  const muxed = rawAll.filter((f) => f.hasVideo && f.hasAudio);
+  muxed.forEach((fmt, i) => {
+    const format = baseFormat(fmt, 1000 + i);
+    if (!ladder.has(format.height ?? 0)) {
+      ladder.set(format.height ?? 0, format);
+    }
+  });
+
   const videoLadder = [...ladder.values()].sort(
     (lhs, rhs) => (rhs.height ?? 0) - (lhs.height ?? 0)
   );
@@ -116,7 +128,8 @@ export function buildFormats(raw: RawYtResult): Format[] {
     let mp3Bytes = mp3Raw.contentLength
       ? Number(mp3Raw.contentLength)
       : base.filesize;
-    if (raw.duration) mp3Bytes = Math.round((raw.duration * 190000) / 8);
+    if (raw.duration)
+      mp3Bytes = Math.round((raw.duration * MP3_BITRATE_BPS) / 8);
     audioFormats.push({
       ...base,
       formatId: 'mp3',
@@ -182,6 +195,8 @@ export async function getInfo(
   const videoId = match ? match[1] : null;
   if (!videoId) return null;
 
+  const cookie = await getYoutubeCookie();
+
   try {
     const raw = await extractViaWebView(videoId, (meta) => {
       onPartial?.(
@@ -222,6 +237,7 @@ export async function getInfo(
         Accept: '*/*',
         Referer: 'https://www.youtube.com/',
         Origin: 'https://www.youtube.com',
+        ...(cookie ? { Cookie: cookie } : {}),
       },
     };
   } catch (error) {

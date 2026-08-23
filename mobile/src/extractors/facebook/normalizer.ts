@@ -1,5 +1,5 @@
-import type { VideoInfo } from '../types';
-import type { FbParsed } from './types';
+import type { VideoInfo } from '../shared/types';
+import type { FbParsed } from '@phantom/extractors/facebook/types';
 import { normalizeVideoInfo as normalize } from '@phantom/extractors/facebook/normalizer';
 
 export const normalizeVideoInfo = (

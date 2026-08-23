@@ -28,7 +28,6 @@ export default function ErrorSheet({
   onRetry,
   canRetry,
 }: Props) {
-  // retryable -> glow the retry; permanent -> glow dismiss, retry below
   const primary = canRetry
     ? { label: 'Try again', onPress: onRetry }
     : { label: 'Dismiss', onPress: onClose };

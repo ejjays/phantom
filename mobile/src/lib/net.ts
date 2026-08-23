@@ -70,7 +70,7 @@ export function parseRetryAfter(
 
 export function backoffMs(attempt: number, retryAfterMs: number): number {
   const base = retryAfterMs > 0 ? retryAfterMs : 500 * 2 ** attempt;
-  return Math.min(base + Math.random() * 250, MAX_BACKOFF_MS);
+  return Math.min(base + Math.random() * JITTER_MS, MAX_BACKOFF_MS);
 }
 
 export async function gatedFetch(
@@ -99,6 +99,12 @@ export async function gatedFetch(
     }
     return res;
   }
+}
+
+export function timeoutSignal(ms: number): AbortSignal {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
 }
 
 // bounded-concurrency map; avoids Promise.all CDN sprays
