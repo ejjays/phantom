@@ -4,6 +4,9 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 
+echo '[assets] syncing mobile -> site...'
+bash "$root/scripts/sync-assets.sh"
+
 echo '[site] building astro...'
 (cd "$root/web/site" && node ../../node_modules/astro/bin/astro.mjs build)
 
