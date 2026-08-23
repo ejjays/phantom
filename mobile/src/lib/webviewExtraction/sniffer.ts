@@ -194,10 +194,15 @@ export const SNIFFER_JS = `(() => {
           if (m.content) push(m.content, null, out.videos, true);
         });
       }
+      const seenImages = new Set();
       doc.querySelectorAll('img').forEach((img) => {
+        if (out.images.length >= 12) return;
         if (img.src && /^https?:/i.test(img.src) && !junk(img.src)) {
           const url = abs(img.src);
-          if (url && !out.images.some((i) => i.url === url)) out.images.push({ url });
+          if (url && !seenImages.has(url)) {
+            seenImages.add(url);
+            out.images.push({ url });
+          }
         }
       });
       const og = doc.querySelector('meta[property="og:image"]');
@@ -225,7 +230,33 @@ export const SNIFFER_JS = `(() => {
   // m3u8 manifests can't be read by a <video> element: fetch them same-origin
   // and parse variants (ok.ru, live HLS sites). dead manifests join the failed
   // list so later scans drop them
-  const hlsVideosOf = ${hlsVideosOf.toString()};
+  function hlsVideosOf(text, base) {
+    const manifest = (text || '').trim();
+    if (!/^#EXTM3U/iu.test(manifest)) return [];
+    const lines = manifest.split(/\\r?\\n/);
+    if (lines.some((line) => /^#EXTINF:/iu.test(line))) return [{ url: base, type: 'm3u8' }];
+    const out = [];
+    for (let i = 0; i < lines.length && out.length < 12; i += 1) {
+      if (!/^#EXT-X-STREAM-INF:/iu.test(lines[i])) continue;
+      const resolution = lines[i].match(/\\bRESOLUTION=(\\d+)x(\\d+)/iu);
+      for (let j = i + 1; j < lines.length; j += 1) {
+        const uri = lines[j].trim();
+        if (!uri || uri.startsWith('#')) continue;
+        let url = null;
+        try { url = new URL(uri, base).href; } catch (e) { break; }
+        if (!url || !/^https?:/iu.test(url) || out.some((v) => v.url === url)) break;
+        const item = { url, type: 'm3u8' };
+        if (resolution) {
+          const width = Number(resolution[1]);
+          const height = Number(resolution[2]);
+          if (width > 0 && height > 0) { item.width = width; item.height = height; }
+        }
+        out.push(item);
+        break;
+      }
+    }
+    return out;
+  }
   window.__phantom_hls_seen = window.__phantom_hls_seen || [];
   const hls = (u) => {
     if (window.__phantom_hls_seen.indexOf(u) !== -1) return;
@@ -237,6 +268,7 @@ export const SNIFFER_JS = `(() => {
       const videos = hlsVideosOf(xhr.responseText || '', u);
       if (videos.length === 0) {
         if (!failed(u)) window.__phantom_failed_probes.push(u);
+        post({ type: 'hls', data: { url: u, videos: [] } });
       } else {
         post({ type: 'hls', data: { url: u, videos } });
         setTimeout(collect, 300);
@@ -244,6 +276,7 @@ export const SNIFFER_JS = `(() => {
     };
     xhr.onerror = xhr.ontimeout = xhr.onabort = () => {
       if (!failed(u)) window.__phantom_failed_probes.push(u);
+      post({ type: 'hls', data: { url: u, videos: [] } });
     };
     xhr.send(null);
   };

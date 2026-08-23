@@ -5,7 +5,6 @@ import {
   PageScan,
   ScannedVideo,
   dedupeVideos,
-  extensionOf,
   isMediaUrl,
   parseHlsMessage,
   parseWebViewMessage,
@@ -54,7 +53,7 @@ function hasRealVideos(scan: PageScan): boolean {
 }
 
 function isHlsUrl(url: string): boolean {
-  return extensionOf(url) === 'm3u8';
+  return /[.]m3u8(?:[?#]|$)/iu.test(url) || /m3u8/iu.test(url);
 }
 
 // m3u8 manifests get XHR-fetched + variant-parsed in-page (a <video> element
@@ -224,6 +223,10 @@ export function onWebViewMessage(raw: string): void {
       armProbeTimer();
       return;
     }
+    if (pendingHls > 0) {
+      armProbeTimer();
+      return;
+    }
     finish(scan);
     return;
   }
@@ -237,6 +240,10 @@ export function onWebViewMessage(raw: string): void {
       stableCount >= STABLE_SETTLE &&
       Date.now() - active.start >= MIN_PATIENCE
     ) {
+      if (pendingHls > 0) {
+        armProbeTimer();
+        return;
+      }
       // captured media requests count, even when every scan was empty
       const settled = extraVideos.length > 0 ? scan : null;
       log(TAG, 'idle scans, settling', active.url);
