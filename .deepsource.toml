@@ -5,8 +5,7 @@ exclude_patterns = [
   "**/public/ffmpeg-core/**",
   "**/bak/**",
   "mobile/**",
-  "scripts/**",
-  "web/site/**"
+  "scripts/**"
 ]
 
 test_patterns = [

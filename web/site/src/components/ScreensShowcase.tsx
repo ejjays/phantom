@@ -115,7 +115,7 @@ export default function ScreensShowcase() {
   }, []);
 
   useEffect(() => {
-    if (!emblaApi) return;
+    if (!emblaApi) return undefined;
     onSelect(emblaApi);
     emblaApi.on('select', onSelect).on('reInit', onSelect);
     return () => {

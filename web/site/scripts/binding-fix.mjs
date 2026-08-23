@@ -11,7 +11,7 @@ const tmp = join(root, '.binding-fix-tmp');
 function findPackageDirs(name) {
   const hits = [];
   const visitNm = (dir, depth) => {
-    let entries;
+    let entries = [];
     try {
       entries = readdirSync(dir, { withFileTypes: true });
     } catch {
@@ -21,7 +21,7 @@ function findPackageDirs(name) {
       if (!ent.isDirectory() || ent.name.startsWith('.')) continue;
       const full = join(dir, ent.name);
       if (ent.name.startsWith('@')) {
-        let subs;
+        let subs = [];
         try {
           subs = readdirSync(full, { withFileTypes: true });
         } catch {
