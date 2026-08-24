@@ -1,223 +1,220 @@
 <div id="phantom-scene" class="relative mx-auto w-full max-w-[360px] select-none">
   <svg
-    viewBox="0 -14 320 356"
+    viewBox="0 0 400 430"
     width="360"
-    height="400"
-    class="block h-auto w-full cursor-pointer"
+    height="387"
+    class="block h-auto w-full"
     role="img"
-    aria-label="Phantom mascot wizard casting a spell"
+    aria-label="Phantom mascot"
   >
     <defs>
-      <linearGradient id="body-grad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#f8fafc"></stop>
-        <stop offset="100%" stop-color="#cbd5e1"></stop>
+      <linearGradient id="phantom-body" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="400" y2="430">
+        <stop offset="0%" stop-color="#e0f7fa"></stop>
+        <stop offset="60%" stop-color="#67e8f9"></stop>
+        <stop offset="100%" stop-color="#06b6d4"></stop>
       </linearGradient>
-      <linearGradient id="hat-grad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#7c3aed"></stop>
-        <stop offset="100%" stop-color="#3b0764"></stop>
-      </linearGradient>
-      <linearGradient id="trail-grad" x1="0" y1="1" x2="1" y2="0">
-        <stop offset="0%" stop-color="#06b6d4" stop-opacity="0"></stop>
-        <stop offset="100%" stop-color="#67e8f9"></stop>
-      </linearGradient>
-      <filter id="soft-glow" x="-80%" y="-80%" width="260%" height="260%">
-        <feGaussianBlur stdDeviation="3.2" result="b"></feGaussianBlur>
-        <feMerge>
-          <feMergeNode in="b"></feMergeNode>
-          <feMergeNode in="SourceGraphic"></feMergeNode>
-        </feMerge>
-      </filter>
     </defs>
 
-    <ellipse id="hero-shadow" cx="160" cy="308" rx="92" ry="15" fill="#020617" opacity="0.5"></ellipse>
+    <ellipse id="hero-shadow" cx="200" cy="385" rx="75" ry="10" fill="#083344" opacity="0.2"></ellipse>
 
-    <g id="phantom-root">
+    <g id="phantom-float" style="filter: drop-shadow(0 8px 6px rgba(6, 182, 212, 0.3));">
       <path
-        id="body-shape"
-        d="M60,192 C62,104 106,56 160,56 C214,56 258,104 260,192 L260,226 Q252,248 240,230 Q228,212 216,230 Q204,248 192,230 Q180,212 168,230 Q156,248 144,230 Q132,212 120,230 Q108,248 96,230 Q88,218 76,228 Q68,235 60,226 Z"
-        fill="url(#body-grad)"
-        style="filter: drop-shadow(0 0 26px rgba(6,182,212,0.35));"
+        id="phantom-body"
+        d="M 80 170 C 80 103.7, 133.7 50, 200 50 C 266.3 50, 320 103.7, 320 170 L 320 330 Q 290 352, 260 330 Q 230 352, 200 330 Q 170 352, 140 330 Q 110 352, 80 330 Z"
+        fill="url(#phantom-body)"
       ></path>
       <path
-        id="body-wave"
-        d="M60,192 C62,104 106,56 160,56 C214,56 258,104 260,192 L260,226 Q252,212 240,228 Q228,246 216,228 Q204,210 192,228 Q180,246 168,228 Q156,210 144,228 Q132,246 120,228 Q108,210 96,228 Q88,244 76,226 Q68,220 60,226 Z"
-        fill="none"
-        opacity="0"
+        d="M 285 105 C 305 140, 320 220, 320 330 Q 290 352, 260 330 Q 250 322, 245 310 C 270 270, 280 180, 285 105 Z"
+        fill="#0891b2"
+        opacity="0.4"
       ></path>
 
-      <ellipse cx="112" cy="178" rx="10" ry="5.5" fill="#7c3aed" opacity="0.28"></ellipse>
-      <ellipse cx="208" cy="178" rx="10" ry="5.5" fill="#7c3aed" opacity="0.28"></ellipse>
-
-      <g id="eye-l">
-        <ellipse cx="128" cy="150" rx="13" ry="16" fill="#1e293b"></ellipse>
-        <circle class="pupil" cx="131" cy="153" r="5" fill="#67e8f9" filter="url(#soft-glow)"></circle>
-      </g>
-      <g id="eye-r">
-        <ellipse cx="192" cy="150" rx="13" ry="16" fill="#1e293b"></ellipse>
-        <circle class="pupil" cx="195" cy="153" r="5" fill="#67e8f9" filter="url(#soft-glow)"></circle>
-      </g>
-
-      <path
-        id="mouth"
-        d="M136,184 Q160,206 184,184 Q160,198 136,184 Z"
-        fill="#1e293b"
-      ></path>
-      <path id="mouth-grin" d="M130,182 Q160,226 190,182 Q160,202 130,182 Z" fill="none" opacity="0"></path>
-      <path id="mouth-o" d="M147,186 Q160,177 173,186 Q173,209 160,211 Q147,209 147,186 Z" fill="none" opacity="0"></path>
-
-      <g id="wand-arm">
-        <rect x="244" y="164" width="34" height="18" rx="9" fill="url(#body-grad)" transform="rotate(-32 250 172)"></rect>
-        <g id="wand">
-          <line x1="272" y1="150" x2="304" y2="96" stroke="#94a3b8" stroke-width="7" stroke-linecap="round"></line>
+      <g id="sweat" opacity="0">
+        <g transform="translate(96 66) scale(0.75)">
           <path
-            id="wand-trail"
-            d="M284,124 Q306,110 298,86"
-            fill="none"
-            stroke="url(#trail-grad)"
-            stroke-width="4.5"
-            stroke-linecap="round"
+            d="M28,19c0,6.62-5.38,12-12,12S4,25.62,4,19C4,12.58,14.83,1.75,15.3,1.29c0.39-0.39,1.01-0.39,1.4,0C17.17,1.75,28,12.58,28,19z"
+            fill="#34b0c0"
           ></path>
-          <g id="wand-star" filter="url(#soft-glow)">
-            <path
-              d="M304,84 L307,93 L316,96 L307,99 L304,108 L301,99 L292,96 L301,93 Z"
-              fill="#67e8f9"
-            ></path>
-          </g>
+          <path
+            d="M14,26c-3.3086,0-6-2.6914-6-6c0-0.5527,0.4478-1,1-1s1,0.4473,1,1c0,2.2061,1.7944,4,4,4c0.5522,0,1,0.4473,1,1S14.5522,26,14,26z"
+            fill="#ffffff"
+          ></path>
         </g>
       </g>
 
-      <g id="hat">
-        <path d="M114,74 C122,38 140,12 158,-2 L170,-2 C188,16 200,42 206,74 Z" fill="url(#hat-grad)"></path>
-        <path d="M118,62 C146,72 176,72 202,60 L204,74 C176,86 146,86 116,74 Z" fill="#06b6d4" opacity="0.85"></path>
-        <ellipse cx="160" cy="76" rx="76" ry="14" fill="#2e1065"></ellipse>
-        <path d="M154,44 L157,53 L166,56 L157,59 L154,68 L151,59 L142,56 L151,53 Z" fill="#fbbf24" filter="url(#soft-glow)"></path>
+      <g id="phantom-face">
+        <g id="eyes">
+          <ellipse cx="165" cy="180" rx="13" ry="18" fill="#083344"></ellipse>
+          <ellipse cx="235" cy="180" rx="13" ry="18" fill="#083344"></ellipse>
+          <ellipse class="pupil" cx="168" cy="175" rx="5" ry="7" fill="#ffffff"></ellipse>
+          <ellipse class="pupil" cx="238" cy="175" rx="5" ry="7" fill="#ffffff"></ellipse>
+        </g>
+        <ellipse cx="148" cy="197" rx="9" ry="5" fill="#0891b2" opacity="0.6"></ellipse>
+        <ellipse cx="252" cy="197" rx="9" ry="5" fill="#0891b2" opacity="0.6"></ellipse>
+        <g id="mouth-breathe">
+          <path id="phantom-mouth" d="" fill="#083344"></path>
+        </g>
       </g>
 
-      <g id="sparkles" filter="url(#soft-glow)">
-        <path class="twinkle" d="M52,96 L55,105 L64,108 L55,111 L52,120 L49,111 L40,108 L49,105 Z" fill="#67e8f9"></path>
-        <circle class="twinkle" cx="268" cy="52" r="4" fill="#c4b5fd"></circle>
-        <path class="twinkle" d="M236,26 L238.5,33 L245,35.5 L238.5,38 L236,45 L233.5,38 L227,35.5 L233.5,33 Z" fill="#fbbf24"></path>
-        <circle class="twinkle" cx="36" cy="196" r="3.5" fill="#67e8f9"></circle>
-        <path class="twinkle" d="M290,180 L292.5,187 L299,189.5 L292.5,192 L290,199 L287.5,192 L281,189.5 L287.5,187 Z" fill="#c4b5fd"></path>
-        <circle class="twinkle" cx="70" cy="40" r="3" fill="#fbbf24"></circle>
-      </g>
+      <path
+        id="phantom-hit"
+        d="M 80 170 C 80 103.7, 133.7 50, 200 50 C 266.3 50, 320 103.7, 320 170 L 320 330 Q 290 352, 260 330 Q 230 352, 200 330 Q 170 352, 140 330 Q 110 352, 80 330 Z"
+        fill="transparent"
+      ></path>
     </g>
   </svg>
 </div>
 
 <script>
   import { gsap } from 'gsap';
-  import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
-  import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
 
-  gsap.registerPlugin(MorphSVGPlugin, DrawSVGPlugin);
+  const NEUTRAL = [187, 218, 195.67, 222.67, 204.33, 222.67, 213, 218, 204.33, 218.67, 195.67, 218.67, 187, 218];
+  const SMILE = [186, 213, 195.33, 229, 204.67, 229, 214, 213, 204.67, 209, 195.33, 209, 186, 213];
 
   const scene = document.getElementById('phantom-scene');
   if (scene) {
-    const mm = gsap.matchMedia();
+    const mouthEl = document.getElementById('phantom-mouth');
+    const drawMouth = (t: number) => {
+      if (!mouthEl) return;
+      const cur = NEUTRAL.map((v, i) => v + (SMILE[i] - v) * t);
+      mouthEl.setAttribute(
+        'd',
+        `M ${cur[0]} ${cur[1]} C ${cur[2]} ${cur[3]}, ${cur[4]} ${cur[5]}, ${cur[6]} ${cur[7]} C ${cur[8]} ${cur[9]}, ${cur[10]} ${cur[11]}, ${cur[12]} ${cur[13]} Z`
+      );
+    };
 
-    mm.add('(prefers-reduced-motion: no-preference)', () => {
-      gsap.from('#phantom-root', {
-        y: 46,
-        opacity: 0,
-        duration: 0.9,
-        ease: 'power3.out',
-      });
+    const mood = { t: 0 };
+    drawMouth(0);
+    let idleMouth: gsap.core.Timeline | null = null;
+    let pressed = false;
+    let pressTweens: gsap.core.Tween[] = [];
+    let sweatTween: gsap.core.Tween | null = null;
 
-      gsap.to('#phantom-root', {
-        y: -14,
-        duration: 2.6,
+    const ctx = gsap.context(() => {
+      gsap.to('#phantom-float', {
+        y: -15,
+        duration: 1.6,
         ease: 'sine.inOut',
         yoyo: true,
         repeat: -1,
       });
       gsap.to('#hero-shadow', {
         scaleX: 0.82,
-        opacity: 0.32,
-        transformOrigin: 'center',
-        duration: 2.6,
+        opacity: 0.1,
+        svgOrigin: '200 385',
+        duration: 1.6,
         ease: 'sine.inOut',
         yoyo: true,
         repeat: -1,
       });
-      gsap.to('#body-shape', {
-        morphSVG: '#body-wave',
-        duration: 1.3,
+      gsap
+        .timeline({ repeat: -1, delay: 3.864 })
+        .to('#eyes', { scaleY: 0.1, svgOrigin: '200 180', duration: 0.168 })
+        .to('#eyes', { scaleY: 1, duration: 0.168 });
+      gsap.to('#mouth-breathe', {
+        scaleX: 1.04,
+        scaleY: 0.96,
+        svgOrigin: '200 220',
+        duration: 1.6,
         ease: 'sine.inOut',
         yoyo: true,
         repeat: -1,
       });
-      gsap.to('.twinkle', {
-        scale: 0.5,
-        opacity: 0.35,
-        transformOrigin: 'center',
-        duration: 0.9,
-        ease: 'sine.inOut',
-        stagger: { each: 0.22, yoyo: true, repeat: -1 },
-      });
+      idleMouth = gsap
+        .timeline({ repeat: -1, delay: 2, repeatDelay: 1 })
+        .to(mood, { t: 1, duration: 0.3, ease: 'power1.inOut' })
+        .to(mood, { t: 0, duration: 0.3, delay: 10, ease: 'power1.inOut' })
+        .to(mood, { t: 1, duration: 0.3, ease: 'power1.inOut' });
+      idleMouth.eventCallback('onUpdate', () => drawMouth(mood.t));
+      gsap
+        .timeline({ repeat: -1, repeatDelay: 4.4, delay: 2.5 })
+        .to('#phantom-face', { y: 16, duration: 0.5, ease: 'power2.out' })
+        .to('.pupil', { y: 4.8, duration: 0.5, ease: 'power2.out' }, '<')
+        .to('#phantom-face', { y: 0, duration: 0.5, ease: 'power2.inOut', delay: 1.6 })
+        .to('.pupil', { y: 0, duration: 0.5, ease: 'power2.inOut' }, '<');
+    }, scene);
 
-      const blink = () => {
-        gsap.to(['#eye-l', '#eye-r'], {
-          scaleY: 0.06,
-          transformOrigin: 'center',
-          duration: 0.08,
-          yoyo: true,
-          repeat: 1,
-          onComplete: () => gsap.delayedCall(2 + Math.random() * 2.4, blink),
-        });
-      };
-      blink();
-
-      if (matchMedia('(pointer: fine)').matches) {
-        const qx = gsap.quickTo('.pupil', 'x', { duration: 0.4, ease: 'power2' });
-        const qy = gsap.quickTo('.pupil', 'y', { duration: 0.4, ease: 'power2' });
-        const look = (e: PointerEvent) => {
-          const r = scene.getBoundingClientRect();
-          qx(gsap.utils.clamp(-6, 6, ((e.clientX - r.left) / r.width - 0.5) * 14));
-          qy(gsap.utils.clamp(-5, 5, ((e.clientY - r.top) / r.height - 0.5) * 12));
-        };
-        window.addEventListener('pointermove', look);
-        return () => window.removeEventListener('pointermove', look);
+    scene.addEventListener('pointerenter', () => {
+      if (pressed) return;
+      gsap.to('#phantom-face', { y: 16, duration: 0.4, ease: 'power2.out' });
+      gsap.to('.pupil', { y: 4.8, duration: 0.4, ease: 'power2.out' });
+    });
+    scene.addEventListener('pointerleave', () => {
+      if (!pressed) {
+        gsap.to('#phantom-face', { y: 0, duration: 0.4, ease: 'power2.inOut' });
+        gsap.to('.pupil', { y: 0, duration: 0.4, ease: 'power2.inOut' });
       }
     });
 
-    let mood = 0;
-    const moods = ['#mouth-grin', '#mouth-o'];
-    const nextMood = () => {
-      mood = (mood + 1) % moods.length;
-      gsap.to('#mouth', {
-        morphSVG: moods[mood],
-        duration: 0.45,
-        ease: 'back.out(1.6)',
-        onComplete: () => gsap.delayedCall(3.6, nextMood),
+    const hit = document.getElementById('phantom-hit');
+
+    hit?.addEventListener('pointerdown', () => {
+      if (pressed) return;
+      pressed = true;
+      idleMouth?.kill();
+      gsap.to('#phantom-face', { y: 0, duration: 0.3 });
+      gsap.to('.pupil', { y: 0, duration: 0.3 });
+      const burst = gsap.timeline({ repeat: -1 });
+      burst
+        .to('#eyes', { scaleY: 0.1, svgOrigin: '200 180', duration: 0.1, delay: 0.5 })
+        .to('#eyes', { scaleY: 1, duration: 0.168 })
+        .to('#eyes', { scaleY: 0.1, duration: 0.168 })
+        .to('#eyes', { scaleY: 1, duration: 0.168, delay: 1.332 });
+      const giggle = gsap.timeline({ repeat: -1, delay: 0.5, onRepeat: () => drawMouth(mood.t) });
+      giggle
+        .to(mood, { t: 0.7, duration: 0.084 })
+        .to(mood, { t: 0.85, duration: 0.084 })
+        .to(mood, { t: 0.7, duration: 0.084 })
+        .to(mood, { t: 0.85, duration: 0.084 });
+      giggle.eventCallback('onUpdate', () => drawMouth(mood.t));
+      sweatTween = gsap.to('#sweat', {
+        opacity: 1,
+        y: 14,
+        duration: 0.5,
+        ease: 'power1.inOut',
+        delay: 4,
+        repeat: -1,
+        repeatDelay: 3.1,
+        yoyo: true,
       });
-    };
-    gsap.delayedCall(3.6, nextMood);
-
-    scene.addEventListener('pointerenter', () => {
-      gsap.to('#hat', { rotate: -13, transformOrigin: '50% 88%', duration: 0.5, ease: 'back.out(2)' });
-      gsap.to('#mouth', { morphSVG: '#mouth-o', duration: 0.3, ease: 'power2.out' });
+      pressTweens = [burst, giggle];
+      gsap.delayedCall(12, () => {
+        if (pressed) relax();
+      });
     });
+
+    function relax() {
+      if (!pressed) return;
+      pressed = false;
+      pressTweens.forEach((tw) => tw.kill());
+      pressTweens = [];
+      sweatTween?.kill();
+      gsap.to('#sweat', { opacity: 0, y: 0, duration: 0.15, delay: 2.18 });
+      gsap.to('#eyes', { scaleY: 1, svgOrigin: '200 180', duration: 0.15 });
+      gsap.delayedCall(1, () => {
+        if (!pressed && !idleMouth?.isActive()) {
+          idleMouth = gsap
+            .timeline({ repeat: -1, repeatDelay: 1 })
+            .to(mood, { t: 1, duration: 0.3, ease: 'power1.inOut' })
+            .to(mood, { t: 0, duration: 0.3, delay: 10, ease: 'power1.inOut' })
+            .to(mood, { t: 1, duration: 0.3, ease: 'power1.inOut' });
+          idleMouth.eventCallback('onUpdate', () => drawMouth(mood.t));
+        }
+      });
+    }
+
+    scene.addEventListener('pointerup', () => relax());
+    scene.addEventListener('pointercancel', () => relax());
     scene.addEventListener('pointerleave', () => {
-      gsap.to('#hat', { rotate: 0, duration: 0.7, ease: 'elastic.out(1, 0.45)' });
+      if (pressed) gsap.delayedCall(0.2, () => relax());
     });
 
-    scene.addEventListener('pointerdown', () => {
-      gsap.timeline()
-        .to('#wand', { rotate: -22, transformOrigin: '272px 150px', duration: 0.18, ease: 'power2.in' })
-        .to('#wand', { rotate: 58, duration: 0.55, ease: 'elastic.out(1, 0.4)' })
-        .fromTo(
-          '#wand-trail',
-          { drawSVG: '0% 0%', opacity: 1 },
-          { drawSVG: '0% 100%', duration: 0.4, ease: 'power1.out' },
-          '<'
-        )
-        .to('#wand-trail', { opacity: 0, duration: 0.5 })
-        .to(
-          '.twinkle',
-          { scale: 1.5, opacity: 1, duration: 0.22, stagger: 0.03, yoyo: true, repeat: 1 },
-          '<'
-        );
-    });
+    window.addEventListener(
+      'pagehide',
+      () => {
+        ctx.revert();
+      },
+      { once: true }
+    );
   }
 </script>
