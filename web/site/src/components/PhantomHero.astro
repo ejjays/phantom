@@ -126,6 +126,7 @@
         .to(mood, { t: 0, duration: 0.3, delay: 10, ease: 'power1.inOut' })
         .to(mood, { t: 1, duration: 0.3, ease: 'power1.inOut' });
       idleMouth.eventCallback('onUpdate', () => drawMouth(mood.t));
+    }, scene);
 
     scene.addEventListener('pointerenter', () => {
       if (pressed) return;
