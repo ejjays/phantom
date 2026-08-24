@@ -3,7 +3,6 @@ node_modules
 public
 temp
 *.log
-.circleci
 .git
 bin
 BTC-ISMIR19
