@@ -2,7 +2,6 @@
 @import '@fontsource/rubik/400.css';
 @import '@fontsource/rubik/500.css';
 @import '@fontsource/rubik/600.css';
-@import '@fontsource/rubik/700.css';
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
 @import '@fontsource/ibm-plex-mono/600.css';
@@ -128,11 +127,51 @@ body {
   animation: rise-in 0.7s ease-out 0.15s backwards;
 }
 
+/* scroll reveal — opt in via [data-reveal], stagger via --reveal-delay.
+   hidden state requires html.js (script present) so no-JS never blanks content */
+@media (prefers-reduced-motion: no-preference) {
+  html.js [data-reveal] {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+      opacity 0.55s ease-out,
+      transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+  html.js [data-reveal].revealed {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* carousel deck intro — cards stay unpainted until js stages the fanned deck,
+   else the server html flashes the expanded row for a frame */
+@media (prefers-reduced-motion: no-preference) {
+  html.js [data-deck-pending] {
+    opacity: 0;
+  }
+}
+
+@keyframes blob-drift {
+  from {
+    transform: translate3d(0, -2%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2%, 3%, 0) scale(1.07);
+  }
+}
+
+.blob-drift {
+  animation: blob-drift 16s ease-in-out infinite alternate;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .marquee-track,
   .rise-in,
   .shooting-star,
-  .twinkle-star {
+  .twinkle-star,
+  .blob-drift {
     animation: none !important;
   }
 }

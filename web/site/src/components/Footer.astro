@@ -57,11 +57,12 @@ const SOCIALS = [
 ];
 ---
 
-<!-- pinned behind the opaque main layer; page slides up to reveal it -->
-<footer class="sticky bottom-0 z-0">
+<!-- pinned behind the opaque main layer; page slides up to reveal it.
+     mt owns ALL card→footer spacing so the cta card ends flush, no black slab under it -->
+<footer class="sticky bottom-0 z-0 mt-[72px] md:mt-20">
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
     <div
-      class="flex flex-col justify-between gap-12 pb-10 pt-6 md:flex-row md:items-start md:gap-20 md:pb-12 md:pt-8"
+      class="flex flex-col justify-between gap-12 pb-10 md:flex-row md:items-start md:gap-20 md:pb-12"
     >
       <div class="flex max-w-xs flex-col gap-5">
         <a href="#top" class="flex items-center gap-2.5" aria-label="Back to top">
@@ -126,10 +127,9 @@ const SOCIALS = [
     </div>
 
     <div
-      class="flex flex-col items-center justify-between gap-3 border-t border-prey-700 py-6 text-xs text-prey-400 sm:flex-row"
+      class="flex justify-center border-t border-prey-700 py-6 text-xs text-prey-400"
     >
       <p>© 2026 Phantom · not affiliated with any platform listed above</p>
-      <p>free forever · no ads · no accounts</p>
     </div>
   </div>
 </footer>

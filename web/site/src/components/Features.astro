@@ -37,7 +37,7 @@ const FEATURES = [
 ---
 
 <section id="features" class="relative py-14 sm:py-20">
-  <div class="mx-auto mb-10 max-w-2xl text-center">
+  <div data-reveal class="mx-auto mb-10 max-w-2xl text-center">
     <p class="mb-3 text-xs tracking-[0.25em] text-cyan-400 uppercase">{'// features'}</p>
     <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">Everything a downloader should be</h2>
     <p class="mt-4 font-sans text-base text-slate-400">
@@ -50,7 +50,11 @@ const FEATURES = [
       FEATURES.map((feature, index) => {
         const accent = ACCENTS[index % 2 === 0 ? 'cyan' : 'violet'];
         return (
-          <div class={`group relative rounded-xl p-px ${accent.side}`}>
+          <div
+            data-reveal
+            style={`--reveal-delay:${Math.min(index * 70, 350)}ms`}
+            class={`group relative rounded-xl p-px ${accent.side}`}
+          >
             <div class={`relative flex h-full flex-col rounded-xl border-2 bg-surface p-6 transition-transform duration-150 ease-out -translate-x-[5px] -translate-y-[5px] group-hover:-translate-x-[9px] group-hover:-translate-y-[9px] group-active:translate-x-0 group-active:translate-y-0 ${accent.face}`}>
               <div
                 class={`mb-4 flex w-fit rounded-lg border-2 bg-gradient-to-br p-2.5 transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-105 ${accent.chip}`}

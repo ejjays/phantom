@@ -4,7 +4,7 @@ import GlowBlob from './GlowBlob.astro';
 import Starfield from './Starfield.astro';
 ---
 
-<section class="relative pb-12 pt-10">
+<section class="relative pt-10">
   <div class="mx-auto max-w-[1400px] md:px-10 lg:px-12 xl:px-20">
     <div
       id="cta-card"
@@ -18,14 +18,21 @@ import Starfield from './Starfield.astro';
         class="mx-auto mb-6 h-36 w-auto drop-shadow-[0_0_28px_rgba(34,211,238,0.45)] sm:h-44"
       />
       <h2
+        data-reveal
         class="text-glow relative z-20 mb-4 max-w-[800px] text-balance text-3xl font-bold tracking-tight sm:text-5xl"
       >
         Ready to make some magic?
       </h2>
-      <p class="relative z-20 max-w-md font-sans text-base text-prey-200 sm:text-lg">
+      <p
+        data-reveal
+        style="--reveal-delay:90ms"
+        class="relative z-20 max-w-md font-sans text-base text-prey-200 sm:text-lg"
+      >
         Grab the APK, paste your first link, and watch it land in your gallery. Free forever.
       </p>
       <a
+        data-reveal
+        style="--reveal-delay:180ms"
         href="/app/"
         class="relative z-20 mt-9 inline-flex items-center gap-2.5 rounded-full border border-primary/40 bg-[#22d3ee40] px-7 py-4 font-sans text-base font-semibold text-[#22d3ee] shadow-[0_0_10px_rgba(6,182,212,0.35),0_0_26px_rgba(6,182,212,0.3)] transition-all hover:scale-[1.03] hover:bg-[#22d3ee59] active:scale-95 active:opacity-90"
       >
