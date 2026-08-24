@@ -1,0 +1,223 @@
+<div id="phantom-scene" class="relative mx-auto w-full max-w-[360px] select-none">
+  <svg
+    viewBox="0 -14 320 356"
+    width="360"
+    height="400"
+    class="block h-auto w-full cursor-pointer"
+    role="img"
+    aria-label="Phantom mascot wizard casting a spell"
+  >
+    <defs>
+      <linearGradient id="body-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#f8fafc"></stop>
+        <stop offset="100%" stop-color="#cbd5e1"></stop>
+      </linearGradient>
+      <linearGradient id="hat-grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#7c3aed"></stop>
+        <stop offset="100%" stop-color="#3b0764"></stop>
+      </linearGradient>
+      <linearGradient id="trail-grad" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0%" stop-color="#06b6d4" stop-opacity="0"></stop>
+        <stop offset="100%" stop-color="#67e8f9"></stop>
+      </linearGradient>
+      <filter id="soft-glow" x="-80%" y="-80%" width="260%" height="260%">
+        <feGaussianBlur stdDeviation="3.2" result="b"></feGaussianBlur>
+        <feMerge>
+          <feMergeNode in="b"></feMergeNode>
+          <feMergeNode in="SourceGraphic"></feMergeNode>
+        </feMerge>
+      </filter>
+    </defs>
+
+    <ellipse id="hero-shadow" cx="160" cy="308" rx="92" ry="15" fill="#020617" opacity="0.5"></ellipse>
+
+    <g id="phantom-root">
+      <path
+        id="body-shape"
+        d="M60,192 C62,104 106,56 160,56 C214,56 258,104 260,192 L260,226 Q252,248 240,230 Q228,212 216,230 Q204,248 192,230 Q180,212 168,230 Q156,248 144,230 Q132,212 120,230 Q108,248 96,230 Q88,218 76,228 Q68,235 60,226 Z"
+        fill="url(#body-grad)"
+        style="filter: drop-shadow(0 0 26px rgba(6,182,212,0.35));"
+      ></path>
+      <path
+        id="body-wave"
+        d="M60,192 C62,104 106,56 160,56 C214,56 258,104 260,192 L260,226 Q252,212 240,228 Q228,246 216,228 Q204,210 192,228 Q180,246 168,228 Q156,210 144,228 Q132,246 120,228 Q108,210 96,228 Q88,244 76,226 Q68,220 60,226 Z"
+        fill="none"
+        opacity="0"
+      ></path>
+
+      <ellipse cx="112" cy="178" rx="10" ry="5.5" fill="#7c3aed" opacity="0.28"></ellipse>
+      <ellipse cx="208" cy="178" rx="10" ry="5.5" fill="#7c3aed" opacity="0.28"></ellipse>
+
+      <g id="eye-l">
+        <ellipse cx="128" cy="150" rx="13" ry="16" fill="#1e293b"></ellipse>
+        <circle class="pupil" cx="131" cy="153" r="5" fill="#67e8f9" filter="url(#soft-glow)"></circle>
+      </g>
+      <g id="eye-r">
+        <ellipse cx="192" cy="150" rx="13" ry="16" fill="#1e293b"></ellipse>
+        <circle class="pupil" cx="195" cy="153" r="5" fill="#67e8f9" filter="url(#soft-glow)"></circle>
+      </g>
+
+      <path
+        id="mouth"
+        d="M136,184 Q160,206 184,184 Q160,198 136,184 Z"
+        fill="#1e293b"
+      ></path>
+      <path id="mouth-grin" d="M130,182 Q160,226 190,182 Q160,202 130,182 Z" fill="none" opacity="0"></path>
+      <path id="mouth-o" d="M147,186 Q160,177 173,186 Q173,209 160,211 Q147,209 147,186 Z" fill="none" opacity="0"></path>
+
+      <g id="wand-arm">
+        <rect x="244" y="164" width="34" height="18" rx="9" fill="url(#body-grad)" transform="rotate(-32 250 172)"></rect>
+        <g id="wand">
+          <line x1="272" y1="150" x2="304" y2="96" stroke="#94a3b8" stroke-width="7" stroke-linecap="round"></line>
+          <path
+            id="wand-trail"
+            d="M284,124 Q306,110 298,86"
+            fill="none"
+            stroke="url(#trail-grad)"
+            stroke-width="4.5"
+            stroke-linecap="round"
+          ></path>
+          <g id="wand-star" filter="url(#soft-glow)">
+            <path
+              d="M304,84 L307,93 L316,96 L307,99 L304,108 L301,99 L292,96 L301,93 Z"
+              fill="#67e8f9"
+            ></path>
+          </g>
+        </g>
+      </g>
+
+      <g id="hat">
+        <path d="M114,74 C122,38 140,12 158,-2 L170,-2 C188,16 200,42 206,74 Z" fill="url(#hat-grad)"></path>
+        <path d="M118,62 C146,72 176,72 202,60 L204,74 C176,86 146,86 116,74 Z" fill="#06b6d4" opacity="0.85"></path>
+        <ellipse cx="160" cy="76" rx="76" ry="14" fill="#2e1065"></ellipse>
+        <path d="M154,44 L157,53 L166,56 L157,59 L154,68 L151,59 L142,56 L151,53 Z" fill="#fbbf24" filter="url(#soft-glow)"></path>
+      </g>
+
+      <g id="sparkles" filter="url(#soft-glow)">
+        <path class="twinkle" d="M52,96 L55,105 L64,108 L55,111 L52,120 L49,111 L40,108 L49,105 Z" fill="#67e8f9"></path>
+        <circle class="twinkle" cx="268" cy="52" r="4" fill="#c4b5fd"></circle>
+        <path class="twinkle" d="M236,26 L238.5,33 L245,35.5 L238.5,38 L236,45 L233.5,38 L227,35.5 L233.5,33 Z" fill="#fbbf24"></path>
+        <circle class="twinkle" cx="36" cy="196" r="3.5" fill="#67e8f9"></circle>
+        <path class="twinkle" d="M290,180 L292.5,187 L299,189.5 L292.5,192 L290,199 L287.5,192 L281,189.5 L287.5,187 Z" fill="#c4b5fd"></circle>
+        <circle class="twinkle" cx="70" cy="40" r="3" fill="#fbbf24"></circle>
+      </g>
+    </g>
+  </svg>
+</div>
+
+<script>
+  import { gsap } from 'gsap';
+  import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
+  import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
+
+  gsap.registerPlugin(MorphSVGPlugin, DrawSVGPlugin);
+
+  const scene = document.getElementById('phantom-scene');
+  if (scene) {
+    const mm = gsap.matchMedia();
+
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.from('#phantom-root', {
+        y: 46,
+        opacity: 0,
+        duration: 0.9,
+        ease: 'power3.out',
+      });
+
+      gsap.to('#phantom-root', {
+        y: -14,
+        duration: 2.6,
+        ease: 'sine.inOut',
+        yoyo: true,
+        repeat: -1,
+      });
+      gsap.to('#hero-shadow', {
+        scaleX: 0.82,
+        opacity: 0.32,
+        transformOrigin: 'center',
+        duration: 2.6,
+        ease: 'sine.inOut',
+        yoyo: true,
+        repeat: -1,
+      });
+      gsap.to('#body-shape', {
+        morphSVG: '#body-wave',
+        duration: 1.3,
+        ease: 'sine.inOut',
+        yoyo: true,
+        repeat: -1,
+      });
+      gsap.to('.twinkle', {
+        scale: 0.5,
+        opacity: 0.35,
+        transformOrigin: 'center',
+        duration: 0.9,
+        ease: 'sine.inOut',
+        stagger: { each: 0.22, yoyo: true, repeat: -1 },
+      });
+
+      const blink = () => {
+        gsap.to(['#eye-l', '#eye-r'], {
+          scaleY: 0.06,
+          transformOrigin: 'center',
+          duration: 0.08,
+          yoyo: true,
+          repeat: 1,
+          onComplete: () => gsap.delayedCall(2 + Math.random() * 2.4, blink),
+        });
+      };
+      blink();
+
+      if (matchMedia('(pointer: fine)').matches) {
+        const qx = gsap.quickTo('.pupil', 'x', { duration: 0.4, ease: 'power2' });
+        const qy = gsap.quickTo('.pupil', 'y', { duration: 0.4, ease: 'power2' });
+        const look = (e: PointerEvent) => {
+          const r = scene.getBoundingClientRect();
+          qx(gsap.utils.clamp(-6, 6, ((e.clientX - r.left) / r.width - 0.5) * 14));
+          qy(gsap.utils.clamp(-5, 5, ((e.clientY - r.top) / r.height - 0.5) * 12));
+        };
+        window.addEventListener('pointermove', look);
+        return () => window.removeEventListener('pointermove', look);
+      }
+    });
+
+    let mood = 0;
+    const moods = ['#mouth-grin', '#mouth-o'];
+    const nextMood = () => {
+      mood = (mood + 1) % moods.length;
+      gsap.to('#mouth', {
+        morphSVG: moods[mood],
+        duration: 0.45,
+        ease: 'back.out(1.6)',
+        onComplete: () => gsap.delayedCall(3.6, nextMood),
+      });
+    };
+    gsap.delayedCall(3.6, nextMood);
+
+    scene.addEventListener('pointerenter', () => {
+      gsap.to('#hat', { rotate: -13, transformOrigin: '50% 88%', duration: 0.5, ease: 'back.out(2)' });
+      gsap.to('#mouth', { morphSVG: '#mouth-o', duration: 0.3, ease: 'power2.out' });
+    });
+    scene.addEventListener('pointerleave', () => {
+      gsap.to('#hat', { rotate: 0, duration: 0.7, ease: 'elastic.out(1, 0.45)' });
+    });
+
+    scene.addEventListener('pointerdown', () => {
+      gsap.timeline()
+        .to('#wand', { rotate: -22, transformOrigin: '272px 150px', duration: 0.18, ease: 'power2.in' })
+        .to('#wand', { rotate: 58, duration: 0.55, ease: 'elastic.out(1, 0.4)' })
+        .fromTo(
+          '#wand-trail',
+          { drawSVG: '0% 0%', opacity: 1 },
+          { drawSVG: '0% 100%', duration: 0.4, ease: 'power1.out' },
+          '<'
+        )
+        .to('#wand-trail', { opacity: 0, duration: 0.5 })
+        .to(
+          '.twinkle',
+          { scale: 1.5, opacity: 1, duration: 0.22, stagger: 0.03, yoyo: true, repeat: 1 },
+          '<'
+        );
+    });
+  }
+</script>
