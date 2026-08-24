@@ -83,7 +83,7 @@ const { src, alt, video = false } = Astro.props;
     { threshold: 0.4 },
   );
 
-  document.querySelectorAll('video[data-viewplay]').forEach((video) => {
+  document.querySelectorAll<HTMLVideoElement>('video[data-viewplay]').forEach((video) => {
     observer.observe(video);
     if (video.paused) seekToEnd(video);
     video.addEventListener('loadedmetadata', () => {
