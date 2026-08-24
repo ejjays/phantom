@@ -108,7 +108,7 @@
         repeat: -1,
       });
       gsap
-        .timeline({ repeat: -1, delay: 3.864 })
+        .timeline({ repeat: -1, delay: 10 })
         .to('#eyes', { scaleY: 0.1, svgOrigin: '200 180', duration: 0.168 })
         .to('#eyes', { scaleY: 1, duration: 0.168 });
       gsap.to('#mouth-breathe', {
@@ -126,13 +126,6 @@
         .to(mood, { t: 0, duration: 0.3, delay: 10, ease: 'power1.inOut' })
         .to(mood, { t: 1, duration: 0.3, ease: 'power1.inOut' });
       idleMouth.eventCallback('onUpdate', () => drawMouth(mood.t));
-      gsap
-        .timeline({ repeat: -1, repeatDelay: 4.4, delay: 2.5 })
-        .to('#phantom-face', { y: 16, duration: 0.5, ease: 'power2.out' })
-        .to('.pupil', { y: 4.8, duration: 0.5, ease: 'power2.out' }, '<')
-        .to('#phantom-face', { y: 0, duration: 0.5, ease: 'power2.inOut', delay: 1.6 })
-        .to('.pupil', { y: 0, duration: 0.5, ease: 'power2.inOut' }, '<');
-    }, scene);
 
     scene.addEventListener('pointerenter', () => {
       if (pressed) return;
