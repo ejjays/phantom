@@ -16,10 +16,9 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "@/*": ["./src/*"],
-      "@shared/*": ["../shared/*"]
+      "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "api", "../shared/**/*"],
+  "include": ["src", "api"],
   "exclude": ["node_modules", "dist"]
 }

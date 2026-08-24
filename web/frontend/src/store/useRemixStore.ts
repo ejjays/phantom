@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { VideoInfo, FinalResponse } from '@shared/schemas/media.schema.js';
+import { VideoInfo, FinalResponse } from '@phantom/shared/schemas/media.schema';
 
 export interface RemixState {
   // app core state

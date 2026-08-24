@@ -5,7 +5,7 @@ import {
   SpotifyMetadata as SharedSpotifyMetadata,
   FinalResponse as SharedFinalResponse,
   AudioFeatures as SharedAudioFeatures,
-} from '../../../shared/schemas/media.schema.js';
+} from '@phantom/shared/schemas/media.schema';
 
 export type Format = SharedFormat;
 export type VideoInfo = SharedVideoInfo;

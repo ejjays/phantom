@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { Routes, Route, useLocation } from 'react-router';
 import { useRemixStore } from './store/useRemixStore';
-import { VideoInfo } from '@shared/schemas/media.schema.js';
+import { VideoInfo } from '@phantom/shared/schemas/media.schema';
 import { getDynamicBackendUrl } from './lib/config';
 import { SSEService } from './lib/sse.service';
 import { handleSseMessage } from './hooks/useSSE';

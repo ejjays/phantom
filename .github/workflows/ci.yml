@@ -110,8 +110,10 @@ jobs:
       - name: Install dependencies (monorepo root)
         run: npm ci --ignore-scripts
 
-      - name: Build shared extractor package
-        run: (cd packages/extractors && npm run build)
+      - name: Build shared packages
+        run: |
+          (cd packages/extractors && npm run build)
+          (cd web/shared && npm run build)
 
       - name: Save cache
         uses: actions/cache/save@v6
@@ -197,6 +199,9 @@ jobs:
         with:
           path: node_modules
           key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Build shared schemas package
+        run: (cd web/shared && npm run build)
 
       - name: Typecheck and lint
         run: |
@@ -389,6 +394,7 @@ jobs:
       - name: Build and Deploy Frontend
         run: |
           npm ci --ignore-scripts
+          (cd web/shared && npm run build)
           VER=$(python3 -c "import json; print(json.load(open('package-lock.json'))['packages']['node_modules/lightningcss']['version'])")
           OXVER=$(python3 -c "import json; print(json.load(open('package-lock.json'))['packages']['node_modules/@tailwindcss/oxide']['version'])")
           RVER=$(python3 -c "import json; print(json.load(open('package-lock.json'))['packages']['node_modules/rolldown']['version'])")

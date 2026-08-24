@@ -6,7 +6,7 @@ import {
   SpotifyMetadata,
   FinalResponse,
 } from '../../types/index.js';
-import { FinalResponseSchema } from '../../../../shared/schemas/media.schema.js';
+import { FinalResponseSchema } from '@phantom/shared/schemas/media.schema';
 import {
   processVideoFormats,
   processAudioFormats,

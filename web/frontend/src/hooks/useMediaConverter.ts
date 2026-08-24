@@ -5,7 +5,7 @@ import { useNativeBridge } from './useNativeBridge';
 import { useVideoInfo } from './useVideoInfo';
 import { useDownloadOrchestrator } from './useDownloadOrchestrator';
 import { useRemixStore } from '../store/useRemixStore';
-import { VideoInfo, FinalResponse } from '@shared/schemas/media.schema.js';
+import { VideoInfo, FinalResponse } from '@phantom/shared/schemas/media.schema';
 
 export interface MediaConverterHook {
   url: string;

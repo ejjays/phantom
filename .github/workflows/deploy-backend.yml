@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - web/backend/**
+      - web/shared/**
       - packages/extractors/**
       - packages/web-mux/**
       - package.json
@@ -38,6 +39,7 @@ jobs:
 
       - name: build
         run: |
+          npm run build -w web/shared
           npx tsc -p packages/extractors
           npm run build -w @phantom/web-mux
           npm run build -w web/backend
@@ -57,4 +59,4 @@ jobs:
             --include='dist/' --include='dist/**' --filter=':- .gitignore' --exclude='.env' \
             --exclude web/frontend/ --exclude mobile/ \
             ./ "$USER@$HOST:/home/ubuntu/nexstream/"
-          ssh -i "$PWD/deploy_key" -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$PWD/known_hosts" "$USER@$HOST" 'cd /home/ubuntu/nexstream && npm install -w web/backend -w @phantom/extractors -w @phantom/web-mux --omit=dev --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=60000 >/tmp/deploy-install.log 2>&1 && sudo systemctl restart nexstream-backend && sleep 12 && curl -sf http://localhost:5000/health >/dev/null && echo DEPLOY_OK'
+          ssh -i "$PWD/deploy_key" -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$PWD/known_hosts" "$USER@$HOST" 'cd /home/ubuntu/nexstream && npm install -w web/backend -w web/shared -w @phantom/extractors -w @phantom/web-mux --omit=dev --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=60000 >/tmp/deploy-install.log 2>&1 && sudo systemctl restart nexstream-backend && sleep 12 && curl -sf http://localhost:5000/health >/dev/null && echo DEPLOY_OK'
