@@ -71,6 +71,27 @@ function pack(name, version) {
 
 const JOBS = [
   {
+    label: '@astrojs/compiler-binding-wasm32-wasi',
+    done: () => {
+      const dirs = findPackageDirs('@astrojs/compiler-binding');
+      return (
+        dirs.length > 0 &&
+        dirs.every((d) =>
+          existsSync(join(dirname(d), 'compiler-binding-wasm32-wasi', 'package.json'))
+        )
+      );
+    },
+    install: () => {
+      for (const dir of findPackageDirs('@astrojs/compiler-binding')) {
+        cpSync(
+          pack('@astrojs/compiler-binding-wasm32-wasi', readVersion(dir)),
+          join(dirname(dir), 'compiler-binding-wasm32-wasi'),
+          { recursive: true }
+        );
+      }
+    },
+  },
+  {
     label: '@tailwindcss/oxide-android-arm64',
     done: () => {
       const dirs = findPackageDirs('@tailwindcss/oxide');

@@ -41,6 +41,28 @@ for (const ws of WORKSPACES) {
   }
 }
 
+// astro's compiler has no usable android binding (native stub missing,
+// wasi sandbox hits UVWASI_EACCES on termux) — checked in CI instead
+if (process.platform !== 'android') {
+  const siteDir = path.join(root, 'web/site');
+  const astro = path.join(root, 'node_modules/astro/bin/astro.mjs');
+  // check needs generated content types first
+  spawnSync(process.execPath, [astro, 'sync'], { cwd: siteDir });
+  const r = spawnSync(
+    process.execPath,
+    [astro, 'check'],
+    { cwd: siteDir, encoding: 'utf8' }
+  );
+  if (r.status !== 0) {
+    console.error('✗ web/site (astro check)');
+    if (r.stdout) console.error(r.stdout);
+    if (r.stderr) console.error(r.stderr);
+    failed++;
+  } else {
+    console.log('✓ web/site (astro check)');
+  }
+}
+
 if (failed) {
   console.error(`✅✗ typecheck: ${failed} workspace(s) failed`);
   process.exit(1);
