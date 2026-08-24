@@ -35,12 +35,13 @@ npm run check:all # same across whole repo — run before opening a PR
 
 ## Running Tests
 
-The backend suite is heavy for phones — on Termux, vitest gets OOM-killed (signal 9 by phantom killer), so there are two paths:
+GitHub CI is the suite runner — full suites don't run on-device. Locally, run only the single test file relevant to your change:
 
-- **Off Termux:** `cd web/backend && npm run test:single`
-- **On Termux:** `cd web/backend && npm test` — runs `scripts/test-sequential.sh`, which executes the suites one file at a time to keep memory under the killer's radar. Or push your branch and let CI run the full suite.
+```bash
+cd web/frontend && node ../../node_modules/vitest/vitest.mjs run tests/<file>.test.ts
+```
 
-Frontend tests: `cd web/frontend && npm test`. Mobile tests: `cd mobile && npm test`.
+(same pattern from `web/backend` and `mobile`; the direct `node` path sidesteps Termux's bin-shebang issue). For everything else, push your branch and let CI run it: frontend, mobile, backend (with Redis), and live extractor checks.
 
 If you're fixing a bug or adding a feature, a test that covers it really helps — ideally one that fails first, then passes. Mocking external calls (YouTube, Spotify, Redis) keeps tests fast and offline.
 
