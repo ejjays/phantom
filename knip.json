@@ -1,0 +1,49 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "include": ["dependencies", "unlisted", "unresolved", "binaries"],
+  "ignoreBinaries": ["ffmpeg", "yt-dlp", "kaggle"],
+  "ignoreWorkspaces": ["web/site"],
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs"]
+    },
+    "packages/extractors": {},
+    "packages/web-mux": {},
+    "web/backend": {
+      "vite": false,
+      "vitest": false,
+      "ignoreDependencies": ["pino-pretty"]
+    },
+    "web/frontend": {
+      "entry": ["src/main.tsx"],
+      "vite": false,
+      "vitest": false,
+      "ignoreDependencies": [
+        "@playwright/test",
+        "@testing-library/jest-dom",
+        "@types/styled-components",
+        "@vitejs/plugin-react",
+        "vite-plugin-sitemap"
+      ]
+    },
+    "mobile": {
+      "entry": [
+        "tests/**/*.test.{ts,tsx}",
+        "supabase/functions/**/index.ts",
+        "plugins/*.js"
+      ],
+      "ignore": ["vitest.config.ts"],
+      "ignoreDependencies": [
+        "npm",
+        "expo-dev-client",
+        "expo-navigation-bar",
+        "expo-status-bar",
+        "expo-updates",
+        "expo-blur",
+        "expo-video"
+      ],
+      "vitest": false,
+      "expo": false
+    }
+  }
+}
