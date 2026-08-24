@@ -22,6 +22,12 @@ for pat in $PATTERN; do
 done
 
 TOTAL=${#FILES[@]}
+# silent skip above means a stale explicit list would "pass" with 0 files
+if [ "$TOTAL" -eq 0 ]; then
+  echo "✗ no test files matched: $PATTERN" >&2
+  echo "  explicit list likely rotted — check renamed/deleted files" >&2
+  exit 1
+fi
 echo "Running $TOTAL test files sequentially..."
 echo ""
 
