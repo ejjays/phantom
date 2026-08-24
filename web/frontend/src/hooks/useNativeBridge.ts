@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { VideoInfo, FinalResponse } from '@shared/schemas/media.schema.js';
+import { VideoInfo, FinalResponse } from '@phantom/shared/schemas/media.schema';
 
 interface NativeBridgeProps {
   setUrl: (url: string) => void;

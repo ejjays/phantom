@@ -15,24 +15,22 @@
     "preview": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" vite preview"
   },
   "dependencies": {
-    "@gradio/client": "^2.1.0",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@sentry/react": "^10.53.1",
     "@supabase/supabase-js": "2.112.3",
     "clsx": "^2.1.1",
     "framer-motion": "^13.0.0",
-    "jszip": "^3.10.1",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.577.0",
     "mediabunny": "^1.46.0",
     "pitchy": "^4.1.0",
-    "prop-types": "^15.8.1",
     "react": "^19.2.8",
     "react-dom": "19.2.8",
     "react-router": "^8.3.0",
     "styled-components": "^6.5.1",
     "tailwind-merge": "^3.4.0",
-    "zustand": "^5.0.12"
+    "zustand": "^5.0.12",
+    "@phantom/shared": "1.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -50,8 +48,6 @@
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.3",
     "eslint-plugin-sonarjs": "^4.0.3",
     "globals": "^16.5.0",
     "jsdom": "^29.0.2",

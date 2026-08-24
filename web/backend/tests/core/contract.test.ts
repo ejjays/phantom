@@ -4,7 +4,7 @@ import {
   SpotifyMetadataSchema,
   VideoInfoSchema,
   FormatSchema,
-} from '../../../shared/schemas/media.schema.js';
+} from '@phantom/shared/schemas/media.schema';
 
 describe('Media Contract Hardening', () => {
   describe('FormatSchema', () => {

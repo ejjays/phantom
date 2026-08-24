@@ -12,12 +12,11 @@
     "outDir": "./dist",
     "rootDir": "..",
     "paths": {
-      "@/*": ["./src/*"],
-      "@shared/*": ["../shared/*"]
+      "@/*": ["./src/*"]
     },
     "jsx": "preserve",
     "lib": ["DOM", "DOM.Iterable", "ESNext", "ES2021"]
   },
-  "include": ["src/**/*", "../shared/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
 }

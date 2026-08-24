@@ -2,7 +2,7 @@ import { isHost } from '../lib/utils';
 import { useCallback } from 'react';
 import { useRemixStore } from '../store/useRemixStore';
 import { BACKEND_URL } from '../lib/config';
-import { VideoInfo, FinalResponse } from '@shared/schemas/media.schema.js';
+import { VideoInfo, FinalResponse } from '@phantom/shared/schemas/media.schema';
 import { filterUnsupportedCodecs } from '../lib/codec-support';
 
 // sanitize video metadata

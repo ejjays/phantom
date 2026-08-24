@@ -90,34 +90,18 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      - name: Restore cache
-        uses: actions/cache@v6
-        with:
-          path: node_modules
-          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ env.CACHE_KEY }}-${{ runner.os }}-
-
       - name: Install yt-dlp
         run: pip3 install --break-system-packages --upgrade yt-dlp
 
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Guard against platform-pinned bindings
-        run: bash scripts/guard-platform-bindings.sh
-
-      - name: Install dependencies (monorepo root)
-        run: npm ci --ignore-scripts
-
-      - name: Build shared extractor package
-        run: (cd packages/extractors && npm run build)
-
-      - name: Save cache
-        uses: actions/cache/save@v6
+      - name: Setup workspace
+        uses: ./.github/actions/workspace-setup
         with:
-          path: node_modules
-          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          node-version: ${{ env.NODE_VERSION }}
+          build-extractors: 'true'
+          build-shared: 'true'
 
       - name: Typecheck, lint, and build
         run: |
@@ -178,31 +162,23 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      - name: Restore cache
-        uses: actions/cache@v6
+      - name: Setup workspace
+        uses: ./.github/actions/workspace-setup
         with:
-          path: node_modules
-          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ env.CACHE_KEY }}-${{ runner.os }}-
-
-      - name: Guard against platform-pinned bindings
-        run: bash scripts/guard-platform-bindings.sh
-
-      - name: Install dependencies (monorepo root)
-        run: npm ci --ignore-scripts
-
-      - name: Save cache
-        uses: actions/cache/save@v6
-        with:
-          path: node_modules
-          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          node-version: ${{ env.NODE_VERSION }}
+          build-shared: 'true'
 
       - name: Typecheck and lint
         run: |
           cd web/frontend
           npx tsc --noEmit
           npx eslint .
+
+      - name: Astro check (site)
+        run: |
+          cd web/site
+          npx astro sync
+          npx astro check
 
       - name: Run Frontend Tests
         run: |
@@ -247,28 +223,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      - name: Restore cache
-        uses: actions/cache@v6
+      - name: Setup workspace
+        uses: ./.github/actions/workspace-setup
         with:
-          path: node_modules
-          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ env.CACHE_KEY }}-${{ runner.os }}-
-
-      - name: Guard against platform-pinned bindings
-        run: bash scripts/guard-platform-bindings.sh
-
-      - name: Install dependencies (monorepo root)
-        run: npm ci --ignore-scripts
-
-      - name: Build shared extractor package
-        run: (cd packages/extractors && npm run build)
-
-      - name: Save cache
-        uses: actions/cache/save@v6
-        with:
-          path: node_modules
-          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          node-version: ${{ env.NODE_VERSION }}
+          build-extractors: 'true'
 
       - name: Typecheck, lint, and test
         run: |
@@ -316,22 +275,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      - name: Restore cache
-        uses: actions/cache@v6
+      - name: Setup workspace
+        uses: ./.github/actions/workspace-setup
         with:
-          path: node_modules
-          key: ${{ env.CACHE_KEY }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ env.CACHE_KEY }}-${{ runner.os }}-
-
-      - name: Guard against platform-pinned bindings
-        run: bash scripts/guard-platform-bindings.sh
-
-      - name: Install dependencies (monorepo root)
-        run: npm ci --ignore-scripts
-
-      - name: Build shared extractor package
-        run: (cd packages/extractors && npm run build)
+          node-version: ${{ env.NODE_VERSION }}
+          build-extractors: 'true'
 
       - name: Live extractor health checks
         run: |
@@ -356,6 +304,26 @@ jobs:
           path: mobile/test-results.xml
           retention-days: 7
           if-no-files-found: ignore
+
+  knip:
+    name: Knip (unused deps & files)
+    runs-on: ubuntu-latest
+    # baseline kept green; findings drift slowly so sweep weekly, not per-PR
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup workspace
+        uses: ./.github/actions/workspace-setup
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          build-extractors: 'true'
+          build-shared: 'true'
+
+      - name: Knip
+        run: npx --no-install knip
 
   deploy-frontend:
     name: Deploy Frontend
@@ -389,6 +357,7 @@ jobs:
       - name: Build and Deploy Frontend
         run: |
           npm ci --ignore-scripts
+          (cd web/shared && npm run build)
           VER=$(python3 -c "import json; print(json.load(open('package-lock.json'))['packages']['node_modules/lightningcss']['version'])")
           OXVER=$(python3 -c "import json; print(json.load(open('package-lock.json'))['packages']['node_modules/@tailwindcss/oxide']['version'])")
           RVER=$(python3 -c "import json; print(json.load(open('package-lock.json'))['packages']['node_modules/rolldown']['version'])")

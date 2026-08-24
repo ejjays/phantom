@@ -4,6 +4,10 @@
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
+  "packageManager": "npm@11.18.0",
+  "engines": {
+    "node": ">=22"
+  },
   "workspaces": [
     "web/backend",
     "web/frontend",
@@ -23,14 +27,13 @@
     "lint:all": "echo 'linting backend...' && (cd web/backend && npm run lint:all) && echo 'linting frontend...' && (cd web/frontend && npm run lint:all) && echo 'linting mobile...' && (cd mobile && npm run lint:all) && echo '✅ lint passed (all files)'",
     "format:all": "prettier --write .",
     "format": "pretty-quick",
-    "typecheck": "echo 'checking backend types...' && (cd web/backend && npx -y tsc --noEmit) && echo 'checking frontend types...' && (cd web/frontend && npx -y tsc --noEmit) && echo '✅ types passed'",
+    "typecheck": "node scripts/typecheck.mjs",
     "check": "npm run typecheck && npm run lint && echo '✅ all passed (changed lint)'",
     "check:all": "npm run typecheck && npm run lint:all && echo '✅ all passed (full lint)'",
     "prepare": "husky || true",
     "postinstall": "node node_modules/patch-package/dist/index.js"
   },
   "devDependencies": {
-    "cookie": "^2.0.1",
     "husky": "^9.1.7",
     "knip": "^6.32.2",
     "lint-staged": "^17.3.0",
