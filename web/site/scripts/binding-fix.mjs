@@ -156,6 +156,90 @@ const JOBS = [
       }
     },
   },
+  {
+    // astro runs under glibc node on termux (reports linux), so the
+    // linux-arm64-gnu natives must exist no matter which npm placed them
+    label: '@astrojs/compiler-binding-linux-arm64-gnu',
+    done: () => {
+      const dirs = findPackageDirs('@astrojs/compiler-binding');
+      return (
+        dirs.length > 0 &&
+        dirs.every((d) => existsSync(join(dirname(d), 'compiler-binding-linux-arm64-gnu', 'package.json')))
+      );
+    },
+    install: () => {
+      for (const dir of findPackageDirs('@astrojs/compiler-binding')) {
+        cpSync(
+          pack('@astrojs/compiler-binding-linux-arm64-gnu', readVersion(dir)),
+          join(dirname(dir), 'compiler-binding-linux-arm64-gnu'),
+          { recursive: true }
+        );
+      }
+    },
+  },
+  {
+    label: '@rolldown/binding-linux-arm64-gnu',
+    done: () => {
+      const dirs = findPackageDirs('rolldown');
+      return (
+        dirs.length > 0 &&
+        dirs.every((d) => existsSync(join(dirname(d), '@rolldown', 'binding-linux-arm64-gnu', 'package.json')))
+      );
+    },
+    install: () => {
+      for (const dir of findPackageDirs('rolldown')) {
+        cpSync(
+          pack('@rolldown/binding-linux-arm64-gnu', readVersion(dir)),
+          join(dirname(dir), '@rolldown', 'binding-linux-arm64-gnu'),
+          { recursive: true }
+        );
+      }
+    },
+  },
+  {
+    label: '@tailwindcss/oxide-linux-arm64-gnu',
+    done: () => {
+      const dirs = findPackageDirs('@tailwindcss/oxide');
+      return dirs.length > 0 && dirs.every((d) => existsSync(join(dirname(d), 'oxide-linux-arm64-gnu', 'package.json')));
+    },
+    install: () => {
+      for (const dir of findPackageDirs('@tailwindcss/oxide')) {
+        cpSync(pack('@tailwindcss/oxide-linux-arm64-gnu', readVersion(dir)), join(dirname(dir), 'oxide-linux-arm64-gnu'), {
+          recursive: true,
+        });
+      }
+    },
+  },
+  {
+    label: '@esbuild/linux-arm64',
+    done: () => {
+      if (process.platform !== 'android') return true;
+      const dirs = findPackageDirs('esbuild');
+      return (
+        dirs.length > 0 && dirs.every((d) => existsSync(join(dirname(d), '@esbuild', 'linux-arm64', 'package.json')))
+      );
+    },
+    install: () => {
+      for (const dir of findPackageDirs('esbuild')) {
+        cpSync(pack('@esbuild/linux-arm64', readVersion(dir)), join(dirname(dir), '@esbuild', 'linux-arm64'), {
+          recursive: true,
+        });
+      }
+    },
+  },
+  {
+    label: 'lightningcss.linux-arm64-gnu.node',
+    done: () => {
+      const dirs = findPackageDirs('lightningcss');
+      return dirs.length > 0 && dirs.every((d) => existsSync(join(d, 'lightningcss.linux-arm64-gnu.node')));
+    },
+    install: () => {
+      for (const dir of findPackageDirs('lightningcss')) {
+        const extracted = pack('lightningcss-linux-arm64-gnu', readVersion(dir));
+        cpSync(join(extracted, 'lightningcss.linux-arm64-gnu.node'), join(dir, 'lightningcss.linux-arm64-gnu.node'));
+      }
+    },
+  },
 ];
 
 let missing = false;

@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "dev": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" astro dev --host",
+    "dev": "bash ../../scripts/astro-dev.sh",
     "build": "astro build",
     "preview": "NODE_OPTIONS=\"--require ./userland-shim.cjs\" astro preview --host",
     "postinstall": "node scripts/binding-fix.mjs",
