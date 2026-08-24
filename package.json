@@ -31,7 +31,7 @@
     "check": "npm run typecheck && npm run lint && echo '✅ all passed (changed lint)'",
     "check:all": "npm run typecheck && npm run lint:all && echo '✅ all passed (full lint)'",
     "prepare": "husky || true",
-    "postinstall": "node node_modules/patch-package/dist/index.js"
+    "postinstall": "node scripts/fix-ts7-android.mjs && node node_modules/patch-package/dist/index.js"
   },
   "devDependencies": {
     "husky": "^9.1.7",
