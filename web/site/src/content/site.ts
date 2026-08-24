@@ -185,14 +185,14 @@ export const SCREENSHOTS: readonly Screenshot[] = [
     caption: 'Rip clean audio as MP3 or M4A, tagged automatically.',
   },
   {
-    id: 'download_history',
-    label: 'History',
-    caption: 'Everything you grabbed, one tap to replay or share.',
-  },
-  {
     id: 'updates_feed',
     label: 'Updates',
     caption: 'A community feed for what ships next — react & comment.',
+  },
+  {
+    id: 'comments_section',
+    label: 'Comments',
+    caption: 'Reply with words or images — right under any update.',
   },
   {
     id: 'settings_screen',

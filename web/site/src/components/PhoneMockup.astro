@@ -16,6 +16,7 @@ const { src, alt, video = false } = Astro.props;
       video ? (
         <video
           src={`/videos/${src}.mp4`}
+          poster={`/videos/${src}_poster.webp`}
           muted
           loop
           playsinline
@@ -23,8 +24,8 @@ const { src, alt, video = false } = Astro.props;
           disablepictureinpicture
           disableRemotePlayback
           data-viewplay
-          width="1160"
-          height="2560"
+          width="580"
+          height="1280"
           class="block h-auto w-full"
         />
       ) : (
@@ -48,6 +49,23 @@ const { src, alt, video = false } = Astro.props;
 </div>
 
 <script>
+  const LAST_FRAME_OFFSET_S = 0.05;
+
+  const seekToEnd = (video: HTMLVideoElement) => {
+    const duration = video.duration;
+    if (
+      Number.isFinite(duration) &&
+      duration > 0 &&
+      video.currentTime < duration - LAST_FRAME_OFFSET_S
+    ) {
+      try {
+        video.currentTime = duration - LAST_FRAME_OFFSET_S;
+      } catch {
+        /* seeking before metadata is fine to skip */
+      }
+    }
+  };
+
   const observer = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
@@ -56,13 +74,18 @@ const { src, alt, video = false } = Astro.props;
           video.play().catch(() => {});
         } else {
           video.pause();
+          seekToEnd(video);
         }
       }
     },
     { threshold: 0.4 },
   );
 
-  document.querySelectorAll('video[data-viewplay]').forEach((video) => {
+  document.querySelectorAll<HTMLVideoElement>('video[data-viewplay]').forEach((video) => {
     observer.observe(video);
+    if (video.paused) seekToEnd(video);
+    video.addEventListener('loadedmetadata', () => {
+      if (video.paused) seekToEnd(video);
+    });
   });
 </script>

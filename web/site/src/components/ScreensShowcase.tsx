@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import type { EmblaCarouselType } from 'embla-carousel';
 import { WheelGesturesPlugin } from 'embla-carousel-wheel-gestures';
+import { motion, useAnimationControls, useInView } from 'framer-motion';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { SCREENSHOTS } from '../content/site';
 
 const JIGGLE_PX = 10;
 const SETTLE_MS = 250;
+const DECK_GAP_PX = 24;
+const DECK_GAP_MOBILE_PX = 6;
+const DECK_SPRING = { type: 'spring', stiffness: 100, damping: 15 } as const;
 
 const mapRange = (
   value: number,
@@ -79,6 +83,65 @@ function PhoneFrame({ src, alt }: { src: string; alt: string }) {
   );
 }
 
+function DeckCard({
+  index,
+  count,
+  revealed,
+  active,
+  children,
+}: {
+  index: number;
+  count: number;
+  revealed: boolean;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const controls = useAnimationControls();
+  const stagedRef = useRef(false);
+  const [staged, setStaged] = useState(false);
+  const [landingY] = useState(() => (Math.random() * 2 - 1) * JIGGLE_PX);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el && !revealed && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const mobile = matchMedia('(max-width: 640px)').matches;
+      const gap = mobile ? DECK_GAP_MOBILE_PX : DECK_GAP_PX;
+      const middle = (count - 1) / 2;
+      let step = index - middle;
+      if (mobile) step = Math.max(-1, Math.min(1, step));
+      const rect = el.getBoundingClientRect();
+      const docLeft = rect.left + window.scrollX;
+      const target = window.innerWidth / 2 - rect.width / 2 + step * gap;
+      controls.set({ x: Math.trunc(target - docLeft) });
+      stagedRef.current = true;
+    }
+    setStaged(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (revealed && stagedRef.current) {
+      stagedRef.current = false;
+      controls.start({ x: 0, y: landingY }, DECK_SPRING);
+    }
+  }, [revealed, controls, landingY]);
+
+  return (
+    <motion.div
+      ref={ref}
+      animate={controls}
+      data-deck-pending={staged ? undefined : ''}
+      style={{ zIndex: count - 1 - index }}
+      className="relative w-[260px] shrink-0"
+    >
+      <JiggleCard active={revealed && active}>
+        {children}
+      </JiggleCard>
+    </motion.div>
+  );
+}
+
 export default function ScreensShowcase() {
   // SSR renders without window; hydrate picks the phone-friendly align
   const [align] = useState(() =>
@@ -86,6 +149,13 @@ export default function ScreensShowcase() {
       ? ('center' as const)
       : ('start' as const),
   );
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const threeQuarterVisible = useInView(wrapRef, { once: true, amount: 0.75 });
+  const revealed =
+    threeQuarterVisible ||
+    (typeof window !== 'undefined' &&
+      matchMedia('(prefers-reduced-motion: reduce)').matches);
+
   const [emblaRef, emblaApi] = useEmblaCarousel(
     {
       align,
@@ -125,7 +195,7 @@ export default function ScreensShowcase() {
 
   return (
     <section id="screens" className="relative py-14 sm:py-20">
-      <div className="mx-auto mb-8 max-w-2xl text-center">
+      <div data-reveal className="mx-auto mb-8 max-w-2xl text-center">
         <p className="mb-3 text-xs tracking-[0.25em] text-cyan-400 uppercase">{'// screenshots'}</p>
         <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Straight out of the app</h2>
         <p className="mt-4 font-sans text-base text-slate-400">
@@ -134,7 +204,10 @@ export default function ScreensShowcase() {
       </div>
 
       <div
-        ref={emblaRef}
+        ref={(node) => {
+          wrapRef.current = node;
+          emblaRef(node);
+        }}
         className="cursor-ew-resize touch-pan-y overflow-hidden select-none"
         style={{
           maskImage:
@@ -143,14 +216,18 @@ export default function ScreensShowcase() {
       >
         <div className="flex items-stretch gap-9 py-6 pr-4 pl-4 sm:pr-10 sm:pl-6">
           {SCREENSHOTS.map((screen, index) => (
-            <div key={screen.id} className="w-[260px] shrink-0">
-              <JiggleCard active={index === selected}>
-                <PhoneFrame src={screen.id} alt={`Phantom ${screen.label} screen`} />
-                <p className="font-mono text-xs tracking-[0.22em] text-slate-400 uppercase">
-                  {String(index + 1).padStart(2, '0')} · {screen.label}
-                </p>
-              </JiggleCard>
-            </div>
+            <DeckCard
+              key={screen.id}
+              index={index}
+              count={SCREENSHOTS.length}
+              revealed={revealed}
+              active={index === selected}
+            >
+              <PhoneFrame src={screen.id} alt={`Phantom ${screen.label} screen`} />
+              <p className="font-mono text-xs tracking-[0.22em] text-slate-400 uppercase">
+                {String(index + 1).padStart(2, '0')} · {screen.label}
+              </p>
+            </DeckCard>
           ))}
         </div>
       </div>

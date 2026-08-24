@@ -3,14 +3,19 @@ import { FAQS } from '../content/site';
 ---
 
 <section id="faq" class="relative py-14 sm:py-20">
-  <div class="mx-auto mb-10 max-w-2xl text-center">
+  <div data-reveal class="mx-auto mb-10 max-w-2xl text-center">
     <p class="mb-3 text-xs tracking-[0.25em] text-cyan-400 uppercase">{'// faq'}</p>
     <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">Fair questions</h2>
   </div>
   <div class="mx-auto max-w-3xl px-4 sm:px-6">
     {
       FAQS.map((faq, index) => (
-        <details class="group border-b border-white/10" open={index === 0}>
+        <details
+          data-reveal
+          style={`--reveal-delay:${Math.min(index * 60, 240)}ms`}
+          class="group border-b border-white/10"
+          open={index === 0}
+        >
           <summary class="flex w-full cursor-pointer list-none items-center justify-between gap-4 py-5 text-left [&::-webkit-details-marker]:hidden">
             <span class="flex-1 text-sm font-semibold transition-colors duration-300 group-hover:text-cyan-200 sm:text-base">
               {faq.question}

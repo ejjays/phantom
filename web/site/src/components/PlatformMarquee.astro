@@ -11,10 +11,11 @@ const DURATION_S = 36 * (RUNS / 2);
 ---
 
 <section aria-label="Supported platforms" class="border-y border-white/5 bg-surface/40 py-7">
-  <p class="mb-5 text-center text-[11px] tracking-[0.3em] text-slate-500 uppercase">works with</p>
+  <p data-reveal class="mb-5 text-center text-[11px] tracking-[0.3em] text-slate-500 uppercase">works with</p>
   <div
+    data-reveal
     class="marquee relative overflow-hidden"
-    style="mask-image:linear-gradient(90deg, transparent, black 12%, black 88%, transparent)"
+    style={`--reveal-delay:100ms;mask-image:linear-gradient(90deg, transparent, black 12%, black 88%, transparent)`}
   >
     <div class="marquee-track flex w-max" style={`animation-duration:${DURATION_S}s`}>
       {

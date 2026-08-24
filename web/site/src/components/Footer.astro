@@ -1,35 +1,133 @@
 ---
-import { DOWNLOAD_URL } from '../content/site';
+import { DOWNLOAD_URL, REPO_URL } from '../content/site';
+import GithubIcon from './icons/GithubIcon.astro';
+import XIcon from './icons/XIcon.astro';
+
+interface FooterLink {
+  label: string;
+  href: string;
+  external?: boolean;
+}
+
+interface FooterColumn {
+  heading: string;
+  links: FooterLink[];
+}
+
+const COLUMNS: FooterColumn[] = [
+  {
+    heading: 'App',
+    links: [
+      { label: 'Download APK', href: '/app/' },
+      { label: 'Features', href: '#features' },
+      { label: 'Screens', href: '#screens' },
+      { label: 'How it works', href: '#how' },
+    ],
+  },
+  {
+    heading: 'Tools',
+    links: [
+      { label: 'Song Key Changer', href: '/app/tools/key-changer' },
+      { label: 'Remix Lab', href: '/app/tools/remix-lab' },
+      { label: 'FAQ', href: '#faq' },
+    ],
+  },
+  {
+    heading: 'Resources',
+    links: [
+      { label: 'GitHub', href: REPO_URL, external: true },
+      { label: 'Releases', href: DOWNLOAD_URL, external: true },
+      {
+        label: 'Report a bug',
+        href: `${REPO_URL}/issues/new/choose`,
+        external: true,
+      },
+    ],
+  },
+];
+
+const SOCIALS = [
+  { label: 'GitHub', href: REPO_URL, Icon: GithubIcon, size: 16 },
+  {
+    label: 'X (Twitter)',
+    href: 'https://x.com/ejjaysz',
+    Icon: XIcon,
+    size: 13,
+  },
+];
 ---
 
-<footer class="border-t border-white/5 py-10">
-  <div
-    class="mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 sm:px-6 md:flex-row md:justify-between"
-  >
-    <div class="flex items-center gap-3">
-      <img src="/brand/icon.png" alt="" width="26" height="26" class="rounded-md" />
-      <div>
-        <p class="text-sm font-semibold">Phantom</p>
-        <p class="font-mono text-[11px] text-slate-500">download · mux · save — fully on-device</p>
+<footer class="sticky bottom-0 z-0 mt-[72px] md:mt-20">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <div
+      class="flex flex-col justify-between gap-12 pb-10 md:flex-row md:items-start md:gap-20 md:pb-12"
+    >
+      <div class="flex max-w-xs flex-col gap-5">
+        <a href="#top" class="flex items-center gap-2.5" aria-label="Back to top">
+          <img
+            src="/brand/icon.png"
+            alt=""
+            width="30"
+            height="30"
+            class="rounded-lg"
+            loading="lazy"
+          />
+          <span class="text-lg font-semibold tracking-tight">Phantom</span>
+        </a>
+        <p class="font-mono text-[11px] leading-relaxed tracking-wide text-prey-400">
+          download · mux · save — fully on-device
+        </p>
+        <div class="flex items-center gap-2.5">
+          {
+            SOCIALS.map(({ label, href, Icon, size }) => (
+              <a
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={label}
+                class="flex h-9 w-9 items-center justify-center rounded-full border border-prey-600 text-prey-400 transition-colors duration-200 hover:border-prey-400 hover:text-link-hover"
+              >
+                <Icon size={size} />
+              </a>
+            ))
+          }
+        </div>
       </div>
+
+      <nav
+        aria-label="Footer"
+        class="grid grid-cols-2 gap-x-10 gap-y-10 sm:grid-cols-3 md:gap-x-16"
+      >
+        {
+          COLUMNS.map((column) => (
+            <div>
+              <h2 class="pb-4 font-sans text-[11px] font-medium uppercase tracking-[0.18em] text-prey-400">
+                {column.heading}
+              </h2>
+              <ul class="flex flex-col gap-3">
+                {column.links.map((link) => (
+                  <li>
+                    <a
+                      href={link.href}
+                      target={link.external ? '_blank' : undefined}
+                      rel={link.external ? 'noreferrer' : undefined}
+                      class="text-sm text-prey-200 transition-colors duration-200 hover:text-link-hover"
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
+      </nav>
     </div>
 
-    <nav aria-label="Footer" class="flex items-center gap-6 text-xs text-slate-400">
-      <a href="#features" class="transition-colors hover:text-cyan-300">Features</a>
-      <a href="#screens" class="transition-colors hover:text-cyan-300">Screens</a>
-      <a href="#how" class="transition-colors hover:text-cyan-300">How it works</a>
-      <a href="#faq" class="transition-colors hover:text-cyan-300">FAQ</a>
-      <a
-        href={DOWNLOAD_URL}
-        target="_blank"
-        rel="noreferrer"
-        class="transition-colors hover:text-cyan-300"
-      >
-        GitHub
-      </a>
-    </nav>
+    <div
+      class="flex justify-center border-t border-prey-700 py-6 text-xs text-prey-400"
+    >
+      <p>© 2026 Phantom · not affiliated with any platform listed above</p>
+    </div>
   </div>
-  <p class="mt-8 text-center font-mono text-[11px] text-slate-600">
-    © 2026 Phantom · not affiliated with any platform listed above
-  </p>
 </footer>

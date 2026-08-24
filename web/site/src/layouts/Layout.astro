@@ -34,9 +34,28 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <script is:inline>
       if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       window.addEventListener('load', () => window.scrollTo(0, 0));
+      document.documentElement.classList.add('js');
+    </script>
+    <script>
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('revealed');
+                io.unobserve(entry.target);
+              }
+            }
+          },
+          { threshold: 0.12, rootMargin: '0px 0px -48px' }
+        );
+        document
+          .querySelectorAll('[data-reveal]')
+          .forEach((el) => io.observe(el));
+      }
     </script>
   </head>
-  <body class="bg-void text-white antialiased">
+  <body class="bg-background text-white antialiased">
     <slot />
   </body>
 </html>
