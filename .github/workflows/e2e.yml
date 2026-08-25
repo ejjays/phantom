@@ -126,9 +126,9 @@ jobs:
             adb install -r -d mobile/app-e2e.apk
             curl -fsSL "https://github.com/mobile-dev-inc/maestro/releases/latest/download/maestro.zip" -o /tmp/maestro.zip
             unzip -q -o /tmp/maestro.zip -d "$HOME/.maestro"
-            MAESTRO="$HOME/.maestro/maestro/bin/maestro"
-            test -x "$MAESTRO" || { find "$HOME/.maestro" -maxdepth 3 | head -30; exit 1; }
-            MAESTRO_CLI_NO_ANALYTICS=1 "$MAESTRO" test \
+            chmod +x "$HOME"/.maestro/maestro/bin/*
+            test -f "$HOME/.maestro/maestro/bin/maestro"
+            MAESTRO_CLI_NO_ANALYTICS=1 "$HOME/.maestro/maestro/bin/maestro" test \
               --env TEST_URL="${{ inputs.test_url || 'https://vimeo.com/76979871' }}" \
               "$GITHUB_WORKSPACE/mobile/.maestro/smoke.yaml" \
               "$GITHUB_WORKSPACE/mobile/.maestro/download.yaml" \
