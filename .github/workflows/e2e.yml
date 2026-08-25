@@ -70,7 +70,19 @@ jobs:
       - name: Install dependencies (monorepo root)
         run: npm ci
 
+      - name: Hash app sources for apk cache
+        id: apphash
+        run: echo "hash=${{ hashFiles('mobile/src/**', 'mobile/modules/**', 'mobile/plugins/**', 'mobile/assets/**', 'mobile/app.json', 'mobile/package.json', 'package-lock.json') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore e2e apk cache
+        id: apkcache
+        uses: actions/cache@v4
+        with:
+          path: mobile/app-e2e.apk
+          key: e2e-apk-${{ steps.apphash.outputs.hash }}
+
       - name: Build x86_64 APK locally with EAS
+        if: steps.apkcache.outputs.cache-hit != 'true'
         working-directory: mobile
         env:
           EXPO_PUBLIC_GIPHY_KEY: ${{ secrets.EXPO_PUBLIC_GIPHY_KEY }}
