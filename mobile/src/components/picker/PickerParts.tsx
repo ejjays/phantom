@@ -108,7 +108,8 @@ export const QualityOption = ({
   format,
   selected,
   onSelect,
-}: QualityOptionProps) => {
+  testID,
+}: QualityOptionProps & { testID?: string }) => {
   const badge = badgeFor(format);
   const pressed = useSharedValue(0);
 
@@ -129,6 +130,7 @@ export const QualityOption = ({
       onPress={onSelect}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      testID={testID}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       accessibilityLabel={`${titleFor(format)} ${subtitleFor(format)}`}
@@ -186,6 +188,7 @@ export const GetFileButton = ({ state, onPress }: GetFileButtonProps) => {
       onPress={onPress}
       disabled={active}
       activeOpacity={0.85}
+      testID="get-file-btn"
       accessibilityRole="button"
       accessibilityLabel={errored ? 'Retry download' : 'Download'}
       style={tw.style(

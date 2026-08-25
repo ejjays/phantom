@@ -1,0 +1,117 @@
+name: Mobile E2E (Maestro)
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_url:
+        description: Media URL used by the download flow
+        required: false
+        default: 'https://vimeo.com/76979871'
+  schedule:
+    # nightly smoke against current branch tip once merged
+    - cron: '30 5 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  maestro-e2e:
+    name: Build x86_64 apk + Maestro on emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install required NDK
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          SDKMGR="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMGR" --install "ndk;27.1.12297006"
+          echo "ANDROID_NDK_HOME=$SDK_ROOT/ndk/27.1.12297006" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$SDK_ROOT/ndk/27.1.12297006" >> "$GITHUB_ENV"
+
+      - name: Tune Gradle memory for CI
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=1024m
+          org.gradle.workers.max=4
+          EOF
+
+      - uses: expo/expo-github-action@v9
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Guard against platform-pinned bindings
+        run: bash scripts/guard-platform-bindings.sh
+
+      - name: Install dependencies (monorepo root)
+        run: npm ci
+
+      - name: Build x86_64 APK locally with EAS
+        working-directory: mobile
+        env:
+          EXPO_PUBLIC_GIPHY_KEY: ${{ secrets.EXPO_PUBLIC_GIPHY_KEY }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID }}
+          EXPO_PUBLIC_SPOTIFY_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_SPOTIFY_CLIENT_ID }}
+          EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET: ${{ secrets.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+        run: |
+          eas build --platform android \
+            --profile e2e \
+            --local \
+            --non-interactive \
+            --output ./app-e2e.apk
+
+      - name: Upload e2e APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: phantom-e2e-x64-apk
+          path: mobile/app-e2e.apk
+          retention-days: 7
+
+      - name: Run Maestro flows on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          emulator-boot-timeout: 600
+          script: |
+            adb install -r -d mobile/app-e2e.apk
+            curl -Ls "https://get.maestro.mobile.dev" | bash
+            export PATH="$PATH:$HOME/.maestro/bin"
+            export MAESTRO_CLI_NO_ANALYTICS=1
+            TEST_URL="${{ inputs.test_url || 'https://vimeo.com/76979871' }}"
+            cd mobile
+            maestro test --env TEST_URL="$TEST_URL" .maestro/smoke.yaml .maestro/download.yaml \
+              || { adb exec-out logcat -d > ../maestro-logcat.log; exit 1; }
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-diagnostics
+          path: |
+            maestro-logcat.log
+            mobile/MAESTRO_*
+          retention-days: 7
+          if-no-files-found: ignore
