@@ -128,15 +128,17 @@ jobs:
             unzip -q -o /tmp/maestro.zip -d "$HOME/.maestro"
             chmod +x "$HOME"/.maestro/maestro/bin/*
             test -f "$HOME/.maestro/maestro/bin/maestro"
-            MAESTRO_CLI_NO_ANALYTICS=1 "$HOME/.maestro/maestro/bin/maestro" test --env TEST_URL="${{ inputs.test_url || 'https://vimeo.com/76979871' }}" "$GITHUB_WORKSPACE/mobile/.maestro/smoke.yaml" "$GITHUB_WORKSPACE/mobile/.maestro/download.yaml" || { adb exec-out logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; }
+            MAESTRO_CLI_NO_ANALYTICS=1 "$HOME/.maestro/maestro/bin/maestro" test --format JUNIT --output "$GITHUB_WORKSPACE/maestro-report.xml" --debug-output "$GITHUB_WORKSPACE/maestro-debug" --flatten-debug-output --env TEST_URL="${{ inputs.test_url || 'https://vimeo.com/76979871' }}" "$GITHUB_WORKSPACE/mobile/.maestro/smoke.yaml" "$GITHUB_WORKSPACE/mobile/.maestro/download.yaml" || { adb exec-out logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; }
 
       - name: Upload failure diagnostics
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: maestro-diagnostics
           path: |
+            maestro-report.xml
             maestro-logcat.log
+            maestro-debug/**
             mobile/MAESTRO_*
           retention-days: 7
           if-no-files-found: ignore

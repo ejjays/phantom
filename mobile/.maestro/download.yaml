@@ -19,15 +19,12 @@ name: download - paste url, pick quality, get file
 - tapOn: "Paste download link"
 - inputText: ${TEST_URL}
 - hideKeyboard
-- tapOn: "Download"
+- tapOn:
+    id: "download-submit"
 - extendedWaitUntil:
     visible: "Select Output Quality"
-    timeout: 90000
-- runFlow:
-    when:
-      visible: "Select quality"
-    commands:
-      - tapOn: "Select quality"
+    timeout: 120000
+- tapOn: "Select quality"
 - tapOn:
     id: "quality-option-0"
 - tapOn:

@@ -608,6 +608,7 @@ export default function HomeScreen({
               label={invalidLink ? 'Retry' : 'Download'}
               retry={invalidLink}
               loading={showSpinner}
+              testID="download-submit"
               onPress={() => {
                 if (!link.trim()) return;
                 bumpActivity();
