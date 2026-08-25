@@ -126,16 +126,12 @@ jobs:
             adb install -r -d mobile/app-e2e.apk
             curl -fsSL "https://github.com/mobile-dev-inc/maestro/releases/latest/download/maestro.zip" -o /tmp/maestro.zip
             unzip -q -o /tmp/maestro.zip -d "$HOME/.maestro"
-            adb shell settings put secure show_ime_with_hard_keyboard 0
-            M="$HOME/.maestro/maestro/bin/maestro"
             chmod +x "$HOME"/.maestro/maestro/bin/*
-            FLOW="$GITHUB_WORKSPACE/mobile/.maestro"
-            URL="${{ inputs.test_url || 'https://vimeo.com/76979871' }}"
-            DBG="$GITHUB_WORKSPACE/maestro-debug"
-            MAESTRO_CLI_NO_ANALYTICS=1 "$M" test --debug-output "$DBG-1-open" --flatten-debug-output "$FLOW/smoke.yaml" "$FLOW/open-input.yaml" || { adb exec-out logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; }
+            adb shell settings put secure show_ime_with_hard_keyboard 0
+            MAESTRO_CLI_NO_ANALYTICS=1 "$HOME/.maestro/maestro/bin/maestro" test --debug-output "$GITHUB_WORKSPACE/maestro-debug-1" --flatten-debug-output "$GITHUB_WORKSPACE/mobile/.maestro/smoke.yaml" "$GITHUB_WORKSPACE/mobile/.maestro/open-input.yaml" || { adb exec-out logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; }
             adb shell input keyevent 111
-            adb shell input text "${URL}"
-            MAESTRO_CLI_NO_ANALYTICS=1 "$M" test --debug-output "$DBG-2-finish" --flatten-debug-output "$FLOW/complete-download.yaml" || { adb exec-out logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; }
+            adb shell input text "${{ inputs.test_url || 'https://vimeo.com/76979871' }}"
+            MAESTRO_CLI_NO_ANALYTICS=1 "$HOME/.maestro/maestro/bin/maestro" test --debug-output "$GITHUB_WORKSPACE/maestro-debug-2" --flatten-debug-output "$GITHUB_WORKSPACE/mobile/.maestro/complete-download.yaml" || { adb exec-out logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; }
 
       - name: Upload failure diagnostics
         if: always()
