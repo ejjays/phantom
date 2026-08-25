@@ -5,7 +5,7 @@ name: e2e 1 - launch, onboard, dismiss sheets, focus link input
     clearState: true
 - runFlow:
     when:
-      visible: "saved in seconds"
+      visible: "Any video or song, saved in seconds"
     commands:
       - tapOn: "Get Started"
       - tapOn: "Get Started"
