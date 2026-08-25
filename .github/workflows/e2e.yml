@@ -24,10 +24,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  maestro-e2e:
-    name: Build x86_64 apk + Maestro on emulator
+  build-apk:
+    name: Build x86_64 apk
     runs-on: ubuntu-latest
-    timeout-minutes: 100
+    timeout-minutes: 60
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
@@ -92,6 +92,19 @@ jobs:
           name: phantom-e2e-x64-apk
           path: mobile/app-e2e.apk
           retention-days: 7
+
+  maestro-e2e:
+    name: Maestro flows on emulator
+    needs: build-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: phantom-e2e-x64-apk
+          path: mobile
 
       - name: Run Maestro flows on emulator
         uses: reactivecircus/android-emulator-runner@v2
