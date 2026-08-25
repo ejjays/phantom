@@ -7,6 +7,11 @@ on:
         description: Media URL used by the download flow
         required: false
         default: 'https://vimeo.com/76979871'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/e2e.yml'
   schedule:
     # nightly smoke against current branch tip once merged
     - cron: '30 5 * * *'
