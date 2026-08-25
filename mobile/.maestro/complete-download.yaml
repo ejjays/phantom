@@ -1,6 +1,7 @@
 appId: com.phantom.app
 name: e2e 2 - resolve, pick quality, get file
 ---
+- takeScreenshot: typed-state
 - tapOn:
     id: "download-submit"
 - extendedWaitUntil:
