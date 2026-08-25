@@ -1,8 +1,18 @@
 appId: com.phantom.app
-name: e2e 1 - launch, dismiss sheets, focus link input
+name: e2e 1 - launch, onboard, dismiss sheets, focus link input
 ---
 - launchApp:
     clearState: true
+- runFlow:
+    when:
+      visible: "saved in seconds"
+    commands:
+      - tapOn:
+          point: "81%, 88%"
+      - tapOn:
+          point: "81%, 88%"
+      - tapOn:
+          point: "81%, 88%"
 - runFlow:
     when:
       visible: "Allow"
