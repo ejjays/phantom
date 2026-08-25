@@ -133,7 +133,7 @@ function DeckCard({
       animate={controls}
       data-deck-pending={staged ? undefined : ''}
       style={{ zIndex: count - 1 - index }}
-      className="relative w-[260px] shrink-0"
+      className="relative box-content w-[260px] shrink-0 pr-9 sm:pr-12"
     >
       <JiggleCard active={revealed && active}>
         {children}
@@ -214,7 +214,7 @@ export default function ScreensShowcase() {
             'linear-gradient(90deg, transparent, black 3%, black 97%, transparent)',
         }}
       >
-        <div className="flex items-stretch gap-9 py-6 pr-4 pl-4 sm:pr-10 sm:pl-6">
+        <div className="flex items-stretch py-6 pl-4 sm:pl-6">
           {SCREENSHOTS.map((screen, index) => (
             <DeckCard
               key={screen.id}

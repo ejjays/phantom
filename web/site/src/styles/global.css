@@ -66,6 +66,14 @@ body {
   }
 }
 
+.shooting-star {
+  opacity: 0;
+}
+
+.twinkle-star {
+  opacity: 0.15;
+}
+
 @keyframes twinkle-star {
   0%,
   100% {

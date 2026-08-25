@@ -8,6 +8,8 @@ LD="$PREFIX/glibc/lib/ld-linux-aarch64.so.1"
 
 if [ -x "$GLIBC_NODE" ] && [ -x "$LD" ] && command -v proot >/dev/null; then
   node scripts/binding-fix.mjs
+  # termux's bionic ld-preload shim crashes glibc node
+  unset LD_PRELOAD
   exec proot \
     -b "$LD:/lib/ld-linux-aarch64.so.1" \
     -b "$PREFIX/glibc/lib:/lib" \
