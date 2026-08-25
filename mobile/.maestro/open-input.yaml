@@ -1,0 +1,19 @@
+appId: com.phantom.app
+name: e2e 1 - launch, dismiss sheets, focus link input
+---
+- launchApp:
+    clearState: true
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+- runFlow:
+    when:
+      visible: "Not now"
+    commands:
+      - tapOn: "Not now"
+- extendedWaitUntil:
+    visible: "paste your link here"
+    timeout: 30000
+- tapOn: "Paste download link"
