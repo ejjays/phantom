@@ -136,7 +136,9 @@ jobs:
           disable-linux-hw-accel: false
           cores: 4
           ram-size: 4096M
+          emulator-options: -no-window -gpu angle_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
+            adb logcat -v time > "$GITHUB_WORKSPACE/maestro-live.logcat" 2>&1 &
             adb install -r -d mobile/app-e2e.apk
             curl -fsSL "https://github.com/mobile-dev-inc/maestro/releases/latest/download/maestro.zip" -o /tmp/maestro.zip
             unzip -q -o /tmp/maestro.zip -d "$HOME/.maestro"
@@ -156,6 +158,7 @@ jobs:
           path: |
             maestro-report-*.xml
             maestro-logcat.log
+            maestro-live.logcat
             ui-dump.xml
             maestro-debug-1/**
             maestro-debug-2/**
