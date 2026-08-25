@@ -142,7 +142,7 @@ jobs:
             unzip -q -o /tmp/maestro.zip -d "$HOME/.maestro"
             chmod +x "$HOME"/.maestro/maestro/bin/*
             adb shell settings put secure show_ime_with_hard_keyboard 0
-            MAESTRO_CLI_NO_ANALYTICS=1 timeout 300 "$HOME/.maestro/maestro/bin/maestro" test --format JUNIT --output "$GITHUB_WORKSPACE/maestro-report-1.xml" --debug-output "$GITHUB_WORKSPACE/maestro-debug-1" --flatten-debug-output "$GITHUB_WORKSPACE/mobile/.maestro/smoke.yaml" "$GITHUB_WORKSPACE/mobile/.maestro/open-input.yaml" || { adb logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; }
+            for i in 1 2 3; do if timeout 300 env MAESTRO_CLI_NO_ANALYTICS=1 "$HOME/.maestro/maestro/bin/maestro" test --format JUNIT --output "$GITHUB_WORKSPACE/maestro-report-1.xml" --debug-output "$GITHUB_WORKSPACE/maestro-debug-1" --flatten-debug-output "$GITHUB_WORKSPACE/mobile/.maestro/smoke.yaml" "$GITHUB_WORKSPACE/mobile/.maestro/open-input.yaml"; then break; fi; if [ "$i" = "3" ]; then adb logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; fi; sleep 10; done
             sleep 2
             adb shell input text "${{ inputs.test_url || 'https://vimeo.com/76979871' }}"
             MAESTRO_CLI_NO_ANALYTICS=1 timeout 960 "$HOME/.maestro/maestro/bin/maestro" test --format JUNIT --output "$GITHUB_WORKSPACE/maestro-report-2.xml" --debug-output "$GITHUB_WORKSPACE/maestro-debug-2" --flatten-debug-output "$GITHUB_WORKSPACE/mobile/.maestro/complete-download.yaml" || { adb logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; }

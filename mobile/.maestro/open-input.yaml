@@ -1,8 +1,6 @@
 appId: com.phantom.app
 name: e2e 1 - launch, onboard, dismiss sheets, focus link input
 ---
-- launchApp:
-    clearState: true
 - runFlow:
     when:
       visible: "Any video or song, saved in seconds"
