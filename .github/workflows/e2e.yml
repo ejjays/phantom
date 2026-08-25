@@ -128,11 +128,7 @@ jobs:
             unzip -q -o /tmp/maestro.zip -d "$HOME/.maestro"
             chmod +x "$HOME"/.maestro/maestro/bin/*
             test -f "$HOME/.maestro/maestro/bin/maestro"
-            MAESTRO_CLI_NO_ANALYTICS=1 "$HOME/.maestro/maestro/bin/maestro" test \
-              --env TEST_URL="${{ inputs.test_url || 'https://vimeo.com/76979871' }}" \
-              "$GITHUB_WORKSPACE/mobile/.maestro/smoke.yaml" \
-              "$GITHUB_WORKSPACE/mobile/.maestro/download.yaml" \
-              || { adb exec-out logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; }
+            MAESTRO_CLI_NO_ANALYTICS=1 "$HOME/.maestro/maestro/bin/maestro" test --env TEST_URL="${{ inputs.test_url || 'https://vimeo.com/76979871' }}" "$GITHUB_WORKSPACE/mobile/.maestro/smoke.yaml" "$GITHUB_WORKSPACE/mobile/.maestro/download.yaml" || { adb exec-out logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; }
 
       - name: Upload failure diagnostics
         if: failure()
