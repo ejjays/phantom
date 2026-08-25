@@ -106,6 +106,14 @@ jobs:
           name: phantom-e2e-x64-apk
           path: mobile
 
+      # /dev/kvm exists on gh runners but root-only without this rule
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
       - name: Run Maestro flows on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -113,6 +121,7 @@ jobs:
           target: google_apis
           arch: x86_64
           emulator-boot-timeout: 600
+          disable-linux-hw-accel: false
           script: |
             adb install -r -d mobile/app-e2e.apk
             curl -Ls "https://get.maestro.mobile.dev" | bash
