@@ -124,8 +124,9 @@ jobs:
           disable-linux-hw-accel: false
           script: |
             adb install -r -d mobile/app-e2e.apk
-            curl -Ls "https://get.maestro.mobile.dev" | bash
-            export PATH="$PATH:$HOME/.maestro/bin"
+            curl -fsSL "https://github.com/mobile-dev-inc/maestro/releases/latest/download/maestro.zip" -o /tmp/maestro.zip
+            unzip -q -o /tmp/maestro.zip -d "$HOME/.maestro"
+            export PATH="$PATH:$HOME/.maestro/maestro/bin"
             export MAESTRO_CLI_NO_ANALYTICS=1
             TEST_URL="${{ inputs.test_url || 'https://vimeo.com/76979871' }}"
             cd mobile
