@@ -48,7 +48,7 @@ interface RedditPostData {
 // june 2026: reddit login-walls every anonymous request (old.reddit, .json,
 // api.reddit) on all ips — svc/shreddit seeker-session hands out cookies
 // (loid + session_tracker + csrf/token_v2) that unlock anonymous .json again
-// (yt-dlp #16839). replaying the FULL jar matters: partial jars read as bot.
+// (yt-dlp #16839). replaying full jar matters: partial jars read as bot.
 let sessionJar: { value: string; at: number } | null = null;
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -116,9 +116,7 @@ function metaOf(post: RedditPostData, vid: string): RedditMeta {
   };
 }
 
-// .json returns [post-listing, comments-listing]
-function parsePostJson(text: string): MetaResult {
-  let parsed: unknown;
+function parsePostJson(text: string): MetaResult {  let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
