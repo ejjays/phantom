@@ -144,7 +144,8 @@ jobs:
             adb shell settings put secure show_ime_with_hard_keyboard 0
             for i in 1 2 3; do if timeout -k 10 300 env MAESTRO_CLI_NO_ANALYTICS=1 "$HOME/.maestro/maestro/bin/maestro" test --format JUNIT --output "$GITHUB_WORKSPACE/maestro-report-1.xml" --debug-output "$GITHUB_WORKSPACE/maestro-debug-1" --flatten-debug-output "$GITHUB_WORKSPACE/mobile/.maestro/smoke.yaml" "$GITHUB_WORKSPACE/mobile/.maestro/open-input.yaml"; then break; fi; if [ "$i" = "3" ]; then adb logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; fi; sleep 10; done
             sleep 2
-            adb shell input text "x"; adb shell input keyevent 67; for c in $(echo "${{ inputs.test_url || 'https://vimeo.com/76979871' }}" | grep -o .); do adb shell input text "$c"; sleep 0.12; done
+            adb shell input text "x"; adb shell input keyevent 67; for c in $(echo "${{ inputs.test_url || 'https://vimeo.com/76979871' }}" | grep -o .); do adb shell input text "$c"; sleep 0.35; done
+            adb shell uiautomator dump /sdcard/ui.xml; adb pull /sdcard/ui.xml "$GITHUB_WORKSPACE/ui-dump.xml" > /dev/null
             MAESTRO_CLI_NO_ANALYTICS=1 timeout -k 10 960 "$HOME/.maestro/maestro/bin/maestro" test --format JUNIT --output "$GITHUB_WORKSPACE/maestro-report-2.xml" --debug-output "$GITHUB_WORKSPACE/maestro-debug-2" --flatten-debug-output "$GITHUB_WORKSPACE/mobile/.maestro/complete-download.yaml" || { adb logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; }
 
       - name: Upload failure diagnostics
@@ -155,6 +156,7 @@ jobs:
           path: |
             maestro-report-*.xml
             maestro-logcat.log
+            ui-dump.xml
             maestro-debug-1/**
             maestro-debug-2/**
           retention-days: 7
