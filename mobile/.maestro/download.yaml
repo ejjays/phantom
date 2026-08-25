@@ -1,4 +1,4 @@
-appId: com.Phantom.android
+appId: com.phantom.app
 name: download - paste url, pick quality, get file
 ---
 - launchApp:

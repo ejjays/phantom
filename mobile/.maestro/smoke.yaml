@@ -1,4 +1,4 @@
-appId: com.Phantom.android
+appId: com.phantom.app
 name: smoke - app boots and home input is ready
 ---
 - launchApp:
