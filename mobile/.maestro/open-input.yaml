@@ -7,12 +7,9 @@ name: e2e 1 - launch, onboard, dismiss sheets, focus link input
     when:
       visible: "saved in seconds"
     commands:
-      - tapOn:
-          point: "81%, 88%"
-      - tapOn:
-          point: "81%, 88%"
-      - tapOn:
-          point: "81%, 88%"
+      - tapOn: "Get Started"
+      - tapOn: "Get Started"
+      - tapOn: "Get Started"
 - runFlow:
     when:
       visible: "Allow"
