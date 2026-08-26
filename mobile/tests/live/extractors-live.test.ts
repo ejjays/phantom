@@ -2,13 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import cases from './live-cases.json';
 
 // authFetch's cookieGet is native (rn fetch drops manual Cookie headers); shim
-// to node fetch here since node keeps them — only instagram uses authFetch.
+// to node fetch here since node keeps them — instagram + reddit use authFetch.
 vi.mock('../../src/lib/authFetch', () => ({
   cookieGet: async (url: string, headers: Record<string, string>) => {
     const res = await fetch(url, { headers });
     return {
       ok: res.ok,
       status: res.status,
+      headers: { 'set-cookie': res.headers.getSetCookie().join(', ') },
       text: () => res.text(),
       json: () => res.json(),
     };

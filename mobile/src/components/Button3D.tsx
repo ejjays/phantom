@@ -13,6 +13,7 @@ type Button3DProps = {
   loading?: boolean;
   disabled?: boolean;
   retry?: boolean;
+  testID?: string;
   onPress: () => void;
 };
 
@@ -24,6 +25,7 @@ export default function Button3D({
   loading,
   disabled,
   retry,
+  testID,
   onPress,
 }: Button3DProps) {
   const down = useSharedValue(0);
@@ -48,6 +50,7 @@ export default function Button3D({
     <Pressable
       disabled={disabled}
       onPress={onPress}
+      testID={testID}
       onPressIn={() => {
         down.value = withTiming(1, { duration: 50 });
       }}

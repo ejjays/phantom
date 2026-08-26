@@ -14,18 +14,41 @@ vi.mock('../src/lib/net', () => ({
   ) => Promise.all(items.map(task)),
 }));
 
+vi.mock('../src/lib/authFetch', () => ({
+  cookieGet: vi.fn(),
+}));
+
 import { gatedFetch } from '../src/lib/net';
-import { getInfo } from '../src/extractors/reddit';
+import { cookieGet } from '../src/lib/authFetch';
 
 const mockFetch = vi.mocked(gatedFetch);
+const mockSession = vi.mocked(cookieGet);
 
-function textRes(body: string, ok = true): Response {
-  return {
-    ok,
-    status: ok ? 200 : 403,
-    text: () => Promise.resolve(body),
-  } as unknown as Response;
+interface SessionResponse {
+  ok: boolean;
+  status: number;
+  headers?: Record<string, string>;
+  text: () => Promise<string>;
+  json: () => Promise<unknown>;
 }
+
+function sessionRes(
+  body: unknown,
+  opts: { status?: number; setCookie?: string } = {}
+): SessionResponse {
+  const status = opts.status ?? 200;
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: opts.setCookie ? { 'set-cookie': opts.setCookie } : undefined,
+    text: () =>
+      Promise.resolve(
+        typeof body === 'string' ? body : JSON.stringify(body)
+      ),
+    json: () => Promise.resolve(body),
+  };
+}
+
 function headRes(size: number): Response {
   return {
     ok: true,
@@ -36,13 +59,38 @@ function headRes(size: number): Response {
   } as unknown as Response;
 }
 
-const HTML = `
-<html><head>
-<meta property="og:title" content="3 guys attacked random jeep passengers" />
-<meta property="og:image" content="https://external-preview.redd.it/abc.png?width=640&amp;s=sig" />
-</head><body>
-<div class="thing" data-author="WashHappy5391" data-url="https://v.redd.it/yzxzty7ymd9h1" data-permalink="/r/pinoy/comments/1uf2nx8/x/"></div>
-</body></html>`;
+// mirrors real .json payload shape (array of listings, trimmed)
+const POST = [
+  {
+    data: {
+      children: [
+        {
+          kind: 't3',
+          data: {
+            title: '3 guys attacked random jeep passengers',
+            author: 'WashHappy5391',
+            is_video: true,
+            secure_media: {
+              reddit_video: {
+                fallback_url:
+                  'https://v.redd.it/yzxzty7ymd9h1/CMAF_720.mp4?source=fallback',
+              },
+            },
+            preview: {
+              images: [
+                {
+                  source: {
+                    url: 'https://external-preview.redd.it/abc.png?width=640&amp;s=sig',
+                  },
+                },
+              ],
+            },
+          },
+        },
+      ],
+    },
+  },
+];
 
 // mirrors real reddit mpd (CMAF names, audio rep quirk)
 const MPD = `<?xml version="1.0"?>
@@ -60,26 +108,58 @@ const MPD = `<?xml version="1.0"?>
 </Period>
 </MPD>`;
 
+const SESSION_COOKIE =
+  'loid=00000000test-token.Z0FBQUFBQnFJ; Path=/; Domain=.reddit.com; Secure, ' +
+  'session_tracker=graqpmpdfkjpqnodql.0.1780640577676.Z0FBQUFBQnFJY2Zv; Path=/; Secure, ' +
+  'csrf_token=eb8b04de3234ae706008da91f032903d; Path=/; Secure, ' +
+  'token_v2=eyJhbGciOiJSUzI1NiJ9.test.payload; Path=/; Secure';
+
+const HTML = `<html><head>
+<meta property="og:title" content="3 guys attacked random jeep passengers" />
+<meta property="og:image" content="https://external-preview.redd.it/abc.png?width=640&amp;s=sig" />
+</head><body>
+<div class="thing" data-author="WashHappy5391" data-url="https://v.redd.it/yzxzty7ymd9h1" data-permalink="/r/pinoy/comments/1uf2nx8/x/"></div>
+</body></html>`;
+
+// mpd parse + HEAD sizing happen after metadata resolves
+function mockMediaLeg(): void {
+  mockFetch.mockImplementation((url, init) => {
+    if (init?.method === 'HEAD') {
+      const size = /AUDIO/u.test(url)
+        ? 1467810
+        : /CMAF_720/u.test(url)
+          ? 20714387
+          : /CMAF_270/u.test(url)
+            ? 5000000
+            : 3000000;
+      return Promise.resolve(headRes(size));
+    }
+    return Promise.resolve(textRes(MPD));
+  });
+}
+
+// extractor caches loid at module level -> fresh instance per test
+async function loadGetInfo() {
+  const mod = await import('../src/extractors/reddit');
+  return mod.getInfo;
+}
+
 describe('reddit getInfo', () => {
   beforeEach(() => {
+    vi.resetModules();
     mockFetch.mockReset();
+    mockSession.mockReset();
   });
 
   it('parses all qualities + audio from a v.redd.it post', async () => {
-    mockFetch.mockImplementation((url, init) => {
-      if (init?.method === 'HEAD') {
-        const size = /AUDIO/u.test(url)
-          ? 1467810
-          : /CMAF_720/u.test(url)
-            ? 20714387
-            : /CMAF_270/u.test(url)
-              ? 5000000
-              : 3000000;
-        return Promise.resolve(headRes(size));
+    const getInfo = await loadGetInfo();
+    mockSession.mockImplementation((url) => {
+      if (/svc\/shreddit/u.test(url)) {
+        return Promise.resolve(sessionRes('', { setCookie: SESSION_COOKIE }));
       }
-      if (/DASHPlaylist\.mpd/u.test(url)) return Promise.resolve(textRes(MPD));
-      return Promise.resolve(textRes(HTML));
+      return Promise.resolve(sessionRes(POST));
     });
+    mockMediaLeg();
 
     const info = await getInfo(
       'https://www.reddit.com/r/pinoy/comments/1uf2nx8/x/'
@@ -89,6 +169,9 @@ describe('reddit getInfo', () => {
     expect(info?.extractorKey).toBe('reddit');
     expect(info?.title).toBe('3 guys attacked random jeep passengers');
     expect(info?.uploader).toBe('WashHappy5391');
+    expect(info?.thumbnail).toBe(
+      'https://external-preview.redd.it/abc.png?width=640&s=sig'
+    );
     expect(info?.duration).toBe(90);
 
     expect(info?.formats).toHaveLength(3);
@@ -104,14 +187,119 @@ describe('reddit getInfo', () => {
     expect(top?.filesize).toBe(20714387 + 1467810);
   });
 
+  it('sends the harvested loid cookie to the json api', async () => {
+    const getInfo = await loadGetInfo();
+    mockSession.mockImplementation((url, headers) => {
+      if (/svc\/shreddit/u.test(url)) {
+        return Promise.resolve(sessionRes('', { setCookie: SESSION_COOKIE }));
+      }
+      expect(headers?.Cookie).toBe(
+        'loid=00000000test-token.Z0FBQUFBQnFJ; session_tracker=graqpmpdfkjpqnodql.0.1780640577676.Z0FBQUFBQnFJY2Zv; csrf_token=eb8b04de3234ae706008da91f032903d; token_v2=eyJhbGciOiJSUzI1NiJ9.test.payload'
+      );
+      return Promise.resolve(sessionRes(POST));
+    });
+    mockMediaLeg();
+
+    await getInfo('https://www.reddit.com/r/pinoy/comments/1uf2nx8/x/');
+    expect(mockSession).toHaveBeenCalledTimes(2);
+  });
+
+  it('reharvests loid once when the json api 403s', async () => {
+    const getInfo = await loadGetInfo();
+    let sessionCalls = 0;
+    let jsonCalls = 0;
+    mockSession.mockImplementation((url) => {
+      if (/svc\/shreddit/u.test(url)) {
+        sessionCalls += 1;
+        return Promise.resolve(sessionRes('', { setCookie: SESSION_COOKIE }));
+      }
+      jsonCalls += 1;
+      if (jsonCalls === 1) return Promise.resolve(sessionRes('', { status: 403 }));
+      return Promise.resolve(sessionRes(POST));
+    });
+    mockMediaLeg();
+
+    const info = await getInfo(
+      'https://www.reddit.com/r/pinoy/comments/1uf2nx8/x/'
+    );
+    expect(info).not.toBeNull();
+    expect(sessionCalls).toBe(2);
+    expect(jsonCalls).toBe(2);
+  });
+
+  it('retries with a fresh session through html challenge pages', async () => {
+    const getInfo = await loadGetInfo();
+    let sessionCalls = 0;
+    let jsonCalls = 0;
+    mockSession.mockImplementation((url) => {
+      if (/svc\/shreddit/u.test(url)) {
+        sessionCalls += 1;
+        return Promise.resolve(sessionRes('', { setCookie: SESSION_COOKIE }));
+      }
+      jsonCalls += 1;
+      if (jsonCalls === 1) return Promise.resolve(sessionRes('<html>blocked</html>'));
+      return Promise.resolve(sessionRes(POST));
+    });
+    mockMediaLeg();
+
+    const info = await getInfo(
+      'https://www.reddit.com/r/pinoy/comments/1uf2nx8/x/'
+    );
+    expect(info).not.toBeNull();
+    expect(info?.formats.length).toBeGreaterThan(0);
+    expect(sessionCalls).toBe(2);
+    expect(jsonCalls).toBe(2);
+  });
+
+  it('falls back to html scrape when json comes back media-stripped', async () => {
+    const getInfo = await loadGetInfo();
+    const degraded = [
+      {
+        data: {
+          children: [
+            {
+              data: {
+                title: '3 guys attacked random jeep passengers',
+                author: 'WashHappy5391',
+                is_video: true,
+              },
+            },
+          ],
+        },
+      },
+    ];
+    mockSession.mockImplementation((url) => {
+      if (/svc\/shreddit/u.test(url)) {
+        return Promise.resolve(sessionRes('', { setCookie: SESSION_COOKIE }));
+      }
+      if (/\.json/u.test(url)) return Promise.resolve(sessionRes(degraded));
+      expect(/old\.reddit\.com\/comments\/1uf2nx8/u.test(url)).toBe(true);
+      return Promise.resolve(sessionRes(HTML));
+    });
+    mockMediaLeg();
+
+    const info = await getInfo(
+      'https://www.reddit.com/r/pinoy/comments/1uf2nx8/x/'
+    );
+    expect(info).not.toBeNull();
+    expect(info?.title).toBe('3 guys attacked random jeep passengers');
+    expect(info?.uploader).toBe('WashHappy5391');
+    expect(info?.formats[0]?.url).toContain('v.redd.it/yzxzty7ymd9h1');
+  });
+
   it('returns a silent video when the mpd has no audio track', async () => {
+    const getInfo = await loadGetInfo();
+    mockSession.mockImplementation((url) => {
+      if (/svc\/shreddit/u.test(url)) {
+        return Promise.resolve(sessionRes('', { setCookie: SESSION_COOKIE }));
+      }
+      return Promise.resolve(sessionRes(POST));
+    });
     const noAudio = MPD.replace(
       /<AdaptationSet contentType="audio">[\s\S]*?<\/AdaptationSet>/u,
       ''
     );
-    mockFetch
-      .mockResolvedValueOnce(textRes(HTML))
-      .mockResolvedValueOnce(textRes(noAudio));
+    mockFetch.mockResolvedValue(textRes(noAudio));
 
     const info = await getInfo(
       'https://www.reddit.com/r/x/comments/1uf2nx8/y/'
@@ -121,14 +309,40 @@ describe('reddit getInfo', () => {
   });
 
   it('throws when the post has no v.redd.it video', async () => {
-    mockFetch.mockResolvedValueOnce(
-      textRes(
-        '<html><head></head><body><div data-url="https://i.redd.it/x.jpg"></div></body></html>'
-      )
-    );
+    const getInfo = await loadGetInfo();
+    mockSession.mockImplementation((url) => {
+      if (/svc\/shreddit/u.test(url)) {
+        return Promise.resolve(sessionRes('', { setCookie: SESSION_COOKIE }));
+      }
+      return Promise.resolve(
+        sessionRes([
+          {
+            data: {
+              children: [
+                {
+                  data: {
+                    title: 'a gallery',
+                    author: 'someone',
+                    is_gallery: true,
+                  },
+                },
+              ],
+            },
+          },
+        ])
+      );
+    });
 
     await expect(
       getInfo('https://www.reddit.com/r/x/comments/abc/img/')
     ).rejects.toThrow(/downloadable video/iu);
   });
 });
+
+function textRes(body: string, ok = true): Response {
+  return {
+    ok,
+    status: ok ? 200 : 403,
+    text: () => Promise.resolve(body),
+  } as unknown as Response;
+}

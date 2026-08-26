@@ -36,6 +36,17 @@
         "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a",
         "EAS_SKIP_AUTO_FINGERPRINT": "1"
       }
+    },
+    "e2e": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "x86_64",
+        "EAS_SKIP_AUTO_FINGERPRINT": "1",
+        "EXPO_PUBLIC_E2E": "1"
+      }
     }
   },
   "submit": {

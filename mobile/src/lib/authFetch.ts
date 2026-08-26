@@ -3,6 +3,7 @@ import ReactNativeBlobUtil from 'react-native-blob-util';
 export interface RawResponse {
   ok: boolean;
   status: number;
+  headers?: Record<string, string>;
   text: () => Promise<string>;
   json: () => Promise<unknown>;
 }
@@ -20,6 +21,7 @@ export async function cookieGet(
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: (res.info().headers ?? {}) as Record<string, string>,
     text: () => Promise.resolve(res.text()),
     json: () => Promise.resolve(res.json() as unknown),
   };

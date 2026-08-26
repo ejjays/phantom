@@ -433,11 +433,12 @@ function PickerContent({
                             contentContainerStyle={tw`py-1`}
                             keyboardShouldPersistTaps="handled"
                           >
-                            {displayFormats.map((format) => (
+                            {displayFormats.map((format, index) => (
                               <QualityOption
                                 key={format.formatId}
                                 format={format}
                                 selected={format.formatId === selected.formatId}
+                                testID={`quality-option-${index}`}
                                 onSelect={() => {
                                   setSelectedId(format.formatId);
                                   setOpen(false);

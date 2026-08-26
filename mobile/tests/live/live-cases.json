@@ -93,21 +93,20 @@
     }
   },
   {
-    "name": "reddit v.redd.it post (soft: bot-wall serves 200 HTML \u2192 noVideo; metadata asserted when reachable)",
+    "name": "reddit v.redd.it post (svc/shreddit session workaround)",
     "extractor": "reddit",
-    "url": "https://www.reddit.com/r/nextfuckinglevel/comments/1ul35f8/a_freediver_exploring_the_worlds_deepest_swimming/",
+    "url": "https://www.reddit.com/r/pinoy/comments/1uf2nx8/x/",
     "expect": {
       "minFormats": 1,
       "mediaKind": "video",
       "wantResolution": true,
-      "wantFilesize": true,
-      "soft": true
+      "wantFilesize": true
     }
   },
   {
-    "name": "bluesky video post (official bsky.app)",
+    "name": "bluesky video post (kiyubaru)",
     "extractor": "bluesky",
-    "url": "https://bsky.app/profile/bsky.app/post/3mk4lzkrnk22d",
+    "url": "https://bsky.app/profile/kiyubaru.bsky.social/post/3mily7njuds27",
     "expect": {
       "minFormats": 1,
       "mediaKind": "video",

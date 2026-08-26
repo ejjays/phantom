@@ -12,3 +12,7 @@ knip-report.txt
 *service-account*.json
 serviceAccountKey.jsontest-results.xml
 .eslintcache
+
+# local-only media test fixtures (too big for git)
+tests/media/*.mp4
+maestro-artifacts/

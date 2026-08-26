@@ -1,0 +1,14 @@
+appId: com.phantom.app
+name: e2e download - pick quality and save file
+---
+- tapOn: "Select quality"
+- assertVisible:
+    id: "quality-option-0"
+- tapOn:
+    id: "quality-option-0"
+- tapOn:
+    id: "get-file-btn"
+- extendedWaitUntil:
+    visible:
+      text: "(got it! saved|caught it!|done! the magic|saved! that|download complete|saved safely|yours now)"
+    timeout: 600000
