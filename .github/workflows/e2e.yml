@@ -190,27 +190,23 @@ jobs:
         run: |
           [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ] || { echo "telegram secrets not set, skipping"; exit 0; }
           RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          TABLE=""
+          LINES=""
+          PASSED=""
+          TOTAL=""
           if compgen -G "diag/maestro-artifacts/results-*.tsv" > /dev/null; then
             TOTAL=$(cat diag/maestro-artifacts/results-*.tsv | grep -c . || true)
             FAILED=$(cat diag/maestro-artifacts/results-*.tsv | awk -F'\t' '$1 != "PASS"')
             FAILED_N=$(printf '%s\n' "$FAILED" | grep -c . || true)
             PASSED=$((TOTAL - FAILED_N))
             if [ "$FAILED_N" -gt 0 ]; then
-              TABLE=$(printf '%s\n' "$FAILED" | awk -F'\t' '
-                {
-                  phase = $10
-                  sub(/^failed at /, "", phase)
-                  printf "%-11s  %-18.18s  %-8s\n", $2, $4, phase
-                }')
+              LINES=$(printf '%s\n' "$FAILED" | awk -F'\t' '{phase=$10; sub(/^failed at /,"",phase); printf "• %s — failed at %s\n", $2, phase}')
             fi
           fi
-          if [ -n "$TABLE" ]; then
-            TEXT=$(printf 'phantom mobile e2e FAILED (%s/%s passed)\n\n<pre>platform     title               note\n%s</pre>\n\n%s' "$PASSED" "$TOTAL" "$TABLE" "$RUN_URL")
+          if [ -n "$LINES" ]; then
+            TEXT=$(printf 'phantom mobile e2e FAILED (%s/%s passed)\n\n%s\n%s' "$PASSED" "$TOTAL" "$LINES" "$RUN_URL")
           else
-            TEXT=$(printf 'phantom mobile e2e FAILED\n(no case results reported)\n\n%s' "$RUN_URL")
+            TEXT=$(printf 'phantom mobile e2e FAILED\n\n%s' "$RUN_URL")
           fi
           curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             -d chat_id="${TG_CHAT}" \
-            -d parse_mode="HTML" \
             --data-urlencode "text=${TEXT}"
