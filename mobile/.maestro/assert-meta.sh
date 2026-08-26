@@ -4,10 +4,15 @@ set -uo pipefail
 base=${1:?baseline E2E_META count required}
 CASE_JSON=${CASE_JSON:?case json required}
 
-fresh=$(adb logcat -d 2>/dev/null | grep 'E2E_META' | tail -n +"$((base + 1))")
-latest=$(printf '%s\n' "$fresh" | tail -n 1)
+meta_wait=${META_WAIT:-120}
+latest=""
+while [ "$SECONDS" -lt "$meta_wait" ]; do
+  latest=$(adb logcat -d 2>/dev/null | grep 'E2E_META' | tail -n +"$((base + 1))" | tail -n 1)
+  [ -n "$latest" ] && break
+  sleep 2
+done
 if [ -z "$latest" ]; then
-  echo "META FAIL: no fresh E2E_META line past baseline $base"
+  echo "META FAIL: no E2E_META line within ${meta_wait}s past baseline $base"
   exit 1
 fi
 json=${latest#*'[E2E_META] '}

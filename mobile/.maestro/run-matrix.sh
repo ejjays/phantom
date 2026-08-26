@@ -40,7 +40,7 @@ solid_fails=0
 soft_fails=0
 failed_ids=""
 
-while IFS= read -r case_json; do
+while IFS= read -r case_json <&3; do
   [ -z "$case_json" ] && continue
   id=$(printf '%s' "$case_json" | jq -r .id)
   url=$(printf '%s' "$case_json" | jq -r .url)
@@ -84,7 +84,7 @@ while IFS= read -r case_json; do
   fi
 
   restart_app
-done < "$CASES"
+done 3< "$CASES"
 
 echo "MATRIX SUMMARY: total=$total solid_failed=$solid_fails soft_failed=$soft_fails failed:$failed_ids"
 if [ "$solid_fails" -gt 0 ]; then
