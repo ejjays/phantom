@@ -169,3 +169,24 @@ jobs:
             maestro-artifacts/**
           retention-days: 7
           if-no-files-found: ignore
+
+  telegram-notify:
+    name: Telegram notify
+    needs: [maestro-e2e]
+    if: ${{ always() && needs.maestro-e2e.result == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send Telegram message
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ] || { echo "telegram secrets not set, skipping"; exit 0; }
+          RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          TEXT="phantom mobile e2e FAILED
+          event: ${GITHUB_EVENT_NAME} · ref: ${GITHUB_REF_NAME}
+          report card + logs: ${RUN_URL}"
+          curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="${TG_CHAT}" \
+            --data-urlencode "text=${TEXT}"
