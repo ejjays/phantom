@@ -8,7 +8,8 @@
       "mediaKind": "video",
       "wantThumb": true,
       "wantResolution": true,
-      "wantFilesize": true
+      "wantFilesize": true,
+      "allowPlatformUploader": true
     }
   },
   {
@@ -19,7 +20,8 @@
       "minFormats": 1,
       "wantThumb": true,
       "wantFilesize": true,
-      "rejectUploader": "Facebook User"
+      "rejectUploader": "Facebook User",
+      "expectAuthor": "CNN"
     }
   },
   {
@@ -29,7 +31,8 @@
     "expect": {
       "minFormats": 1,
       "wantThumb": true,
-      "wantFilesize": true
+      "wantFilesize": true,
+      "expectAuthor": "MrBeast"
     }
   },
   {
@@ -41,7 +44,8 @@
       "wantThumb": true,
       "wantResolution": true,
       "wantFilesize": true,
-      "rejectUploader": "X User"
+      "rejectUploader": "X User",
+      "expectAuthor": "MrBeast"
     }
   },
   {
@@ -52,7 +56,8 @@
       "minFormats": 2,
       "wantThumb": true,
       "wantResolution": true,
-      "rejectUploader": "TikTok User"
+      "rejectUploader": "TikTok User",
+      "expectAuthor": "MrBeast"
     }
   },
   {
@@ -63,7 +68,8 @@
       "minFormats": 1,
       "mediaKind": "video",
       "wantThumb": true,
-      "wantResolution": true
+      "wantResolution": true,
+      "expectAuthor": "MR BEAST"
     }
   },
   {
@@ -74,7 +80,8 @@
       "minFormats": 1,
       "mediaKind": "audio",
       "wantThumb": true,
-      "wantFilesize": true
+      "wantFilesize": true,
+      "expectAuthor": "marshmello"
     }
   },
   {
@@ -92,13 +99,14 @@
   {
     "id": "bluesky",
     "tier": "solid",
-    "url": "https://bsky.app/profile/bsky.app/post/3mk4lzkrnk22d",
+    "url": "https://bsky.app/profile/kiyubaru.bsky.social/post/3mily7njuds27",
     "expect": {
       "minFormats": 1,
       "mediaKind": "video",
       "wantThumb": true,
       "wantResolution": true,
-      "wantFilesize": true
+      "wantFilesize": true,
+      "expectAuthor": "Kiyubaru"
     }
   },
   {

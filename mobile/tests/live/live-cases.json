@@ -104,9 +104,9 @@
     }
   },
   {
-    "name": "bluesky video post (official bsky.app)",
+    "name": "bluesky video post (kiyubaru)",
     "extractor": "bluesky",
-    "url": "https://bsky.app/profile/bsky.app/post/3mk4lzkrnk22d",
+    "url": "https://bsky.app/profile/kiyubaru.bsky.social/post/3mily7njuds27",
     "expect": {
       "minFormats": 1,
       "mediaKind": "video",

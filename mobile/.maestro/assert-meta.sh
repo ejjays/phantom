@@ -37,6 +37,9 @@ want_thumb=$(printf '%s' "$CASE_JSON" | jq -r '.expect.wantThumb // false')
 want_res=$(printf '%s' "$CASE_JSON" | jq -r '.expect.wantResolution // false')
 want_size=$(printf '%s' "$CASE_JSON" | jq -r '.expect.wantFilesize // false')
 reject_uploader=$(printf '%s' "$CASE_JSON" | jq -r '.expect.rejectUploader // ""')
+expect_author=$(printf '%s' "$CASE_JSON" | jq -r '.expect.expectAuthor // ""')
+case_id=$(printf '%s' "$CASE_JSON" | jq -r '.id // ""')
+allow_platform_uploader=$(printf '%s' "$CASE_JSON" | jq -r '.expect.allowPlatformUploader // false')
 
 fails=0
 pass() { echo "META PASS: $1"; }
@@ -54,6 +57,23 @@ if [ -n "$reject_uploader" ] && [ "$uploader" = "$reject_uploader" ]; then
   bail "uploader is junk placeholder '$reject_uploader'"
 else
   pass "uploader not junk placeholder"
+fi
+
+up_lower=${uploader,,}
+id_lower=${case_id,,}
+if [ "$allow_platform_uploader" != "true" ] && [ "${#case_id}" -ge 5 ] && [ -n "$up_lower" ] && [[ "$up_lower" == *"$id_lower"* ]]; then
+  bail "uploader looks like platform-name fallback ('$uploader' ~ '$case_id')"
+else
+  pass "uploader not platform fallback"
+fi
+
+if [ -n "$expect_author" ]; then
+  exp_lower=${expect_author,,}
+  if [ "$up_lower" = "$exp_lower" ]; then
+    pass "author matches '$expect_author'"
+  else
+    bail "author '$uploader' != expected '$expect_author'"
+  fi
 fi
 
 if [ "$formats" -ge "$min_formats" ] 2>/dev/null; then
