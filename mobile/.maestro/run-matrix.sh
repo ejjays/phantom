@@ -71,6 +71,32 @@ echo "MATRIX: tier=$TIER_MODE cases=$total"
 solid_fails=0
 soft_fails=0
 failed_ids=""
+RESULTS=$(mktemp)
+META_OUT="${META_OUT:-$(mktemp)}"
+
+summary_row() {
+  local status=$1 id=$2 tier=$3 verdict=$4
+  local mrow title up fmts size res kind
+  if [ -s "$META_OUT" ]; then
+    mrow=$(jq -r '[
+      (.title // "-" | if type == "string" then (.[0:56] | gsub("\\|"; "/")) else tostring end),
+      (.uploader // "-" | gsub("\\|"; "/")),
+      (.formats // "-"),
+      (if .anyFilesize == true then "yes" else "no" end),
+      (if .anyResolution == true then "yes" else "no" end),
+      (if .audioOnly == true then "audio" else "video" end)
+    ] | @tsv' "$META_OUT" 2>/dev/null || printf -- '-\t-\t-\t-\t-\t-')
+  else
+    mrow=$(printf -- '-\t-\t-\t-\t-\t-')
+  fi
+  IFS=$'\t' read -r title up fmts size res kind <<< "$mrow"
+  local note="-"
+  if [ -n "$verdict" ] && [ "$verdict" != "ok" ]; then
+    note="failed at $verdict"
+  fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$status" "$id" "$tier" "$title" "$up" "$fmts" "$size" "$res" "$kind" "$note" >> "$RESULTS"
+}
 
 while IFS= read -r case_json <&3; do
   [ -z "$case_json" ] && continue
@@ -91,19 +117,37 @@ while IFS= read -r case_json <&3; do
 
   if [ "$verdict" = "ok" ]; then
     echo "=== CASE $id PASS ==="
+    summary_row "PASS" "$id" "$tier" ""
   else
     echo "=== CASE $id FAIL ($verdict) ==="
     failed_ids="$failed_ids $id:$verdict"
     if [ "$tier" = "soft" ]; then
       soft_fails=$((soft_fails + 1))
       echo "SOFT FAILURE ignored for gating: $id ($verdict)"
+      summary_row "SOFT FAIL" "$id" "$tier" "$verdict"
     else
       solid_fails=$((solid_fails + 1))
+      summary_row "FAIL" "$id" "$tier" "$verdict"
     fi
   fi
 
   restart_app
 done 3< "$CASES"
+
+passed=$((total - solid_fails - soft_fails))
+{
+  echo "## Maestro E2E Matrix — real app on emulator, full flow per platform"
+  echo ""
+  echo "**$passed/$total passed** · tier: $TIER_MODE · solid failed: $solid_fails · soft failed (non-gating): $soft_fails"
+  echo ""
+  echo "| Status | Platform | Title | Uploader | Fmts | Size | Res | Kind | Note |"
+  echo "|---|---|---|---|---|---|---|---|---|"
+  while IFS=$'\t' read -r st id tier title up fmts size res kind note; do
+    echo "| $st | $id | $title | $up | $fmts | $size | $res | $kind | $note |"
+  done < "$RESULTS"
+  echo ""
+  echo "Checks per case: resolve → picker renders → title/uploader/no-junk/thumbnail/format-count(/resolution/filesize/media-kind) asserted in-app → download → saved to gallery → success."
+} >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
 
 echo "MATRIX SUMMARY: total=$total solid_failed=$solid_fails soft_failed=$soft_fails failed:$failed_ids"
 if [ "$solid_fails" -gt 0 ]; then

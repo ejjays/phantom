@@ -17,6 +17,9 @@ if [ -z "$latest" ]; then
 fi
 json=${latest#*'[E2E_META] '}
 echo "META: $json"
+if [ -n "${META_OUT:-}" ]; then
+  printf '%s' "$json" > "$META_OUT"
+fi
 
 j() { printf '%s' "$json" | jq -r "$1"; }
 
