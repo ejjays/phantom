@@ -72,6 +72,7 @@ solid_fails=0
 soft_fails=0
 failed_ids=""
 RESULTS=$(mktemp)
+export META_OUT
 META_OUT="${META_OUT:-$(mktemp)}"
 
 summary_row() {
@@ -106,11 +107,13 @@ while IFS= read -r case_json <&3; do
   echo "=== CASE $id [$tier] $url ==="
   CASE_JSON_CUR="$case_json"
   RUN_VERDICT="ok"
+  : > "$META_OUT"
   run_case "$id" "$url" "$ART/attempt1"
   if [ "$RUN_VERDICT" != "ok" ]; then
     echo "--- retrying $id once after failure ($RUN_VERDICT)"
     restart_app
     RUN_VERDICT="ok"
+    : > "$META_OUT"
     run_case "$id" "$url" "$ART/attempt2"
   fi
   verdict=$RUN_VERDICT
