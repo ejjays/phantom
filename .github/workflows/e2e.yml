@@ -91,6 +91,7 @@ jobs:
           EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET: ${{ secrets.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_IG_COOKIE: ${{ secrets.EXPO_PUBLIC_IG_COOKIE }}
         run: |
           eas build --platform android \
             --profile e2e \

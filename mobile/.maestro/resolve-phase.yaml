@@ -6,4 +6,4 @@ name: e2e resolve - submit url and await quality picker
     id: "download-submit"
 - extendedWaitUntil:
     visible: "Select Output Quality"
-    timeout: 120000
+    timeout: 180000

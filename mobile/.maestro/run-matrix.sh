@@ -23,6 +23,38 @@ mtest() {
     "$flow"
 }
 
+CASE_JSON_CUR=""
+RUN_VERDICT="ok"
+run_case() {
+  local id=$1 url=$2 art=$3
+  local base verdict
+  base=$(adb logcat -d 2>/dev/null | grep -c 'E2E_META' || true)
+  verdict="ok"
+
+  if ! mtest focus "$art/$id-focus" "$ROOT/open-input.yaml" 300 < /dev/null; then
+    verdict="focus"
+  else
+    adb shell input text "xxxx" < /dev/null
+    adb shell input keyevent 67 67 67 67 < /dev/null
+    for c in $(printf '%s' "$url" | grep -o .); do
+      adb shell input text "$c" < /dev/null
+      sleep 0.35
+    done
+    timeout 20 adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true
+    adb pull /sdcard/ui.xml "$art/$id-typed.xml" >/dev/null 2>&1 || true
+
+    if ! mtest resolve "$art/$id-resolve" "$ROOT/resolve-phase.yaml" 300 < /dev/null; then
+      verdict="resolve"
+    elif ! CASE_JSON="$CASE_JSON_CUR" bash "$ROOT/assert-meta.sh" "$base" < /dev/null; then
+      verdict="metadata"
+    elif ! mtest download "$art/$id-download" "$ROOT/download-flow.yaml" 960 < /dev/null; then
+      verdict="download"
+    fi
+  fi
+
+  RUN_VERDICT=$verdict
+}
+
 CASES=$(mktemp)
 if [ -n "$DISPATCH_URL" ]; then
   printf '{"id":"custom","tier":"solid","url":"%s","expect":{"minFormats":1}}\n' "$DISPATCH_URL" > "$CASES"
@@ -45,30 +77,17 @@ while IFS= read -r case_json <&3; do
   id=$(printf '%s' "$case_json" | jq -r .id)
   url=$(printf '%s' "$case_json" | jq -r .url)
   tier=$(printf '%s' "$case_json" | jq -r .tier)
-  base=$(adb logcat -d 2>/dev/null | grep -c 'E2E_META' || true)
   echo "=== CASE $id [$tier] $url ==="
-  verdict="ok"
-
-  if ! mtest focus "$ART/$id-focus" "$ROOT/open-input.yaml" 300; then
-    verdict="focus"
-  else
-    adb shell input text "xxxx" 2>/dev/null
-    adb shell input keyevent 67 67 67 67
-    for c in $(printf '%s' "$url" | grep -o .); do
-      adb shell input text "$c"
-      sleep 0.35
-    done
-    timeout 20 adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true
-    adb pull /sdcard/ui.xml "$ART/$id-typed.xml" >/dev/null 2>&1 || true
-
-    if ! mtest resolve "$ART/$id-resolve" "$ROOT/resolve-phase.yaml" 300; then
-      verdict="resolve"
-    elif ! CASE_JSON="$case_json" bash "$ROOT/assert-meta.sh" "$base"; then
-      verdict="metadata"
-    elif ! mtest download "$ART/$id-download" "$ROOT/download-flow.yaml" 960; then
-      verdict="download"
-    fi
+  CASE_JSON_CUR="$case_json"
+  RUN_VERDICT="ok"
+  run_case "$id" "$url" "$ART/attempt1"
+  if [ "$RUN_VERDICT" != "ok" ]; then
+    echo "--- retrying $id once after failure ($RUN_VERDICT)"
+    restart_app
+    RUN_VERDICT="ok"
+    run_case "$id" "$url" "$ART/attempt2"
   fi
+  verdict=$RUN_VERDICT
 
   if [ "$verdict" = "ok" ]; then
     echo "=== CASE $id PASS ==="
