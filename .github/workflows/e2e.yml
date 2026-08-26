@@ -4,16 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       test_url:
-        description: Media URL used by the download flow
+        description: Single URL to check (empty = full tier matrix)
         required: false
-        default: 'https://vimeo.com/76979871'
+        default: ''
   pull_request:
     branches: [main]
     paths:
       - 'mobile/**'
       - '.github/workflows/e2e.yml'
   schedule:
-    # nightly smoke against current branch tip once merged
+    # nightly full matrix against default branch
     - cron: '30 5 * * *'
 
 permissions:
@@ -106,10 +106,13 @@ jobs:
           retention-days: 7
 
   maestro-e2e:
-    name: Maestro flows on emulator
+    name: Maestro matrix on emulator
     needs: build-apk
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 90
+    env:
+      TIER_MODE: ${{ github.event_name == 'pull_request' && 'solid' || 'all' }}
+      DISPATCH_URL: ${{ inputs.test_url || '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -126,7 +129,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           ls -la /dev/kvm
 
-      - name: Run Maestro flows on emulator
+      - name: Run Maestro matrix on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -144,11 +147,8 @@ jobs:
             unzip -q -o /tmp/maestro.zip -d "$HOME/.maestro"
             chmod +x "$HOME"/.maestro/maestro/bin/*
             adb shell settings put secure show_ime_with_hard_keyboard 0
-            for i in 1 2 3; do if timeout -k 10 300 env MAESTRO_CLI_NO_ANALYTICS=1 "$HOME/.maestro/maestro/bin/maestro" test --format JUNIT --output "$GITHUB_WORKSPACE/maestro-report-1.xml" --debug-output "$GITHUB_WORKSPACE/maestro-debug-1" --flatten-debug-output "$GITHUB_WORKSPACE/mobile/.maestro/smoke.yaml" "$GITHUB_WORKSPACE/mobile/.maestro/open-input.yaml"; then break; fi; if [ "$i" = "3" ]; then adb logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; fi; sleep 10; done
-            sleep 2
-            adb shell input text "xxxx"; adb shell input keyevent 67 67 67 67; for c in $(echo "${{ inputs.test_url || 'https://vimeo.com/76979871' }}" | grep -o .); do adb shell input text "$c"; sleep 0.35; done
-            timeout 20 adb shell uiautomator dump /sdcard/ui.xml; adb pull /sdcard/ui.xml "$GITHUB_WORKSPACE/ui-dump.xml" > /dev/null
-            MAESTRO_CLI_NO_ANALYTICS=1 timeout -k 10 960 "$HOME/.maestro/maestro/bin/maestro" test --format JUNIT --output "$GITHUB_WORKSPACE/maestro-report-2.xml" --debug-output "$GITHUB_WORKSPACE/maestro-debug-2" --flatten-debug-output "$GITHUB_WORKSPACE/mobile/.maestro/complete-download.yaml" || { timeout 60 adb logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; }
+            for i in 1 2 3; do if timeout -k 10 300 env MAESTRO_CLI_NO_ANALYTICS=1 "$HOME/.maestro/maestro/bin/maestro" test --debug-output "$GITHUB_WORKSPACE/smoke-debug" mobile/.maestro/smoke.yaml; then break; fi; if [ "$i" = "3" ]; then adb logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; fi; sleep 10; done
+            bash mobile/.maestro/run-matrix.sh
 
       - name: Upload failure diagnostics
         if: always()
@@ -156,11 +156,9 @@ jobs:
         with:
           name: maestro-diagnostics
           path: |
-            maestro-report-*.xml
             maestro-logcat.log
             maestro-live.logcat
-            ui-dump.xml
-            maestro-debug-1/**
-            maestro-debug-2/**
+            smoke-debug/**
+            maestro-artifacts/**
           retention-days: 7
           if-no-files-found: ignore

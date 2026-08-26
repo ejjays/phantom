@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+base=${1:?baseline E2E_META count required}
+CASE_JSON=${CASE_JSON:?case json required}
+
+fresh=$(adb logcat -d 2>/dev/null | grep 'E2E_META' | tail -n +"$((base + 1))")
+latest=$(printf '%s\n' "$fresh" | tail -n 1)
+if [ -z "$latest" ]; then
+  echo "META FAIL: no fresh E2E_META line past baseline $base"
+  exit 1
+fi
+json=${latest#*'[E2E_META] '}
+echo "META: $json"
+
+j() { printf '%s' "$json" | jq -r "$1"; }
+
+title=$(j '.title // ""')
+uploader=$(j '.uploader // ""')
+formats=$(j '.formats // 0')
+has_thumb=$(j '.hasThumb // false')
+any_size=$(j '.anyFilesize // false')
+any_res=$(j '.anyResolution // false')
+audio_only=$(j '.audioOnly // false')
+
+min_formats=$(printf '%s' "$CASE_JSON" | jq -r '.expect.minFormats // 1')
+media_kind=$(printf '%s' "$CASE_JSON" | jq -r '.expect.mediaKind // ""')
+want_thumb=$(printf '%s' "$CASE_JSON" | jq -r '.expect.wantThumb // false')
+want_res=$(printf '%s' "$CASE_JSON" | jq -r '.expect.wantResolution // false')
+want_size=$(printf '%s' "$CASE_JSON" | jq -r '.expect.wantFilesize // false')
+reject_uploader=$(printf '%s' "$CASE_JSON" | jq -r '.expect.rejectUploader // ""')
+
+fails=0
+pass() { echo "META PASS: $1"; }
+bail() { echo "META FAIL: $1"; fails=$((fails + 1)); }
+
+if [ -n "$title" ]; then pass "title present: $title"; else bail "title present"; fi
+
+if [ -n "$uploader" ]; then
+  pass "uploader present: $uploader"
+else
+  bail "uploader present"
+fi
+
+if [ -n "$reject_uploader" ] && [ "$uploader" = "$reject_uploader" ]; then
+  bail "uploader is junk placeholder '$reject_uploader'"
+else
+  pass "uploader not junk placeholder"
+fi
+
+if [ "$formats" -ge "$min_formats" ] 2>/dev/null; then
+  pass "formats $formats >= $min_formats"
+else
+  bail "formats $formats >= $min_formats"
+fi
+
+if [ "$want_thumb" = "true" ]; then
+  if [ "$has_thumb" = "true" ]; then pass "thumbnail url present"; else bail "thumbnail url present"; fi
+fi
+
+if [ "$want_res" = "true" ]; then
+  if [ "$any_res" = "true" ]; then pass "resolution present"; else bail "resolution present"; fi
+fi
+
+if [ "$want_size" = "true" ]; then
+  if [ "$any_size" = "true" ]; then pass "filesize present"; else bail "filesize present"; fi
+fi
+
+if [ "$media_kind" = "audio" ]; then
+  if [ "$audio_only" = "true" ]; then pass "audio-only formats"; else bail "audio-only formats"; fi
+elif [ "$media_kind" = "video" ]; then
+  if [ "$audio_only" = "false" ]; then pass "has video format"; else bail "has video format"; fi
+fi
+
+if [ "$fails" -gt 0 ]; then
+  echo "META RESULT: $fails failure(s)"
+  exit 1
+fi
+echo "META RESULT: all good"

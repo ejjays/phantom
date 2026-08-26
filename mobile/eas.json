@@ -44,7 +44,8 @@
       },
       "env": {
         "ORG_GRADLE_PROJECT_reactNativeArchitectures": "x86_64",
-        "EAS_SKIP_AUTO_FINGERPRINT": "1"
+        "EAS_SKIP_AUTO_FINGERPRINT": "1",
+        "EXPO_PUBLIC_E2E": "1"
       }
     }
   },

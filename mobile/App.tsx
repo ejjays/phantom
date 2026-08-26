@@ -225,6 +225,21 @@ function AppRoot() {
         return;
       }
       if (!dismissedRef.current) setInfo(result);
+      if (process.env.EXPO_PUBLIC_E2E === '1') {
+        console.log(
+          `[E2E_META] ${JSON.stringify({
+            title: result.title,
+            uploader: result.uploader,
+            hasThumb: Boolean(result.thumbnail),
+            formats: result.formats.length,
+            anyFilesize: result.formats.some((f) => (f.filesize ?? 0) > 0),
+            anyResolution: result.formats.some((f) => Boolean(f.resolution || f.height)),
+            audioOnly:
+              result.formats.length > 0 &&
+              result.formats.every((f) => !f.isVideo),
+          })}`
+        );
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Something went wrong.';
       const canRetry = !(e instanceof ExtractorError) || e.retryable;

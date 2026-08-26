@@ -1,0 +1,9 @@
+appId: com.phantom.app
+name: e2e resolve - submit url and await quality picker
+---
+- takeScreenshot: typed-state
+- tapOn:
+    id: "download-submit"
+- extendedWaitUntil:
+    visible: "Select Output Quality"
+    timeout: 120000
