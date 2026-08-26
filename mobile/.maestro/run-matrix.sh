@@ -139,17 +139,15 @@ done 3< "$CASES"
 
 passed=$((total - solid_fails - soft_fails))
 {
-  echo "## Maestro E2E Matrix — real app on emulator, full flow per platform"
+  echo "## mobile e2e"
   echo ""
-  echo "**$passed/$total passed** · tier: $TIER_MODE · solid failed: $solid_fails · soft failed (non-gating): $soft_fails"
+  echo "$passed/$total passed · tier $TIER_MODE · solid failed $solid_fails · soft failed $soft_fails"
   echo ""
-  echo "| Status | Platform | Title | Uploader | Fmts | Size | Res | Kind | Note |"
+  echo "| status | platform | title | uploader | fmts | size | res | kind | note |"
   echo "|---|---|---|---|---|---|---|---|---|"
   while IFS=$'\t' read -r st id tier title up fmts size res kind note; do
     echo "| $st | $id | $title | $up | $fmts | $size | $res | $kind | $note |"
   done < "$RESULTS"
-  echo ""
-  echo "Checks per case: resolve → picker renders → title/uploader/no-junk/thumbnail/format-count(/resolution/filesize/media-kind) asserted in-app → download → saved to gallery → success."
 } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
 
 echo "MATRIX SUMMARY: total=$total solid_failed=$solid_fails soft_failed=$soft_fails failed:$failed_ids"
