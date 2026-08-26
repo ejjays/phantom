@@ -192,28 +192,21 @@ jobs:
           RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           TABLE=""
           if compgen -G "diag/maestro-artifacts/results-*.tsv" > /dev/null; then
-            TABLE=$(cat diag/maestro-artifacts/results-*.tsv | awk -F'\t' '
-              {
-                lines[NR] = $0
-                if (NF > m) m = NF
-                for (i = 1; i <= NF; i++) if (length($i) > w[i]) w[i] = length($i)
-              }
-              END {
-                for (r = 1; r <= NR; r++) {
-                  n = split(lines[r], f, "\t")
-                  pad = ""
-                  for (i = 1; i <= m; i++) {
-                    v = (i <= n ? f[i] : "-")
-                    printf "%s%-*s", pad, w[i], v
-                    pad = "  "
-                  }
-                  print ""
-                }
-              }')
+            TOTAL=$(cat diag/maestro-artifacts/results-*.tsv | grep -c . || true)
+            FAILED=$(cat diag/maestro-artifacts/results-*.tsv | awk -F'\t' '$1 != "PASS"')
+            FAILED_N=$(printf '%s\n' "$FAILED" | grep -c . || true)
+            PASSED=$((TOTAL - FAILED_N))
+            if [ "$FAILED_N" -gt 0 ]; then
+              TABLE=$(printf '%s\n' "$FAILED" | awk -F'\t' '
+                {
+                  phase = $10
+                  sub(/^failed at /, "", phase)
+                  printf "%-11s  %-18.18s  %-8s\n", $2, $4, phase
+                }')
+            fi
           fi
-          HDR="status / platform / title / uploader / fmts / size / res / kind / note"
           if [ -n "$TABLE" ]; then
-            TEXT=$(printf 'phantom mobile e2e FAILED\n\n<pre>%s</pre>\n<pre>%s</pre>\n\n%s' "$HDR" "$TABLE" "$RUN_URL")
+            TEXT=$(printf 'phantom mobile e2e FAILED (%s/%s passed)\n\n<pre>platform     title               note\n%s</pre>\n\n%s' "$PASSED" "$TOTAL" "$TABLE" "$RUN_URL")
           else
             TEXT=$(printf 'phantom mobile e2e FAILED\n(no case results reported)\n\n%s' "$RUN_URL")
           fi
