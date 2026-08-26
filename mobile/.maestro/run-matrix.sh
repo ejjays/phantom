@@ -101,6 +101,9 @@ summary_row() {
   if [ -n "$verdict" ] && [ "$verdict" != "ok" ]; then
     note="failed at $verdict"
   fi
+  title=$(printf '%s' "$title" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+  up=$(printf '%s' "$up" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+  note=$(printf '%s' "$note" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$status" "$id" "$tier" "$title" "$up" "$fmts" "$size" "$res" "$kind" "$note" >> "$RESULTS"
 }
@@ -155,6 +158,8 @@ passed=$((total - solid_fails - soft_fails))
     echo "| $st | $id | $title | $up | $fmts | $size | $res | $kind | $note |"
   done < "$RESULTS"
 } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+
+cp "$RESULTS" "$ART/results-$SHARD_INDEX.tsv"
 
 echo "MATRIX SUMMARY: total=$total solid_failed=$solid_fails soft_failed=$soft_fails failed:$failed_ids"
 if [ "$solid_fails" -gt 0 ]; then

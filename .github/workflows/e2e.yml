@@ -114,12 +114,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: ${{ fromJSON(inputs.test_url != '' && '[1]' || '[1,2,3]') }}
     env:
       TIER_MODE: ${{ github.event_name == 'pull_request' && 'solid' || 'all' }}
       DISPATCH_URL: ${{ inputs.test_url || '' }}
       SHARD_INDEX: ${{ matrix.shard }}
-      SHARD_TOTAL: 3
+      SHARD_TOTAL: ${{ inputs.test_url != '' && '1' || '3' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -177,6 +177,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: maestro-diagnostics-*
+          merge-multiple: true
+          path: diag
+
       - name: Send Telegram message
         env:
           TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -184,9 +190,34 @@ jobs:
         run: |
           [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ] || { echo "telegram secrets not set, skipping"; exit 0; }
           RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          TEXT="phantom mobile e2e FAILED
-          event: ${GITHUB_EVENT_NAME} · ref: ${GITHUB_REF_NAME}
-          report card + logs: ${RUN_URL}"
+          TABLE=""
+          if compgen -G "diag/maestro-artifacts/results-*.tsv" > /dev/null; then
+            TABLE=$(cat diag/maestro-artifacts/results-*.tsv | awk -F'\t' '
+              {
+                lines[NR] = $0
+                if (NF > m) m = NF
+                for (i = 1; i <= NF; i++) if (length($i) > w[i]) w[i] = length($i)
+              }
+              END {
+                for (r = 1; r <= NR; r++) {
+                  n = split(lines[r], f, "\t")
+                  pad = ""
+                  for (i = 1; i <= m; i++) {
+                    v = (i <= n ? f[i] : "-")
+                    printf "%s%-*s", pad, w[i], v
+                    pad = "  "
+                  }
+                  print ""
+                }
+              }')
+          fi
+          HDR="status / platform / title / uploader / fmts / size / res / kind / note"
+          if [ -n "$TABLE" ]; then
+            TEXT=$(printf 'phantom mobile e2e FAILED\n\n<pre>%s</pre>\n<pre>%s</pre>\n\n%s' "$HDR" "$TABLE" "$RUN_URL")
+          else
+            TEXT=$(printf 'phantom mobile e2e FAILED\n(no case results reported)\n\n%s' "$RUN_URL")
+          fi
           curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             -d chat_id="${TG_CHAT}" \
+            -d parse_mode="HTML" \
             --data-urlencode "text=${TEXT}"
