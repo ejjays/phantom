@@ -7,6 +7,8 @@ APP_ID="com.phantom.app"
 ART="${ART_DIR:-$GITHUB_WORKSPACE/maestro-artifacts}"
 TIER_MODE="${TIER_MODE:-solid}"
 DISPATCH_URL="${DISPATCH_URL:-}"
+SHARD_INDEX="${SHARD_INDEX:-1}"
+SHARD_TOTAL="${SHARD_TOTAL:-1}"
 mkdir -p "$ART"
 
 restart_app() {
@@ -62,12 +64,16 @@ else
   jq -c --arg m "$TIER_MODE" '.[] | select(.tier == $m or $m == "all")' "$ROOT/e2e-cases.json" > "$CASES"
 fi
 
+if [ "$SHARD_TOTAL" -gt 1 ]; then
+  awk -v i="$SHARD_INDEX" -v n="$SHARD_TOTAL" 'NR % n == i % n' "$CASES" > "$CASES.slice" && mv "$CASES.slice" "$CASES"
+fi
+
 total=$(wc -l < "$CASES")
 if [ "$total" -eq 0 ]; then
-  echo "MATRIX: no cases selected for tier=$TIER_MODE — failing, empty matrix is a bug"
+  echo "MATRIX: shard $SHARD_INDEX/$SHARD_TOTAL got no cases for tier=$TIER_MODE — failing, empty slice is a bug"
   exit 1
 fi
-echo "MATRIX: tier=$TIER_MODE cases=$total"
+echo "MATRIX: tier=$TIER_MODE shard=$SHARD_INDEX/$SHARD_TOTAL cases=$total"
 solid_fails=0
 soft_fails=0
 failed_ids=""
@@ -139,7 +145,7 @@ done 3< "$CASES"
 
 passed=$((total - solid_fails - soft_fails))
 {
-  echo "## mobile e2e"
+  echo "## mobile e2e (shard $SHARD_INDEX/$SHARD_TOTAL)"
   echo ""
   echo "$passed/$total passed · tier $TIER_MODE · solid failed $solid_fails · soft failed $soft_fails"
   echo ""

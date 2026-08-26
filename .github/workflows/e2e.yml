@@ -107,13 +107,19 @@ jobs:
           retention-days: 7
 
   maestro-e2e:
-    name: Maestro matrix on emulator
+    name: Maestro matrix (${{ matrix.shard }}/3)
     needs: build-apk
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     env:
       TIER_MODE: ${{ github.event_name == 'pull_request' && 'solid' || 'all' }}
       DISPATCH_URL: ${{ inputs.test_url || '' }}
+      SHARD_INDEX: ${{ matrix.shard }}
+      SHARD_TOTAL: 3
     steps:
       - uses: actions/checkout@v7
 
@@ -155,7 +161,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: maestro-diagnostics
+          name: maestro-diagnostics-${{ matrix.shard }}
           path: |
             maestro-logcat.log
             maestro-live.logcat
