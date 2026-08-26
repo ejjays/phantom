@@ -27,10 +27,14 @@ CASES=$(mktemp)
 if [ -n "$DISPATCH_URL" ]; then
   printf '{"id":"custom","tier":"solid","url":"%s","expect":{"minFormats":1}}\n' "$DISPATCH_URL" > "$CASES"
 else
-  jq -c --arg m "$TIER_MODE" 'select(.tier == $m or $m == "all")' "$ROOT/e2e-cases.json" > "$CASES"
+  jq -c --arg m "$TIER_MODE" '.[] | select(.tier == $m or $m == "all")' "$ROOT/e2e-cases.json" > "$CASES"
 fi
 
 total=$(wc -l < "$CASES")
+if [ "$total" -eq 0 ]; then
+  echo "MATRIX: no cases selected for tier=$TIER_MODE — failing, empty matrix is a bug"
+  exit 1
+fi
 echo "MATRIX: tier=$TIER_MODE cases=$total"
 solid_fails=0
 soft_fails=0
