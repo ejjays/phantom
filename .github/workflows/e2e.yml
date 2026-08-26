@@ -72,7 +72,7 @@ jobs:
 
       - name: Hash app sources for apk cache
         id: apphash
-        run: echo "hash=${{ hashFiles('mobile/src/**', 'mobile/modules/**', 'mobile/plugins/**', 'mobile/assets/**', 'mobile/app.json', 'mobile/package.json', 'package-lock.json') }}" >> "$GITHUB_OUTPUT"
+        run: echo "hash=${{ hashFiles('mobile/src/**', 'mobile/modules/**', 'mobile/plugins/**', 'mobile/assets/**', 'mobile/app.json', 'mobile/eas.json', 'mobile/package.json', 'package-lock.json') }}" >> "$GITHUB_OUTPUT"
 
       - name: Restore e2e apk cache
         id: apkcache
