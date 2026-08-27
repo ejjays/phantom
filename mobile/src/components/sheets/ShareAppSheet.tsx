@@ -4,17 +4,18 @@ import {
   Text,
   Pressable,
   Share,
+  Linking,
   useWindowDimensions,
   ScrollView,
 } from 'react-native';
 import QRCodeStyled from 'react-native-qrcode-styled';
 import * as Clipboard from 'expo-clipboard';
-import { Copy, Mail, MoreHorizontal } from 'lucide-react-native';
+import { Link, Mail, MoreHorizontal } from 'lucide-react-native';
 import { PlatformLogo } from '../logos';
 import { tapSuccess } from '../../lib/haptics';
 import tw from '../../lib/tw';
 
-const APP_URL = 'https://github.com/ejjays/phantom';
+const APP_URL = 'https://c-phantom.pages.dev';
 const SHARE_TEXT = 'Phantom — free media downloader (yt/spotify/etc), no ads, no tracking.';
 const fullShareText = `${SHARE_TEXT}\n${APP_URL}`;
 
@@ -58,26 +59,58 @@ export default function ShareAppSheet() {
     }
   }, []);
 
+  const openXShare = useCallback(async () => {
+    const url = `https://x.com/intent/tweet?text=${encodeURIComponent(fullShareText)}`;
+    try {
+      if (await Linking.canOpenURL(url)) {
+        await Linking.openURL(url);
+      } else {
+        await systemShare();
+      }
+    } catch {
+      await systemShare();
+    }
+  }, [fullShareText, systemShare]);
+
+  const openInstagramShare = useCallback(async () => {
+    const scheme = `instagram://sharesheet?text=${APP_URL}`;
+    try {
+      if (await Linking.canOpenURL(scheme)) {
+        await Linking.openURL(scheme);
+      } else {
+        await Clipboard.setStringAsync(APP_URL);
+        tapSuccess();
+        if (await Linking.canOpenURL('instagram://app')) {
+          await Linking.openURL('instagram://app');
+        } else {
+          await Linking.openURL('https://instagram.com');
+        }
+      }
+    } catch {
+      await systemShare();
+    }
+  }, [APP_URL, systemShare]);
+
   const targets: Target[] = [
     {
       id: 'copy',
       label: 'Copy',
       bg: '#475569',
       onPress: () => void copy(),
-      render: (size) => <Copy size={size} color="#fff" strokeWidth={2.2} />,
+      render: (size) => <Link size={size} color="#fff" strokeWidth={2.2} />,
     },
     {
       id: 'instagram',
       label: 'Instagram',
       bg: 'transparent',
-      onPress: () => void systemShare(),
+      onPress: () => void openInstagramShare(),
       render: (size) => <PlatformLogo name="instagram" size={size} />,
     },
     {
       id: 'x',
       label: 'X',
       bg: '#000000',
-      onPress: () => void systemShare(),
+      onPress: () => void openXShare(),
       render: (size) => <PlatformLogo name="x" size={size} />,
     },
     {
@@ -97,7 +130,7 @@ export default function ShareAppSheet() {
   ];
 
   return (
-    <View style={tw`items-center pb-6`}>
+    <View style={tw`items-center pb-2`}>
       <Text style={tw`mt-4 font-sans-bold text-[20px] tracking-tight text-white`}>
         Share Phantom
       </Text>
@@ -156,8 +189,8 @@ export default function ShareAppSheet() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={tw`mt-6 items-center gap-3 pl-5 pr-5`}
-        style={[tw`mt-6 self-stretch`, { marginHorizontal: -16 }]}
+        contentContainerStyle={tw`mt-3 items-center gap-3 pl-5 pr-5`}
+        style={[tw`mt-3 self-stretch`, { marginHorizontal: -16 }]}
       >
         {targets.map((t) => (
           <TargetBtn key={t.id} t={t} />
@@ -170,6 +203,7 @@ export default function ShareAppSheet() {
 function TargetBtn({ t }: { t: Target }) {
   const isBrand = t.id === 'instagram' || t.id === 'x';
   const iconPx = isBrand ? 36 : t.iconSize ?? 22;
+  const igFill = t.id === 'instagram' ? 52 : iconPx;
   return (
     <Pressable
       onPress={() => void t.onPress()}
@@ -190,7 +224,7 @@ function TargetBtn({ t }: { t: Target }) {
             : { backgroundColor: t.bg },
         ]}
       >
-        {t.render(iconPx)}
+        {t.render(t.id === 'instagram' ? igFill : iconPx)}
       </View>
       <Text
         numberOfLines={1}
