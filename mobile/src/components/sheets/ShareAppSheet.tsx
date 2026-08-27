@@ -134,8 +134,8 @@ export default function ShareAppSheet() {
   ];
 
   return (
-    <View style={tw`items-center px-6 pt-4 pb-6`}>
-      <Text style={tw`font-sans-bold text-[20px] tracking-tight text-white`}>
+    <View style={tw`items-center pb-6`}>
+      <Text style={tw`mt-4 font-sans-bold text-[20px] tracking-tight text-white`}>
         Share Phantom
       </Text>
       <Text
@@ -186,8 +186,8 @@ export default function ShareAppSheet() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={tw`mt-6 items-center gap-3 px-2`}
-        style={tw`mt-6 self-stretch`}
+        contentContainerStyle={tw`mt-6 items-center gap-3 pl-5 pr-5`}
+        style={[tw`mt-6 self-stretch`, { marginHorizontal: -16 }]}
       >
         {targets.map((t) => (
           <TargetBtn key={t.id} t={t} />
