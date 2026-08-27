@@ -151,5 +151,17 @@
       "wantThumb": true,
       "wantResolution": true
     }
+  },
+  {
+    "id": "snapchat",
+    "tier": "solid",
+    "url": "https://www.snapchat.com/spotlight/W7_EDlXWTBiXAEEniNoMPwAAYYWtidGhudGZpAX1TKn0JAX1TKnXJAAAAAA",
+    "expect": {
+      "minFormats": 1,
+      "mediaKind": "video",
+      "wantThumb": true,
+      "wantResolution": true,
+      "wantFilesize": true
+    }
   }
 ]

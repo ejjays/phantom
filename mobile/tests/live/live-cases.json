@@ -189,5 +189,38 @@
       "wantFilesize": true,
       "soft": true
     }
+  },
+  {
+    "name": "snapchat spotlight (shreypatel57 — Views)",
+    "extractor": "snapchat",
+    "url": "https://www.snapchat.com/spotlight/W7_EDlXWTBiXAEEniNoMPwAAYYWtidGhudGZpAX1TKn0JAX1TKnXJAAAAAA",
+    "expect": {
+      "minFormats": 1,
+      "mediaKind": "video",
+      "wantResolution": true,
+      "wantFilesize": true
+    }
+  },
+  {
+    "name": "snapchat spotlight (pasqualetuzzy — generic name fallback to creator)",
+    "extractor": "snapchat",
+    "url": "https://www.snapchat.com/spotlight/W7_EDlXWTBiXAEEniNoMPwAAYeXJxbWd5c3V3AZ-rN7gMAZ-rNddTAAAAAQ?share_id=xY_05kTTe6k&locale=en-GB",
+    "expect": {
+      "minFormats": 1,
+      "mediaKind": "video",
+      "wantResolution": true,
+      "wantFilesize": true
+    }
+  },
+  {
+    "name": "snapchat spotlight (ife_rules — llmTitle from story meta)",
+    "extractor": "snapchat",
+    "url": "https://www.snapchat.com/spotlight/W7_EDlXWTBiXAEEniNoMPwAAYdG5id3dhbHJnAZ8KRXKLAZ8KRXJ5AAAAAQ?share_id=YiFaxdmif5k&locale=en-GB",
+    "expect": {
+      "minFormats": 1,
+      "mediaKind": "video",
+      "wantResolution": true,
+      "wantFilesize": true
+    }
   }
 ]

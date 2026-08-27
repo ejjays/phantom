@@ -14,6 +14,7 @@ import { getInfo as vimeoGetInfo } from './vimeo';
 import { getInfo as dailymotionGetInfo } from './dailymotion';
 import { getInfo as pinterestGetInfo } from './pinterest';
 import { getInfo as twitchGetInfo } from './twitch';
+import { getInfo as snapchatGetInfo } from './snapchat';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 import { reportError } from '../lib/crash';
 import { log } from '../lib/log';
@@ -109,6 +110,14 @@ function dispatch(
 
   if (matches(host, 'twitch.tv')) {
     return twitchGetInfo(url, onPartial);
+  }
+
+  if (
+    matches(host, 'snapchat.com') ||
+    matches(host, 't.snapchat.com') ||
+    matches(host, 'story.snapchat.com')
+  ) {
+    return snapchatGetInfo(url);
   }
 
   return Promise.resolve(null);
