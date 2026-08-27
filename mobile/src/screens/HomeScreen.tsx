@@ -126,8 +126,6 @@ type Props = {
   muted: boolean;
   invalidLink: boolean;
   successSignal: number;
-  vpnWarning: boolean;
-  onDismissVpnWarning: () => void;
 };
 
 export default function HomeScreen({
@@ -150,8 +148,6 @@ export default function HomeScreen({
   muted,
   invalidLink,
   successSignal,
-  vpnWarning,
-  onDismissVpnWarning,
 }: Props) {
   const linkInputRef = useRef<TextInput>(null);
   useBlurOnKeyboardHide(linkInputRef);
@@ -481,18 +477,6 @@ export default function HomeScreen({
           />
         }
       >
-        {vpnWarning && (
-          <View
-            style={tw`mb-4 w-full flex-row items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-400/10 px-3 py-2.5`}
-          >
-            <Text style={tw`flex-1 text-xs leading-4 text-amber-100`}>
-              VPN detected — downloads may not work, sites can block VPN IPs.
-            </Text>
-            <Pressable onPress={onDismissVpnWarning} hitSlop={8}>
-              <Text style={tw`text-base text-amber-300`}>×</Text>
-            </Pressable>
-          </View>
-        )}
         <Animated.View
           style={[tw`flex-1 items-center justify-center`, liftStyle]}
         >

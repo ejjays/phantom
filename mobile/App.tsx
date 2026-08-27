@@ -360,8 +360,6 @@ function AppRoot() {
                   muted={notifPriming.visible}
                   invalidLink={invalidLink}
                   successSignal={successSignal}
-                  vpnWarning={vpnWarning}
-                  onDismissVpnWarning={() => setVpnWarning(false)}
                 />
               </View>
               {visited.settings && (
@@ -398,6 +396,7 @@ function AppRoot() {
                   info={info}
                   visible={!!info}
                   downloads={downloads}
+                  vpnWarning={vpnWarning}
                   onClose={closePicker}
                   onDownload={(format, meta) => void onDownload(format, meta)}
                 />
@@ -406,6 +405,7 @@ function AppRoot() {
                   info={info}
                   downloads={downloads}
                   preferAudio={mode === 'mp3'}
+                  vpnWarning={vpnWarning}
                   onClose={closePicker}
                   onDownload={(format, meta) => void onDownload(format, meta)}
                 />

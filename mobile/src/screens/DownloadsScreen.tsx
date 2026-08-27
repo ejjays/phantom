@@ -23,6 +23,7 @@ import {
   RotateCcw,
   MoreVertical,
   Search,
+  Trash2,
   X,
 } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
@@ -505,6 +506,11 @@ function DownloadsScreenInner({ visible }: Props) {
   }, [query, items]);
 
   useEffect(() => {
+    if (visible || !searchOpen) return;
+    closeSearch();
+  }, [visible, searchOpen, closeSearch]);
+
+  useEffect(() => {
     if (!focusEntryId) return;
     const scrollTimer = setTimeout(() => {
       const y = entryPositions.current.get(focusEntryId);
@@ -703,7 +709,7 @@ function DownloadsScreenInner({ visible }: Props) {
                   }}
                 />
                 <MenuAction
-                  icon={<FolderOpen size={16} color="#e2e8f0" />}
+                  icon={<Trash2 size={16} color="#e2e8f0" />}
                   label="Clear all"
                   onPress={() => {
                     setMenuOpen(false);

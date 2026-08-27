@@ -63,6 +63,7 @@ type Props = {
   info: VideoInfo | null;
   visible: boolean;
   downloads: Record<string, DownloadState>;
+  vpnWarning?: boolean;
   onClose: () => void;
   onDownload: (format: Format, meta?: DownloadMeta) => void;
 };
@@ -422,6 +423,7 @@ type ContentProps = {
   isPlaying: boolean;
   audioProgress: number;
   onTogglePlay: () => void;
+  vpnWarning: boolean;
   onClose: () => void;
   onDownload: (format: Format, meta?: DownloadMeta) => void;
 };
@@ -442,6 +444,7 @@ function PickerContent({
   isPlaying,
   audioProgress,
   onTogglePlay,
+  vpnWarning,
   onClose,
   onDownload,
 }: ContentProps) {
@@ -751,7 +754,12 @@ function PickerContent({
       </View>
 
       {selected ? (
-        <PickerFooter selected={selected} editing={editing} state={state} />
+        <PickerFooter
+          selected={selected}
+          editing={editing}
+          state={state}
+          vpnWarning={vpnWarning}
+        />
       ) : null}
     </AnimatedPressable>
   );
@@ -761,6 +769,7 @@ export default function SpotifyPickerModal({
   info,
   visible,
   downloads,
+  vpnWarning = false,
   onClose,
   onDownload,
 }: Props) {
@@ -912,6 +921,7 @@ export default function SpotifyPickerModal({
                 isPlaying={isPlaying}
                 audioProgress={audioProgress}
                 onTogglePlay={handleTogglePlay}
+                vpnWarning={vpnWarning}
                 onClose={closeAll}
                 onDownload={onDownload}
               />
