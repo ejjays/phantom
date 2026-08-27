@@ -711,7 +711,14 @@ function SettingsScreen({
     cookieScreen.setOpen(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset overlays on tab exit
     setShareOpen(false);
-  }, [visible, accountScreen, avatarScreen, supportScreen, cookiesScreen, cookieScreen]);
+  }, [
+    visible,
+    accountScreen,
+    avatarScreen,
+    supportScreen,
+    cookiesScreen,
+    cookieScreen,
+  ]);
 
   useEffect(() => {
     onFullScreen?.(
@@ -1457,7 +1464,11 @@ function SettingsScreen({
           ) : null}
         </Animated.View>
 
-        <BottomSheet open={shareOpen} onClose={() => setShareOpen(false)}>
+        <BottomSheet
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          radius={40}
+        >
           <ShareAppSheet />
         </BottomSheet>
 
@@ -1508,11 +1519,7 @@ function SettingsScreen({
                     verticalAlignment="top"
                     modifiers={[padding(0, 10, 0, 0)]}
                   >
-                    <Icon
-                      source={infoIcon}
-                      size={14}
-                      tint="#cac4d0"
-                    />
+                    <Icon source={infoIcon} size={14} tint="#cac4d0" />
                     <ComposeText
                       color="#cac4d0"
                       style={{ fontSize: 12 }}

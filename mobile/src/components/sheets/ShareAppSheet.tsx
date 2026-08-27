@@ -12,11 +12,13 @@ import QRCodeStyled from 'react-native-qrcode-styled';
 import * as Clipboard from 'expo-clipboard';
 import { Link, Mail, MoreHorizontal } from 'lucide-react-native';
 import { PlatformLogo } from '../logos';
+import PhantomHero, { PHANTOM_ASPECT } from '../PhantomHero';
 import { tapSuccess } from '../../lib/haptics';
 import tw from '../../lib/tw';
 
 const APP_URL = 'https://c-phantom.pages.dev';
-const SHARE_TEXT = 'Phantom — free media downloader (yt/spotify/etc), no ads, no tracking.';
+const SHARE_TEXT =
+  'Phantom — free media downloader (yt/spotify/etc), no ads, no tracking.';
 const fullShareText = `${SHARE_TEXT}\n${APP_URL}`;
 
 type Target = {
@@ -52,7 +54,7 @@ export default function ShareAppSheet() {
           message: fullShareText,
           title: 'Phantom',
         },
-        { dialogTitle: 'Share Phantom via email' },
+        { dialogTitle: 'Share Phantom via email' }
       );
     } catch {
       // dismissed
@@ -91,6 +93,60 @@ export default function ShareAppSheet() {
     }
   }, [APP_URL, systemShare]);
 
+  const openMessengerShare = useCallback(async () => {
+    const scheme = `fb-messenger://share?link=${encodeURIComponent(APP_URL)}`;
+    try {
+      if (await Linking.canOpenURL(scheme)) {
+        await Linking.openURL(scheme);
+      } else {
+        await systemShare();
+      }
+    } catch {
+      await systemShare();
+    }
+  }, [APP_URL, systemShare]);
+
+  const openWhatsAppShare = useCallback(async () => {
+    const url = `https://wa.me/?text=${encodeURIComponent(fullShareText)}`;
+    try {
+      if (await Linking.canOpenURL(url)) {
+        await Linking.openURL(url);
+      } else {
+        await systemShare();
+      }
+    } catch {
+      await systemShare();
+    }
+  }, [fullShareText, systemShare]);
+
+  const openTelegramShare = useCallback(async () => {
+    const url = `https://t.me/share/url?url=${encodeURIComponent(APP_URL)}&text=${encodeURIComponent(
+      SHARE_TEXT
+    )}`;
+    try {
+      if (await Linking.canOpenURL(url)) {
+        await Linking.openURL(url);
+      } else {
+        await systemShare();
+      }
+    } catch {
+      await systemShare();
+    }
+  }, [APP_URL, SHARE_TEXT, systemShare]);
+
+  const openFacebookShare = useCallback(async () => {
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(APP_URL)}`;
+    try {
+      if (await Linking.canOpenURL(url)) {
+        await Linking.openURL(url);
+      } else {
+        await systemShare();
+      }
+    } catch {
+      await systemShare();
+    }
+  }, [APP_URL, systemShare]);
+
   const targets: Target[] = [
     {
       id: 'copy',
@@ -107,11 +163,39 @@ export default function ShareAppSheet() {
       render: (size) => <PlatformLogo name="instagram" size={size} />,
     },
     {
+      id: 'facebook',
+      label: 'Facebook',
+      bg: 'transparent',
+      onPress: () => void openFacebookShare(),
+      render: (size) => <PlatformLogo name="facebook" size={size} />,
+    },
+    {
+      id: 'messenger',
+      label: 'Messenger',
+      bg: 'transparent',
+      onPress: () => void openMessengerShare(),
+      render: (size) => <PlatformLogo name="messenger" size={size} />,
+    },
+    {
+      id: 'telegram',
+      label: 'Telegram',
+      bg: 'transparent',
+      onPress: () => void openTelegramShare(),
+      render: (size) => <PlatformLogo name="telegram" size={size} />,
+    },
+    {
       id: 'x',
       label: 'X',
       bg: '#000000',
       onPress: () => void openXShare(),
       render: (size) => <PlatformLogo name="x" size={size} />,
+    },
+    {
+      id: 'whatsapp',
+      label: 'WhatsApp',
+      bg: 'transparent',
+      onPress: () => void openWhatsAppShare(),
+      render: (size) => <PlatformLogo name="whatsapp" size={size} />,
     },
     {
       id: 'email',
@@ -125,15 +209,32 @@ export default function ShareAppSheet() {
       label: 'More',
       bg: '#64748b',
       onPress: () => void systemShare(),
-      render: (size) => <MoreHorizontal size={size} color="#fff" strokeWidth={2.2} />,
+      render: (size) => (
+        <MoreHorizontal size={size} color="#fff" strokeWidth={2.2} />
+      ),
     },
   ];
 
   return (
     <View style={tw`items-center pb-2`}>
-      <Text style={tw`mt-4 font-sans-bold text-[20px] tracking-tight text-white`}>
-        Share Phantom
-      </Text>
+      <View
+        style={tw`mt-4 self-stretch flex-row items-center justify-center gap-3`}
+      >
+        <View
+          style={{
+            width: Math.round(56 * PHANTOM_ASPECT),
+            height: 56,
+          }}
+        >
+          <PhantomHero focusSignal={1} />
+        </View>
+        <Text
+          numberOfLines={1}
+          style={tw`font-sans-bold text-[28px] tracking-tight text-white`}
+        >
+          Share Phantom
+        </Text>
+      </View>
       <Text
         style={tw`mt-2 max-w-[280px] text-center font-sans text-[14px] leading-5 text-slate-400`}
       >
@@ -201,9 +302,14 @@ export default function ShareAppSheet() {
 }
 
 function TargetBtn({ t }: { t: Target }) {
-  const isBrand = t.id === 'instagram' || t.id === 'x';
-  const iconPx = isBrand ? 36 : t.iconSize ?? 22;
-  const igFill = t.id === 'instagram' ? 52 : iconPx;
+  const isBrand =
+    t.id === 'instagram' ||
+    t.id === 'x' ||
+    t.id === 'messenger' ||
+    t.id === 'whatsapp' ||
+    t.id === 'telegram' ||
+    t.id === 'facebook';
+  const iconPx = isBrand ? (t.id === 'x' ? 36 : 52) : (t.iconSize ?? 22);
   return (
     <Pressable
       onPress={() => void t.onPress()}
@@ -224,7 +330,7 @@ function TargetBtn({ t }: { t: Target }) {
             : { backgroundColor: t.bg },
         ]}
       >
-        {t.render(t.id === 'instagram' ? igFill : iconPx)}
+        {t.render(iconPx)}
       </View>
       <Text
         numberOfLines={1}
