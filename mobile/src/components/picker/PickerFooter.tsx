@@ -116,10 +116,12 @@ export function PickerFooter({
   selected,
   editing,
   state,
+  vpnWarning = false,
 }: {
   selected: Format;
   editing: boolean;
   state?: DownloadState;
+  vpnWarning?: boolean;
 }) {
   const status = state?.status;
   const downloading =
@@ -127,7 +129,11 @@ export function PickerFooter({
 
   return (
     <View style={tw`border-t border-white/5 bg-black/20 px-4 py-3`}>
-      {downloading && state ? (
+      {vpnWarning ? (
+        <Text style={tw`text-center font-mono text-[10px] leading-tight text-amber-300/90`}>
+          VPN detected — downloads may fail, sites can block VPN IPs.
+        </Text>
+      ) : downloading && state ? (
         <Animated.View
           key="progress"
           entering={FadeIn.duration(220)}

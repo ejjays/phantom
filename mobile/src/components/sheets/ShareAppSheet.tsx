@@ -4,44 +4,134 @@ import {
   Text,
   Pressable,
   Share,
+  Linking,
   useWindowDimensions,
+  ScrollView,
 } from 'react-native';
 import QRCodeStyled from 'react-native-qrcode-styled';
 import * as Clipboard from 'expo-clipboard';
-import { Copy, Share2 } from 'lucide-react-native';
+import { Link, Mail, MoreHorizontal } from 'lucide-react-native';
+import { PlatformLogo } from '../logos';
 import { tapSuccess } from '../../lib/haptics';
 import tw from '../../lib/tw';
 
-const APP_URL = 'https://github.com/ejjays/phantom';
+const APP_URL = 'https://c-phantom.pages.dev';
+const SHARE_TEXT = 'Phantom — free media downloader (yt/spotify/etc), no ads, no tracking.';
+const fullShareText = `${SHARE_TEXT}\n${APP_URL}`;
 
-const buttonGlow = {
-  shadowColor: '#06b6d4',
-  shadowOpacity: 0.5,
-  shadowRadius: 12,
-  shadowOffset: { width: 0, height: 0 },
-  elevation: 10,
+type Target = {
+  id: string;
+  label: string;
+  bg: string;
+  iconSize?: number;
+  onPress: () => void | Promise<void>;
+  render: (size: number) => React.ReactNode;
 };
 
 export default function ShareAppSheet() {
   const { width } = useWindowDimensions();
   const qrSize = Math.min(width - 96, 260);
 
-  const copyLink = useCallback(async () => {
+  const copy = useCallback(async () => {
     await Clipboard.setStringAsync(APP_URL);
     tapSuccess();
   }, []);
 
-  const shareLink = useCallback(async () => {
+  const systemShare = useCallback(async () => {
     try {
-      await Share.share({ message: APP_URL });
-    // eslint-disable-next-line no-empty -- share sheet dismissed
+      await Share.share({ message: fullShareText });
     } catch {
+      // dismissed
     }
   }, []);
 
+  const emailShare = useCallback(async () => {
+    try {
+      await Share.share(
+        {
+          message: fullShareText,
+          title: 'Phantom',
+        },
+        { dialogTitle: 'Share Phantom via email' },
+      );
+    } catch {
+      // dismissed
+    }
+  }, []);
+
+  const openXShare = useCallback(async () => {
+    const url = `https://x.com/intent/tweet?text=${encodeURIComponent(fullShareText)}`;
+    try {
+      if (await Linking.canOpenURL(url)) {
+        await Linking.openURL(url);
+      } else {
+        await systemShare();
+      }
+    } catch {
+      await systemShare();
+    }
+  }, [fullShareText, systemShare]);
+
+  const openInstagramShare = useCallback(async () => {
+    const scheme = `instagram://sharesheet?text=${APP_URL}`;
+    try {
+      if (await Linking.canOpenURL(scheme)) {
+        await Linking.openURL(scheme);
+      } else {
+        await Clipboard.setStringAsync(APP_URL);
+        tapSuccess();
+        if (await Linking.canOpenURL('instagram://app')) {
+          await Linking.openURL('instagram://app');
+        } else {
+          await Linking.openURL('https://instagram.com');
+        }
+      }
+    } catch {
+      await systemShare();
+    }
+  }, [APP_URL, systemShare]);
+
+  const targets: Target[] = [
+    {
+      id: 'copy',
+      label: 'Copy',
+      bg: '#475569',
+      onPress: () => void copy(),
+      render: (size) => <Link size={size} color="#fff" strokeWidth={2.2} />,
+    },
+    {
+      id: 'instagram',
+      label: 'Instagram',
+      bg: 'transparent',
+      onPress: () => void openInstagramShare(),
+      render: (size) => <PlatformLogo name="instagram" size={size} />,
+    },
+    {
+      id: 'x',
+      label: 'X',
+      bg: '#000000',
+      onPress: () => void openXShare(),
+      render: (size) => <PlatformLogo name="x" size={size} />,
+    },
+    {
+      id: 'email',
+      label: 'Email',
+      bg: '#ef4444',
+      onPress: () => void emailShare(),
+      render: (size) => <Mail size={size} color="#fff" strokeWidth={2.2} />,
+    },
+    {
+      id: 'more',
+      label: 'More',
+      bg: '#64748b',
+      onPress: () => void systemShare(),
+      render: (size) => <MoreHorizontal size={size} color="#fff" strokeWidth={2.2} />,
+    },
+  ];
+
   return (
-    <View style={tw`items-center px-6 pt-4 pb-6`}>
-      <Text style={tw`font-sans-bold text-[20px] tracking-tight text-white`}>
+    <View style={tw`items-center pb-2`}>
+      <Text style={tw`mt-4 font-sans-bold text-[20px] tracking-tight text-white`}>
         Share Phantom
       </Text>
       <Text
@@ -81,62 +171,67 @@ export default function ShareAppSheet() {
             },
           }}
           outerEyesOptions={{
-            topLeft: {
-              borderRadius: ['40%', '40%', 0, '40%'],
-            },
-            topRight: {
-              borderRadius: ['40%', '40%', '40%'],
-            },
-            bottomLeft: {
-              borderRadius: ['40%', 0, '40%', '40%'],
-            },
+            topLeft: { borderRadius: ['40%', '40%', 0, '40%'] },
+            topRight: { borderRadius: ['40%', '40%', '40%'] },
+            bottomLeft: { borderRadius: ['40%', 0, '40%', '40%'] },
           }}
-          innerEyesOptions={{
-            borderRadius: '50%',
-            scale: 0.85,
-          }}
+          innerEyesOptions={{ borderRadius: '50%', scale: 0.85 }}
         />
       </View>
 
-      <View style={tw`mt-6 w-full flex-row gap-3`}>
-        <Pressable
-          onPress={() => void copyLink()}
-          accessibilityRole="button"
-          accessibilityLabel="Copy link"
-          style={({ pressed }) => [
-            tw`flex-1 flex-row items-center justify-center gap-2 rounded-full border border-primary/40 py-3.5`,
-            { backgroundColor: '#22d3ee40' },
-            buttonGlow,
-            pressed ? { transform: [{ scale: 0.97 }] } : null,
-          ]}
-        >
-          <Copy size={18} color="#22d3ee" strokeWidth={2.2} />
-          <Text
-            style={[tw`font-sans-semibold text-[15px]`, { color: '#22d3ee' }]}
-          >
-            Copy
-          </Text>
-        </Pressable>
+      <View
+        style={[
+          tw`mt-6 h-px self-stretch`,
+          { backgroundColor: 'rgba(255,255,255,0.08)' },
+        ]}
+      />
 
-        <Pressable
-          onPress={() => void shareLink()}
-          accessibilityRole="button"
-          accessibilityLabel="Share link"
-          style={({ pressed }) => [
-            tw`flex-1 flex-row items-center justify-center gap-2 rounded-full border border-primary/40 py-3.5`,
-            { backgroundColor: '#22d3ee40' },
-            buttonGlow,
-            pressed ? { transform: [{ scale: 0.97 }] } : null,
-          ]}
-        >
-          <Share2 size={18} color="#22d3ee" strokeWidth={2.2} />
-          <Text
-            style={[tw`font-sans-semibold text-[15px]`, { color: '#22d3ee' }]}
-          >
-            Share
-          </Text>
-        </Pressable>
-      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={tw`mt-3 items-center gap-3 pl-5 pr-5`}
+        style={[tw`mt-3 self-stretch`, { marginHorizontal: -16 }]}
+      >
+        {targets.map((t) => (
+          <TargetBtn key={t.id} t={t} />
+        ))}
+      </ScrollView>
     </View>
+  );
+}
+
+function TargetBtn({ t }: { t: Target }) {
+  const isBrand = t.id === 'instagram' || t.id === 'x';
+  const iconPx = isBrand ? 36 : t.iconSize ?? 22;
+  const igFill = t.id === 'instagram' ? 52 : iconPx;
+  return (
+    <Pressable
+      onPress={() => void t.onPress()}
+      accessibilityRole="button"
+      accessibilityLabel={t.label}
+      style={({ pressed }) => [
+        tw`items-center gap-1.5`,
+        pressed ? { opacity: 0.55, transform: [{ scale: 0.94 }] } : null,
+      ]}
+    >
+      <View
+        style={[
+          tw`h-[52px] w-[52px] items-center justify-center overflow-hidden rounded-full`,
+          isBrand
+            ? t.id === 'x'
+              ? { backgroundColor: '#000000' }
+              : null
+            : { backgroundColor: t.bg },
+        ]}
+      >
+        {t.render(t.id === 'instagram' ? igFill : iconPx)}
+      </View>
+      <Text
+        numberOfLines={1}
+        style={tw`max-w-[64px] text-center font-sans text-[10px] text-slate-400`}
+      >
+        {t.label}
+      </Text>
+    </Pressable>
   );
 }

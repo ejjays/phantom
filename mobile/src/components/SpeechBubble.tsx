@@ -47,10 +47,12 @@ export default function SpeechBubble({
   variant,
   quip,
   onFade,
+  visible = true,
 }: {
   variant: 'welcome' | 'returning';
   quip?: string;
   onFade?: () => void;
+  visible?: boolean;
 }) {
   const [message, setMessage] = useState(WELCOME_MSG);
   const [followUp, setFollowUp] = useState('');
@@ -60,12 +62,20 @@ export default function SpeechBubble({
   const [cursorOn, setCursorOn] = useState(false);
   const [ready, setReady] = useState(false);
   const opacity = useSharedValue(1);
+  const externalOpacity = useSharedValue(visible ? 1 : 0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onFadeRef = useRef(onFade);
 
   useEffect(() => {
     onFadeRef.current = onFade;
   }, [onFade]);
+
+  useEffect(() => {
+    externalOpacity.value = withTiming(visible ? 1 : 0, {
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [visible, externalOpacity]);
 
   useEffect(() => {
     let mounted = true;
@@ -159,7 +169,9 @@ export default function SpeechBubble({
     };
   }, [message, followUp, variant, ready, quip, opacity]);
 
-  const bubbleStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const bubbleStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value * externalOpacity.value,
+  }));
 
   return (
     <Animated.View

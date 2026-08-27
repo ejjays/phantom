@@ -56,7 +56,7 @@ import {
   PhantomIcon,
   GoogleIcon,
   ShareAppIcon,
-  FileIcon,
+  FilenameFormatIcon,
   CookieIcon,
 } from '../components/icons';
 import { useAppUpdate } from '../hooks/useAppUpdate';
@@ -1103,7 +1103,7 @@ function SettingsScreen({
           {null}
         </RowShell>
         <LinkRow
-          Icon={FileIcon}
+          Icon={FilenameFormatIcon}
           label="Filename format"
           hint={`${formatName(format, 'Best video', 'MrBeast', 'youtube')}.mp4`}
           onPress={() => {

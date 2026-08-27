@@ -191,7 +191,7 @@ const HISTORY_VIEW_KEY = 'phantom.history.view';
 
 export async function getHistoryView(): Promise<HistoryView> {
   const v = await AsyncStorage.getItem(HISTORY_VIEW_KEY).catch(() => null);
-  return v === 'list' ? 'list' : 'grid';
+  return v === 'grid' ? 'grid' : 'list';
 }
 
 export async function setHistoryView(value: HistoryView): Promise<void> {

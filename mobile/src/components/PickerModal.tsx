@@ -64,6 +64,7 @@ type Props = {
   info: VideoInfo | null;
   downloads: Record<string, DownloadState>;
   preferAudio?: boolean;
+  vpnWarning?: boolean;
   onClose: () => void;
   onDownload: (format: Format, meta?: DownloadMeta) => void;
 };
@@ -90,6 +91,7 @@ type ContentProps = {
   info: VideoInfo;
   downloads: Record<string, DownloadState>;
   preferAudio: boolean;
+  vpnWarning: boolean;
   open: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
   zoomed: boolean;
@@ -105,6 +107,7 @@ function PickerContent({
   info,
   downloads,
   preferAudio,
+  vpnWarning,
   open,
   setOpen,
   zoomed,
@@ -546,7 +549,12 @@ function PickerContent({
       </View>
 
       {selected ? (
-        <PickerFooter selected={selected} editing={editing} state={state} />
+        <PickerFooter
+          selected={selected}
+          editing={editing}
+          state={state}
+          vpnWarning={vpnWarning}
+        />
       ) : null}
     </AnimatedPressable>
   );
@@ -556,6 +564,7 @@ export default function PickerModal({
   info,
   downloads,
   preferAudio = false,
+  vpnWarning = false,
   onClose,
   onDownload,
 }: Props) {
@@ -641,6 +650,7 @@ export default function PickerModal({
                   info={shownInfo}
                   downloads={downloads}
                   preferAudio={preferAudio}
+                  vpnWarning={vpnWarning}
                   open={dropdownOpen}
                   setOpen={setDropdownOpen}
                   zoomed={zoomed}

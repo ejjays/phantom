@@ -121,12 +121,11 @@ type Props = {
   focusSignal: number;
   firstVisit: boolean;
   bubbleTrigger: number;
+  pickerOpen: boolean;
   active: boolean;
   muted: boolean;
   invalidLink: boolean;
   successSignal: number;
-  vpnWarning: boolean;
-  onDismissVpnWarning: () => void;
 };
 
 export default function HomeScreen({
@@ -144,12 +143,11 @@ export default function HomeScreen({
   focusSignal,
   firstVisit,
   bubbleTrigger,
+  pickerOpen,
   active,
   muted,
   invalidLink,
   successSignal,
-  vpnWarning,
-  onDismissVpnWarning,
 }: Props) {
   const linkInputRef = useRef<TextInput>(null);
   useBlurOnKeyboardHide(linkInputRef);
@@ -479,67 +477,60 @@ export default function HomeScreen({
           />
         }
       >
-        {vpnWarning && (
-          <View
-            style={tw`mb-4 w-full flex-row items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-400/10 px-3 py-2.5`}
-          >
-            <Text style={tw`flex-1 text-xs leading-4 text-amber-100`}>
-              VPN detected — downloads may not work, sites can block VPN IPs.
-            </Text>
-            <Pressable onPress={onDismissVpnWarning} hitSlop={8}>
-              <Text style={tw`text-base text-amber-300`}>×</Text>
-            </Pressable>
-          </View>
-        )}
         <Animated.View
           style={[tw`flex-1 items-center justify-center`, liftStyle]}
         >
           <View style={tw`w-full max-w-md`}>
             <View style={tw`items-center ${inputFocused ? 'mb-0' : 'mb-2'}`}>
               <View style={{ position: 'relative' }}>
-                {!inputFocused && quip ? (
+                {quip && !pickerOpen ? (
                   <SpeechBubble
-                    key={`quip-${quipSeq.current}`}
+                    key={`quip-${quip}`}
                     variant="welcome"
                     quip={quip}
+                    visible={!inputFocused}
                     onFade={() => {
                       quipVisible.current = false;
                       lastQuipAt.current = Date.now();
                       setQuip(null);
                     }}
                   />
-                ) : badLinkMsg ? (
+                ) : badLinkMsg && !pickerOpen ? (
                   <SpeechBubble
-                    key={`badlink-${badLinkSeq.current}`}
+                    key={`badlink-${badLinkMsg}`}
                     variant="welcome"
                     quip={badLinkMsg}
+                    visible={!inputFocused}
                     onFade={() => {
                       badLinkVisible.current = false;
                       lastBadLinkAt.current = Date.now();
                       setBadLinkMsg(null);
                     }}
                   />
-                ) : successMsg ? (
+                ) : successMsg && !pickerOpen ? (
                   <SpeechBubble
-                    key={`success-${successSeq.current}`}
+                    key={`success-${successMsg}`}
                     variant="welcome"
                     quip={successMsg}
+                    visible={!inputFocused}
                     onFade={() => {
                       successVisible.current = false;
                       setSuccessMsg(null);
                     }}
                   />
-                ) : !inputFocused && !greetDone && bubbleTrigger > 0 ? (
+                ) : !greetDone && bubbleTrigger > 0 && !pickerOpen ? (
                   <SpeechBubble
                     key={`greet-${bubbleTrigger}`}
                     variant={firstVisit ? 'welcome' : 'returning'}
+                    visible={!inputFocused}
                     onFade={() => setGreetDone(true)}
                   />
-                ) : !inputFocused && idleMsg ? (
+                ) : idleMsg && !pickerOpen ? (
                   <SpeechBubble
-                    key={`idle-${idleSeq.current}`}
+                    key={`idle-${idleMsg}`}
                     variant="welcome"
                     quip={idleMsg}
+                    visible={!inputFocused}
                     onFade={() => {
                       idleVisible.current = false;
                       lastIdleAt.current = Date.now();
