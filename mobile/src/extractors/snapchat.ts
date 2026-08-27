@@ -212,6 +212,13 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     let target = url;
     if (isShort || isProfile) target = await resolveCanonical(url);
 
+    // t.snapchat.com short links can land on story.snapchat.com (snaps/stories)
+    // — refuse those, only spotlight pages are ours
+    if (!/\/spotlight\//iu.test(target)) {
+      if (isShort) throw notFound('Snapchat', 'spotlight');
+      return null;
+    }
+
     const id = parseSpotlightId(target);
     if (!id) {
       if (isShort) throw notFound('Snapchat', 'spotlight');

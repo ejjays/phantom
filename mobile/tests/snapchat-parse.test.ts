@@ -334,6 +334,19 @@ describe('snapchat getInfo', () => {
     ).rejects.toThrow(/doesn't exist|removed/iu);
   });
 
+  it('refuses a t.snapchat.com link that redirects to story.snapchat.com', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      url: 'https://story.snapchat.com/s/abcdef',
+      text: () => Promise.resolve(''),
+    } as unknown as Response);
+
+    await expect(
+      getInfo('https://t.snapchat.com/abc123')
+    ).rejects.toThrow(/doesn't exist|removed/iu);
+  });
+
   it('maps http failures through fromStatus', async () => {
     mockFetch.mockResolvedValueOnce(htmlRes('', false, 404));
     await expect(
