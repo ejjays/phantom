@@ -121,6 +121,7 @@ type Props = {
   focusSignal: number;
   firstVisit: boolean;
   bubbleTrigger: number;
+  pickerOpen: boolean;
   active: boolean;
   muted: boolean;
   invalidLink: boolean;
@@ -144,6 +145,7 @@ export default function HomeScreen({
   focusSignal,
   firstVisit,
   bubbleTrigger,
+  pickerOpen,
   active,
   muted,
   invalidLink,
@@ -497,49 +499,54 @@ export default function HomeScreen({
           <View style={tw`w-full max-w-md`}>
             <View style={tw`items-center ${inputFocused ? 'mb-0' : 'mb-2'}`}>
               <View style={{ position: 'relative' }}>
-                {!inputFocused && quip ? (
+                {quip && !pickerOpen ? (
                   <SpeechBubble
-                    key={`quip-${quipSeq.current}`}
+                    key={`quip-${quip}`}
                     variant="welcome"
                     quip={quip}
+                    visible={!inputFocused}
                     onFade={() => {
                       quipVisible.current = false;
                       lastQuipAt.current = Date.now();
                       setQuip(null);
                     }}
                   />
-                ) : badLinkMsg ? (
+                ) : badLinkMsg && !pickerOpen ? (
                   <SpeechBubble
-                    key={`badlink-${badLinkSeq.current}`}
+                    key={`badlink-${badLinkMsg}`}
                     variant="welcome"
                     quip={badLinkMsg}
+                    visible={!inputFocused}
                     onFade={() => {
                       badLinkVisible.current = false;
                       lastBadLinkAt.current = Date.now();
                       setBadLinkMsg(null);
                     }}
                   />
-                ) : successMsg ? (
+                ) : successMsg && !pickerOpen ? (
                   <SpeechBubble
-                    key={`success-${successSeq.current}`}
+                    key={`success-${successMsg}`}
                     variant="welcome"
                     quip={successMsg}
+                    visible={!inputFocused}
                     onFade={() => {
                       successVisible.current = false;
                       setSuccessMsg(null);
                     }}
                   />
-                ) : !inputFocused && !greetDone && bubbleTrigger > 0 ? (
+                ) : !greetDone && bubbleTrigger > 0 && !pickerOpen ? (
                   <SpeechBubble
                     key={`greet-${bubbleTrigger}`}
                     variant={firstVisit ? 'welcome' : 'returning'}
+                    visible={!inputFocused}
                     onFade={() => setGreetDone(true)}
                   />
-                ) : !inputFocused && idleMsg ? (
+                ) : idleMsg && !pickerOpen ? (
                   <SpeechBubble
-                    key={`idle-${idleSeq.current}`}
+                    key={`idle-${idleMsg}`}
                     variant="welcome"
                     quip={idleMsg}
+                    visible={!inputFocused}
                     onFade={() => {
                       idleVisible.current = false;
                       lastIdleAt.current = Date.now();

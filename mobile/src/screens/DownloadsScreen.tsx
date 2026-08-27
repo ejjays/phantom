@@ -151,7 +151,7 @@ function Row({
             <Image
               source={{ uri: item.thumbnail }}
               style={tw`h-full w-full`}
-              contentFit="contain"
+              contentFit="cover"
               cachePolicy="memory-disk"
             />
           ) : (

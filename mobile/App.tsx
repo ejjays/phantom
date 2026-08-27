@@ -355,6 +355,7 @@ function AppRoot() {
                   focusSignal={homeFocus}
                   firstVisit={firstVisit}
                   bubbleTrigger={bubbleTrigger}
+                  pickerOpen={!!info}
                   active={tab === 'home'}
                   muted={notifPriming.visible}
                   invalidLink={invalidLink}
