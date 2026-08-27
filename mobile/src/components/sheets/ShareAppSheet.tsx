@@ -6,35 +6,25 @@ import {
   Share,
   useWindowDimensions,
   ScrollView,
-  Linking,
-  Alert,
 } from 'react-native';
 import QRCodeStyled from 'react-native-qrcode-styled';
 import * as Clipboard from 'expo-clipboard';
-import {
-  Copy,
-  Share2,
-  MessageCircle,
-  Send,
-  AtSign,
-  Smartphone,
-  Mail,
-  MoreHorizontal,
-} from 'lucide-react-native';
+import { Copy, Mail, MoreHorizontal } from 'lucide-react-native';
+import { PlatformLogo } from '../logos';
 import { tapSuccess } from '../../lib/haptics';
 import tw from '../../lib/tw';
 
 const APP_URL = 'https://github.com/ejjays/phantom';
 const SHARE_TEXT = 'Phantom — free media downloader (yt/spotify/etc), no ads, no tracking.';
 const fullShareText = `${SHARE_TEXT}\n${APP_URL}`;
-const encodedShare = encodeURIComponent(fullShareText);
 
 type Target = {
   id: string;
   label: string;
-  render: () => React.ReactNode;
   bg: string;
+  iconSize?: number;
   onPress: () => void | Promise<void>;
+  render: (size: number) => React.ReactNode;
 };
 
 export default function ShareAppSheet() {
@@ -54,16 +44,17 @@ export default function ShareAppSheet() {
     }
   }, []);
 
-  const open = useCallback(async (url: string, label: string) => {
+  const emailShare = useCallback(async () => {
     try {
-      const ok = await Linking.canOpenURL(url);
-      if (!ok) throw new Error('not_installed');
-      await Linking.openURL(url);
-    } catch {
-      Alert.alert(
-        `${label} not available`,
-        "That app isn't installed on this device. Use another share option.",
+      await Share.share(
+        {
+          message: fullShareText,
+          title: 'Phantom',
+        },
+        { dialogTitle: 'Share Phantom via email' },
       );
+    } catch {
+      // dismissed
     }
   }, []);
 
@@ -72,64 +63,36 @@ export default function ShareAppSheet() {
       id: 'copy',
       label: 'Copy',
       bg: '#475569',
-      render: () => <Copy size={22} color="#fff" strokeWidth={2.2} />,
       onPress: () => void copy(),
+      render: (size) => <Copy size={size} color="#fff" strokeWidth={2.2} />,
     },
     {
-      id: 'whatsapp',
-      label: 'WhatsApp',
-      bg: '#25D366',
-      render: () => <Text style={tw`text-[20px] font-sans-bold text-white`}>W</Text>,
-      onPress: () => void open(`whatsapp://send?text=${encodedShare}`, 'WhatsApp'),
-    },
-    {
-      id: 'sms',
-      label: 'Text',
-      bg: '#3b82f6',
-      render: () => <MessageCircle size={22} color="#fff" strokeWidth={2.2} />,
-      onPress: () => void open(`sms:?body=${encodedShare}`, 'Messages'),
-    },
-    {
-      id: 'telegram',
-      label: 'Telegram',
-      bg: '#26A5E4',
-      render: () => <Send size={22} color="#fff" strokeWidth={2.2} />,
-      onPress: () => void open(`tg://msg?text=${encodedShare}`, 'Telegram'),
+      id: 'instagram',
+      label: 'Instagram',
+      bg: 'transparent',
+      onPress: () => void systemShare(),
+      render: (size) => <PlatformLogo name="instagram" size={size} />,
     },
     {
       id: 'x',
       label: 'X',
       bg: '#000000',
-      render: () => <AtSign size={22} color="#fff" strokeWidth={2.2} />,
-      onPress: () => void open(`https://twitter.com/intent/tweet?text=${encodedShare}`, 'X'),
+      onPress: () => void systemShare(),
+      render: (size) => <PlatformLogo name="x" size={size} />,
     },
     {
       id: 'email',
       label: 'Email',
       bg: '#ef4444',
-      render: () => <Mail size={22} color="#fff" strokeWidth={2.2} />,
-      onPress: () => {
-        const subject = encodeURIComponent('Phantom');
-        void open(`mailto:?subject=${subject}&body=${encodedShare}`, 'Email');
-      },
-    },
-    {
-      id: 'instagram',
-      label: 'Stories',
-      bg: '#E1306C',
-      render: () => <Smartphone size={22} color="#fff" strokeWidth={2.2} />,
-      onPress: () => {
-        void open('instagram-stories://share?background_asset_url=', 'Instagram').catch(() =>
-          systemShare(),
-        );
-      },
+      onPress: () => void emailShare(),
+      render: (size) => <Mail size={size} color="#fff" strokeWidth={2.2} />,
     },
     {
       id: 'more',
       label: 'More',
       bg: '#64748b',
-      render: () => <MoreHorizontal size={22} color="#fff" strokeWidth={2.2} />,
       onPress: () => void systemShare(),
+      render: (size) => <MoreHorizontal size={size} color="#fff" strokeWidth={2.2} />,
     },
   ];
 
@@ -183,6 +146,13 @@ export default function ShareAppSheet() {
         />
       </View>
 
+      <View
+        style={[
+          tw`mt-6 h-px self-stretch`,
+          { backgroundColor: 'rgba(255,255,255,0.08)' },
+        ]}
+      />
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -198,6 +168,8 @@ export default function ShareAppSheet() {
 }
 
 function TargetBtn({ t }: { t: Target }) {
+  const isBrand = t.id === 'instagram' || t.id === 'x';
+  const iconPx = isBrand ? 36 : t.iconSize ?? 22;
   return (
     <Pressable
       onPress={() => void t.onPress()}
@@ -210,11 +182,15 @@ function TargetBtn({ t }: { t: Target }) {
     >
       <View
         style={[
-          tw`h-[52px] w-[52px] items-center justify-center rounded-full`,
-          { backgroundColor: t.bg },
+          tw`h-[52px] w-[52px] items-center justify-center overflow-hidden rounded-full`,
+          isBrand
+            ? t.id === 'x'
+              ? { backgroundColor: '#000000' }
+              : null
+            : { backgroundColor: t.bg },
         ]}
       >
-        {t.render()}
+        {t.render(iconPx)}
       </View>
       <Text
         numberOfLines={1}
