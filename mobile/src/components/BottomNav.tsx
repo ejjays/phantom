@@ -171,7 +171,14 @@ function BottomNav({
   const cx = useSharedValue(centerOf(activeIndex));
   const lift = useSharedValue(1);
   const hide = useSharedValue(0);
+  const svWidth = useSharedValue(width);
+  const svTotalH = useSharedValue(totalH);
   const prevIndex = useRef(activeIndex);
+
+  useEffect(() => {
+    svWidth.value = width;
+    svTotalH.value = totalH;
+  }, [width, totalH]);
 
   useEffect(() => {
     cx.value = centerOf(activeIndex);
@@ -209,7 +216,7 @@ function BottomNav({
   };
 
   const pathProps = useAnimatedProps(() => ({
-    d: buildPath(cx.value, width, totalH),
+    d: buildPath(cx.value, svWidth.value, svTotalH.value),
   }));
 
   const bubbleStyle = useAnimatedStyle(() => ({
@@ -222,7 +229,7 @@ function BottomNav({
 
   const hideStyle = useAnimatedStyle(() => ({
     opacity: 1 - hide.value,
-    transform: [{ translateY: hide.value * (totalH + 20) }],
+    transform: [{ translateY: hide.value * (svTotalH.value + 20) }],
   }));
 
   const ActiveIcon = TABS[activeIndex].Icon;
