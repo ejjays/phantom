@@ -42,8 +42,9 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && esbuild src/worker.ts --bundle --format=esm --outdir=dist --allow-overwrite",
-    "prepack": "npm run build"
+    "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json && node ../../node_modules/esbuild/bin/esbuild src/worker.ts --bundle --format=esm --outdir=dist --allow-overwrite",
+    "prepack": "npm run build",
+    "postinstall": "npm run build"
   },
   "dependencies": {
     "mediabunny": "^1.50.8"

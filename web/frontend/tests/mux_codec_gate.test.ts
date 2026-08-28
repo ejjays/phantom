@@ -4,7 +4,7 @@ import {
   isMp4CopySafeAudioCodec,
   shouldVetoCopyMux,
   UnsupportedMuxCodecError,
-} from '../src/lib/mux-codecs';
+} from '@phantom/web-mux';
 
 describe('mux-codecs: mp4 copy-safety predicates', () => {
   it('treats avc/hevc/vp9/av1 video as copy-safe (android/chromium target)', () => {

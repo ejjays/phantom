@@ -317,11 +317,22 @@ function muxViaWorker(options: MuxOptions): Promise<Blob> {
         outName?: string;
         name?: string;
         message?: string;
+        tag?: string;
+        usage?: number;
+        quota?: number;
         ceiling?: number;
       };
       if (!msg) return;
       if (msg.type === 'progress') {
         onProgress?.(msg.pct ?? 0, msg.detail, msg.bytes);
+        return;
+      }
+      if (msg.type === 'diag') {
+        const mb = (val?: number) =>
+          typeof val === 'number' ? `${Math.round(val / 1048576)}MB` : '?';
+        console.log(
+          `[web-mux] storage ${msg.tag}: ${mb(msg.usage)} used / ${mb(msg.quota)} quota`
+        );
         return;
       }
       if (settled) return;
