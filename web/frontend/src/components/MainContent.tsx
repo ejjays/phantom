@@ -175,31 +175,51 @@ const SearchInput = ({
   </div>
 );
 
+// isolated screen-reader announcement: subscribes to the per-frame
+// progress/subStatus itself so MainContent never re-renders on RAF ticks.
+const A11yAnnouncement = ({
+  loading,
+  status,
+  error,
+}: {
+  loading: boolean;
+  status: string;
+  error: string;
+}) => {
+  const progress = useAppStore((state) => state.progress);
+  const subStatus = useAppStore((state) => state.subStatus);
+  return (
+    <div aria-live="polite" aria-atomic="true" className="sr-only">
+      {loading && status && (subStatus ? `${status}: ${subStatus}` : status)}
+      {error && `Error: ${error}`}
+      {progress > 0 &&
+        progress < 100 &&
+        `Download progress: ${Math.round(progress)}%`}
+    </div>
+  );
+};
+
 const MainContent = () => {
   const url = useAppStore((state) => state.url);
   const setUrl = useAppStore((state) => state.setUrl);
   const loading = useAppStore((state) => state.loading);
   const error = useAppStore((state) => state.error);
   const status = useAppStore((state) => state.status);
-  const emePhase = useAppStore((state) => state.emePhase);
-  const emeProgress = useAppStore((state) => state.emeProgress);
-  const emeBytes = useAppStore((state) => state.emeBytes);
   const videoData = useAppStore((state) => state.videoData);
   const isPickerOpen = useAppStore((state) => state.isPickerOpen);
   const setIsPickerOpen = useAppStore((state) => state.setIsPickerOpen);
   const selectedFormat = useAppStore((state) => state.selectedFormat);
   const setSelectedFormat = useAppStore((state) => state.setSelectedFormat);
-  const videoTitle = useAppStore((state) => state.videoTitle);
   const showPlayer = useAppStore((state) => state.showPlayer);
   const setShowPlayer = useAppStore((state) => state.setShowPlayer);
   const playerData = useAppStore(
     (state) => state.playerData
   ) as PlayerData | null;
 
+  // emePhase/emeProgress/emeBytes/videoTitle were only passed through to the
+  // progress cards, which now read the store directly — drop these so MainContent
+  // no longer subscribes to per-frame download state.
   const {
-    progress,
-    subStatus,
-    desktopLogs,
     isMobile,
     isSpotifySession,
     handleDownloadTrigger,
@@ -290,13 +310,11 @@ const MainContent = () => {
         }}
       />
       {/* screen reader announcements */}
-      <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {loading && status && (subStatus ? `${status}: ${subStatus}` : status)}
-        {error && `Error: ${error}`}
-        {progress > 0 &&
-          progress < 100 &&
-          `Download progress: ${Math.round(progress)}%`}
-      </div>
+      <A11yAnnouncement
+        loading={loading}
+        status={status}
+        error={error}
+      />
       <div className="flex flex-col justify-center items-center w-full gap-3 px-4 transition-transform duration-500 ease-in-out">
         <HeroSection isVisible={isVisible} />
         <SearchInput url={url} setUrl={setUrl} />
@@ -362,35 +380,9 @@ const MainContent = () => {
           />
         </Suspense>
 
-        <MobileProgress
-          loading={loading}
-          progress={progress}
-          status={status}
-          emePhase={emePhase}
-          emeProgress={emeProgress}
-          emeBytes={emeBytes}
-          subStatus={subStatus}
-          videoTitle={videoTitle}
-          selectedFormat={selectedFormat}
-          error={error}
-          onCancel={cancelDownload}
-        />
+        <MobileProgress onCancel={cancelDownload} />
 
-        <DesktopProgress
-          loading={loading}
-          progress={progress}
-          status={status}
-          subStatus={subStatus}
-          desktopLogs={desktopLogs}
-          videoTitle={videoTitle}
-          selectedFormat={selectedFormat}
-          error={error}
-          isPickerOpen={isPickerOpen}
-          emePhase={emePhase}
-          emeProgress={emeProgress}
-          emeBytes={emeBytes}
-          onCancel={cancelDownload}
-        />
+        <DesktopProgress onCancel={cancelDownload} />
       </div>
       {/* <FloatingMenu /> */}
     </>

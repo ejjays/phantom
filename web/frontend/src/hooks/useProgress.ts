@@ -1,21 +1,21 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 
+/**
+ * Drives progress state: milestone bumps + a RAF animation tick. This hook is
+ * side-effect-only — it writes the store but does NOT subscribe to the per-frame
+ * `progress`/`subStatus`/`desktopLogs` values, so consumers (and the hero/search
+ * tree above them) don't re-render on every RAF tick. Read those directly via
+ * `useAppStore((s) => s.x)` selectors where you need to display them.
+ */
 export const useProgress = () => {
-  const progress = useAppStore((state) => state.progress);
   const setProgress = useAppStore((state) => state.setProgress);
   const targetProgress = useAppStore((state) => state.targetProgress);
   const setTargetProgress = useAppStore((state) => state.setTargetProgress);
   const status = useAppStore((state) => state.status);
-  const setStatus = useAppStore((state) => state.setStatus);
-  const subStatus = useAppStore((state) => state.subStatus);
-  const setSubStatus = useAppStore((state) => state.setSubStatus);
-  const pendingSubStatuses = useAppStore((state) => state.pendingSubStatuses);
   const setPendingSubStatuses = useAppStore(
     (state) => state.setPendingSubStatuses
   );
-  const desktopLogs = useAppStore((state) => state.desktopLogs);
-  const setDesktopLogs = useAppStore((state) => state.setDesktopLogs);
   const videoData = useAppStore((state) => state.videoData);
   const isPickerOpen = useAppStore((state) => state.isPickerOpen);
 
@@ -106,17 +106,8 @@ export const useProgress = () => {
   }, [status, targetProgress, setProgress]);
 
   return {
-    progress,
     setProgress,
-    targetProgress,
     setTargetProgress,
-    status,
-    setStatus,
-    subStatus,
-    setSubStatus,
-    pendingSubStatuses,
     setPendingSubStatuses,
-    desktopLogs,
-    setDesktopLogs,
   };
 };

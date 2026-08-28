@@ -5,26 +5,8 @@ import { useNativeBridge } from './useNativeBridge';
 import { useVideoInfo } from './useVideoInfo';
 import { useDownloadOrchestrator } from './useDownloadOrchestrator';
 import { useAppStore } from '../store/useAppStore';
-import { VideoInfo, FinalResponse } from '@phantom/shared/schemas/media.schema';
 
 export interface MediaConverterHook {
-  url: string;
-  setUrl: (url: string) => void;
-  loading: boolean;
-  error: string;
-  progress: number;
-  status: string;
-  subStatus: string;
-  desktopLogs: string[];
-  selectedFormat: string;
-  setSelectedFormat: (format: string) => void;
-  isPickerOpen: boolean;
-  setIsPickerOpen: (open: boolean) => void;
-  videoData: VideoInfo | null;
-  showPlayer: boolean;
-  setShowPlayer: (show: boolean) => void;
-  playerData: FinalResponse | null;
-  videoTitle: string;
   isMobile: boolean;
   isSpotifySession: boolean;
   handleDownloadTrigger: (inputUrl?: string) => Promise<void>;
@@ -38,40 +20,32 @@ export interface MediaConverterHook {
   requestClipboard: () => boolean;
 }
 
+/**
+ * Actions-only hook: wires the native bridge + download orchestrator and drives
+ * progress side-effects. It deliberately does NOT subscribe to or return the
+ * per-frame display values (progress/subStatus/desktopLogs) — consumers read
+ * those directly via `useAppStore((s) => s.x)` selectors so the hero/search tree
+ * doesn't re-render on every RAF tick during downloads.
+ */
 export const useMediaConverter = (): MediaConverterHook => {
-  // pull from store
-  const url = useAppStore((state) => state.url);
+  // setters for the native bridge (stable refs; no re-render cost)
   const setUrl = useAppStore((state) => state.setUrl);
-  const loading = useAppStore((state) => state.loading);
   const setLoading = useAppStore((state) => state.setLoading);
-  const error = useAppStore((state) => state.error);
   const setError = useAppStore((state) => state.setError);
-  const selectedFormat = useAppStore((state) => state.selectedFormat);
-  const setSelectedFormat = useAppStore((state) => state.setSelectedFormat);
-  const showPlayer = useAppStore((state) => state.showPlayer);
-  const setShowPlayer = useAppStore((state) => state.setShowPlayer);
-  const playerData = useAppStore((state) => state.playerData);
-  const setPlayerData = useAppStore((state) => state.setPlayerData);
-  const videoTitle = useAppStore((state) => state.videoTitle);
+  const setStatus = useAppStore((state) => state.setStatus);
+  const setSubStatus = useAppStore((state) => state.setSubStatus);
+  const setDesktopLogs = useAppStore((state) => state.setDesktopLogs);
   const setVideoTitle = useAppStore((state) => state.setVideoTitle);
-  const videoData = useAppStore((state) => state.videoData);
-  const setVideoData = useAppStore((state) => state.setVideoData);
-  const isPickerOpen = useAppStore((state) => state.isPickerOpen);
   const setIsPickerOpen = useAppStore((state) => state.setIsPickerOpen);
+  const setVideoData = useAppStore((state) => state.setVideoData);
+  const setShowPlayer = useAppStore((state) => state.setShowPlayer);
+  const setPlayerData = useAppStore((state) => state.setPlayerData);
+  const isPickerOpen = useAppStore((state) => state.isPickerOpen);
+  const url = useAppStore((state) => state.url);
 
-  // sync store
-  const {
-    progress,
-    status,
-    subStatus,
-    desktopLogs,
-    setProgress,
-    setTargetProgress,
-    setStatus,
-    setSubStatus,
-    setDesktopLogs,
-    setPendingSubStatuses,
-  } = useProgress();
+  // progress side-effects only (RAF + milestone bumps); no value subscriptions
+  const { setProgress, setTargetProgress, setPendingSubStatuses } =
+    useProgress();
 
   const isSpotifySession =
     typeof url === 'string' && isHost(url, 'spotify.com');
@@ -136,23 +110,6 @@ export const useMediaConverter = (): MediaConverterHook => {
   );
 
   return {
-    url,
-    setUrl,
-    loading,
-    error,
-    progress,
-    status,
-    subStatus,
-    desktopLogs,
-    selectedFormat,
-    setSelectedFormat,
-    isPickerOpen,
-    setIsPickerOpen,
-    videoData,
-    showPlayer,
-    setShowPlayer,
-    playerData,
-    videoTitle,
     isMobile,
     isSpotifySession,
     handleDownloadTrigger: fetchInfo,

@@ -1,35 +1,24 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
 import TerminalView from './terminal/TerminalView';
+import { useAppStore } from '../store/useAppStore';
 
 interface DesktopProgressProps {
-  loading: boolean;
-  progress: number;
-  status: string;
-  subStatus: string;
-  desktopLogs?: string[];
-  videoTitle: string;
-  selectedFormat: string;
-  error: string;
-  isPickerOpen: boolean;
-  emePhase?: 'download' | 'mux' | null;
-  emeProgress?: number;
-  emeBytes?: { received: number; total: number } | null;
   onCancel?: () => void;
 }
 
-const DesktopProgress = ({
-  loading,
-  progress,
-  status,
-  desktopLogs = [],
-  selectedFormat,
-  error,
-  isPickerOpen,
-  emePhase,
-  emeProgress,
-  emeBytes,
-  onCancel,
-}: DesktopProgressProps) => {
+const DesktopProgress = ({ onCancel }: DesktopProgressProps) => {
+  // read hot-path state directly via narrow selectors so the RAF-updated
+  // progress re-renders only this card, not the parent hero/search tree.
+  const loading = useAppStore((state) => state.loading);
+  const progress = useAppStore((state) => state.progress);
+  const status = useAppStore((state) => state.status);
+  const desktopLogs = useAppStore((state) => state.desktopLogs) ?? [];
+  const selectedFormat = useAppStore((state) => state.selectedFormat);
+  const error = useAppStore((state) => state.error);
+  const isPickerOpen = useAppStore((state) => state.isPickerOpen);
+  const emePhase = useAppStore((state) => state.emePhase);
+  const emeProgress = useAppStore((state) => state.emeProgress);
+  const emeBytes = useAppStore((state) => state.emeBytes);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollPinnedRef = useRef(true);
 

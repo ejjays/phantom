@@ -9,34 +9,25 @@ import {
 } from 'lucide-react';
 import EmePhaseCaption from './EmePhaseCaption';
 import { formatSize } from '../lib/utils';
+import { useAppStore } from '../store/useAppStore';
 
 interface MobileProgressProps {
-  loading: boolean;
-  progress: number;
-  status: string;
-  emePhase: 'download' | 'mux' | null;
-  emeProgress: number;
-  emeBytes?: { received: number; total: number } | null;
-  subStatus: string;
-  videoTitle: string;
-  selectedFormat: string;
-  error: string;
   onCancel?: () => void;
 }
 
-const MobileStatusCard = ({
-  loading,
-  progress,
-  status,
-  emePhase,
-  emeProgress,
-  emeBytes,
-  subStatus,
-  videoTitle,
-  selectedFormat,
-  error,
-  onCancel,
-}: MobileProgressProps) => {
+const MobileStatusCard = ({ onCancel }: MobileProgressProps) => {
+  // read hot-path state directly via narrow selectors so the RAF-updated
+  // progress re-renders only this card, not the parent hero/search tree.
+  const loading = useAppStore((state) => state.loading);
+  const progress = useAppStore((state) => state.progress);
+  const status = useAppStore((state) => state.status);
+  const emePhase = useAppStore((state) => state.emePhase);
+  const emeProgress = useAppStore((state) => state.emeProgress);
+  const emeBytes = useAppStore((state) => state.emeBytes);
+  const subStatus = useAppStore((state) => state.subStatus);
+  const videoTitle = useAppStore((state) => state.videoTitle);
+  const selectedFormat = useAppStore((state) => state.selectedFormat);
+  const error = useAppStore((state) => state.error);
   const getStatusText = () => {
     if (emePhase) return `Preparing your file (${Math.floor(progress || 0)}%)`;
     const formatName = selectedFormat === 'mp4' ? 'video' : 'audio';
