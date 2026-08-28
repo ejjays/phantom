@@ -1,6 +1,7 @@
 import { isHost } from '../utils/network/host.util.js';
 import { Request, Response } from 'express';
 import { logger } from '../utils/infra/logger.util.js';
+import { ResolveTimeoutError } from '../utils/errors.js';
 import * as Sentry from '@sentry/node'; // skipcq: JS-C1003
 import {
   addClient,
@@ -91,7 +92,7 @@ export const getVideoInformation = async (
       fetchMediaInfo(videoURL, clientId, serviceName, cookieArgs),
       new Promise<never>((_, reject) => {
         setTimeout(
-          () => reject(new Error('RESOLVE_TIMEOUT')),
+          () => reject(new ResolveTimeoutError()),
           Number(process.env.RESOLVE_TIMEOUT_MS) || 30000
         ).unref();
       }),
@@ -125,7 +126,7 @@ export const getVideoInformation = async (
 
     res.json(finalResponse);
   } catch (error: unknown) {
-    const isTimeout = (error as Error).message === 'RESOLVE_TIMEOUT';
+    const isTimeout = error instanceof ResolveTimeoutError;
     recordFailure('info');
     logger.error('[VideoInfo] Error:', (error as Error).message);
     if (!isTimeout) Sentry.captureException(error);
