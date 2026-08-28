@@ -62,7 +62,7 @@ function isSnapchatHost(url: string): boolean {
 
 // spotlight id = base64url token at /spotlight/<id> (same for /@user/spotlight & t.snapchat.com short)
 export function parseSpotlightId(url: string): string | null {
-  const match = url.match(/\/spotlight\/([A-Za-z0-9_\-]+)/u);
+  const match = url.match(/\/spotlight\/([A-Za-z0-9_-]+)/u);
   return match ? match[1] : null;
 }
 

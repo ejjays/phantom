@@ -152,12 +152,17 @@ export const FAQS: readonly Faq[] = [
   {
     question: 'Is Phantom really free?',
     answer:
-      "Yes — 100%. No premium tier, no ads, no per-download caps. The whole pipeline runs on your own hardware, so there's no server bill to pass on to you.",
+      "Yes — 100%. No premium tier, no ads, no per-download caps. Downloading happens right on your phone, so there's no server bill to pass on to you.",
   },
   {
     question: 'Why an APK instead of the Play Store?',
     answer:
-      'Phantom bundles a <a href="https://www.ffmpeg.org/legal.html" target="_blank" rel="noopener noreferrer" class="text-cyan-400 underline underline-offset-2 hover:text-cyan-300">GPL ffmpeg</a> build that store policies don\'t play nice with. Sideloading takes about a minute, and app updates ship silently over-the-air after that.',
+      "Google's Play Store doesn't allow apps that download from YouTube and other platforms, so we ship as an APK instead. Installing takes about a minute, and updates install themselves silently after that.",
+  },
+  {
+    question: 'Is there an iPhone or iOS version?',
+    answer:
+      "Not yet — Phantom is Android-only. An iPhone app means a paid Apple Developer account and App Store approval, so we're focusing on Android first. No iPhone app yet, and unlike Android you can't just install an app file yourself — official <a href='https://www.ninjaone.com/it-hub/endpoint-management/what-is-sideloading/' target='_blank' rel='noopener noreferrer' class='text-cyan-400 underline underline-offset-2 hover:text-cyan-300'>sideloading</a> is limited to Apple's developer tools or, in the EU since iOS 17.4, alternative app stores.",
   },
   {
     question: 'Does it need an account?',
@@ -165,14 +170,9 @@ export const FAQS: readonly Faq[] = [
       'No. Downloading is completely anonymous. The community Updates feed is optional — sign in only if you want to react and comment.',
   },
   {
-    question: 'Is anything tracked or uploaded?',
+    question: 'Is it safe to install?',
     answer:
-      "Media never leaves your phone — there's no backend involved at all. Downloads run through your own IP, on your own hardware.",
-  },
-  {
-    question: 'What can I download?',
-    answer:
-      'Videos up to 8K, audio as MP3/M4A, even HLS streams assembled locally. 16 dedicated platforms today, with more landing in every update.',
+      'Yes. Your downloads runs <a href="https://share.google/aimode/QJ1nCHhz6DNikCHU7" target="_blank" rel="noopener noreferrer" class="text-cyan-400 underline underline-offset-2 hover:text-cyan-300">fully on-device</a> — media is fetched and saved by your own phone, it\'s never sent to a <a href="https://www.one.com/en-gb/academy/what-is-a-server/" target="_blank" rel="noopener noreferrer" class="text-cyan-400 underline underline-offset-2 hover:text-cyan-300">server</a>. The social Updates tab is only optional login for comments and likes, and we send anonymous crash info to fix bugs — none of it touches your downloaded media.',
   },
 ];
 

@@ -43,6 +43,12 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
       if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       window.addEventListener('load', () => window.scrollTo(0, 0));
       document.documentElement.classList.add('js');
+      document.addEventListener('contextmenu', (e) => {
+        const t = e.target;
+        if (t instanceof HTMLElement && (t.tagName === 'IMG' || t.tagName === 'VIDEO')) {
+          e.preventDefault();
+        }
+      });
     </script>
     <script>
       if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {

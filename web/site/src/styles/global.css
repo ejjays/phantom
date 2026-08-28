@@ -41,6 +41,13 @@ body {
   background: rgba(6, 182, 212, 0.35);
 }
 
+img,
+video {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
 .text-glow {
   text-shadow:
     0 0 24px rgba(34, 211, 238, 0.45),

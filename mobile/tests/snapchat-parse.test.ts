@@ -9,7 +9,7 @@ import { getInfo, parseSpotlightId } from '../src/extractors/snapchat';
 
 const mockFetch = vi.mocked(gatedFetch);
 
-function jsonRes(body: unknown, ok = true, status?: number): Response {
+function _jsonRes(body: unknown, ok = true, status?: number): Response {
   return {
     ok,
     status: status ?? (ok ? 200 : 403),
