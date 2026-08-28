@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useVideoInfo } from '../src/hooks/useVideoInfo';
-import { useRemixStore } from '../src/store/useRemixStore';
+import { useAppStore } from '../src/store/useAppStore';
 
 /**
  * Regression tests for useVideoInfo's response-merge logic.
@@ -53,7 +53,7 @@ beforeEach(() => {
   global.fetch = fetchMock as unknown as typeof fetch;
   // Reset the Zustand store between tests so leaked state doesn't
   // bleed across cases.
-  useRemixStore.setState({
+  useAppStore.setState({
     url: 'https://www.youtube.com/watch?v=test',
     backendUrl: 'https://api.test.local',
     clientId: 'test-client',
@@ -61,7 +61,7 @@ beforeEach(() => {
     isPickerOpen: false,
     loading: false,
     error: '',
-  } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+  } as unknown as Parameters<typeof useAppStore.setState>[0]);
 });
 
 afterEach(() => {
@@ -71,13 +71,13 @@ afterEach(() => {
 describe('useVideoInfo — keeps fuller format list across HTTP merges', () => {
   it('REPLACES prev when the HTTP response has more formats', async () => {
     // Pre-seed videoData with 1 format (e.g. from an earlier limited SSE).
-    useRemixStore.setState({
+    useAppStore.setState({
       videoData: {
         title: 'Old',
         formats: [makeFormat(360)],
         audioFormats: [],
       },
-    } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+    } as unknown as Parameters<typeof useAppStore.setState>[0]);
 
     queueResponses({
       title: 'New',
@@ -94,12 +94,12 @@ describe('useVideoInfo — keeps fuller format list across HTTP merges', () => {
     });
 
     await waitFor(() => {
-      const state = useRemixStore.getState().videoData;
+      const state = useAppStore.getState().videoData;
       expect(state?.formats).toBeDefined();
       expect(state?.formats?.length ?? 0).toBeGreaterThanOrEqual(3);
     });
 
-    const merged = useRemixStore.getState().videoData;
+    const merged = useAppStore.getState().videoData;
     expect(merged?.formats?.some((f) => f.height === 1080)).toBe(true);
     expect(merged?.title).toBe('New');
   });
@@ -110,7 +110,7 @@ describe('useVideoInfo — keeps fuller format list across HTTP merges', () => {
     const richFormats = [144, 240, 360, 480, 720, 1080, 1440, 2160].map(
       makeFormat
     );
-    useRemixStore.setState({
+    useAppStore.setState({
       videoData: {
         title: 'Rich Title',
         formats: richFormats,
@@ -119,7 +119,7 @@ describe('useVideoInfo — keeps fuller format list across HTTP merges', () => {
         // videoData to null on URL mismatch.
         webpageUrl: 'https://www.youtube.com/watch?v=test',
       },
-    } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+    } as unknown as Parameters<typeof useAppStore.setState>[0]);
 
     // The lean Innertube response that USED to clobber the rich state.
     queueResponses({
@@ -136,7 +136,7 @@ describe('useVideoInfo — keeps fuller format list across HTTP merges', () => {
       await result.current.fetchInfo('https://www.youtube.com/watch?v=test');
     });
 
-    const merged = useRemixStore.getState().videoData;
+    const merged = useAppStore.getState().videoData;
     // Critical: the 8 rich formats survive the HTTP merge.
     expect(merged?.formats?.length).toBe(8);
     expect(merged?.formats?.some((f) => f.height === 2160)).toBe(true);

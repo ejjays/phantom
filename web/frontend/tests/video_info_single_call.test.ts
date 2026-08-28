@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useVideoInfo } from '../src/hooks/useVideoInfo';
-import { useRemixStore } from '../src/store/useRemixStore';
+import { useAppStore } from '../src/store/useAppStore';
 
 // guards single /info call invariant
 
@@ -16,7 +16,7 @@ const fetchMock = vi.fn();
 beforeEach(() => {
   fetchMock.mockReset();
   global.fetch = fetchMock as unknown as typeof fetch;
-  useRemixStore.setState({
+  useAppStore.setState({
     url: 'https://www.youtube.com/watch?v=singleCall1',
     backendUrl: 'https://api.test.local',
     clientId: 'single-call-test',
@@ -24,7 +24,7 @@ beforeEach(() => {
     isPickerOpen: false,
     loading: false,
     error: '',
-  } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+  } as unknown as Parameters<typeof useAppStore.setState>[0]);
 });
 
 afterEach(() => {
@@ -149,7 +149,7 @@ describe('useVideoInfo — single /info call invariant', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    const state = useRemixStore.getState();
+    const state = useAppStore.getState();
     expect(state.isPickerOpen).toBe(true);
     expect(fetchMock.mock.calls).toHaveLength(2);
   });

@@ -1,12 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { type Client } from '@libsql/client';
-import {
-  cleanupLocalTemp,
-  cleanupRemixRegistry,
-} from '../../src/utils/infra/janitor.util.js';
+import { cleanupLocalTemp } from '../../src/utils/infra/janitor.util.js';
 
 describe('cleanupLocalTemp', () => {
   let dir: string;
@@ -39,33 +35,4 @@ describe('cleanupLocalTemp', () => {
   });
 });
 
-describe('cleanupRemixRegistry', () => {
-  it('returns 0 when db is null', async () => {
-    const count = await cleanupRemixRegistry(
-      null,
-      path.join(os.tmpdir(), 'nx-stems-none')
-    );
-    expect(count).toBe(0);
-  });
 
-  it('deletes each expired remix row', async () => {
-    const execute = vi
-      .fn()
-      .mockResolvedValueOnce({ rows: [{ id: 'a1' }, { id: 'b2' }] })
-      .mockResolvedValue({ rows: [] });
-    const fakeDb = { execute } as unknown as Client;
-
-    const count = await cleanupRemixRegistry(
-      fakeDb,
-      path.join(os.tmpdir(), 'nx-stems-none')
-    );
-
-    expect(count).toBe(2);
-    // 1 select + 2 deletes
-    expect(execute).toHaveBeenCalledTimes(3);
-    expect(execute).toHaveBeenNthCalledWith(2, {
-      sql: 'DELETE FROM remix_history WHERE id = ?',
-      args: ['a1'],
-    });
-  });
-});

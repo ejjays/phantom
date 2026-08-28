@@ -1,6 +1,6 @@
 # Backend
 
-the Express 5 + TypeScript service that powers stream resolution, muxing, the Spotify resolution race, and the Remix Lab API. for the project overview see [`../../README.md`](../../README.md). for self-hosting see [`../../docs/run-an-instance.md`](../../docs/run-an-instance.md).
+the Express 5 + TypeScript service that powers stream resolution, muxing and the Spotify resolution race. for the project overview see [`../../README.md`](../../README.md). for self-hosting see [`../../docs/run-an-instance.md`](../../docs/run-an-instance.md).
 
 ## Layout
 
@@ -10,20 +10,15 @@ backend/
 │   ├── app.ts              # Express setup, middleware, route wiring, lifecycle
 │   ├── instrument.ts       # Sentry instrumentation — must load before app.ts
 │   ├── controllers/
-│   │   ├── video.controller.ts       # /info, /convert, /stream-urls handlers
-│   │   └── keychanger.controller.ts  # pitch-shift / key-change uploads
+│   │   └── video.controller.ts       # /info, /convert, /stream-urls handlers
 │   ├── routes/
-│   │   ├── video.routes.ts           # core video / stream endpoints
-│   │   ├── remix.routes.ts           # Remix Lab kernel proxy + results
-│   │   └── keychanger.routes.ts      # key-changer route
+│   │   └── video.routes.ts           # core video / stream endpoints
 │   ├── services/
 │   │   ├── spotify/        # ISRC race, Turso registry, AI query synthesis
 │   │   ├── ytdlp/          # yt-dlp integration: streamer, info, turbo-mux, config
 │   │   ├── extractors/     # pure-JS extractors (YouTube/FB/IG/TikTok/SoundCloud)
-│   │   ├── extract.service.ts        # generic metadata extractor
 │   │   ├── seeder.service.ts         # background catalog seeder
 │   │   ├── social.service.ts         # metascraper-based social-link metadata
-│   │   ├── ug-grounding.service.ts   # Ultimate Guitar tab lookup
 │   │   ├── spotify.service.ts        # Spotify facade
 │   │   └── ytdlp.service.ts          # yt-dlp facade
 │   ├── utils/
@@ -51,7 +46,7 @@ backend/
 | `GET`  | `/proxy`             | authenticated stream proxy.             |
 | `GET`  | `/seed-intelligence` | trigger the background catalog seeder.  |
 
-`remix.routes.ts` proxies the Python Remix Lab kernel and serves stem/chord/beat results. `keychanger.routes.ts` handles pitch-shift uploads. `/convert` and `/proxy` are gated by `concurrencyGuard(2)` (`utils/network/security.util.ts`) to keep memory bounded on Termux and free-tier hosts.
+`/convert` and `/proxy` are gated by `concurrencyGuard(2)` (`utils/network/security.util.ts`) to keep memory bounded on Termux and free-tier hosts.
 
 response shapes for `/info` and `/convert` are documented in [`../../docs/api.md`](../../docs/api.md).
 

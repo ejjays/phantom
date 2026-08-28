@@ -46,10 +46,7 @@ const Layout = ({ children }: LayoutProps) => {
             video and audio from YouTube, Spotify, TikTok, Instagram, Facebook,
             and SoundCloud. Convert YouTube videos to 4K MP4 or 320kbps MP3,
             download Spotify playlists, and save TikTok videos without
-            watermark. The built-in Remix Lab uses AI to separate tracks into
-            stems (vocals, bass, drums, other), detect chords and musical key,
-            and shift pitch — all in your browser, with no registration
-            required.
+            watermark — all in your browser, with no registration required.
           </p>
         </div>
         {/* <div className="absolute right-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:right-4 sm:bottom-4 md:left-1/2 md:translate-x-[50px] md:bottom-auto md:top-1/2 md:-translate-y-1/2">

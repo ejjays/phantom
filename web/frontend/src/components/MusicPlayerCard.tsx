@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useAnimation, PanInfo } from 'framer-motion';
 import { Play, Pause, Music2, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
-import { PlayerData } from '../types/remix';
+import { PlayerData } from '../types/player';
 
 // cover has art; imageUrl often absent
 export const getPlayerArt = (

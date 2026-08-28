@@ -2,12 +2,11 @@ import React, {
   useLayoutEffect,
   useEffect,
   useRef,
-  useCallback,
   lazy,
   Suspense,
 } from 'react';
 import { Routes, Route, useLocation } from 'react-router';
-import { useRemixStore } from './store/useRemixStore';
+import { useAppStore } from './store/useAppStore';
 import { VideoInfo } from '@phantom/shared/schemas/media.schema';
 import { getDynamicBackendUrl } from './lib/config';
 import { SSEService } from './lib/sse.service';
@@ -16,8 +15,6 @@ import Layout from './components/Layout';
 
 // lazy load pages
 const MainContent = lazy(() => import('./components/MainContent'));
-const SongKeyChanger = lazy(() => import('./pages/Tools/SongKeyChanger'));
-const RemixLab = lazy(() => import('./pages/Tools/RemixLab'));
 const UpdatesPage = lazy(() => import('./pages/Updates/UpdatesPage'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
@@ -37,18 +34,10 @@ const ScrollToTop = () => {
   return null;
 };
 
-const RemixLabRoute = () => {
-  const handleExit = useCallback(() => {
-    window.location.href = import.meta.env.BASE_URL || '/';
-  }, []);
-
-  return <RemixLab onExit={handleExit} />;
-};
-
 const App = () => {
-  const backendUrl = useRemixStore((state) => state.backendUrl);
-  const setBackendUrl = useRemixStore((state) => state.setBackendUrl);
-  const clientId = useRemixStore((state) => state.clientId);
+  const backendUrl = useAppStore((state) => state.backendUrl);
+  const setBackendUrl = useAppStore((state) => state.setBackendUrl);
+  const clientId = useAppStore((state) => state.clientId);
   const location = useLocation();
 
   const sseRef = useRef<SSEService | null>(null);
@@ -91,15 +80,6 @@ const App = () => {
         return;
       }
 
-      // disconnect SSE
-      if (location.pathname.includes('/tools/remix-lab')) {
-        if (sseRef.current) {
-          sseRef.current.disconnect();
-          sseRef.current = null;
-        }
-        return;
-      }
-
       if (sseRef.current) {
         console.log('[App] SSE already connected, skipping');
         return;
@@ -127,31 +107,31 @@ const App = () => {
               if (
                 (event.status === 'fetching_info' ||
                   event.status === 'initializing') &&
-                !useRemixStore.getState().sessionStartTime
+                !useAppStore.getState().sessionStartTime
               ) {
-                useRemixStore.getState().setSessionStartTime(Date.now());
+                useAppStore.getState().setSessionStartTime(Date.now());
               }
 
               handleSseMessage(data as Record<string, unknown>, '', {
-                setStatus: (s: string) => useRemixStore.getState().setStatus(s),
+                setStatus: (s: string) => useAppStore.getState().setStatus(s),
                 setVideoData: (v: unknown) =>
-                  useRemixStore.getState().setVideoData(v as VideoInfo),
+                  useAppStore.getState().setVideoData(v as VideoInfo),
                 setIsPickerOpen: (o: boolean) =>
-                  useRemixStore.getState().setIsPickerOpen(o),
+                  useAppStore.getState().setIsPickerOpen(o),
                 setPendingSubStatuses: (payload: unknown) =>
-                  useRemixStore
+                  useAppStore
                     .getState()
                     .setPendingSubStatuses(payload as string[]),
                 setDesktopLogs: (payload: unknown) =>
-                  useRemixStore.getState().setDesktopLogs(payload as string[]),
+                  useAppStore.getState().setDesktopLogs(payload as string[]),
                 setTargetProgress: (tp: unknown) =>
-                  useRemixStore.getState().setTargetProgress(tp as number),
+                  useAppStore.getState().setTargetProgress(tp as number),
                 setProgress: (progress: unknown) =>
-                  useRemixStore.getState().setProgress(progress as number),
+                  useAppStore.getState().setProgress(progress as number),
                 setSubStatus: (ss: string) =>
-                  useRemixStore.getState().setSubStatus(ss),
+                  useAppStore.getState().setSubStatus(ss),
                 getTS: () => {
-                  const start = useRemixStore.getState().sessionStartTime;
+                  const start = useAppStore.getState().sessionStartTime;
                   if (!start) return '[0:00]';
                   const elapsed = Math.floor((Date.now() - start) / 1000);
                   const mins = Math.floor(elapsed / 60);
@@ -225,8 +205,6 @@ const App = () => {
               </Layout>
             }
           />
-          <Route path="/tools/key-changer" element={<SongKeyChanger />} />
-          <Route path="/tools/remix-lab" element={<RemixLabRoute />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

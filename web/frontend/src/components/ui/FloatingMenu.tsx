@@ -1,23 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router';
-import { Music2, Scissors, Info, X, Sparkles } from 'lucide-react';
+import { Scissors, Info, X, Sparkles } from 'lucide-react';
 
 const menuItems = [
-  {
-    icon: <Music2 />,
-    label: 'Song Key Changer',
-    path: '/tools/key-changer',
-    color: 'from-cyan-500 to-blue-500',
-    external: true,
-  },
-  {
-    icon: <Sparkles />,
-    label: 'Remix Labs',
-    path: '/tools/remix-lab',
-    color: 'from-pink-500 to-rose-500',
-    external: true,
-  },
   {
     icon: <Scissors />,
     label: 'Audio Trimmer',
@@ -76,7 +62,7 @@ const FloatingMenu = () => {
                 >
                   <Link
                     to={item.path}
-                    target={item.external ? '_blank' : '_self'}
+                    target={(item as { external?: boolean }).external ? '_blank' : '_self'}
                     onClick={() => {
                       if (item.path === '#') setIsOpen(false);
                     }}

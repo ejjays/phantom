@@ -4,7 +4,7 @@ import { useProgress } from './useProgress';
 import { useNativeBridge } from './useNativeBridge';
 import { useVideoInfo } from './useVideoInfo';
 import { useDownloadOrchestrator } from './useDownloadOrchestrator';
-import { useRemixStore } from '../store/useRemixStore';
+import { useAppStore } from '../store/useAppStore';
 import { VideoInfo, FinalResponse } from '@phantom/shared/schemas/media.schema';
 
 export interface MediaConverterHook {
@@ -40,24 +40,24 @@ export interface MediaConverterHook {
 
 export const useMediaConverter = (): MediaConverterHook => {
   // pull from store
-  const url = useRemixStore((state) => state.url);
-  const setUrl = useRemixStore((state) => state.setUrl);
-  const loading = useRemixStore((state) => state.loading);
-  const setLoading = useRemixStore((state) => state.setLoading);
-  const error = useRemixStore((state) => state.error);
-  const setError = useRemixStore((state) => state.setError);
-  const selectedFormat = useRemixStore((state) => state.selectedFormat);
-  const setSelectedFormat = useRemixStore((state) => state.setSelectedFormat);
-  const showPlayer = useRemixStore((state) => state.showPlayer);
-  const setShowPlayer = useRemixStore((state) => state.setShowPlayer);
-  const playerData = useRemixStore((state) => state.playerData);
-  const setPlayerData = useRemixStore((state) => state.setPlayerData);
-  const videoTitle = useRemixStore((state) => state.videoTitle);
-  const setVideoTitle = useRemixStore((state) => state.setVideoTitle);
-  const videoData = useRemixStore((state) => state.videoData);
-  const setVideoData = useRemixStore((state) => state.setVideoData);
-  const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
-  const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
+  const url = useAppStore((state) => state.url);
+  const setUrl = useAppStore((state) => state.setUrl);
+  const loading = useAppStore((state) => state.loading);
+  const setLoading = useAppStore((state) => state.setLoading);
+  const error = useAppStore((state) => state.error);
+  const setError = useAppStore((state) => state.setError);
+  const selectedFormat = useAppStore((state) => state.selectedFormat);
+  const setSelectedFormat = useAppStore((state) => state.setSelectedFormat);
+  const showPlayer = useAppStore((state) => state.showPlayer);
+  const setShowPlayer = useAppStore((state) => state.setShowPlayer);
+  const playerData = useAppStore((state) => state.playerData);
+  const setPlayerData = useAppStore((state) => state.setPlayerData);
+  const videoTitle = useAppStore((state) => state.videoTitle);
+  const setVideoTitle = useAppStore((state) => state.setVideoTitle);
+  const videoData = useAppStore((state) => state.videoData);
+  const setVideoData = useAppStore((state) => state.setVideoData);
+  const isPickerOpen = useAppStore((state) => state.isPickerOpen);
+  const setIsPickerOpen = useAppStore((state) => state.setIsPickerOpen);
 
   // sync store
   const {

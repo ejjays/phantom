@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useRemixStore } from '../store/useRemixStore';
+import { useAppStore } from '../store/useAppStore';
 import { OrchestratorService } from '../lib/orchestrator.service';
 import { getOpfsCeiling } from '../lib/emeStorage';
 
@@ -79,27 +79,27 @@ export async function resolveEdgeMuxEligibility(
 }
 
 export const useDownloadOrchestrator = () => {
-  const url = useRemixStore((state) => state.url);
-  const videoData = useRemixStore((state) => state.videoData) as
+  const url = useAppStore((state) => state.url);
+  const videoData = useAppStore((state) => state.videoData) as
     | VideoData
     | undefined;
-  const selectedFormat = useRemixStore((state) => state.selectedFormat);
-  const backendUrl = useRemixStore((state) => state.backendUrl);
-  const clientId = useRemixStore((state) => state.clientId);
+  const selectedFormat = useAppStore((state) => state.selectedFormat);
+  const backendUrl = useAppStore((state) => state.backendUrl);
+  const clientId = useAppStore((state) => state.clientId);
 
-  const setStatus = useRemixStore((state) => state.setStatus);
-  const setTargetProgress = useRemixStore((state) => state.setTargetProgress);
-  const setProgress = useRemixStore((state) => state.setProgress);
-  const setSubStatus = useRemixStore((state) => state.setSubStatus);
-  const setPendingSubStatuses = useRemixStore(
+  const setStatus = useAppStore((state) => state.setStatus);
+  const setTargetProgress = useAppStore((state) => state.setTargetProgress);
+  const setProgress = useAppStore((state) => state.setProgress);
+  const setSubStatus = useAppStore((state) => state.setSubStatus);
+  const setPendingSubStatuses = useAppStore(
     (state) => state.setPendingSubStatuses
   );
-  const setDesktopLogs = useRemixStore((state) => state.setDesktopLogs);
-  const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
-  const setDownloadStarted = useRemixStore((state) => state.setDownloadStarted);
-  const setLoading = useRemixStore((state) => state.setLoading);
-  const setError = useRemixStore((state) => state.setError);
-  const setVideoTitle = useRemixStore((state) => state.setVideoTitle);
+  const setDesktopLogs = useAppStore((state) => state.setDesktopLogs);
+  const setIsPickerOpen = useAppStore((state) => state.setIsPickerOpen);
+  const setDownloadStarted = useAppStore((state) => state.setDownloadStarted);
+  const setLoading = useAppStore((state) => state.setLoading);
+  const setError = useAppStore((state) => state.setError);
+  const setVideoTitle = useAppStore((state) => state.setVideoTitle);
   const lastDownloadRef = useRef(0);
 
   const service = useMemo(

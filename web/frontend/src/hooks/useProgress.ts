@@ -1,23 +1,23 @@
 import { useEffect, useRef } from 'react';
-import { useRemixStore } from '../store/useRemixStore';
+import { useAppStore } from '../store/useAppStore';
 
 export const useProgress = () => {
-  const progress = useRemixStore((state) => state.progress);
-  const setProgress = useRemixStore((state) => state.setProgress);
-  const targetProgress = useRemixStore((state) => state.targetProgress);
-  const setTargetProgress = useRemixStore((state) => state.setTargetProgress);
-  const status = useRemixStore((state) => state.status);
-  const setStatus = useRemixStore((state) => state.setStatus);
-  const subStatus = useRemixStore((state) => state.subStatus);
-  const setSubStatus = useRemixStore((state) => state.setSubStatus);
-  const pendingSubStatuses = useRemixStore((state) => state.pendingSubStatuses);
-  const setPendingSubStatuses = useRemixStore(
+  const progress = useAppStore((state) => state.progress);
+  const setProgress = useAppStore((state) => state.setProgress);
+  const targetProgress = useAppStore((state) => state.targetProgress);
+  const setTargetProgress = useAppStore((state) => state.setTargetProgress);
+  const status = useAppStore((state) => state.status);
+  const setStatus = useAppStore((state) => state.setStatus);
+  const subStatus = useAppStore((state) => state.subStatus);
+  const setSubStatus = useAppStore((state) => state.setSubStatus);
+  const pendingSubStatuses = useAppStore((state) => state.pendingSubStatuses);
+  const setPendingSubStatuses = useAppStore(
     (state) => state.setPendingSubStatuses
   );
-  const desktopLogs = useRemixStore((state) => state.desktopLogs);
-  const setDesktopLogs = useRemixStore((state) => state.setDesktopLogs);
-  const videoData = useRemixStore((state) => state.videoData);
-  const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
+  const desktopLogs = useAppStore((state) => state.desktopLogs);
+  const setDesktopLogs = useAppStore((state) => state.setDesktopLogs);
+  const videoData = useAppStore((state) => state.videoData);
+  const isPickerOpen = useAppStore((state) => state.isPickerOpen);
 
   // set progress milestones
   useEffect(() => {

@@ -8,11 +8,7 @@ exclude_patterns = [
   "scripts/**"
 ]
 
-test_patterns = [
-  "web/backend/tests/**",
-  "web/frontend/tests/**",
-  "remix/tests/**"
-]
+test_patterns = ["web/backend/tests/**", "web/frontend/tests/**"]
 
 [[analyzers]]
 name = "javascript"

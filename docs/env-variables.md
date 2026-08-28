@@ -98,13 +98,12 @@ Phantom boots without most of these — they enable optional features and degrad
 | `ALLOWED_ORIGINS`       | empty = allow all | Comma-separated CORS origin allowlist; when set, only listed origins get CORS headers                                                                                                                                                                                                                                                               |
 | `PROXY_ALLOW_INSECURE_TLS` | —            | Allow `https://` proxied fetches to skip TLS verification (debug only)                                                                                                                                                                                                                                                                                  |
 
-### Remix Lab & Monitoring
+### Monitoring
 
-| Variable                        | Default | Purpose                                      |
-| ------------------------------- | ------- | -------------------------------------------- |
-| `KAGGLE_USERNAME`, `KAGGLE_KEY` | —       | Kaggle credentials for Remix Lab engine sync |
-| `SENTRY_DSN`                    | —       | Sentry error/performance monitoring          |
-| `KOYEB_INSTANCE_MEMORY_MB`      | —       | Instance RAM limit reported on `/health`     |
+| Variable                    | Default | Purpose                             |
+| --------------------------- | ------- | ----------------------------------- |
+| `SENTRY_DSN`                | —       | Sentry error/performance monitoring |
+| `KOYEB_INSTANCE_MEMORY_MB`  | —       | Instance RAM limit reported on `/health` |
 
 ---
 

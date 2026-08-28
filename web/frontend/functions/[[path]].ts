@@ -12,18 +12,7 @@ const SITE_CONFIG = {
   defaultImage: '/app/og-image.webp',
 };
 
-const PAGE_METADATA: Record<string, Metadata> = {
-  '/app/tools/key-changer': {
-    title: 'Song Key Changer | Detect & Transpose Audio',
-    description:
-      'A utility to detect the key of a song and adjust its pitch or tempo without losing audio quality.',
-  },
-  '/app/tools/remix-lab': {
-    title: 'Remix Lab | Stem Separation & Analysis',
-    description:
-      'Tools for isolating vocals, drums, and instruments from any track using AI-assisted processing.',
-  },
-};
+const PAGE_METADATA: Record<string, Metadata> = {};
 
 export const onRequest: PagesFunction = async (context) => {
   const url = new URL(context.request.url);

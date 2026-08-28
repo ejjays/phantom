@@ -107,7 +107,7 @@ const TechStack = () => {
     <div className="w-full flex flex-col gap-12 pb-12">
       <SEO
         title="Tech Stack — Open-Source Engines & Models"
-        description="The technologies behind Phantom: React 19, Vite, Express 5, Turso, FFmpeg, yt-dlp, and the AI models (Demucs, BTC Transformer) powering Remix Lab."
+        description="The technologies behind Phantom: React 19, Vite, Express 5, Turso, FFmpeg and yt-dlp."
         canonicalUrl="/resources/stack"
       />
 

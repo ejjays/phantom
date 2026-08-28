@@ -64,7 +64,6 @@ Self-hosting from a phone or home box usually means a tunnel. The repo ships hel
 
 Before putting an instance on the public internet, read [`protect-an-instance.md`](protect-an-instance.md).
 
-## Mobile App & Remix Lab
+## Mobile App
 
 - **Android app** (standalone, no backend): see [`mobile-app.md`](mobile-app.md) and `mobile/README.md`
-- **Remix Lab** (ML stem/chord analysis on free GPUs): see [`remix-lab.md`](remix-lab.md)
