@@ -105,23 +105,6 @@ export const useProgress = () => {
     };
   }, [status, targetProgress, setProgress]);
 
-  useEffect(() => {
-    if (status !== 'fetching_info' && status !== 'initializing') return;
-    if (targetProgress >= 100) return;
-
-    const interval = setInterval(() => {
-      setTargetProgress((prev: number) => {
-        if (prev >= 100) return 100;
-
-        if (prev >= 20 && status === 'initializing') return prev;
-        return prev;
-      });
-    }, 80);
-
-    // skipcq: JS-0045
-    return () => clearInterval(interval);
-  }, [status, targetProgress, setTargetProgress]);
-
   return {
     progress,
     setProgress,
