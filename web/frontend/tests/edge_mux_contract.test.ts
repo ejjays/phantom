@@ -7,8 +7,8 @@ vi.mock('../src/lib/muxer', () => ({
 vi.mock('../src/lib/previewStream', () => ({
   resolveStreamUrls: vi.fn(),
 }));
-vi.mock('../src/store/useRemixStore', () => ({
-  useRemixStore: {
+vi.mock('../src/store/useAppStore', () => ({
+  useAppStore: {
     getState: () => ({
       sessionStartTime: 0,
       setEmePhase: () => {},

@@ -16,8 +16,6 @@ import { traceContext } from './utils/infra/trace.util.js';
 import { randomUUID } from 'node:crypto';
 import db from './utils/infra/db.util.js';
 import videoRoutes from './routes/video.routes.js';
-import keyChangerRoutes from './routes/keychanger.routes.js';
-import remixRoutes from './routes/remix.routes.js';
 import {
   requireApiKey,
   requireLocalOrApiKey,
@@ -37,8 +35,6 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const STEMS_BASE_DIR = path.join(__dirname, '../temp/remix_stems');
 
 // termux bypass
 if (process.platform === 'android') {
@@ -331,19 +327,10 @@ app.get('/api/get-url', async (_req: Request, res: Response) => {
 
 // opt-in auth; gated: localhost or API_KEY only
 app.use(
-  [
-    '/info',
-    '/stream-urls',
-    '/convert',
-    '/proxy',
-    '/api/remix',
-    '/api/key-changer',
-  ],
+  ['/info', '/stream-urls', '/convert', '/proxy'],
   requireApiKey
 );
 app.use('/', videoRoutes);
-app.use('/api/key-changer', keyChangerRoutes);
-app.use('/api/remix', remixRoutes);
 logger.info('[System] Routes ready');
 
 if (process.env.SENTRY_DSN) {
@@ -490,4 +477,4 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
-startJanitor({ tempDir: TEMP_DIR, stemsBaseDir: STEMS_BASE_DIR, db });
+startJanitor({ tempDir: TEMP_DIR, db });

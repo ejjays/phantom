@@ -2,14 +2,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { VideoInfo, FinalResponse } from '@phantom/shared/schemas/media.schema';
 
-export interface RemixState {
-  // app core state
-  isPlaying: boolean;
-  duration: number;
-  currentTime: number;
-  currentBeatIdx: number;
-  beatFlash: boolean;
-  isReady: boolean;
+export interface AppState {
   backendUrl: string;
   url: string;
   loading: boolean;
@@ -20,7 +13,6 @@ export interface RemixState {
   playerData: FinalResponse | null;
   clientId: string;
 
-  // sse stream state
   status: string;
   emePhase: 'download' | 'mux' | null;
   emeProgress: number;
@@ -34,16 +26,7 @@ export interface RemixState {
   videoData: VideoInfo | null;
   isPickerOpen: boolean;
   downloadStarted: boolean;
-  volumes: {
-    vocals: number;
-    drums: number;
-    bass: number;
-    guitar: number;
-    piano: number;
-    other: number;
-  };
 
-  // state update helpers
   setSessionStartTime: (time: number | null) => void;
   setUrl: (url: string) => void;
   setLoading: (loading: boolean) => void;
@@ -70,25 +53,11 @@ export interface RemixState {
     updater: string[] | ((prev: string[]) => string[])
   ) => void;
   setBackendUrl: (url: string) => void;
-  setIsPlaying: (playing: boolean) => void;
-  setDuration: (dur: number) => void;
-  setCurrentTime: (time: number) => void;
-  setCurrentBeatIdx: (idx: number) => void;
-  setBeatFlash: (flash: boolean) => void;
-  setIsReady: (ready: boolean) => void;
-  setVolume: (track: string, val: number) => void;
   resetStore: () => void;
 }
 
-export const useRemixStore = create<RemixState>()(
+export const useAppStore = create<AppState>()(
   subscribeWithSelector((set) => ({
-    // app core state
-    isPlaying: false,
-    duration: 0,
-    currentTime: 0,
-    currentBeatIdx: -1,
-    beatFlash: false,
-    isReady: false,
     backendUrl: '',
     url: '',
     loading: false,
@@ -114,7 +83,6 @@ export const useRemixStore = create<RemixState>()(
       return newId;
     })(),
 
-    // sse stream state
     status: 'idle',
     emePhase: null,
     emeProgress: 0,
@@ -128,16 +96,7 @@ export const useRemixStore = create<RemixState>()(
     videoData: null,
     isPickerOpen: false,
     downloadStarted: false,
-    volumes: {
-      vocals: 1,
-      drums: 1,
-      bass: 1,
-      guitar: 1,
-      piano: 1,
-      other: 1,
-    },
 
-    // state update helpers
     setSessionStartTime: (time) => set({ sessionStartTime: time }),
     setUrl: (url) => set({ url }),
     setLoading: (loading) => set({ loading }),
@@ -203,38 +162,7 @@ export const useRemixStore = create<RemixState>()(
       while (trimmed.endsWith('/')) trimmed = trimmed.slice(0, -1);
       set({ backendUrl: trimmed });
     },
-    setIsPlaying: (playing) => set({ isPlaying: playing }),
-    setDuration: (dur) => set({ duration: dur }),
-    setCurrentTime: (time) => set({ currentTime: time }),
-    setCurrentBeatIdx: (idx) => set({ currentBeatIdx: idx }),
-    setBeatFlash: (flash) => set({ beatFlash: flash }),
-    setIsReady: (ready) => set({ isReady: ready }),
 
-    setVolume: (track, val) =>
-      set((state) => ({
-        volumes: {
-          ...state.volumes,
-          [track as keyof typeof state.volumes]: val,
-        },
-      })),
-
-    // reset all state
-    resetStore: () =>
-      set({
-        isPlaying: false,
-        duration: 0,
-        currentTime: 0,
-        currentBeatIdx: -1,
-        beatFlash: false,
-        isReady: false,
-        volumes: {
-          vocals: 1,
-          drums: 1,
-          bass: 1,
-          guitar: 1,
-          piano: 1,
-          other: 1,
-        },
-      }),
+    resetStore: () => set({}),
   }))
 );

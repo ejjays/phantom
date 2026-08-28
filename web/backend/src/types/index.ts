@@ -58,12 +58,6 @@ export interface Extractor {
   ) => Promise<Readable>;
 }
 
-export interface ChordsResult {
-  key: string;
-  scale: string;
-  chords: string[];
-}
-
 export interface TursoResult<T = unknown> {
   rows: T[];
 }

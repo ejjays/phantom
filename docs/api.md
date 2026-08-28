@@ -72,15 +72,3 @@ Internal signed passthrough used by the responses above. The server mints and si
 
 - `GET /ping` → `pong`
 - `GET /health` → `{ "status": "ok", "port": <n> }`
-
-## Remix Lab (async job API)
-
-Mounted on the Kaggle/Colab Gradio instance (also callable directly if running locally):
-
-| Method | Path                 | Purpose                                                         |
-| ------ | -------------------- | --------------------------------------------------------------- |
-| `POST` | `/process`           | Upload `file` + `remix` + `stems` → `{ task_id }`               |
-| `GET`  | `/status/{task_id}`  | Poll job; on success returns stems, chords, beats, package path |
-| `GET`  | `/download?path=...` | Fetch the results zip                                           |
-
-Jobs run in background and expire after an hour.

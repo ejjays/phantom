@@ -1,5 +1,5 @@
 import { isHost } from './utils';
-import { useRemixStore } from '../store/useRemixStore';
+import { useAppStore } from '../store/useAppStore';
 import { BACKEND_URL } from './config';
 import { getSanitizedFilename } from './utils';
 import { resolveStreamUrls } from './previewStream';
@@ -46,8 +46,8 @@ export class OrchestratorService {
       this.muxController.abort();
       this.muxController = null;
     }
-    useRemixStore.getState().setEmePhase(null);
-    useRemixStore.getState().setEmeBytes(null);
+    useAppStore.getState().setEmePhase(null);
+    useAppStore.getState().setEmeBytes(null);
   }
 
   wasCancelled(): boolean {
@@ -55,7 +55,7 @@ export class OrchestratorService {
   }
 
   private static getTS() {
-    const start = useRemixStore.getState().sessionStartTime;
+    const start = useAppStore.getState().sessionStartTime;
     if (!start) return '[0:00]';
     const elapsed = Math.floor((Date.now() - start) / 1000);
     const mins = Math.floor(elapsed / 60);
@@ -323,9 +323,9 @@ export class OrchestratorService {
 
       this.onSubStatus('Processing on your device...');
       this.onStatus('eme_downloading');
-      useRemixStore.getState().setEmePhase('download');
-      useRemixStore.getState().setEmeProgress(0);
-      useRemixStore.getState().setEmeBytes(null);
+      useAppStore.getState().setEmePhase('download');
+      useAppStore.getState().setEmeProgress(0);
+      useAppStore.getState().setEmeBytes(null);
 
       this.onLog(
         `${OrchestratorService.getTS()} [System] Client-side muxing via mediabunny (no server)...`
@@ -338,13 +338,13 @@ export class OrchestratorService {
         audioUrl,
         signal: controller.signal,
         onProgress: (pct, detail, bytes) => {
-          useRemixStore.getState().setEmeProgress(pct);
+          useAppStore.getState().setEmeProgress(pct);
           this.onProgress(pct);
-          if (bytes) useRemixStore.getState().setEmeBytes(bytes);
+          if (bytes) useAppStore.getState().setEmeBytes(bytes);
           if (detail?.startsWith('Muxing')) {
             this.onStatus('eme_muxing');
-            useRemixStore.getState().setEmePhase('mux');
-            useRemixStore.getState().setEmeBytes(null);
+            useAppStore.getState().setEmePhase('mux');
+            useAppStore.getState().setEmeBytes(null);
           }
         },
         metadata: { title: finalTitle, artist },
@@ -385,9 +385,9 @@ export class OrchestratorService {
       this.onComplete();
       recordEmeOutcome('success');
       setTimeout(() => {
-        useRemixStore.getState().setEmePhase(null);
-        useRemixStore.getState().setEmeProgress(0);
-        useRemixStore.getState().setEmeBytes(null);
+        useAppStore.getState().setEmePhase(null);
+        useAppStore.getState().setEmeProgress(0);
+        useAppStore.getState().setEmeBytes(null);
       }, 1500);
       return true;
     } catch (err: unknown) {
@@ -395,7 +395,7 @@ export class OrchestratorService {
       // prevent server fallback after cancel
       if (this.cancelled) {
         recordEmeOutcome('skip', 'cancelled');
-        useRemixStore.getState().setEmePhase(null);
+        useAppStore.getState().setEmePhase(null);
         return false;
       }
       // codec/opfs skips are intentional, not errors; learn opfs ceiling
@@ -406,7 +406,7 @@ export class OrchestratorService {
       }
       const skip = codecSkip || quotaSkip;
       recordEmeOutcome(skip ? 'skip' : 'failure', e?.message || 'unknown');
-      useRemixStore.getState().setEmePhase(null);
+      useAppStore.getState().setEmePhase(null);
       this.onStatus('initializing');
       this.onLog(
         `${OrchestratorService.getTS()} [System] ${

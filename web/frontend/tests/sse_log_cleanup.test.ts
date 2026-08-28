@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { handleSseMessage } from '../src/hooks/useSSE';
-import { useRemixStore } from '../src/store/useRemixStore';
+import { useAppStore } from '../src/store/useAppStore';
 
 // regression: terminal logs dedup by text and drop paired details
 
@@ -33,7 +33,7 @@ const URL = 'https://www.youtube.com/watch?v=test';
 
 describe('terminal log cleanup', () => {
   beforeEach(() => {
-    useRemixStore.getState().setStatus('initializing');
+    useAppStore.getState().setStatus('initializing');
   });
 
   it('drops a details code when paired with a subStatus', () => {

@@ -334,45 +334,45 @@ describe('handleSseMessage — guards against silent failure modes', () => {
  * End-to-end integration test with the real Zustand store + the exact
  * wrapper pattern App.tsx uses. This catches regressions where the
  * wrapper accidentally drops the function-updater (e.g. if someone
- * swaps `useRemixStore.getState().setDesktopLogs(payload)` for
+ * swaps `useAppStore.getState().setDesktopLogs(payload)` for
  * `setDesktopLogs([...payload])` or similar). Without this, the unit
  * tests above could pass while the actual app silently shows only the
  * "Initializing..." line forever.
  */
 describe('handleSseMessage — App.tsx wrapper integration', () => {
   it('appends to the real Zustand store via the wrapper', async () => {
-    const { useRemixStore } = await import('../src/store/useRemixStore');
-    useRemixStore.setState({
+    const { useAppStore } = await import('../src/store/useAppStore');
+    useAppStore.setState({
       desktopLogs: ['[0:00] Initializing Phantom Core Engine...'],
       pendingSubStatuses: [],
       subStatus: '',
       sessionStartTime: Date.now(),
-    } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+    } as unknown as Parameters<typeof useAppStore.setState>[0]);
 
     // App wrapper shape
     const wrapper = {
-      setStatus: (s: string) => useRemixStore.getState().setStatus(s),
+      setStatus: (s: string) => useAppStore.getState().setStatus(s),
       setVideoData: (v: unknown) =>
-        useRemixStore
+        useAppStore
           .getState()
           .setVideoData(
-            v as Parameters<typeof useRemixStore.getState>[0] extends never
+            v as Parameters<typeof useAppStore.getState>[0] extends never
               ? never
               : Parameters<
-                  ReturnType<typeof useRemixStore.getState>['setVideoData']
+                  ReturnType<typeof useAppStore.getState>['setVideoData']
                 >[0]
           ),
       setIsPickerOpen: (o: boolean) =>
-        useRemixStore.getState().setIsPickerOpen(o),
+        useAppStore.getState().setIsPickerOpen(o),
       setPendingSubStatuses: (payload: unknown) =>
-        useRemixStore.getState().setPendingSubStatuses(payload as string[]),
+        useAppStore.getState().setPendingSubStatuses(payload as string[]),
       setDesktopLogs: (payload: unknown) =>
-        useRemixStore.getState().setDesktopLogs(payload as string[]),
+        useAppStore.getState().setDesktopLogs(payload as string[]),
       setTargetProgress: (tp: unknown) =>
-        useRemixStore.getState().setTargetProgress(tp as number),
+        useAppStore.getState().setTargetProgress(tp as number),
       setProgress: (progress: unknown) =>
-        useRemixStore.getState().setProgress(progress as number),
-      setSubStatus: (ss: string) => useRemixStore.getState().setSubStatus(ss),
+        useAppStore.getState().setProgress(progress as number),
+      setSubStatus: (ss: string) => useAppStore.getState().setSubStatus(ss),
       getTS: () => '[0:01]',
     };
 
@@ -386,7 +386,7 @@ describe('handleSseMessage — App.tsx wrapper integration', () => {
       wrapper
     );
 
-    const finalLogs = useRemixStore.getState().desktopLogs;
+    const finalLogs = useAppStore.getState().desktopLogs;
     expect(finalLogs).toHaveLength(4);
     expect(finalLogs[1]).toContain('Decrypting streams');
     expect(finalLogs[2]).toContain('Metadata parsed');

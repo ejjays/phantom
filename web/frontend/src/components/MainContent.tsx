@@ -10,11 +10,11 @@ import PurpleBackground from './ui/PurpleBackground';
 import MobileProgress from './MobileProgress';
 import DesktopProgress from './DesktopProgress';
 import { useMediaConverter } from '../hooks/useMediaConverter';
-import { useRemixStore } from '../store/useRemixStore';
+import { useAppStore } from '../store/useAppStore';
 import StandardQualityPicker from './modals/StandardQualityPicker';
 import MobileSpotifyPicker from './modals/MobileSpotifyPicker';
 import SEO from './utils/SEO';
-import { PlayerData } from '../types/remix';
+import { PlayerData } from '../types/player';
 
 const MusicPlayerCard = lazy(() => import('./MusicPlayerCard'));
 import PhantomHero from '../assets/icons/PhantomHero';
@@ -176,23 +176,23 @@ const SearchInput = ({
 );
 
 const MainContent = () => {
-  const url = useRemixStore((state) => state.url);
-  const setUrl = useRemixStore((state) => state.setUrl);
-  const loading = useRemixStore((state) => state.loading);
-  const error = useRemixStore((state) => state.error);
-  const status = useRemixStore((state) => state.status);
-  const emePhase = useRemixStore((state) => state.emePhase);
-  const emeProgress = useRemixStore((state) => state.emeProgress);
-  const emeBytes = useRemixStore((state) => state.emeBytes);
-  const videoData = useRemixStore((state) => state.videoData);
-  const isPickerOpen = useRemixStore((state) => state.isPickerOpen);
-  const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
-  const selectedFormat = useRemixStore((state) => state.selectedFormat);
-  const setSelectedFormat = useRemixStore((state) => state.setSelectedFormat);
-  const videoTitle = useRemixStore((state) => state.videoTitle);
-  const showPlayer = useRemixStore((state) => state.showPlayer);
-  const setShowPlayer = useRemixStore((state) => state.setShowPlayer);
-  const playerData = useRemixStore(
+  const url = useAppStore((state) => state.url);
+  const setUrl = useAppStore((state) => state.setUrl);
+  const loading = useAppStore((state) => state.loading);
+  const error = useAppStore((state) => state.error);
+  const status = useAppStore((state) => state.status);
+  const emePhase = useAppStore((state) => state.emePhase);
+  const emeProgress = useAppStore((state) => state.emeProgress);
+  const emeBytes = useAppStore((state) => state.emeBytes);
+  const videoData = useAppStore((state) => state.videoData);
+  const isPickerOpen = useAppStore((state) => state.isPickerOpen);
+  const setIsPickerOpen = useAppStore((state) => state.setIsPickerOpen);
+  const selectedFormat = useAppStore((state) => state.selectedFormat);
+  const setSelectedFormat = useAppStore((state) => state.setSelectedFormat);
+  const videoTitle = useAppStore((state) => state.videoTitle);
+  const showPlayer = useAppStore((state) => state.showPlayer);
+  const setShowPlayer = useAppStore((state) => state.setShowPlayer);
+  const playerData = useAppStore(
     (state) => state.playerData
   ) as PlayerData | null;
 

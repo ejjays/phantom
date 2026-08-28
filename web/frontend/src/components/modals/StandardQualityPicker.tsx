@@ -14,7 +14,7 @@ import {
 } from './SharedComponents';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import VideoPreviewOverlay from './VideoPreviewOverlay';
-import { useRemixStore } from '../../store/useRemixStore';
+import { useAppStore } from '../../store/useAppStore';
 import { BACKEND_URL } from '../../lib/config';
 import { prefetchStreamUrls } from '../../lib/previewStream';
 
@@ -370,8 +370,8 @@ const StandardQualityPicker = ({
     return base;
   }, [selectedFormat, videoData, audioTracks, effectiveLang]);
 
-  const backendUrl = useRemixStore((state) => state.backendUrl) || BACKEND_URL;
-  const clientId = useRemixStore((state) => state.clientId);
+  const backendUrl = useAppStore((state) => state.backendUrl) || BACKEND_URL;
+  const clientId = useAppStore((state) => state.clientId);
 
   const [selectedQualityId, setSelectedQualityId] = useState('');
   const [isEditing, setIsEditing] = useState(false);

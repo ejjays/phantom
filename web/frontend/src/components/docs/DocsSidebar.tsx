@@ -11,7 +11,6 @@ import {
   AudioLines,
   TvMinimalPlay,
   Layers,
-  FlaskConical,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -63,11 +62,6 @@ const DocsSidebar = () => {
       to: '/resources/video-guide',
       icon: <TvMinimalPlay size={18} />,
       label: 'Video Quality',
-    },
-    {
-      to: '/resources/remix-guide',
-      icon: <FlaskConical size={18} />,
-      label: 'Remix Lab Setup',
     },
     {
       to: '/resources/security',

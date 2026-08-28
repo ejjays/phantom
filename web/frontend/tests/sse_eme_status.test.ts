@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { handleSseMessage } from '../src/hooks/useSSE';
-import { useRemixStore } from '../src/store/useRemixStore';
+import { useAppStore } from '../src/store/useAppStore';
 
 // regression: background SSE must not clobber client-mux status
 
@@ -23,11 +23,11 @@ const URL = 'https://www.youtube.com/watch?v=test';
 
 describe('SSE never clobbers the client-mux (eme_) status', () => {
   beforeEach(() => {
-    useRemixStore.getState().setStatus('idle');
+    useAppStore.getState().setStatus('idle');
   });
 
   it('ignores a non-eme SSE status while eme is active', () => {
-    useRemixStore.getState().setStatus('eme_downloading');
+    useAppStore.getState().setStatus('eme_downloading');
     const setStatus = vi.fn();
     handleSseMessage(
       { status: 'extracting' },
@@ -38,7 +38,7 @@ describe('SSE never clobbers the client-mux (eme_) status', () => {
   });
 
   it('still applies an eme phase transition', () => {
-    useRemixStore.getState().setStatus('eme_downloading');
+    useAppStore.getState().setStatus('eme_downloading');
     const setStatus = vi.fn();
     handleSseMessage(
       { status: 'eme_muxing' },
@@ -49,7 +49,7 @@ describe('SSE never clobbers the client-mux (eme_) status', () => {
   });
 
   it('applies server status normally when not in eme', () => {
-    useRemixStore.getState().setStatus('initializing');
+    useAppStore.getState().setStatus('initializing');
     const setStatus = vi.fn();
     handleSseMessage(
       { status: 'downloading' },
@@ -60,7 +60,7 @@ describe('SSE never clobbers the client-mux (eme_) status', () => {
   });
 
   it('ignores sse progress while eme is active', () => {
-    useRemixStore.getState().setStatus('eme_downloading');
+    useAppStore.getState().setStatus('eme_downloading');
     const setTargetProgress = vi.fn();
     handleSseMessage(
       { progress: 80 },

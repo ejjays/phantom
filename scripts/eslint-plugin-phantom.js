@@ -44,7 +44,6 @@ const phantomPlugin = {
               const filename = context.filename || context.getFilename();
               if (filename.includes('ytdlp.service.ts')) return;
               if (filename.includes('services/ytdlp/')) return;
-              if (filename.includes('controllers/remix.controller.ts')) return;
               if (filename.includes('utils/media/video.util.ts')) return;
               if (filename.includes('extractors/bluesky.ts')) return;
               if (filename.includes('extractors/soundcloud.ts')) return;

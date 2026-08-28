@@ -1,6 +1,6 @@
 import { isHost } from '../lib/utils';
 import { useCallback } from 'react';
-import { useRemixStore } from '../store/useRemixStore';
+import { useAppStore } from '../store/useAppStore';
 import { BACKEND_URL } from '../lib/config';
 import { VideoInfo, FinalResponse } from '@phantom/shared/schemas/media.schema';
 import { filterUnsupportedCodecs } from '../lib/codec-support';
@@ -47,27 +47,27 @@ const _handleFetchError = async (response: Response) => {
 };
 
 export const useVideoInfo = () => {
-  const backendUrl = useRemixStore((state) => state.backendUrl) || BACKEND_URL;
-  const clientId = useRemixStore((state) => state.clientId);
-  const url = useRemixStore((state) => state.url);
-  const setVideoData = useRemixStore((state) => state.setVideoData);
-  const setIsPickerOpen = useRemixStore((state) => state.setIsPickerOpen);
-  const setDownloadStarted = useRemixStore((state) => state.setDownloadStarted);
-  const setStatus = useRemixStore((state) => state.setStatus);
-  const setTargetProgress = useRemixStore((state) => state.setTargetProgress);
-  const setSubStatus = useRemixStore((state) => state.setSubStatus);
-  const setPendingSubStatuses = useRemixStore(
+  const backendUrl = useAppStore((state) => state.backendUrl) || BACKEND_URL;
+  const clientId = useAppStore((state) => state.clientId);
+  const url = useAppStore((state) => state.url);
+  const setVideoData = useAppStore((state) => state.setVideoData);
+  const setIsPickerOpen = useAppStore((state) => state.setIsPickerOpen);
+  const setDownloadStarted = useAppStore((state) => state.setDownloadStarted);
+  const setStatus = useAppStore((state) => state.setStatus);
+  const setTargetProgress = useAppStore((state) => state.setTargetProgress);
+  const setSubStatus = useAppStore((state) => state.setSubStatus);
+  const setPendingSubStatuses = useAppStore(
     (state) => state.setPendingSubStatuses
   );
-  const setDesktopLogs = useRemixStore((state) => state.setDesktopLogs);
-  const setSessionStartTime = useRemixStore(
+  const setDesktopLogs = useAppStore((state) => state.setDesktopLogs);
+  const setSessionStartTime = useAppStore(
     (state) => state.setSessionStartTime
   );
-  const setLoading = useRemixStore((state) => state.setLoading);
-  const setError = useRemixStore((state) => state.setError);
-  const setSelectedFormat = useRemixStore((state) => state.setSelectedFormat);
-  const setPlayerData = useRemixStore((state) => state.setPlayerData);
-  const setShowPlayer = useRemixStore((state) => state.setShowPlayer);
+  const setLoading = useAppStore((state) => state.setLoading);
+  const setError = useAppStore((state) => state.setError);
+  const setSelectedFormat = useAppStore((state) => state.setSelectedFormat);
+  const setPlayerData = useAppStore((state) => state.setPlayerData);
+  const setShowPlayer = useAppStore((state) => state.setShowPlayer);
 
   const _handleSpotifyPlayer = useCallback(
     (updatedData: VideoInfo, finalUrl: string, data: VideoInfo) => {
@@ -115,7 +115,7 @@ export const useVideoInfo = () => {
       setLoading(true);
       setError('');
 
-      if (useRemixStore.getState().videoData?.webpageUrl !== cleanedUrl) {
+      if (useAppStore.getState().videoData?.webpageUrl !== cleanedUrl) {
         setVideoData(null);
       }
 

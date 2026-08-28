@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useProgress } from '../src/hooks/useProgress';
-import { useRemixStore } from '../src/store/useRemixStore';
+import { useAppStore } from '../src/store/useAppStore';
 
 /**
  * verifies tiered progress milestones in useProgress.
@@ -9,24 +9,24 @@ import { useRemixStore } from '../src/store/useRemixStore';
  * avoid "stuck at 50%" perception during scans.
  */
 
-const ORIGINAL_STATE = useRemixStore.getState();
+const ORIGINAL_STATE = useAppStore.getState();
 
 beforeEach(() => {
   // reset progress state
-  useRemixStore.setState({
+  useAppStore.setState({
     isPickerOpen: false,
     videoData: null,
     targetProgress: 0,
     progress: 0,
     status: 'idle',
-  } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+  } as unknown as Parameters<typeof useAppStore.setState>[0]);
 });
 
 afterEach(() => {
   vi.useRealTimers();
   // restore base store
-  useRemixStore.setState(
-    ORIGINAL_STATE as unknown as Parameters<typeof useRemixStore.setState>[0]
+  useAppStore.setState(
+    ORIGINAL_STATE as unknown as Parameters<typeof useAppStore.setState>[0]
   );
 });
 
@@ -35,7 +35,7 @@ describe('useProgress — tiered milestones', () => {
     renderHook(() => useProgress());
 
     act(() => {
-      useRemixStore.setState({
+      useAppStore.setState({
         status: 'initializing',
         isPickerOpen: true,
         targetProgress: 45,
@@ -43,17 +43,17 @@ describe('useProgress — tiered milestones', () => {
           title: 'Some Video',
           formats: [],
         },
-      } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+      } as unknown as Parameters<typeof useAppStore.setState>[0]);
     });
 
-    expect(useRemixStore.getState().targetProgress).toBeGreaterThanOrEqual(70);
+    expect(useAppStore.getState().targetProgress).toBeGreaterThanOrEqual(70);
   });
 
   it('bumps to >=90 when picker has at least one format', () => {
     renderHook(() => useProgress());
 
     act(() => {
-      useRemixStore.setState({
+      useAppStore.setState({
         status: 'initializing',
         isPickerOpen: true,
         targetProgress: 70,
@@ -61,17 +61,17 @@ describe('useProgress — tiered milestones', () => {
           title: 'Some Video',
           formats: [{ formatId: '137', height: 1080 }],
         },
-      } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+      } as unknown as Parameters<typeof useAppStore.setState>[0]);
     });
 
-    expect(useRemixStore.getState().targetProgress).toBeGreaterThanOrEqual(90);
+    expect(useAppStore.getState().targetProgress).toBeGreaterThanOrEqual(90);
   });
 
   it('bumps to >=95 when isFullData=true', () => {
     renderHook(() => useProgress());
 
     act(() => {
-      useRemixStore.setState({
+      useAppStore.setState({
         status: 'initializing',
         isPickerOpen: true,
         targetProgress: 90,
@@ -80,17 +80,17 @@ describe('useProgress — tiered milestones', () => {
           formats: [{ formatId: '137', height: 1080 }],
           isFullData: true,
         },
-      } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+      } as unknown as Parameters<typeof useAppStore.setState>[0]);
     });
 
-    expect(useRemixStore.getState().targetProgress).toBeGreaterThanOrEqual(95);
+    expect(useAppStore.getState().targetProgress).toBeGreaterThanOrEqual(95);
   });
 
   it('does NOT bump when the picker is closed', () => {
     renderHook(() => useProgress());
 
     act(() => {
-      useRemixStore.setState({
+      useAppStore.setState({
         status: 'initializing',
         isPickerOpen: false,
         targetProgress: 30,
@@ -99,18 +99,18 @@ describe('useProgress — tiered milestones', () => {
           formats: [{ formatId: '137', height: 1080 }],
           isFullData: true,
         },
-      } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+      } as unknown as Parameters<typeof useAppStore.setState>[0]);
     });
 
     // ignore closed picker
-    expect(useRemixStore.getState().targetProgress).toBe(30);
+    expect(useAppStore.getState().targetProgress).toBe(30);
   });
 
   it('does NOT bump backwards when current is already past the milestone', () => {
     renderHook(() => useProgress());
 
     act(() => {
-      useRemixStore.setState({
+      useAppStore.setState({
         status: 'initializing',
         isPickerOpen: true,
         targetProgress: 92, // past milestone
@@ -118,11 +118,11 @@ describe('useProgress — tiered milestones', () => {
           title: 'Some Video',
           formats: [{ formatId: '137', height: 1080 }],
         },
-      } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+      } as unknown as Parameters<typeof useAppStore.setState>[0]);
     });
 
     // avoid backwards clamp
-    expect(useRemixStore.getState().targetProgress).toBe(92);
+    expect(useAppStore.getState().targetProgress).toBe(92);
   });
 
   it('progresses through all three tiers as videoData evolves', () => {
@@ -130,33 +130,33 @@ describe('useProgress — tiered milestones', () => {
 
     // tier 1: title
     act(() => {
-      useRemixStore.setState({
+      useAppStore.setState({
         status: 'initializing',
         isPickerOpen: true,
         targetProgress: 50,
         videoData: { title: 'X', formats: [] },
-      } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+      } as unknown as Parameters<typeof useAppStore.setState>[0]);
     });
-    expect(useRemixStore.getState().targetProgress).toBe(70);
+    expect(useAppStore.getState().targetProgress).toBe(70);
 
     // tier 2: formats
     act(() => {
-      useRemixStore.setState({
+      useAppStore.setState({
         videoData: { title: 'X', formats: [{ formatId: '1', height: 720 }] },
-      } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+      } as unknown as Parameters<typeof useAppStore.setState>[0]);
     });
-    expect(useRemixStore.getState().targetProgress).toBe(90);
+    expect(useAppStore.getState().targetProgress).toBe(90);
 
     // tier 3: full
     act(() => {
-      useRemixStore.setState({
+      useAppStore.setState({
         videoData: {
           title: 'X',
           formats: [{ formatId: '1', height: 720 }],
           isFullData: true,
         },
-      } as unknown as Parameters<typeof useRemixStore.setState>[0]);
+      } as unknown as Parameters<typeof useAppStore.setState>[0]);
     });
-    expect(useRemixStore.getState().targetProgress).toBe(95);
+    expect(useAppStore.getState().targetProgress).toBe(95);
   });
 });

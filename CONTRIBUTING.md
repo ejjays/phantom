@@ -14,7 +14,6 @@ Phantom is a multi-target repo:
 | Web frontend   | `web/frontend/` | React 19 + Vite, Tailwind + Styled Components         |
 | Shared schemas | `web/shared/`   | Zod schemas (`@phantom/shared`)                       |
 | Android app    | `mobile/`       | Expo SDK 57, RN 0.86, Hermes, New Architecture        |
-| Remix Lab      | `remix/`        | Python (Demucs, BTC, madmom, nnAudio) on Kaggle/Colab |
 | Packages       | `packages/`     | `@phantom/extractors`, `@phantom/web-mux` (both MIT)  |
 
 ## Getting Set Up

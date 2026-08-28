@@ -67,17 +67,6 @@ async function initTestDb(client: DBClient) {
       created_at INTEGER
     )`);
 
-    await client.execute(`CREATE TABLE IF NOT EXISTS remix_history (
-      id TEXT PRIMARY KEY,
-      name TEXT,
-      stems TEXT,
-      chords TEXT,
-      beats TEXT,
-      tempo REAL,
-      engine TEXT,
-      created_at INTEGER
-    )`);
-
     await client.execute(`CREATE TABLE IF NOT EXISTS volatile_links (
       url TEXT PRIMARY KEY,
       expires_at INTEGER,

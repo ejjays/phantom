@@ -14,15 +14,14 @@
 
 ## What this is
 
-Phantom downloads 4K+ video and audio, and breaks songs into stems + chords for practice. It pushes heavy media work onto your device (browser or phone) instead of a server — so it stays free, ad-free, and unmetered.
+Phantom downloads 4K+ video and audio. It pushes heavy media work onto your device (browser or phone) instead of a server — so it stays free, ad-free, and unmetered.
 
-**Three deployment targets, one codebase:**
+**Two deployment targets, one codebase:**
 
 | Target          | What runs where                                                                | Repo path |
 | --------------- | ------------------------------------------------------------------------------ | --------- |
 | **Web app**     | Extraction/mux on server (Node), browser mux via `mediabunny`, server fallback | `web/`    |
 | **Android app** | Full pipeline on-device (Expo RN, Hermes, ffmpeg-kit)                          | `mobile/` |
-| **Remix Lab**   | ML stem/chord/beat/key analysis on free Kaggle/Colab GPUs                      | `remix/`  |
 
 ---
 
@@ -47,10 +46,6 @@ Phantom downloads 4K+ video and audio, and breaks songs into stems + chords for 
 </table>
 
 ---
-
-## Remix Lab Preview
-
-https://github.com/user-attachments/assets/01623e43-d78d-4553-b00c-43cc2cf28c97
 
 ---
 
@@ -142,9 +137,8 @@ phantom/
 ├── packages/
 │   ├── extractors/     # @phantom/extractors (shared fb/threads/social)
 │   └── web-mux/        # @phantom/web-mux (shared media mux core)
-├── remix/              # Python ML engine (Demucs, BTC, madmom, nnAudio)
-├── scripts/            # termux install, tunnels, kaggle bundler
-└── docs/               # self-host, env, hardening, API, mobile, remix
+├── scripts/            # termux install, tunnels
+└── docs/               # self-host, env, hardening, API, mobile
 ```
 
 **Key architectural decisions:**
@@ -152,7 +146,6 @@ phantom/
 - **No server for mobile** — each phone is its own residential IP + compute. Avoids datacenter bot-blocks and OOM kills on free tiers.
 - **Client-side muxing is primary** — `mediabunny` (pure-JS muxer) runs in a Web Worker, streams to OPFS. Server fallback via `ffmpeg -c copy` only when client mux fails or browser unsupported.
 - **Googlevideo throttle bypass** — backend uses 8 MB ranged chunks, mobile uses 4 MB. Both parallel with per-chunk retry.
-- **Remix Lab is offline-first** — dual-GPU Kaggle notebook (2×T4), Gradio UI, async job API. Results zip downloaded to your machine.
 
 ---
 
@@ -165,12 +158,11 @@ phantom/
 | [`docs/protect-an-instance.md`](docs/protect-an-instance.md) | Hardening a public deployment (API key, URL signing, rate limits, TLS) |
 | [`docs/api.md`](docs/api.md)                                 | Endpoint contracts, request/response shapes, SSE events                |
 | [`docs/mobile-app.md`](docs/mobile-app.md)                   | Android app architecture, extractors, download pipeline, EAS build     |
-| [`docs/remix-lab.md`](docs/remix-lab.md)                     | ML pipeline, models, Kaggle/Colab setup, local run, API                |
 | [`docs/phone-worker-setup.md`](docs/phone-worker-setup.md)   | Legacy: using a spare phone as yt-dlp/media relay for web backend      |
 
 ---
 
-**Apache-2.0** for the main apps (`web/`, `mobile/`, `remix/`).
+**Apache-2.0** for the main apps (`web/`, `mobile/`).
 
 **MIT** for standalone packages in `packages/` (`@phantom/extractors`, `@phantom/web-mux`) — each carries its own LICENSE.
 

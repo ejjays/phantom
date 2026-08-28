@@ -1,5 +1,5 @@
 import { filterUnsupportedCodecs } from '../lib/codec-support';
-import { useRemixStore } from '../store/useRemixStore';
+import { useAppStore } from '../store/useAppStore';
 
 interface SSEData {
   status?: string;
@@ -80,7 +80,7 @@ export const handleSseMessage = (
     safe(() => {
       const incoming = data.status as string;
       // client-mux owns status; ignore stale events
-      const current = useRemixStore.getState().status;
+      const current = useAppStore.getState().status;
       if (current.startsWith('eme_') && !incoming.startsWith('eme_')) return;
       setStatus(incoming);
     }, 'status');
@@ -146,7 +146,7 @@ export const handleSseMessage = (
       setTimeout(() => {
         try {
           // don't reopen once a download is underway
-          if (!useRemixStore.getState().downloadStarted) {
+          if (!useAppStore.getState().downloadStarted) {
             setIsPickerOpen(true);
           }
         } catch (err) {
@@ -202,7 +202,7 @@ export const handleSseMessage = (
 
   if (
     data.progress !== undefined &&
-    !useRemixStore.getState().status.startsWith('eme_')
+    !useAppStore.getState().status.startsWith('eme_')
   ) {
     safe(() => {
       const numericProgress = Number(data.progress);

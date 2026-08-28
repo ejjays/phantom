@@ -8,7 +8,7 @@ import {
   type PanInfo,
 } from 'framer-motion';
 import { X, VideoOff } from 'lucide-react';
-import { useRemixStore } from '../../store/useRemixStore';
+import { useAppStore } from '../../store/useAppStore';
 import { BACKEND_URL } from '../../lib/config';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import { resolveStreamUrls } from '../../lib/previewStream';
@@ -48,8 +48,8 @@ const VideoPreviewOverlay = ({
   title,
   poster,
 }: VideoPreviewOverlayProps) => {
-  const backendUrl = useRemixStore((state) => state.backendUrl) || BACKEND_URL;
-  const clientId = useRemixStore((state) => state.clientId);
+  const backendUrl = useAppStore((state) => state.backendUrl) || BACKEND_URL;
+  const clientId = useAppStore((state) => state.clientId);
 
   const [state, setState] = useState<PreviewState>({ phase: 'loading' });
   const panelRef = useRef<HTMLDivElement>(null);
