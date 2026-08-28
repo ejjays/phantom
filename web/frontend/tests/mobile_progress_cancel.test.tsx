@@ -3,8 +3,6 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import MobileProgress from '../src/components/MobileProgress';
 import { useAppStore } from '../src/store/useAppStore';
 
-// MobileProgress now reads hot-path state from the store directly (B1):
-// only onCancel remains a prop. Seed the store before each render.
 const seed = (patch: Record<string, unknown>) =>
   useAppStore.setState({
     loading: true,

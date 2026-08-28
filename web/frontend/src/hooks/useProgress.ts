@@ -1,13 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 
-/**
- * Drives progress state: milestone bumps + a RAF animation tick. This hook is
- * side-effect-only — it writes the store but does NOT subscribe to the per-frame
- * `progress`/`subStatus`/`desktopLogs` values, so consumers (and the hero/search
- * tree above them) don't re-render on every RAF tick. Read those directly via
- * `useAppStore((s) => s.x)` selectors where you need to display them.
- */
 export const useProgress = () => {
   const setProgress = useAppStore((state) => state.setProgress);
   const targetProgress = useAppStore((state) => state.targetProgress);

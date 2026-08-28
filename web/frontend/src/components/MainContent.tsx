@@ -175,8 +175,6 @@ const SearchInput = ({
   </div>
 );
 
-// isolated screen-reader announcement: subscribes to the per-frame
-// progress/subStatus itself so MainContent never re-renders on RAF ticks.
 const A11yAnnouncement = ({
   loading,
   status,
@@ -216,9 +214,6 @@ const MainContent = () => {
     (state) => state.playerData
   ) as PlayerData | null;
 
-  // emePhase/emeProgress/emeBytes/videoTitle were only passed through to the
-  // progress cards, which now read the store directly — drop these so MainContent
-  // no longer subscribes to per-frame download state.
   const {
     isMobile,
     isSpotifySession,

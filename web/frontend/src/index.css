@@ -388,7 +388,7 @@ body {
   display: none;
 }
 
-/* 404 page — scene + illustration (moved from styled-components) */
+/* 404 page scene */
 .nf-wrapper {
   display: flex;
   flex-direction: column;

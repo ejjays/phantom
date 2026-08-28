@@ -1,13 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { resolveDbUrl } from '../../src/utils/infra/db.util.js';
 
-/**
- * C1: the native/file libsql binding is stubbed to an empty package via
- * package.json overrides (termux/android compat). A production `file:` URL
- * would explode cryptically at runtime; resolveDbUrl must fail loudly.
- * The `file:test.db` test exception is preserved.
- */
-describe('resolveDbUrl (C1 libsql override guard)', () => {
+describe('resolveDbUrl libsql override guard', () => {
   const origTursoUrl = process.env.TURSO_URL;
   const origNodeEnv = process.env.NODE_ENV;
 

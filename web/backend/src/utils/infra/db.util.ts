@@ -9,13 +9,8 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
-/**
- * Resolves the libsql client URL. `libsql://` (Turso) URLs are rewritten to
- * `https://` so the HTTP binding is used — the native/file binding is stubbed
- * to an empty package via package.json overrides (termux/android compat), so
- * a `file:` URL would explode at runtime with a cryptic error. Fail loudly.
- * The `file:test.db` test exception is preserved.
- */
+// native libsql binding is stubbed to empty for termux/android — a file: url
+// would crash cryptically. throw loud, keep file:test.db test exception.
 export function resolveDbUrl(isTest: boolean): string | undefined {
   if (isTest) return 'file:test.db';
   const url = process.env.TURSO_URL?.replace('libsql://', 'https://');
@@ -39,8 +34,6 @@ const client = (() => {
   }
 
   const isTest = process.env.NODE_ENV === 'test';
-  // resolveDbUrl throws loudly on a production `file:` url — that must
-  // propagate (crash), not be swallowed into silent local-only mode.
   const url = resolveDbUrl(isTest);
   const authToken = isTest ? undefined : process.env.TURSO_AUTH_TOKEN;
 

@@ -20,15 +20,7 @@ export interface MediaConverterHook {
   requestClipboard: () => boolean;
 }
 
-/**
- * Actions-only hook: wires the native bridge + download orchestrator and drives
- * progress side-effects. It deliberately does NOT subscribe to or return the
- * per-frame display values (progress/subStatus/desktopLogs) — consumers read
- * those directly via `useAppStore((s) => s.x)` selectors so the hero/search tree
- * doesn't re-render on every RAF tick during downloads.
- */
 export const useMediaConverter = (): MediaConverterHook => {
-  // setters for the native bridge (stable refs; no re-render cost)
   const setUrl = useAppStore((state) => state.setUrl);
   const setLoading = useAppStore((state) => state.setLoading);
   const setError = useAppStore((state) => state.setError);
@@ -43,7 +35,6 @@ export const useMediaConverter = (): MediaConverterHook => {
   const isPickerOpen = useAppStore((state) => state.isPickerOpen);
   const url = useAppStore((state) => state.url);
 
-  // progress side-effects only (RAF + milestone bumps); no value subscriptions
   const { setProgress, setTargetProgress, setPendingSubStatuses } =
     useProgress();
 
