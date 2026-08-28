@@ -42,7 +42,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json && node ../../node_modules/esbuild/bin/esbuild src/worker.ts --bundle --format=esm --outdir=dist --allow-overwrite",
+    "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json && node scripts/build-worker.mjs",
     "prepack": "npm run build",
     "postinstall": "npm run build"
   },

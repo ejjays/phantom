@@ -167,6 +167,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           build-shared: 'true'
+          build-web-mux: 'true'
 
       - name: Typecheck and lint
         run: |
