@@ -143,6 +143,14 @@ function creatorFrom(meta: VideoMetadata): Creator {
   };
 }
 
+// spotlight pages for platform accounts ship creator: null; the handle
+// survives only in the og:url canonical (@user/spotlight/<id>)
+function handleFromOgUrl(html: string): string | undefined {
+  const tag = html.match(/<meta[^>]+property=["']og:url["'][^>]*>/iu);
+  const content = tag?.[0].match(/content=["']([^"']+)["']/iu)?.[1];
+  return content?.match(/\/@([A-Za-z0-9._-]+)\/spotlight\//iu)?.[1];
+}
+
 // snap fills every clip w/ these placeholders; treat as missing
 const GENERIC_NAMES = new Set([
   'spotlight snap',
@@ -231,7 +239,8 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     });
     if (!res.ok) throw fromStatus(res.status, 'Snapchat', 'spotlight');
 
-    const data = nextDataFromHtml(await res.text());
+    const html = await res.text();
+    const data = nextDataFromHtml(html);
     if (!data) throw noVideo('Snapchat', 'spotlight');
 
     const story = findStory(data, id);
@@ -252,6 +261,9 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     if (probed) format.filesize = probed;
 
     const creator = creatorFrom(meta);
+    if (!creator.username && !creator.displayName) {
+      creator.username = handleFromOgUrl(html);
+    }
 
     return buildVideoInfo({
       id,

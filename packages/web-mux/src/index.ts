@@ -18,4 +18,6 @@ export {
 export type {
   ResumableFetchOptions,
   ResumableFetchResult,
+  FetchLike,
+  MinimalResponse,
 } from './resumableFetch.js';

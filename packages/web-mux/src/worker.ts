@@ -64,7 +64,8 @@ async function fetchToDisk(
   let lastEmit = 0;
   try {
     const result = await resumableFetchToSink({
-      url,
+      // mark edge-muxed media requests so proxy logs can tell them apart
+      url: `${url}${url.includes('?') ? '&' : '?'}via=eme`,
       signal,
       maxAttempts: RESUME_MAX_ATTEMPTS,
       flushEvery: FLUSH_INTERVAL,
@@ -159,6 +160,22 @@ async function sweepOrphans(
   }
 }
 
+async function reportStorage(tag: string): Promise<void> {
+  try {
+    const est = await navigator.storage?.estimate?.();
+    if (est) {
+      ctx.postMessage({
+        type: 'diag',
+        tag,
+        usage: est.usage,
+        quota: est.quota,
+      });
+    }
+  } catch {
+    // ignore estimate failure
+  }
+}
+
 async function runJob(
   job: MuxStartMessage,
   signal: AbortSignal
@@ -167,6 +184,7 @@ async function runJob(
   const session = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const dir = await navigator.storage.getDirectory();
   await sweepOrphans(dir, prefix);
+  await reportStorage('start');
   const videoName = muxName(prefix, session, 'v.bin');
   const audioName = muxName(prefix, session, 'a.bin');
   const outName = muxName(prefix, session, 'out.mp4');
@@ -211,8 +229,11 @@ async function runJob(
     const quota = (err as { name?: string })?.name === 'QuotaExceededError';
     try {
       const est = await navigator.storage?.estimate?.();
-      if (est && quota && typeof (err as { ceiling?: number }).ceiling !== 'number') {
-        (err as { ceiling?: number }).ceiling = est.usage;
+      if (est) {
+        reportStorage('error');
+        if (quota && typeof (err as { ceiling?: number }).ceiling !== 'number') {
+          (err as { ceiling?: number }).ceiling = est.usage;
+        }
       }
     } catch {
       // best-effort

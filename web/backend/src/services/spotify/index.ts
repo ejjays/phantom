@@ -10,6 +10,7 @@ import { fetchInitialMetadata, fetchPreviewUrlManually } from './metadata.js';
 import { fetchIsrcFromDeezer } from './external.js';
 import { runPriorityRace } from './resolver.js';
 import { SpotifyMetadata } from '../../types/index.js';
+import { LRUCache } from 'lru-cache';
 
 type OnProgressFn = (
   stage: string,
@@ -18,13 +19,11 @@ type OnProgressFn = (
   details?: string
 ) => void;
 
-interface CachedEntry {
-  data: SpotifyMetadata;
-  timestamp: number;
-}
-
-const RESOLUTION_CACHE = new Map<string, CachedEntry>();
 const RESOLUTION_EXPIRY = 60 * 60 * 1000;
+const RESOLUTION_CACHE = new LRUCache<string, SpotifyMetadata>({
+  max: 500,
+  ttl: RESOLUTION_EXPIRY,
+});
 
 export async function refreshPreviewIfNeeded(
   cleanUrl: string,
@@ -107,8 +106,8 @@ export async function resolveSpotifyToYoutube(
 
   if (RESOLUTION_CACHE.has(cleanUrl)) {
     const cached = RESOLUTION_CACHE.get(cleanUrl);
-    if (cached && Date.now() - cached.timestamp < RESOLUTION_EXPIRY) {
-      return cached.data;
+    if (cached) {
+      return cached;
     }
   }
 
@@ -176,7 +175,7 @@ export async function resolveSpotifyToYoutube(
     previewUrl: metadata.previewUrl,
   };
 
-  RESOLUTION_CACHE.set(cleanUrl, { data: finalData, timestamp: Date.now() });
+  RESOLUTION_CACHE.set(cleanUrl, finalData);
   return finalData;
 }
 

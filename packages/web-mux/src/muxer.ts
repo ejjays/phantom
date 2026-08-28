@@ -102,15 +102,17 @@ async function openBufferedInput(
   onBytes?: (received: number, total: number) => void,
   totalHint = 0
 ): Promise<{ source: UrlSource | BlobSource; cleanup: () => Promise<void> }> {
+  // mark edge-muxed media requests so proxy logs can tell them apart
+  const tagged = `${url}${url.includes('?') ? '&' : '?'}via=eme`;
   const noCleanup = async () => {};
   if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) {
-    return { source: new UrlSource(url), cleanup: noCleanup };
+    return { source: new UrlSource(tagged), cleanup: noCleanup };
   }
   try {
     const dir = await navigator.storage.getDirectory();
     const handle = await dir.getFileHandle(name, { create: true });
     const writable = await handle.createWritable();
-    const response = await fetch(url, { signal });
+    const response = await fetch(tagged, { signal });
     if (!response.ok || !response.body) {
       await writable.abort().catch(() => {});
       throw new Error(`buffered fetch failed: ${response.status}`);
@@ -162,7 +164,7 @@ async function openBufferedInput(
     }
     const errName = (err as Error)?.name;
     if (errName === 'AbortError' || errName === 'FetchIncomplete') throw err;
-    return { source: new UrlSource(url), cleanup: noCleanup };
+    return { source: new UrlSource(tagged), cleanup: noCleanup };
   }
 }
 
@@ -317,11 +319,22 @@ function muxViaWorker(options: MuxOptions): Promise<Blob> {
         outName?: string;
         name?: string;
         message?: string;
+        tag?: string;
+        usage?: number;
+        quota?: number;
         ceiling?: number;
       };
       if (!msg) return;
       if (msg.type === 'progress') {
         onProgress?.(msg.pct ?? 0, msg.detail, msg.bytes);
+        return;
+      }
+      if (msg.type === 'diag') {
+        const mb = (val?: number) =>
+          typeof val === 'number' ? `${Math.round(val / 1048576)}MB` : '?';
+        console.log(
+          `[web-mux] storage ${msg.tag}: ${mb(msg.usage)} used / ${mb(msg.quota)} quota`
+        );
         return;
       }
       if (settled) return;

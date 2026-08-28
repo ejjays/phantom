@@ -14,6 +14,10 @@ inputs:
     description: Build web/shared after install
     required: false
     default: 'false'
+  build-web-mux:
+    description: Build packages/web-mux after install
+    required: false
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -33,10 +37,11 @@ runs:
       shell: bash
 
     - name: Build internal packages
-      if: inputs.build-extractors == 'true' || inputs.build-shared == 'true'
+      if: inputs.build-extractors == 'true' || inputs.build-shared == 'true' || inputs.build-web-mux == 'true'
       run: |
         ${{ inputs.build-extractors == 'true' && '(cd packages/extractors && npm run build)' || '' }}
         ${{ inputs.build-shared == 'true' && '(cd web/shared && npm run build)' || '' }}
+        ${{ inputs.build-web-mux == 'true' && '(cd packages/web-mux && npm run build)' || '' }}
       shell: bash
 
     - name: Save cache

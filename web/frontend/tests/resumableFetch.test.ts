@@ -3,10 +3,10 @@ import {
   resumableFetchToSink,
   ResumeNotSupportedError,
   SizeMismatchError,
-  EdgeFetchIncompleteError,
+  FetchIncompleteError,
   type FetchLike,
   type MinimalResponse,
-} from '../src/lib/resumableFetch';
+} from '@phantom/web-mux';
 
 const TOTAL = 100_000;
 const DATA = new Uint8Array(TOTAL);
@@ -198,7 +198,7 @@ describe('resumableFetchToSink', () => {
     ).rejects.toBeInstanceOf(SizeMismatchError);
   });
 
-  it('gives up with EdgeFetchIncomplete when resume never makes progress', async () => {
+  it('gives up with FetchIncomplete when resume never makes progress', async () => {
     const sink = makeSink();
     const fetchImpl: FetchLike = vi.fn((_url, init) => {
       const start = rangeStart(init as { headers?: Record<string, string> });
@@ -228,7 +228,7 @@ describe('resumableFetchToSink', () => {
         fetchImpl,
         maxAttempts: 3,
       })
-    ).rejects.toBeInstanceOf(EdgeFetchIncompleteError);
+    ).rejects.toBeInstanceOf(FetchIncompleteError);
   });
 
   it('stops promptly on abort', async () => {

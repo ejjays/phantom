@@ -10,6 +10,7 @@ import java.io.RandomAccessFile
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -82,7 +83,7 @@ class MediaDownloaderModule : Module() {
     var lastEmitAt: Long = 0
   )
 
-  private val jobs = mutableMapOf<String, JobState>()
+  private val jobs = ConcurrentHashMap<String, JobState>()
 
   override fun definition() = ModuleDefinition {
     Name("MediaDownloader")
