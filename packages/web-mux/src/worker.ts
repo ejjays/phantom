@@ -64,7 +64,8 @@ async function fetchToDisk(
   let lastEmit = 0;
   try {
     const result = await resumableFetchToSink({
-      url,
+      // mark edge-muxed media requests so proxy logs can tell them apart
+      url: `${url}${url.includes('?') ? '&' : '?'}via=eme`,
       signal,
       maxAttempts: RESUME_MAX_ATTEMPTS,
       flushEvery: FLUSH_INTERVAL,
