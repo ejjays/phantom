@@ -7,8 +7,6 @@ interface DesktopProgressProps {
 }
 
 const DesktopProgress = ({ onCancel }: DesktopProgressProps) => {
-  // read hot-path state directly via narrow selectors so the RAF-updated
-  // progress re-renders only this card, not the parent hero/search tree.
   const loading = useAppStore((state) => state.loading);
   const progress = useAppStore((state) => state.progress);
   const status = useAppStore((state) => state.status);
