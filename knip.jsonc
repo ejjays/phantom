@@ -2,6 +2,10 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "include": ["dependencies", "unlisted", "unresolved", "binaries"],
   "ignoreBinaries": ["ffmpeg", "yt-dlp", "kaggle"],
+  // web/site is an astro project; knip can't trace .astro entry points,
+  // the runtime --require ./userland-shim.cjs (preview script) or the
+  // postinstall scripts/binding-fix.mjs. Excluded intentionally rather
+  // than maintained as a fragile half-config. Revisit if it stabilizes.
   "ignoreWorkspaces": ["web/site"],
   "workspaces": {
     ".": {
