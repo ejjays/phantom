@@ -7,6 +7,11 @@
   "separateMajorMinor": true,
   "packageRules": [
     {
+      "description": "pinned at 1.0.1; patches/react-native-enriched-markdown+1.0.1.patch removes a long-press gesture conflict. a bump silently drops the patch (no ci signal — mobile ci doesn't build android).",
+      "matchPackageNames": ["react-native-enriched-markdown"],
+      "enabled": false
+    },
+    {
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "all non-major deps",
       "automerge": true

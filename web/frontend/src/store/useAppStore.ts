@@ -53,7 +53,6 @@ export interface AppState {
     updater: string[] | ((prev: string[]) => string[])
   ) => void;
   setBackendUrl: (url: string) => void;
-  resetStore: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -162,7 +161,5 @@ export const useAppStore = create<AppState>()(
       while (trimmed.endsWith('/')) trimmed = trimmed.slice(0, -1);
       set({ backendUrl: trimmed });
     },
-
-    resetStore: () => set({}),
   }))
 );
