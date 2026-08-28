@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,11 @@ import {
   Linking,
   useWindowDimensions,
   ScrollView,
+  Animated,
 } from 'react-native';
 import QRCodeStyled from 'react-native-qrcode-styled';
 import * as Clipboard from 'expo-clipboard';
-import { Link, Mail, MoreHorizontal } from 'lucide-react-native';
+import { Link, Mail, MoreHorizontal, Check } from 'lucide-react-native';
 import { PlatformLogo } from '../logos';
 import PhantomHero, { PHANTOM_ASPECT } from '../PhantomHero';
 import { tapSuccess } from '../../lib/haptics';
@@ -34,10 +35,36 @@ export default function ShareAppSheet() {
   const { width } = useWindowDimensions();
   const qrSize = Math.min(width - 96, 260);
 
+  const copyFade = useRef(new Animated.Value(0)).current;
+  const [copied, setCopied] = useState(false);
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const copy = useCallback(async () => {
     await Clipboard.setStringAsync(APP_URL);
     tapSuccess();
-  }, []);
+    setCopied(true);
+    Animated.timing(copyFade, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    resetTimer.current = setTimeout(() => {
+      setCopied(false);
+      Animated.timing(copyFade, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }).start();
+    }, 1500);
+  }, [copyFade]);
+
+  useEffect(
+    () => () => {
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+    },
+    []
+  );
 
   const systemShare = useCallback(async () => {
     try {
@@ -150,10 +177,31 @@ export default function ShareAppSheet() {
   const targets: Target[] = [
     {
       id: 'copy',
-      label: 'Copy',
+      label: copied ? 'Copied' : 'Copy',
       bg: '#475569',
       onPress: () => void copy(),
-      render: (size) => <Link size={size} color="#fff" strokeWidth={2.2} />,
+      render: (size) => (
+        <View style={tw`h-[22px] w-[22px] items-center justify-center`}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              tw`absolute inset-0 items-center justify-center`,
+              { opacity: copyFade },
+            ]}
+          >
+            <Check size={size} color="#22d3ee" strokeWidth={2.4} />
+          </Animated.View>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              tw`absolute inset-0 items-center justify-center`,
+              { opacity: Animated.subtract(1, copyFade) },
+            ]}
+          >
+            <Link size={size} color="#fff" strokeWidth={2.2} />
+          </Animated.View>
+        </View>
+      ),
     },
     {
       id: 'instagram',

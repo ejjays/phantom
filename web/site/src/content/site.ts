@@ -51,14 +51,22 @@ export const PLATFORMS: readonly Platform[] = [
     caps: { video: 'yes', audio: 'yes', image: 'yes' },
     note: 'public posts only',
   },
-  { id: 'threads', name: 'Threads', caps: { video: 'yes', audio: 'yes', image: 'yes' } },
+  {
+    id: 'threads',
+    name: 'Threads',
+    caps: { video: 'yes', audio: 'yes', image: 'yes' },
+  },
   {
     id: 'bluesky',
     name: 'Bluesky',
     caps: { video: 'yes', audio: 'no', image: 'na' },
     note: 'hls streams — no mp3 yet',
   },
-  { id: 'reddit', name: 'Reddit', caps: { video: 'yes', audio: 'yes', image: 'na' } },
+  {
+    id: 'reddit',
+    name: 'Reddit',
+    caps: { video: 'yes', audio: 'yes', image: 'na' },
+  },
   {
     id: 'soundcloud',
     name: 'SoundCloud',
@@ -101,13 +109,19 @@ export const PLATFORMS: readonly Platform[] = [
     caps: { video: 'yes', audio: 'no', image: 'na' },
     note: 'clips, hls only',
   },
+  {
+    id: 'snapchat',
+    name: 'Snapchat',
+    caps: { video: 'yes', audio: 'yes', image: 'na' },
+    note: 'spotlight videos, t.snapchat.com short links',
+  },
 ];
 
 export const PLATFORM_NAMES = PLATFORMS.map((platform) => platform.name);
 
 export const FEATURE_LIST = [
   'Your phone is the engine',
-  '15 platforms, one paste box',
+  '16 platforms, one paste box',
   'Full-bandwidth chunking',
   'Up to 8K — or just the audio',
   'Straight to your gallery',
@@ -158,7 +172,7 @@ export const FAQS: readonly Faq[] = [
   {
     question: 'What can I download?',
     answer:
-      'Videos up to 8K, audio as MP3/M4A, even HLS streams assembled locally. 15 dedicated platforms today, with more landing in every update.',
+      'Videos up to 8K, audio as MP3/M4A, even HLS streams assembled locally. 16 dedicated platforms today, with more landing in every update.',
   },
 ];
 

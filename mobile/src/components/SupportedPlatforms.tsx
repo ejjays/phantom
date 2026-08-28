@@ -82,6 +82,13 @@ const ROWS: readonly {
     image: 'yes',
   },
   { name: 'Twitch', logo: 'twitch', video: 'yes', audio: 'no', image: 'na' },
+  {
+    name: 'Snapchat',
+    logo: 'snapchat',
+    video: 'yes',
+    audio: 'yes',
+    image: 'na',
+  },
 ];
 
 const MIN_COL_W = 46;

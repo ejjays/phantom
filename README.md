@@ -56,23 +56,24 @@ https://github.com/user-attachments/assets/01623e43-d78d-4553-b00c-43cc2cf28c97
 
 ## Supported platforms
 
-| Platform     | Web | Mobile | Video | Audio | Images | Notes                                      |
-| ------------ | :-: | :----: | :-: | :-: | :----: | ------------------------------------------ |
-| YouTube      | ✅  |  ✅    | ✅  | ✅  | ➖      | playlists, shorts, 4K                      |
-| Spotify      | ✅  |  ✅    | ✅  | ✅  | ➖      | tracks & albums resolve via youtube search |
-| SoundCloud   | ✅  |  ✅    | ➖  | ✅  | ➖      | audio-only service                         |
-| Bilibili     | ✅  |  ✅    | ✅  | ✅  | ➖      | some videos need a cookie                  |
-| TikTok       | ✅  |  ✅    | ✅  | ✅  | ✅     | videos + photo carousels                   |
-| Instagram    | ✅  |  ✅    | ✅  | ✅  | ✅     | reels, posts, multi-image picker           |
-| Facebook     | ✅  |  ✅    | ✅  | ✅  | ✅     | public posts only                          |
-| Threads      | ✅  |  ✅    | ✅  | ✅  | ✅     |                                            |
-| X / Twitter  | ✅  |  ✅    | ✅  | ✅  | ➖     | videos & gifs only                         |
-| Bluesky      | ✅  |  ✅    | ✅  | ❌  | ➖     | hls only, no audio                        |
-| Vimeo        | ✅  |  ✅    | ✅  | ❌  | ➖     | hls only, no audio                        |
-| Dailymotion  | ❌  |  ✅    | ✅  | ❌  | ➖     | hls only, no audio                        |
-| Reddit       | ❌  |  ✅    | ✅  | ✅  | ➖     |                                            |
-| Pinterest    | ❌  |  ✅    | ✅  | ✅  | ✅     | video pins + photos                        |
-| Twitch       | ❌  |  ✅    | ✅  | ❌  | ➖     | clips, hls only                            |
+| Platform    | Web | Mobile | Video | Audio | Images | Notes                                      |
+| ----------- | :-: | :----: | :---: | :---: | :----: | ------------------------------------------ |
+| YouTube     | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | playlists, shorts, 4K                      |
+| Spotify     | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | tracks & albums resolve via youtube search |
+| SoundCloud  | ✅  |   ✅   |  ➖   |  ✅   |   ➖   | audio-only service                         |
+| Bilibili    | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | some videos need a cookie                  |
+| TikTok      | ✅  |   ✅   |  ✅   |  ✅   |   ✅   | videos + photo carousels                   |
+| Instagram   | ✅  |   ✅   |  ✅   |  ✅   |   ✅   | reels, posts, multi-image picker           |
+| Facebook    | ✅  |   ✅   |  ✅   |  ✅   |   ✅   | public posts only                          |
+| Threads     | ✅  |   ✅   |  ✅   |  ✅   |   ✅   |                                            |
+| X / Twitter | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | videos & gifs only                         |
+| Bluesky     | ✅  |   ✅   |  ✅   |  ❌   |   ➖   | hls only, no audio                         |
+| Vimeo       | ✅  |   ✅   |  ✅   |  ❌   |   ➖   | hls only, no audio                         |
+| Dailymotion | ❌  |   ✅   |  ✅   |  ❌   |   ➖   | hls only, no audio                         |
+| Reddit      | ❌  |   ✅   |  ✅   |  ✅   |   ➖   |                                            |
+| Pinterest   | ❌  |   ✅   |  ✅   |  ✅   |   ✅   | video pins + photos                        |
+| Twitch      | ❌  |   ✅   |  ✅   |  ❌   |   ➖   | clips, hls only                            |
+| Snapchat    | ❌  |   ✅   |  ✅   |  ✅   |   ➖   | spotlight videos + t.snapchat.com shorts   |
 
 ---
 
@@ -135,7 +136,7 @@ phantom/
 │   ├── backend/        # Express 5 + yt-dlp + ffmpeg + Redis + Turso
 │   └── shared/         # @phantom/shared (Zod schemas)
 ├── mobile/             # Expo SDK 57, RN 0.86, Hermes, New Arch
-│   ├── src/extractors/ # 15 pure-JS platform extractors
+│   ├── src/extractors/ # 16 pure-JS platform extractors
 │   ├── src/lib/        # download pipeline, social, net, notify
 │   └── src/components/ # UI, sheets, backgrounds, webviews
 ├── packages/
