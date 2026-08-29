@@ -18,9 +18,6 @@ import {
   getInfo as scGetInfo,
   getStream as scGetStream,
 } from './soundcloud.js';
-import { getInfo as vmGetInfo, getStream as vmGetStream } from './vimeo.js';
-import { getInfo as xGetInfo, getStream as xGetStream } from './x.js';
-import { getInfo as bsGetInfo, getStream as bsGetStream } from './bluesky.js';
 import {
   getInfo as thGetInfo,
   getStream as thGetStream,
@@ -36,6 +33,9 @@ import {
   fetchYoutubeOEmbed,
 } from '../../utils/media/metadata.util.js';
 import { recordFailure } from '../../utils/infra/metrics.util.js';
+import { getExtractor as pkgGetExtractor } from '@phantom/extractors';
+import { sharedBackendEnv } from './sharedEnv.js';
+import { Readable } from 'node:stream';
 
 const youtube: Extractor = { getInfo: ytGetInfo, getStream: ytGetStream };
 const instagram: Extractor = { getInfo: igGetInfo, getStream: igGetStream };
@@ -43,11 +43,23 @@ const facebook: Extractor = { getInfo: fbGetInfo, getStream: fbGetStream };
 const tiktok: Extractor = { getInfo: tkGetInfo, getStream: tkGetStream };
 const spotify: Extractor = { getInfo: spGetInfo, getStream: spGetStream };
 const soundcloud: Extractor = { getInfo: scGetInfo, getStream: scGetStream };
-const x: Extractor = { getInfo: xGetInfo, getStream: xGetStream };
-const bluesky: Extractor = { getInfo: bsGetInfo, getStream: bsGetStream };
 const threads: Extractor = { getInfo: thGetInfo, getStream: thGetStream };
 const bilibili: Extractor = { getInfo: biGetInfo, getStream: biGetStream };
-const vimeo: Extractor = { getInfo: vmGetInfo, getStream: vmGetStream };
+
+function wrapPkg(pkg: {
+  getInfo: (url: string, options?: ExtractorOptions) => Promise<VideoInfo | null>;
+  getStream: (videoInfo: VideoInfo, options?: ExtractorOptions) => Promise<ReadableStream>;
+}): Extractor {
+  return {
+    getInfo: pkg.getInfo,
+    getStream: (videoInfo, options) =>
+      Promise.resolve(
+        Readable.fromWeb(
+          pkg.getStream(videoInfo, options) as unknown as import('node:stream/web').ReadableStream
+        )
+      ),
+  };
+}
 
 // reverse lookup for failure labels
 const extractorNames = new Map<Extractor, string>([
@@ -57,11 +69,8 @@ const extractorNames = new Map<Extractor, string>([
   [tiktok, 'tiktok'],
   [spotify, 'spotify'],
   [soundcloud, 'soundcloud'],
-  [x, 'x'],
-  [bluesky, 'bluesky'],
   [threads, 'threads'],
   [bilibili, 'bilibili'],
-  [vimeo, 'vimeo'],
 ]);
 
 // map in-flight JS
@@ -83,7 +92,24 @@ const genericExtractor: Extractor = {
   getStream: genGetStream,
 };
 
+function pkgLabel(url: string): string {
+  if (isHost(url, 'vimeo.com')) return 'vimeo';
+  if (isHost(url, 'bsky.app')) return 'bluesky';
+  if (
+    isHost(url, 'twitter.com') ||
+    /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url)
+  )
+    return 'x';
+  return 'pkg-shared';
+}
+
 export function getExtractor(url: string): Extractor | null {
+  const pkg = pkgGetExtractor(url, sharedBackendEnv);
+  if (pkg) {
+    const wrapped = wrapPkg(pkg);
+    extractorNames.set(wrapped, pkgLabel(url));
+    return wrapped;
+  }
   if (isHost(url, 'youtube.com') || isHost(url, 'youtu.be')) return youtube;
   if (isHost(url, 'instagram.com')) return instagram;
   if (isHost(url, 'facebook.com') || isHost(url, 'fb.watch')) return facebook;
@@ -92,13 +118,6 @@ export function getExtractor(url: string): Extractor | null {
   if (isHost(url, 'tiktok.com')) return tiktok;
   if (isHost(url, 'spotify.com')) return spotify;
   if (isHost(url, 'soundcloud.com')) return soundcloud;
-  if (isHost(url, 'vimeo.com')) return vimeo;
-  if (
-    isHost(url, 'twitter.com') ||
-    /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url)
-  )
-    return x;
-  if (isHost(url, 'bsky.app')) return bluesky;
   if (
     isHost(url, 'bilibili.tv') ||
     isHost(url, 'biliintl.com') ||
@@ -316,9 +335,6 @@ export {
   tiktok,
   spotify,
   soundcloud,
-  x,
-  bluesky,
   threads,
   bilibili,
-  vimeo,
 };

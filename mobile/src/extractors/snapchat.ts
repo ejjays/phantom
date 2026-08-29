@@ -60,7 +60,7 @@ function isSnapchatHost(url: string): boolean {
   return false;
 }
 
-// spotlight id = base64url token at /spotlight/<id> (same for /@user/spotlight & t.snapchat.com short)
+// spotlight id = base64url token; same shape for /@user/spotlight & t.snapchat.com
 export function parseSpotlightId(url: string): string | null {
   const match = url.match(/\/spotlight\/([A-Za-z0-9_-]+)/u);
   return match ? match[1] : null;
@@ -88,7 +88,6 @@ function findStory(data: NextData, id: string): StoryMeta | null {
   return null;
 }
 
-// follow short link / profile url → /spotlight/<id> canonical form
 async function resolveCanonical(url: string): Promise<string> {
   try {
     const head = await gatedFetch(url, {
@@ -143,7 +142,14 @@ function creatorFrom(meta: VideoMetadata): Creator {
   };
 }
 
-// snap fills every clip w/ these placeholders; treat as missing
+// platform accounts ship creator: null; handle survives only in og:url canonical
+function handleFromOgUrl(html: string): string | undefined {
+  const tag = html.match(/<meta[^>]+property=["']og:url["'][^>]*>/iu);
+  const content = tag?.[0].match(/content=["']([^"']+)["']/iu)?.[1];
+  return content?.match(/\/@([A-Za-z0-9._-]+)\/spotlight\//iu)?.[1];
+}
+
+// snap fills clips w/ these placeholders; treat as missing
 const GENERIC_NAMES = new Set([
   'spotlight snap',
   'spotlight',
@@ -212,8 +218,7 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     let target = url;
     if (isShort || isProfile) target = await resolveCanonical(url);
 
-    // t.snapchat.com short links can land on story.snapchat.com (snaps/stories)
-    // — refuse those, only spotlight pages are ours
+    // t.snapchat.com short links can land on story.snapchat.com — refuse those
     if (!/\/spotlight\//iu.test(target)) {
       if (isShort) throw notFound('Snapchat', 'spotlight');
       return null;
@@ -231,7 +236,8 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     });
     if (!res.ok) throw fromStatus(res.status, 'Snapchat', 'spotlight');
 
-    const data = nextDataFromHtml(await res.text());
+    const html = await res.text();
+    const data = nextDataFromHtml(html);
     if (!data) throw noVideo('Snapchat', 'spotlight');
 
     const story = findStory(data, id);
@@ -252,6 +258,9 @@ export async function getInfo(url: string): Promise<VideoInfo | null> {
     if (probed) format.filesize = probed;
 
     const creator = creatorFrom(meta);
+    if (!creator.username && !creator.displayName) {
+      creator.username = handleFromOgUrl(html);
+    }
 
     return buildVideoInfo({
       id,

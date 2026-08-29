@@ -196,7 +196,6 @@ async function tryYouTubeTurboMux(
   const videoUrl = selectedFormat?.url;
   if (!videoUrl) return false;
 
-  // find best audio with direct URL
   const audioFormat = formats.find(
     (fmt) =>
       fmt.acodec && fmt.acodec !== 'none' && fmt.vcodec === 'none' && fmt.url
@@ -335,7 +334,6 @@ async function tryYouTubeTurboMux(
     logger.info(
       `[TurboMux] [${tid}] Piping started — video=${(Number(videoResult.size) / 1024 / 1024).toFixed(1)}MB audio=${(Number(audioResult.size) / 1024 / 1024).toFixed(1)}MB`
     );
-    // unknown size requires chunked delivery
     return true;
   } catch (error: unknown) {
     logger.info(
@@ -510,4 +508,42 @@ export async function attemptTurboMux(
     logger.info(`[TurboMux] [${tid}] Failed: ${(err as Error).message}`);
     return false;
   }
+}
+
+// hls playlist -> fragmented mp4 remux; lives here (only this layer spawns ffmpeg)
+export function hlsRemuxStream(
+  url: string,
+  userAgent: string
+): Readable {
+  const ffmpeg = spawn(
+    'ffmpeg',
+    [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-http_persistent',
+      '0',
+      '-user_agent',
+      userAgent,
+      '-i',
+      url,
+      '-c',
+      'copy',
+      '-bsf:a',
+      'aac_adtstoasc',
+      '-f',
+      'mp4',
+      '-movflags',
+      '+frag_keyframe+empty_moov+default_base_moof',
+      '-frag_duration',
+      '1000000',
+      'pipe:1',
+    ],
+    { stdio: ['ignore', 'pipe', 'pipe'], detached: true }
+  );
+  (ffmpeg.stdio[2] as Readable | null)?.resume();
+  ffmpeg.on('error', (err: Error) =>
+    logger.error(`[HLS-Remux] ffmpeg error: ${err.message}`)
+  );
+  return ffmpeg.stdout as Readable;
 }

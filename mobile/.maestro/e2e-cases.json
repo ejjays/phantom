@@ -160,8 +160,9 @@
       "minFormats": 1,
       "mediaKind": "video",
       "wantThumb": true,
-      "wantResolution": true,
-      "wantFilesize": true
+      "wantResolution": false,
+      "wantFilesize": true,
+      "allowPlatformUploader": true
     }
   }
 ]

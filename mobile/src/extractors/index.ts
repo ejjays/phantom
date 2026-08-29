@@ -1,16 +1,13 @@
 import { VideoInfo, Format, ExtractorError } from './shared/types';
 import { getInfo as facebookGetInfo } from './facebook';
 import { getInfo as tiktokGetInfo } from './tiktok';
-import { getInfo as xGetInfo } from './x';
 import { getInfo as threadsGetInfo } from './threads';
 import { getInfo as youtubeGetInfo } from './youtube';
 import { getInfo as bilibiliGetInfo } from './bilibili';
 import { getInfo as instagramGetInfo } from './instagram';
 import { getInfo as spotifyGetInfo } from './spotify';
-import { getInfo as blueskyGetInfo } from './bluesky';
 import { getInfo as redditGetInfo } from './reddit';
 import { getInfo as soundcloudGetInfo } from './soundcloud';
-import { getInfo as vimeoGetInfo } from './vimeo';
 import { getInfo as dailymotionGetInfo } from './dailymotion';
 import { getInfo as pinterestGetInfo } from './pinterest';
 import { getInfo as twitchGetInfo } from './twitch';
@@ -23,6 +20,8 @@ import { getGenericSnifferEnabled } from '../lib/settings';
 import { extractFromPage } from '../lib/webviewExtraction/host';
 import { pageScanToVideoInfo } from '../lib/webviewExtraction/normalize';
 import { probeFileSize } from './shared/utils';
+import { getExtractor as pkgGetExtractor } from '@phantom/extractors';
+import { mobileSharedEnvWithThumbs } from './sharedEnv';
 
 export type OnPartial = (info: VideoInfo) => void;
 
@@ -40,6 +39,9 @@ function dispatch(
   url: string,
   onPartial?: OnPartial
 ): Promise<VideoInfo | null> {
+  const pkg = pkgGetExtractor(url, mobileSharedEnvWithThumbs);
+  if (pkg) return pkg.getInfo(url) as Promise<VideoInfo | null>;
+
   if (matches(host, 'youtube.com') || matches(host, 'youtu.be')) {
     return youtubeGetInfo(url, onPartial);
   }
@@ -64,10 +66,6 @@ function dispatch(
     return instagramGetInfo(url);
   }
 
-  if (matches(host, 'x.com') || matches(host, 'twitter.com')) {
-    return xGetInfo(url);
-  }
-
   if (matches(host, 'threads.net') || matches(host, 'threads.com')) {
     return threadsGetInfo(url);
   }
@@ -80,10 +78,6 @@ function dispatch(
     return facebookGetInfo(url, onPartial);
   }
 
-  if (matches(host, 'bsky.app')) {
-    return blueskyGetInfo(url);
-  }
-
   if (matches(host, 'reddit.com') || matches(host, 'redd.it')) {
     return redditGetInfo(url);
   }
@@ -92,15 +86,11 @@ function dispatch(
     return soundcloudGetInfo(url, onPartial);
   }
 
-  if (matches(host, 'vimeo.com')) {
-    return vimeoGetInfo(url);
-  }
-
   if (matches(host, 'dailymotion.com') || matches(host, 'dai.ly')) {
     return dailymotionGetInfo(url);
   }
 
-  // intl tlds (pinterest.ph, .co.uk, ...) handled inside the extractor
+  // intl tlds handled inside pinterest extractor
   if (
     matches(host, 'pin.it') ||
     /(?:^|\.)pinterest\.(?:[a-z]{2,4}|com?\.[a-z]{2})$/u.test(host)
@@ -126,7 +116,7 @@ function dispatch(
 const FAST_RESOLVE_DISABLED =
   process.env.EXPO_PUBLIC_DISABLE_FAST_RESOLVE === '1';
 
-// native paths are better (PO-token / audio-only): never scan their DOM
+// native paths win for these (PO-token, audio-only) — skip the webview scan
 const WEBVIEW_GUARDED = [
   'youtube.com',
   'youtu.be',
@@ -138,8 +128,7 @@ function webviewGuarded(host: string): boolean {
   return WEBVIEW_GUARDED.some((domain) => matches(host, domain));
 }
 
-// benign content-state fails (private/removed/geo/login) & client network drops
-// aren't our bug — keep out of sentry so real extractor breaks stand out.
+// expected fails (private/removed/geo/login) & client drops aren't our bug
 function reportFailure(host: string, error: unknown): void {
   if (error instanceof ExtractorError && error.expected) return;
   reportError(
@@ -179,9 +168,7 @@ export async function resolve(
     }
   }
 
-  // unknown host or typed extractor failure → generic DOM scan in hidden
-  // webview; experimental, opt-in (default off): a 30s scan that usually
-  // finds nothing is worse than an instant "unsupported"
+  // generic webview DOM scan; opt-in flag, 30s scan that finds nothing > instant fail
   if (!info && !webviewGuarded(host) && !(await getGenericSnifferEnabled())) {
     if (originalError !== null) {
       reportFailure(host, originalError);

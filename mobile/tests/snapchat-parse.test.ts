@@ -44,7 +44,8 @@ const VIDEO_META = {
 function buildHtml(
   id: string,
   meta: Record<string, unknown>,
-  extraMeta: Record<string, unknown> = {}
+  extraMeta: Record<string, unknown> = {},
+  ogUrl?: string
 ): string {
   const next = {
     props: {
@@ -64,7 +65,8 @@ function buildHtml(
       },
     },
   };
-  return `<!doctype html><html><head><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(next)}</script></head><body></body></html>`;
+  const og = ogUrl ? `<meta property="og:url" content="${ogUrl}">` : '';
+  return `<!doctype html><html><head>${og}<script id="__NEXT_DATA__" type="application/json">${JSON.stringify(next)}</script></head><body></body></html>`;
 }
 
 describe('snapchat parseSpotlightId', () => {
@@ -115,6 +117,30 @@ describe('snapchat getInfo', () => {
     expect(top?.quality).toBe('960p');
     expect(top?.isMuxed).toBe(true);
     expect(info?.downloadHeaders?.Referer).toBe('https://www.snapchat.com/');
+  });
+
+  it('derives the uploader from og:url when creator is null (platform-posted clip)', async () => {
+    const meta = { ...VIDEO_META, creator: null, width: 0, height: 0 };
+    mockFetch.mockResolvedValueOnce(
+      htmlRes(
+        buildHtml(
+          TARGET_ID,
+          meta,
+          {},
+          `https://www.snapchat.com/@snapchat/spotlight/${TARGET_ID}`
+        )
+      )
+    );
+
+    const info = await getInfo(
+      `https://www.snapchat.com/spotlight/${TARGET_ID}`
+    );
+    expect(info?.uploader).toBe('snapchat');
+    expect(info?.title).toBe('Views 💕');
+    expect(info?.formats).toHaveLength(1);
+    expect(info?.formats[0]?.formatId).toBe('source');
+    expect(info?.formats[0]?.width).toBeUndefined();
+    expect(info?.formats[0]?.height).toBeUndefined();
   });
 
   it('follows t.snapchat.com short links via redirect', async () => {

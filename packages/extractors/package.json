@@ -56,6 +56,8 @@
     "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json",
     "prepack": "npm run build",
     "postinstall": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json",
+    "typecheck": "node ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
+    "test": "node ../../node_modules/vitest/vitest.mjs run",
     "demo:mock": "npm run build && node --experimental-strip-types examples/mock-demo.ts",
     "demo:live": "npm run build && node --experimental-strip-types examples/live-demo.ts"
   },
