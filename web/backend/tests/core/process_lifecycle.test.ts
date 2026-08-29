@@ -30,12 +30,10 @@ describe('Stream process lifecycle + cleanup', () => {
       totalBytes
     );
 
-    // feed two chunks then close the source
     proc.stdout.write(Buffer.from('chunk1'));
     proc.stdout.write(Buffer.from('chunk2'));
     proc.stdout.end();
 
-    // let the pipeline drain + the async .then(onStreamComplete) run
     await new Promise((resolve) => setImmediate(resolve));
     await new Promise((resolve) => setTimeout(resolve, 30));
 
@@ -43,7 +41,7 @@ describe('Stream process lifecycle + cleanup', () => {
     expect(sendEvent).toHaveBeenCalled();
   });
 
-  it('exposes a kill handle so the caller can terminate on client disconnect', () => {
+  it('exposes a kill handle for the caller to terminate on client disconnect', () => {
     const proc = createMockChildProcess();
     expect(typeof proc.kill).toBe('function');
     proc.kill('SIGKILL');

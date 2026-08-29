@@ -13,7 +13,6 @@ describe('Stream backpressure handling', () => {
   it('handles a chunk burst without losing bytes and flushes on end', async () => {
     const proc = createMockChildProcess();
 
-    // real writable so the pipeline can actually drain + resolve
     const res = new PassThrough();
     Object.assign(res, {
       headersSent: false,
@@ -31,12 +30,10 @@ describe('Stream backpressure handling', () => {
       totalBytes
     );
 
-    // burst many small chunks — the transform must not choke on backpressure
     const chunk = Buffer.alloc(64, 'x');
     for (let i = 0; i < 50; i++) proc.stdout.write(chunk);
     proc.stdout.end();
 
-    // let the pipeline drain + the async .then(onStreamComplete) run
     await new Promise((resolve) => setImmediate(resolve));
     await new Promise((resolve) => setTimeout(resolve, 30));
 
