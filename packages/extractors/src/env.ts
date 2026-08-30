@@ -9,6 +9,12 @@ export interface ExtractorEnv {
     url: string,
     headers: Record<string, string>
   ): Promise<ReadableStream>;
+  // skip the extra round-trip to fetch hls runtime (web backend doesn't need it)
+  skipDurationFetch?: boolean;
+  // vimeo: pull oembed thumb when config thumbs empty
+  oembedThumb?(url: string): Promise<string | undefined>;
+  // vimeo: scrape og:image as last-resort thumbnail
+  ogImageThumb?(url: string): Promise<string | undefined>;
 }
 
 export const defaultEnv: ExtractorEnv = {

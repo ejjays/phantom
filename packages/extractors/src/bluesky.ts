@@ -1,10 +1,9 @@
 import { Format, VideoInfo, ExtractorOptions } from './types.js';
-import { normalizeTitle, normalizeArtist } from './social.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
+import { normalizeTitle, normalizeArtist } from './social.js';
+import { DESKTOP_UA, hlsDurationSec, estimateSize } from './util.js';
 
 const APPVIEW = 'https://public.api.bsky.app/xrpc';
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 interface AspectRatio {
   width?: number;
@@ -55,7 +54,7 @@ function quotedUri(post: BskyPost | undefined): string | undefined {
 function parseMaster(master: string, masterUrl: string): Variant[] {
   const lines = master.split(/\r?\n/u);
   const out: Variant[] = [];
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i += 1) {
     if (!lines[i].startsWith('#EXT-X-STREAM-INF:')) continue;
     const rel = lines[i + 1]?.trim();
     if (!rel || rel.startsWith('#')) continue;
@@ -71,7 +70,7 @@ function parseMaster(master: string, masterUrl: string): Variant[] {
   return out;
 }
 
-function buildFormats(variants: Variant[]): Format[] {
+function buildFormats(variants: Variant[], durationSec: number): Format[] {
   const seen = new Set<number>();
   const formats: Format[] = [];
   for (const variant of variants) {
@@ -93,11 +92,13 @@ function buildFormats(variants: Variant[]): Format[] {
       width: variant.width || undefined,
       height: variant.height || undefined,
       tbr: variant.bandwidth ? Math.round(variant.bandwidth / 1000) : undefined,
+      filesize: estimateSize(variant.bandwidth, durationSec),
       vcodec: 'h264',
       acodec: 'aac',
       isMuxed: true,
       isVideo: true,
       isAudio: false,
+      isHls: true,
       note: 'hls m3u8',
     });
   }
@@ -112,13 +113,29 @@ export function createBlueskyExtractor(env: ExtractorEnv = defaultEnv) {
     return (await res.json()) as T;
   }
 
+  // any variant gives runtime; web can skip by passing duration=0
+  async function fetchDuration(variants: Variant[]): Promise<number> {
+    const smallest = [...variants].sort(
+      (lhs, rhs) => lhs.bandwidth - rhs.bandwidth
+    )[0];
+    if (!smallest) return 0;
+    try {
+      const res = await env.fetch(smallest.url, {
+        headers: { 'User-Agent': DESKTOP_UA },
+      });
+      if (!res.ok) return 0;
+      return hlsDurationSec(await res.text());
+    } catch {
+      return 0;
+    }
+  }
+
   async function resolveView(
     post: BskyPost | undefined
   ): Promise<{ view: VideoView; post: BskyPost } | null> {
     const direct = videoView(post);
     if (direct && post) return { view: direct, post };
 
-    // follow quote to its video
     const quoted = quotedUri(post);
     const match = quoted?.match(
       /^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/u
@@ -158,18 +175,21 @@ export function createBlueskyExtractor(env: ExtractorEnv = defaultEnv) {
       const post = thread?.thread?.post;
 
       const found = await resolveView(post);
-      if (!found?.view.playlist) return null; // no video
+      if (!found?.view.playlist) return null;
 
       const master = await env.fetch(found.view.playlist, {
-        headers: { 'User-Agent': UA },
+        headers: { 'User-Agent': DESKTOP_UA },
       });
       if (!master.ok) return null;
-      const formats = buildFormats(
-        parseMaster(await master.text(), found.view.playlist)
-      );
+      const variants = parseMaster(await master.text(), found.view.playlist);
+      if (variants.length === 0) return null;
+
+      // web backend skips the extra round-trip; pass duration=0 via env hook
+      const duration = env.skipDurationFetch ? 0 : await fetchDuration(variants);
+      const formats = buildFormats(variants, duration);
       if (formats.length === 0) return null;
 
-      const info = {
+      const info: VideoInfo = {
         type: 'video',
         id: rkey,
         title: post?.record?.text || 'Bluesky Video',
@@ -177,6 +197,7 @@ export function createBlueskyExtractor(env: ExtractorEnv = defaultEnv) {
           post?.author?.displayName || post?.author?.handle || 'Bluesky User',
         webpageUrl: url,
         thumbnail: found.view.thumbnail,
+        duration: duration || undefined,
         formats,
         extractorKey: 'bluesky',
         isJsInfo: true,
@@ -184,11 +205,11 @@ export function createBlueskyExtractor(env: ExtractorEnv = defaultEnv) {
         isPartial: false,
         isIsrcMatch: false,
         isFullData: true,
+        downloadHeaders: { 'User-Agent': DESKTOP_UA },
       };
-      const normalized = { ...info } as VideoInfo;
-      normalized.title = normalizeTitle(normalized as unknown as Record<string, unknown>);
-      normalized.uploader = normalizeArtist(normalized as unknown as Record<string, unknown>);
-      return normalized;
+      info.title = normalizeTitle(info as unknown as Record<string, unknown>);
+      info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
+      return info;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[bluesky-extractor] Error extracting ${url}: ${message}`);
@@ -213,7 +234,9 @@ export function createBlueskyExtractor(env: ExtractorEnv = defaultEnv) {
           'pass env.remuxHls(url, headers) (e.g. spawn ffmpeg) to enable getStream()'
       );
     }
-    return env.remuxHls(selected.url, { 'User-Agent': UA });
+    return env.remuxHls(selected.url, {
+      'User-Agent': DESKTOP_UA,
+    });
   }
 
   return { getInfo, getStream };

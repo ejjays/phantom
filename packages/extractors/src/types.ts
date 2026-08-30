@@ -7,15 +7,19 @@ export interface Format {
   width?: number;
   height?: number;
   tbr?: number;
-  fps?: number;
+  fps?: number | string;
   filesize?: number;
   vcodec?: string;
   acodec?: string;
   isMuxed: boolean;
   isVideo: boolean;
   isAudio: boolean;
-  // e.g. 'hls m3u8' — tells getStream() to use env.remuxHls
+  // 'hls m3u8' — getStream() routes hls formats to env.remuxHls
   note?: string;
+  // mobile-only flags (optional in web); consumers ignore what they don't use
+  isHls?: boolean;
+  hlsAudioUrl?: string;
+  hlsKeepAlive?: boolean;
 }
 
 export interface VideoInfo {
@@ -36,10 +40,16 @@ export interface VideoInfo {
   isPartial: boolean;
   isIsrcMatch: boolean;
   isFullData: boolean;
+  // mobile-only: required headers for ranged/segmented downloads
+  downloadHeaders?: Record<string, string>;
 }
 
 export interface ExtractorOptions {
   formatId?: string;
+  // headers ranged downloads must send back to the cdn
+  downloadHeaders?: Record<string, string>;
+  // x only: mark muxed mp4 formats as isAudio so mobile picks the audio path
+  isAudioMuxed?: boolean;
 }
 
 export interface Extractor {

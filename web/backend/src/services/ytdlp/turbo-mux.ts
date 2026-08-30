@@ -511,3 +511,43 @@ export async function attemptTurboMux(
     return false;
   }
 }
+
+// HLS playlist -> fragmented mp4 remux (bluesky/vimeo pure-JS extractors).
+// Lives here (not in services/extractors/) because it owns a raw ffmpeg
+// spawn — the only layer allowed to invoke child_process directly.
+export function hlsRemuxStream(
+  url: string,
+  userAgent: string
+): Readable {
+  const ffmpeg = spawn(
+    'ffmpeg',
+    [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-http_persistent',
+      '0',
+      '-user_agent',
+      userAgent,
+      '-i',
+      url,
+      '-c',
+      'copy',
+      '-bsf:a',
+      'aac_adtstoasc',
+      '-f',
+      'mp4',
+      '-movflags',
+      '+frag_keyframe+empty_moov+default_base_moof',
+      '-frag_duration',
+      '1000000',
+      'pipe:1',
+    ],
+    { stdio: ['ignore', 'pipe', 'pipe'], detached: true }
+  );
+  (ffmpeg.stdio[2] as Readable | null)?.resume();
+  ffmpeg.on('error', (err: Error) =>
+    logger.error(`[HLS-Remux] ffmpeg error: ${err.message}`)
+  );
+  return ffmpeg.stdout as Readable;
+}

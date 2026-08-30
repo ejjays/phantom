@@ -1,10 +1,7 @@
 import { Format, VideoInfo, ExtractorOptions } from './types.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
 import { normalizeTitle, normalizeArtist } from './social.js';
-
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
-const REFERER = 'https://vimeo.com/';
+import { DESKTOP_UA, VIMEO_REFERER, estimateSize } from './util.js';
 
 interface Progressive {
   quality?: string;
@@ -38,8 +35,8 @@ interface VmMeta {
 }
 
 function buildInfo(meta: VmMeta, url: string, formats: Format[]): VideoInfo {
-  const info = {
-    type: 'video' as const,
+  const info: VideoInfo = {
+    type: 'video',
     id: meta.id,
     title: meta.title || 'Vimeo Video',
     uploader: meta.uploader || 'Vimeo',
@@ -53,6 +50,7 @@ function buildInfo(meta: VmMeta, url: string, formats: Format[]): VideoInfo {
     isPartial: false,
     isIsrcMatch: false,
     isFullData: true,
+    downloadHeaders: { 'User-Agent': DESKTOP_UA, Referer: VIMEO_REFERER },
   };
   info.title = normalizeTitle(info as unknown as Record<string, unknown>);
   info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
@@ -124,6 +122,85 @@ function buildFormats(progressive: Progressive[]): Format[] {
   return formats;
 }
 
+// parse hls master into per-quality variants; estimates filesize via bandwidth
+async function fetchHlsVariants(
+  env: ExtractorEnv,
+  masterUrl: string,
+  durationSec: number,
+  headers: Record<string, string>
+): Promise<Format[]> {
+  try {
+    const res = await env.fetch(masterUrl, { headers });
+    if (!res.ok) return [];
+    const text = await res.text();
+    const lines = text.split(/\r?\n/u);
+    let audioUrl: string | undefined;
+    for (const line of lines) {
+      if (line.startsWith('#EXT-X-MEDIA:') && /TYPE=AUDIO/u.test(line)) {
+        const uri = line.match(/URI="([^"]+)"/u)?.[1];
+        if (uri) {
+          try {
+            audioUrl = new URL(uri, masterUrl).toString();
+          } catch {
+            /* leave undefined */
+          }
+          break;
+        }
+      }
+    }
+    const seen = new Set<number>();
+    const formats: Format[] = [];
+    for (let i = 0; i < lines.length; i += 1) {
+      if (!lines[i].startsWith('#EXT-X-STREAM-INF:')) continue;
+      const dims = lines[i].match(/RESOLUTION=(\d+)x(\d+)/u);
+      const uri = lines[i + 1]?.trim();
+      if (!dims || !uri || uri.startsWith('#')) continue;
+      const height = Number(dims[2]);
+      if (seen.has(height)) continue;
+      seen.add(height);
+      const bw = Number(
+        lines[i].match(/AVERAGE-BANDWIDTH=(\d+)/u)?.[1] ??
+          lines[i].match(/[^-]BANDWIDTH=(\d+)/u)?.[1] ??
+          0
+      );
+      const codecs = lines[i].match(/CODECS="([^"]+)"/u)?.[1] ?? '';
+      const vcodec = /av01/u.test(codecs)
+        ? 'av1'
+        : /hvc1|hev1/u.test(codecs)
+          ? 'hevc'
+          : 'h264';
+      let absolute: string;
+      try {
+        absolute = new URL(uri, masterUrl).toString();
+      } catch {
+        continue;
+      }
+      formats.push({
+        formatId: `${height}p`,
+        url: absolute,
+        hlsAudioUrl: audioUrl,
+        extension: 'mp4',
+        resolution: `${dims[1]}x${dims[2]}`,
+        quality: `${height}p`,
+        width: Number(dims[1]),
+        height,
+        filesize: estimateSize(bw, durationSec),
+        vcodec,
+        acodec: 'aac',
+        isMuxed: true,
+        isVideo: true,
+        isAudio: false,
+        isHls: true,
+        hlsKeepAlive: true,
+      });
+    }
+    formats.sort((lhs, rhs) => (rhs.height ?? 0) - (lhs.height ?? 0));
+    return formats;
+  } catch {
+    return [];
+  }
+}
+
 export function createVimeoExtractor(env: ExtractorEnv = defaultEnv) {
   // restricted videos 403 /config but embed window.playerConfig in player page
   async function playerPageConfig(
@@ -132,7 +209,7 @@ export function createVimeoExtractor(env: ExtractorEnv = defaultEnv) {
   ): Promise<VimeoConfig | null> {
     const query = hash ? `?h=${hash}` : '';
     const res = await env.fetch(`https://player.vimeo.com/video/${id}${query}`, {
-      headers: { 'User-Agent': UA, Referer: REFERER },
+      headers: { 'User-Agent': DESKTOP_UA, Referer: VIMEO_REFERER },
     });
     if (!res.ok) return null;
     const html = await res.text();
@@ -155,7 +232,7 @@ export function createVimeoExtractor(env: ExtractorEnv = defaultEnv) {
     const query = hash ? `?h=${hash}` : '';
     const res = await env.fetch(
       `https://player.vimeo.com/video/${id}/config${query}`,
-      { headers: { 'User-Agent': UA, Referer: REFERER } }
+      { headers: { 'User-Agent': DESKTOP_UA, Referer: VIMEO_REFERER } }
     );
     if (res.ok) return (await res.json()) as VimeoConfig;
     if (hash) return playerPageConfig(id, hash);
@@ -166,7 +243,7 @@ export function createVimeoExtractor(env: ExtractorEnv = defaultEnv) {
   async function pageHash(id: string, url: string): Promise<string | undefined> {
     try {
       const page = url.startsWith('http') ? url : `https://vimeo.com/${id}`;
-      const res = await env.fetch(page, { headers: { 'User-Agent': UA } });
+      const res = await env.fetch(page, { headers: { 'User-Agent': DESKTOP_UA } });
       if (!res.ok) return undefined;
       const html = await res.text();
       const escaped = id.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
@@ -185,7 +262,6 @@ export function createVimeoExtractor(env: ExtractorEnv = defaultEnv) {
     url: string
   ): Promise<VideoInfo | null> {
     let cfg = await fetchConfig(ref.id, ref.hash);
-    // hash-gated pasted bare -> scrape page hash
     if (!cfg && !ref.hash) {
       const hash = await pageHash(ref.id, url);
       if (hash) cfg = await fetchConfig(ref.id, hash);
@@ -194,35 +270,65 @@ export function createVimeoExtractor(env: ExtractorEnv = defaultEnv) {
     const files = cfg.request?.files;
 
     const formats = buildFormats(files?.progressive ?? []);
-    // no progressive -> adaptive hls remux
     if (formats.length === 0) {
       const hls = files?.hls;
       const cdn = hls?.cdns?.[hls.default_cdn ?? ''];
       if (cdn?.url) {
-        formats.push({
-          formatId: 'auto',
-          url: cdn.url,
-          extension: 'mp4',
-          quality: 'Auto',
-          vcodec: 'h264',
-          acodec: 'aac',
-          isMuxed: true,
-          isVideo: true,
-          isAudio: false,
-          note: 'hls m3u8',
-        });
+        const variants = await fetchHlsVariants(
+          env,
+          cdn.url,
+          cfg.video?.duration ?? 0,
+          { 'User-Agent': DESKTOP_UA, Referer: VIMEO_REFERER }
+        );
+        if (variants.length) formats.push(...variants);
+        else
+          formats.push({
+            formatId: 'auto',
+            url: cdn.url,
+            extension: 'mp4',
+            quality: 'Auto',
+            vcodec: 'h264',
+            acodec: 'aac',
+            isMuxed: true,
+            isVideo: true,
+            isAudio: false,
+            isHls: true,
+            hlsKeepAlive: true,
+            note: 'hls m3u8',
+          });
       }
     }
     if (formats.length === 0) return null;
 
-    const video = cfg.video;
+    // progressive carries no size; HEAD each variant (fail-soft)
+    await Promise.all(
+      formats.map(async (format) => {
+        if (format.isHls || !format.url) return;
+        try {
+          const head = await env.fetch(format.url, {
+            method: 'HEAD',
+            headers: { 'User-Agent': DESKTOP_UA, Referer: VIMEO_REFERER },
+          });
+          const len = head.headers.get('content-length');
+          if (len) format.filesize = parseInt(len, 10);
+        } catch {
+          /* size optional */
+        }
+      })
+    );
+
+    // config thumbs empty in older videos; oembed/og-image as fallbacks
+    let thumbnail = pickThumb(cfg.video?.thumbs);
+    if (!thumbnail && env.oembedThumb) thumbnail = await env.oembedThumb(url);
+    if (!thumbnail && env.ogImageThumb) thumbnail = await env.ogImageThumb(url);
+
     return buildInfo(
       {
-        id: String(video?.id ?? ref.id),
-        title: video?.title,
-        uploader: video?.owner?.name,
-        duration: video?.duration,
-        thumbnail: pickThumb(video?.thumbs),
+        id: String(cfg.video?.id ?? ref.id),
+        title: cfg.video?.title,
+        uploader: cfg.video?.owner?.name,
+        duration: cfg.video?.duration,
+        thumbnail,
       },
       url,
       formats
@@ -255,7 +361,7 @@ export function createVimeoExtractor(env: ExtractorEnv = defaultEnv) {
     if (!selected?.url) throw new Error('No stream URL found');
 
     // progressive direct mp4; only the hls fallback needs remuxing
-    if (selected.note?.includes('hls') || selected.url.includes('.m3u8')) {
+    if (selected.isHls || selected.note?.includes('hls') || selected.url.includes('.m3u8')) {
       if (!env.remuxHls) {
         throw new Error(
           'this vimeo stream is HLS (.m3u8) and needs remuxing to mp4 — ' +

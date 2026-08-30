@@ -18,9 +18,9 @@ import {
   getInfo as scGetInfo,
   getStream as scGetStream,
 } from './soundcloud.js';
-import { getInfo as vmGetInfo, getStream as vmGetStream } from './vimeo.js';
-import { getInfo as xGetInfo, getStream as xGetStream } from './x.js';
-import { getInfo as bsGetInfo, getStream as bsGetStream } from './bluesky.js';
+import { x } from './x.js';
+import { bluesky } from './bluesky.js';
+import { vimeo } from './vimeo.js';
 import {
   getInfo as thGetInfo,
   getStream as thGetStream,
@@ -43,11 +43,11 @@ const facebook: Extractor = { getInfo: fbGetInfo, getStream: fbGetStream };
 const tiktok: Extractor = { getInfo: tkGetInfo, getStream: tkGetStream };
 const spotify: Extractor = { getInfo: spGetInfo, getStream: spGetStream };
 const soundcloud: Extractor = { getInfo: scGetInfo, getStream: scGetStream };
-const x: Extractor = { getInfo: xGetInfo, getStream: xGetStream };
-const bluesky: Extractor = { getInfo: bsGetInfo, getStream: bsGetStream };
+const xExtractor: Extractor = x;
+const blueskyExtractor: Extractor = bluesky;
 const threads: Extractor = { getInfo: thGetInfo, getStream: thGetStream };
 const bilibili: Extractor = { getInfo: biGetInfo, getStream: biGetStream };
-const vimeo: Extractor = { getInfo: vmGetInfo, getStream: vmGetStream };
+const vimeoExtractor: Extractor = vimeo;
 
 // reverse lookup for failure labels
 const extractorNames = new Map<Extractor, string>([
@@ -57,11 +57,11 @@ const extractorNames = new Map<Extractor, string>([
   [tiktok, 'tiktok'],
   [spotify, 'spotify'],
   [soundcloud, 'soundcloud'],
-  [x, 'x'],
-  [bluesky, 'bluesky'],
+  [xExtractor, 'x'],
+  [blueskyExtractor, 'bluesky'],
   [threads, 'threads'],
   [bilibili, 'bilibili'],
-  [vimeo, 'vimeo'],
+  [vimeoExtractor, 'vimeo'],
 ]);
 
 // map in-flight JS
@@ -92,13 +92,13 @@ export function getExtractor(url: string): Extractor | null {
   if (isHost(url, 'tiktok.com')) return tiktok;
   if (isHost(url, 'spotify.com')) return spotify;
   if (isHost(url, 'soundcloud.com')) return soundcloud;
-  if (isHost(url, 'vimeo.com')) return vimeo;
+  if (isHost(url, 'vimeo.com')) return vimeoExtractor;
   if (
     isHost(url, 'twitter.com') ||
     /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url)
   )
-    return x;
-  if (isHost(url, 'bsky.app')) return bluesky;
+    return xExtractor;
+  if (isHost(url, 'bsky.app')) return blueskyExtractor;
   if (
     isHost(url, 'bilibili.tv') ||
     isHost(url, 'biliintl.com') ||

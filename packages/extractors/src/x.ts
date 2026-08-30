@@ -1,9 +1,7 @@
-import { normalizeTitle, normalizeArtist } from './social.js';
 import { Format, VideoInfo, ExtractorOptions } from './types.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
-
-const DESKTOP_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+import { normalizeTitle, normalizeArtist } from './social.js';
+import { DESKTOP_UA, TCO_URL_RE } from './util.js';
 
 interface XVariant {
   content_type?: string;
@@ -20,14 +18,29 @@ interface XTweet {
   full_text?: string;
   user?: { name?: string; screen_name?: string };
   mediaDetails?: XMedia[];
+  quoted_tweet?: XTweet;
 }
 
 // react-tweet token derivation
-function tweetToken(id: string): string {
+export function tweetToken(id: string): string {
   return ((Number(id) / 1e15) * Math.PI).toString(36).replace(/(0+|\.)/gu, '');
 }
 
-function buildFormats(media: XMedia): Format[] {
+function pickMedia(tweet: XTweet): XMedia | undefined {
+  return (
+    (tweet.mediaDetails ?? []).find(
+      (item) => item.type === 'video' || item.type === 'animated_gif'
+    ) ??
+    (tweet.quoted_tweet?.mediaDetails ?? []).find(
+      (item) => item.type === 'video' || item.type === 'animated_gif'
+    )
+  );
+}
+
+function buildFormats(
+  media: XMedia,
+  isAudioMuxed: boolean
+): Format[] {
   const mapped = (media.video_info?.variants ?? [])
     .filter((variant) => variant.content_type === 'video/mp4' && variant.url)
     .map((variant): Format => {
@@ -48,7 +61,9 @@ function buildFormats(media: XMedia): Format[] {
         tbr: variant.bitrate ? Math.round(variant.bitrate / 1000) : undefined,
         isMuxed: true,
         isVideo: true,
-        isAudio: false,
+        // mobile downloader treats these as audio to take a transcode path;
+        // web keeps false so the picker lists them as videos.
+        isAudio: isAudioMuxed,
       };
     });
 
@@ -67,7 +82,7 @@ function buildFormats(media: XMedia): Format[] {
 export function createXExtractor(env: ExtractorEnv = defaultEnv) {
   async function getInfo(
     url: string,
-    _options: ExtractorOptions = {}
+    options: ExtractorOptions = {}
   ): Promise<VideoInfo | null> {
     try {
       const idMatch = url.match(/status\/(\d+)/u);
@@ -78,18 +93,16 @@ export function createXExtractor(env: ExtractorEnv = defaultEnv) {
       const response = await env.fetch(api, {
         headers: { 'User-Agent': DESKTOP_UA, Accept: 'application/json' },
       });
-      if (!response.ok) return null; // gated/protected -> caller should fall back
+      if (!response.ok) return null; // gated/protected -> caller falls back
 
       const tweet = (await response.json()) as XTweet;
-      const media = (tweet.mediaDetails ?? []).find(
-        (item) => item.type === 'video' || item.type === 'animated_gif'
-      );
+      const media = pickMedia(tweet);
       if (!media) return null;
 
-      const formats = buildFormats(media);
+      const formats = buildFormats(media, options.isAudioMuxed === true);
       if (formats.length === 0) return null;
 
-      // fetch sizes (twimg omits filesize)
+      // twimg omits filesize — HEAD each variant; fail-soft
       await Promise.all(
         formats.map(async (format) => {
           try {
@@ -105,12 +118,11 @@ export function createXExtractor(env: ExtractorEnv = defaultEnv) {
         })
       );
 
-      // drop trailing media t.co link
       const caption = (tweet.text || tweet.full_text || 'X Video')
-        .replace(/\s*https:\/\/t\.co\/\S+\s*$/u, '')
+        .replace(TCO_URL_RE, '')
         .trim();
 
-      const info = {
+      const info: VideoInfo = {
         type: 'video',
         id,
         title: caption || 'X Video',
@@ -126,10 +138,9 @@ export function createXExtractor(env: ExtractorEnv = defaultEnv) {
         isFullData: true,
       };
 
-      const normalized = { ...info } as VideoInfo;
-      normalized.title = normalizeTitle(normalized as unknown as Record<string, unknown>);
-      normalized.uploader = normalizeArtist(normalized as unknown as Record<string, unknown>);
-      return normalized;
+      info.title = normalizeTitle(info as unknown as Record<string, unknown>);
+      info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
+      return info;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[x-extractor] Error extracting ${url}: ${message}`);
