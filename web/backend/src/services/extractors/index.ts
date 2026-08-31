@@ -18,9 +18,6 @@ import {
   getInfo as scGetInfo,
   getStream as scGetStream,
 } from './soundcloud.js';
-import { x } from './x.js';
-import { bluesky } from './bluesky.js';
-import { vimeo } from './vimeo.js';
 import {
   getInfo as thGetInfo,
   getStream as thGetStream,
@@ -36,6 +33,9 @@ import {
   fetchYoutubeOEmbed,
 } from '../../utils/media/metadata.util.js';
 import { recordFailure } from '../../utils/infra/metrics.util.js';
+import { getExtractor as pkgGetExtractor } from '@phantom/extractors';
+import { sharedBackendEnv } from './sharedEnv.js';
+import { Readable } from 'node:stream';
 
 const youtube: Extractor = { getInfo: ytGetInfo, getStream: ytGetStream };
 const instagram: Extractor = { getInfo: igGetInfo, getStream: igGetStream };
@@ -43,11 +43,24 @@ const facebook: Extractor = { getInfo: fbGetInfo, getStream: fbGetStream };
 const tiktok: Extractor = { getInfo: tkGetInfo, getStream: tkGetStream };
 const spotify: Extractor = { getInfo: spGetInfo, getStream: spGetStream };
 const soundcloud: Extractor = { getInfo: scGetInfo, getStream: scGetStream };
-const xExtractor: Extractor = x;
-const blueskyExtractor: Extractor = bluesky;
 const threads: Extractor = { getInfo: thGetInfo, getStream: thGetStream };
 const bilibili: Extractor = { getInfo: biGetInfo, getStream: biGetStream };
-const vimeoExtractor: Extractor = vimeo;
+
+// pkg's x/vimeo/bluesky return a Web ReadableStream; backend consumers expect
+// Node Readable. Wrap once here so the pkg dispatcher can plug into the same
+// Extractor interface as the backend-only extractors above.
+function wrapPkg(pkg: {
+  getInfo: (url: string, options?: ExtractorOptions) => Promise<VideoInfo | null>;
+  getStream: (videoInfo: VideoInfo, options?: ExtractorOptions) => Promise<ReadableStream>;
+}): Extractor {
+  return {
+    getInfo: pkg.getInfo,
+    getStream: async (videoInfo, options) =>
+      Readable.fromWeb(
+        pkg.getStream(videoInfo, options) as unknown as import('node:stream/web').ReadableStream
+      ),
+  };
+}
 
 // reverse lookup for failure labels
 const extractorNames = new Map<Extractor, string>([
@@ -57,11 +70,8 @@ const extractorNames = new Map<Extractor, string>([
   [tiktok, 'tiktok'],
   [spotify, 'spotify'],
   [soundcloud, 'soundcloud'],
-  [xExtractor, 'x'],
-  [blueskyExtractor, 'bluesky'],
   [threads, 'threads'],
   [bilibili, 'bilibili'],
-  [vimeoExtractor, 'vimeo'],
 ]);
 
 // map in-flight JS
@@ -83,7 +93,26 @@ const genericExtractor: Extractor = {
   getStream: genGetStream,
 };
 
+function pkgLabel(url: string): string {
+  if (isHost(url, 'vimeo.com')) return 'vimeo';
+  if (isHost(url, 'bsky.app')) return 'bluesky';
+  if (
+    isHost(url, 'twitter.com') ||
+    /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url)
+  )
+    return 'x';
+  return 'pkg-shared';
+}
+
 export function getExtractor(url: string): Extractor | null {
+  // shared extractors (x/vimeo/bluesky) live in @phantom/extractors — same
+  // source the mobile app uses, so a fix there benefits backend too
+  const pkg = pkgGetExtractor(url, sharedBackendEnv);
+  if (pkg) {
+    const wrapped = wrapPkg(pkg);
+    extractorNames.set(wrapped, pkgLabel(url));
+    return wrapped;
+  }
   if (isHost(url, 'youtube.com') || isHost(url, 'youtu.be')) return youtube;
   if (isHost(url, 'instagram.com')) return instagram;
   if (isHost(url, 'facebook.com') || isHost(url, 'fb.watch')) return facebook;
@@ -92,13 +121,6 @@ export function getExtractor(url: string): Extractor | null {
   if (isHost(url, 'tiktok.com')) return tiktok;
   if (isHost(url, 'spotify.com')) return spotify;
   if (isHost(url, 'soundcloud.com')) return soundcloud;
-  if (isHost(url, 'vimeo.com')) return vimeoExtractor;
-  if (
-    isHost(url, 'twitter.com') ||
-    /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url)
-  )
-    return xExtractor;
-  if (isHost(url, 'bsky.app')) return blueskyExtractor;
   if (
     isHost(url, 'bilibili.tv') ||
     isHost(url, 'biliintl.com') ||
@@ -316,9 +338,6 @@ export {
   tiktok,
   spotify,
   soundcloud,
-  x,
-  bluesky,
   threads,
   bilibili,
-  vimeo,
 };
