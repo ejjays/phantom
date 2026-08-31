@@ -1,16 +1,13 @@
 import { VideoInfo, Format, ExtractorError } from './shared/types';
 import { getInfo as facebookGetInfo } from './facebook';
 import { getInfo as tiktokGetInfo } from './tiktok';
-import { getInfo as xGetInfo } from './x';
 import { getInfo as threadsGetInfo } from './threads';
 import { getInfo as youtubeGetInfo } from './youtube';
 import { getInfo as bilibiliGetInfo } from './bilibili';
 import { getInfo as instagramGetInfo } from './instagram';
 import { getInfo as spotifyGetInfo } from './spotify';
-import { getInfo as blueskyGetInfo } from './bluesky';
 import { getInfo as redditGetInfo } from './reddit';
 import { getInfo as soundcloudGetInfo } from './soundcloud';
-import { getInfo as vimeoGetInfo } from './vimeo';
 import { getInfo as dailymotionGetInfo } from './dailymotion';
 import { getInfo as pinterestGetInfo } from './pinterest';
 import { getInfo as twitchGetInfo } from './twitch';
@@ -23,6 +20,8 @@ import { getGenericSnifferEnabled } from '../lib/settings';
 import { extractFromPage } from '../lib/webviewExtraction/host';
 import { pageScanToVideoInfo } from '../lib/webviewExtraction/normalize';
 import { probeFileSize } from './shared/utils';
+import { getExtractor as pkgGetExtractor } from '@phantom/extractors';
+import { mobileSharedEnvWithThumbs } from './sharedEnv';
 
 export type OnPartial = (info: VideoInfo) => void;
 
@@ -40,6 +39,11 @@ function dispatch(
   url: string,
   onPartial?: OnPartial
 ): Promise<VideoInfo | null> {
+  // shared extractors (x/vimeo/bluesky) live in @phantom/extractors — same
+  // source the web backend uses, so a fix there benefits mobile too
+  const pkg = pkgGetExtractor(url, mobileSharedEnvWithThumbs);
+  if (pkg) return pkg.getInfo(url) as Promise<VideoInfo | null>;
+
   if (matches(host, 'youtube.com') || matches(host, 'youtu.be')) {
     return youtubeGetInfo(url, onPartial);
   }
@@ -64,10 +68,6 @@ function dispatch(
     return instagramGetInfo(url);
   }
 
-  if (matches(host, 'x.com') || matches(host, 'twitter.com')) {
-    return xGetInfo(url);
-  }
-
   if (matches(host, 'threads.net') || matches(host, 'threads.com')) {
     return threadsGetInfo(url);
   }
@@ -80,20 +80,12 @@ function dispatch(
     return facebookGetInfo(url, onPartial);
   }
 
-  if (matches(host, 'bsky.app')) {
-    return blueskyGetInfo(url);
-  }
-
   if (matches(host, 'reddit.com') || matches(host, 'redd.it')) {
     return redditGetInfo(url);
   }
 
   if (matches(host, 'soundcloud.com')) {
     return soundcloudGetInfo(url, onPartial);
-  }
-
-  if (matches(host, 'vimeo.com')) {
-    return vimeoGetInfo(url);
   }
 
   if (matches(host, 'dailymotion.com') || matches(host, 'dai.ly')) {
