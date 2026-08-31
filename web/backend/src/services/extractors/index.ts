@@ -55,9 +55,11 @@ function wrapPkg(pkg: {
 }): Extractor {
   return {
     getInfo: pkg.getInfo,
-    getStream: async (videoInfo, options) =>
-      Readable.fromWeb(
-        pkg.getStream(videoInfo, options) as unknown as import('node:stream/web').ReadableStream
+    getStream: (videoInfo, options) =>
+      Promise.resolve(
+        Readable.fromWeb(
+          pkg.getStream(videoInfo, options) as unknown as import('node:stream/web').ReadableStream
+        )
       ),
   };
 }
