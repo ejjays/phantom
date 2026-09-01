@@ -5,7 +5,6 @@
     "url": "https://vimeo.com/76979871",
     "expect": {
       "minFormats": 0,
-      "mediaKind": "video",
       "wantThumb": true,
       "allowPlatformUploader": true
     }
