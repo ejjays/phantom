@@ -40,12 +40,12 @@ interface PidgetsResponse {
 
 function decodeEntities(s: string): string {
   return s
-    .replace(/&amp;/gu, '&')
     .replace(/&lt;/gu, '<')
     .replace(/&gt;/gu, '>')
     .replace(/&quot;/gu, '"')
     .replace(/&#39;/gu, "'")
-    .replace(/&#x27;/gu, "'");
+    .replace(/&#x27;/gu, "'")
+    .replace(/&amp;/gu, '&');
 }
 
 function titleFrom(pin: PidgetsPin): string {

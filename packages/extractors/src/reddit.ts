@@ -21,7 +21,13 @@ function str(v: unknown): string | undefined {
 }
 
 function decodeEntities(s: string): string {
-  return s.replace(/&amp;/gu, '&').replace(/&lt;/gu, '<').replace(/&gt;/gu, '>').replace(/&quot;/gu, '"').replace(/&#39;/gu, "'").replace(/&#x27;/gu, "'");
+  return s
+    .replace(/&lt;/gu, '<')
+    .replace(/&gt;/gu, '>')
+    .replace(/&quot;/gu, '"')
+    .replace(/&#39;/gu, "'")
+    .replace(/&#x27;/gu, "'")
+    .replace(/&amp;/gu, '&');
 }
 
 function vidOf(post: RedditPostData | undefined): string | undefined {
