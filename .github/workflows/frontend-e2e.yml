@@ -76,10 +76,6 @@ jobs:
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Install frontend deps
-        working-directory: web/frontend
-        run: npm ci --ignore-scripts
-
       - name: Start backend
         working-directory: web/backend
         env:
