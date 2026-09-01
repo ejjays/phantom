@@ -59,7 +59,7 @@ for (const { id, url, expectTitle } of E2E_URLS) {
       console.log(`[e2e] ${id} url: ${page.url()}`);
       throw new Error(
         `[e2e] ${id} dialog did not appear. info requests: ${infoRequests.length}, ` +
-        `responses: ${JSON.stringify(infoResponses.map(r => r.url))}`
+        `responses: ${JSON.stringify(infoResponses.map((resp) => resp.url))}`
       );
     }
 
@@ -73,9 +73,9 @@ for (const { id, url, expectTitle } of E2E_URLS) {
     await expect(title).toBeVisible();
     const titleText = await title.textContent();
     expect(titleText, 'title is not empty').toBeTruthy();
-    expect(titleText!.length).toBeGreaterThan(2);
-    if (expectTitle) {
-      expect(titleText!.toLowerCase()).toContain(expectTitle.toLowerCase());
+    expect(titleText ? titleText.length : 0).toBeGreaterThan(2);
+    if (expectTitle && titleText) {
+      expect(titleText.toLowerCase()).toContain(expectTitle.toLowerCase());
     }
 
     const qualityTrigger = dialog.locator('[aria-haspopup="listbox"]');
@@ -98,7 +98,7 @@ for (const { id, url, expectTitle } of E2E_URLS) {
     await expect(getFileBtn).toBeEnabled();
 
     console.log(
-      `[e2e] ${id} PASS title="${titleText!.slice(0, 60)}" options=${optionCount}`
+      `[e2e] ${id} PASS title="${titleText ? titleText.slice(0, 60) : '-'}" options=${optionCount}`
     );
   });
 }
