@@ -90,7 +90,7 @@ jobs:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
         run: |
-          node --import ./dist/backend/src/instrument.js dist/backend/src/app.js > /tmp/backend.log 2>&1 &
+          node dist/backend/src/app.js > /tmp/backend.log 2>&1 &
           BACKEND_PID=$!
           echo "BACKEND_PID=$BACKEND_PID" >> "$GITHUB_ENV"
           for i in $(seq 1 30); do
