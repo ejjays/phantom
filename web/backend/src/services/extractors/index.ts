@@ -95,11 +95,12 @@ const genericExtractor: Extractor = {
 function pkgLabel(url: string): string {
   if (isHost(url, 'vimeo.com')) return 'vimeo';
   if (isHost(url, 'bsky.app')) return 'bluesky';
-  if (
-    isHost(url, 'twitter.com') ||
-    /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url)
-  )
-    return 'x';
+  if (isHost(url, 'twitter.com') || /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url)) return 'x';
+  if (isHost(url, 'dailymotion.com') || isHost(url, 'dai.ly')) return 'dailymotion';
+  if (isHost(url, 'pinterest.com') || isHost(url, 'pin.it')) return 'pinterest';
+  if (isHost(url, 'reddit.com') || isHost(url, 'redd.it')) return 'reddit';
+  if (isHost(url, 'snapchat.com') || isHost(url, 't.snapchat.com')) return 'snapchat';
+  if (isHost(url, 'twitch.tv')) return 'twitch';
   return 'pkg-shared';
 }
 
@@ -316,7 +317,16 @@ export function shouldJSStream(url: string, quality: string, format: string) {
     isHost(url, 'threads.com') ||
     isHost(url, 'spotify.com') ||
     isHost(url, 'soundcloud.com') ||
-    isHost(url, 'vimeo.com')
+    isHost(url, 'vimeo.com') ||
+    isHost(url, 'dailymotion.com') ||
+    isHost(url, 'dai.ly') ||
+    isHost(url, 'pinterest.com') ||
+    isHost(url, 'pin.it') ||
+    isHost(url, 'reddit.com') ||
+    isHost(url, 'redd.it') ||
+    isHost(url, 'snapchat.com') ||
+    isHost(url, 't.snapchat.com') ||
+    isHost(url, 'twitch.tv')
   )
     return true;
 
