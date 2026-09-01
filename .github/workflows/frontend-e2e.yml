@@ -80,7 +80,6 @@ jobs:
         working-directory: web/backend
         env:
           PORT: '5000'
-          NODE_ENV: test
           REDIS_URL: redis://localhost:6379
           LIVE_PROXY: ${{ secrets.LIVE_PROXY }}
           IG_COOKIE: ${{ secrets.EXPO_PUBLIC_IG_COOKIE }}
