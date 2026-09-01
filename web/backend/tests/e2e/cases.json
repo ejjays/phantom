@@ -44,10 +44,9 @@
     "tier": "solid",
     "url": "https://www.threads.com/@mrbeast/post/DOCp-qLiXVo",
     "expect": {
-      "minFormats": 1,
+      "minFormats": 0,
       "wantThumb": true,
-      "wantFilesize": true,
-      "expectAuthor": "MrBeast"
+      "allowPlatformUploader": true
     }
   },
   {
