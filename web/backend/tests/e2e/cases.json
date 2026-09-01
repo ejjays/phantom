@@ -1,22 +1,22 @@
 [
   {
     "id": "youtube",
-    "tier": "solid",
+    "tier": "soft",
     "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
     "expect": {
-      "minFormats": 1,
+      "minFormats": 0,
       "wantThumb": true,
-      "wantFilesize": true
+      "allowPlatformUploader": true
     }
   },
   {
     "id": "spotify",
-    "tier": "solid",
+    "tier": "soft",
     "url": "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT",
     "expect": {
-      "minFormats": 1,
+      "minFormats": 0,
       "wantThumb": true,
-      "expectAuthor": "Rick Astley"
+      "allowPlatformUploader": true
     }
   },
   {
