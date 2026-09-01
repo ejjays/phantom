@@ -3,6 +3,7 @@ import path from 'path';
 
 const baseExcludes = ['**/node_modules/**', '**/dist/**'];
 const includeManual = process.env.VITEST_INCLUDE_MANUAL === '1';
+const includeE2E = process.env.VITEST_INCLUDE_E2E === '1' || process.env.E2E === '1';
 
 export default defineConfig({
   test: {
@@ -14,9 +15,11 @@ export default defineConfig({
     testTimeout: 60000,
     reporters: ['default', 'junit'],
     outputFile: './test-results.xml',
-    exclude: includeManual
-      ? baseExcludes
-      : [...baseExcludes, 'tests/manual/**', 'tests/lite/**'],
+    exclude: [
+      ...baseExcludes,
+      ...(!includeManual ? ['tests/manual/**', 'tests/lite/**'] : []),
+      ...(!includeE2E ? ['tests/e2e/**'] : []),
+    ],
     // avoid resource contention in android
     pool: 'forks',
     poolOptions: {

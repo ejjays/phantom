@@ -1,0 +1,209 @@
+name: Backend E2E (real network)
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_url:
+        description: Single URL to probe (empty = full tier matrix)
+        required: false
+        default: ''
+      tier:
+        description: Tier to run (solid = gate, all = full)
+        required: false
+        default: solid
+        type: choice
+        options: [solid, all]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'web/backend/**'
+      - 'web/shared/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/backend-e2e.yml'
+  schedule:
+    - cron: '30 3 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 24
+
+jobs:
+  e2e:
+    name: e2e ${{ matrix.shard }}/3 (${{ env.TIER_MODE }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(inputs.test_url != '' && '[1]' || '[1,2,3]') }}
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TIER_MODE: ${{ inputs.tier || (github.event_name == 'pull_request' && 'solid' || 'all') }}
+      DISPATCH_URL: ${{ inputs.test_url || '' }}
+      SHARD_INDEX: ${{ matrix.shard }}
+      SHARD_TOTAL: ${{ inputs.test_url != '' && '1' || '3' }}
+      VITEST_INCLUDE_E2E: '1'
+      E2E: '1'
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install yt-dlp
+        run: pip3 install --break-system-packages --upgrade yt-dlp
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Setup workspace
+        uses: ./.github/actions/workspace-setup
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          build-extractors: 'true'
+          build-shared: 'true'
+
+      - name: Typecheck and build
+        run: |
+          cd web/backend
+          npx tsc --noEmit
+          npm run build
+
+      - name: Install Playwright chromium (for optional browser smoke)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run backend e2e (probe + http)
+        working-directory: web/backend
+        env:
+          LIVE_PROXY: ${{ secrets.LIVE_PROXY }}
+          IG_COOKIE: ${{ secrets.EXPO_PUBLIC_IG_COOKIE }}
+          EXPO_PUBLIC_IG_COOKIE: ${{ secrets.EXPO_PUBLIC_IG_COOKIE }}
+          YT_COOKIE: ${{ secrets.YT_COOKIE }}
+          BILIBILI_COOKIE: ${{ secrets.BILIBILI_COOKIE }}
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          REDIS_URL: redis://localhost:6379
+        run: |
+          echo "tier=$TIER_MODE shard=$SHARD_INDEX/$SHARD_TOTAL dispatch=${DISPATCH_URL:-none}"
+          npx vitest run tests/e2e --no-coverage --reporter=verbose 2>&1 | tee e2e.log
+          EXIT=${PIPESTATUS[0]}
+          echo "vitest exit=$EXIT"
+          # step summary
+          {
+            echo "## backend e2e (shard $SHARD_INDEX/$SHARD_TOTAL · tier $TIER_MODE)"
+            echo ""
+            echo '```'
+            sed -n '1,200p' e2e.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $EXIT
+
+      - name: Upload e2e log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-e2e-log-${{ matrix.shard }}
+          path: web/backend/e2e.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Publish test report
+        if: always()
+        continue-on-error: true
+        uses: dorny/test-reporter@v3
+        with:
+          name: "Test Report: Backend E2E ${{ matrix.shard }}"
+          path: web/backend/test-results.xml
+          reporter: jest-junit
+          use-actions-summary: false
+
+  browser-smoke:
+    name: browser smoke (Playwright)
+    needs: e2e
+    if: always() && needs.e2e.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install yt-dlp
+        run: pip3 install --break-system-packages --upgrade yt-dlp
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Setup workspace
+        uses: ./.github/actions/workspace-setup
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          build-extractors: 'true'
+          build-shared: 'true'
+
+      - name: Build backend
+        run: |
+          cd web/backend
+          npx tsc --noEmit
+          npm run build
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser smoke via Playwright against live backend
+        working-directory: web/backend
+        env:
+          BROWSER_E2E: '1'
+          VITEST_INCLUDE_E2E: '1'
+          E2E: '1'
+          BACKEND_URL: http://127.0.0.1:5000
+          BROWSER_E2E_URL: https://vimeo.com/76979871
+          LIVE_PROXY: ${{ secrets.LIVE_PROXY }}
+          IG_COOKIE: ${{ secrets.EXPO_PUBLIC_IG_COOKIE }}
+        run: |
+          PORT=5000 node --import ./dist/backend/src/instrument.js dist/backend/src/app.js &
+          APP_PID=$!
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5000/ping >/dev/null 2>&1; then echo "backend ready"; break; fi
+            sleep 2
+            if ! kill -0 $APP_PID 2>/dev/null; then echo "backend died"; exit 1; fi
+          done
+          npx vitest run tests/e2e/browser.e2e.test.ts --no-coverage --reporter=verbose
+          kill $APP_PID || true
