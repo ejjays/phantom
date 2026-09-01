@@ -25,11 +25,20 @@ interface TwitchClip {
 }
 
 function parseClipId(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'clip.twitch.tv' || parsed.hostname.endsWith('.clip.twitch.tv')) {
+      const clip = parsed.searchParams.get('clip');
+      if (clip && /^[a-zA-Z0-9_-]+$/u.test(clip)) return clip;
+      const seg = parsed.pathname.split('/').filter(Boolean).pop();
+      if (seg && /^[a-zA-Z0-9_-]+$/u.test(seg)) return seg;
+    }
+  } catch {
+    /* not a valid URL, fall through to regex */
+  }
   const patterns = [
     /twitch\.tv\/[^/]+\/clip\/([a-zA-Z0-9_-]+)/u,
     /twitch\.tv\/clip\/([a-zA-Z0-9_-]+)/u,
-    /clip\.twitch\.tv\/embed\?[^#]*\bclip=([a-zA-Z0-9_-]+)/u,
-    /clip\.twitch\.tv\/([a-zA-Z0-9_-]+)/u,
   ];
   for (const p of patterns) {
     const m = url.match(p);
