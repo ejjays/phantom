@@ -120,13 +120,61 @@ jobs:
           npx vitest run tests/e2e --no-coverage --reporter=verbose 2>&1 | tee e2e.log
           EXIT=${PIPESTATUS[0]}
           echo "vitest exit=$EXIT"
-          # step summary
+          # maestro-style matrix table
+          node -e '
+          const fs=require("fs");
+          const cases=JSON.parse(fs.readFileSync("tests/e2e/cases.json","utf8"));
+          const log=fs.readFileSync("e2e.log","utf8");
+          const tier=process.env.TIER_MODE||"solid";
+          const si=Number(process.env.SHARD_INDEX||0), st=Number(process.env.SHARD_TOTAL||1);
+          const filtered=cases.filter((_,i)=> i%st===si%st).filter(c=> tier==="all" ? true : c.tier===tier);
+          const single=process.env.DISPATCH_URL||process.env.TEST_URL;
+          const list=single? [{id:"custom",tier:"solid",url:single}]: filtered;
+          const esc=s=>String(s||"-").replace(/\|/g,"/").replace(/</g,"&lt;").slice(0,48);
+          let pass=0, soft=0, fail=0;
+          const rows=[];
+          for(const c of list){
+            const id=c.id;
+            const hasProbePass=log.includes(`[probe] ${id} PASS`);
+            const hasProbeFail=log.includes(`[probe] ${id} META FAIL`)|| log.includes(`[probe] ${id} FAIL`);
+            const hasHttpPass=log.includes(`[http] ${id} PASS`);
+            const hasHttpFail=log.includes(`[http] ${id} META FAIL`)|| log.includes(`[http] ${id} FAIL`);
+            const hasDlPass=log.includes(`[download] ${id} PASS`);
+            const hasDlFail=log.includes(`[download] ${id} FAIL`);
+            // soft detection: log contains soft + id
+            const softRe=new RegExp(`\\[probe\\] soft ${id}|\\[http\\] soft ${id}|\\[download\\] soft ${id}|soft ${id}.*ignored`,"i");
+            const isSoft=softRe.test(log);
+            let probe= hasProbePass? "PASS": hasProbeFail? (isSoft?"SOFT FAIL":"FAIL") : "—";
+            let http= hasHttpPass? "PASS": hasHttpFail? (isSoft?"SOFT FAIL":"FAIL") : "—";
+            let dl= hasDlPass? "PASS": hasDlFail? (isSoft?"SOFT FAIL":"FAIL") : "—";
+            // extract title/uploader/fmts from PASS line
+            const m=log.match(new RegExp(`\\[${id !== "custom"? "(?:probe|http)":"probe"}\\] ${id} PASS[^\\n]*title="([^"]*)"[^\\n]*uploader="([^"]*)"[^\\n]*fmts=(\\d+)`));
+            const title=m? esc(m[1]):"-";
+            const up=m? esc(m[2]):"-";
+            const fmts=m? m[3]:"-";
+            const dlM=log.match(new RegExp(`\\[download\\] ${id} PASS[^\\n]*bytes=(\\d+)`));
+            const bytes=dlM? dlM[1]:"-";
+            let status="PASS";
+            if(hasProbeFail||hasHttpFail||hasDlFail) status=isSoft? "SOFT FAIL":"FAIL";
+            if(status==="PASS") pass++; else if(status==="SOFT FAIL") soft++; else fail++;
+            const note= hasProbeFail||hasHttpFail? (log.match(new RegExp(`\\[probe\\] ${id} META FAIL: ([^\\n]+)`))||log.match(new RegExp(`\\[http\\] ${id} META FAIL: ([^\\n]+)`))||[])[1]?.slice(0,60) || (hasProbeFail||hasHttpFail?"fail": hasDlFail?"dl fail":"-") : "-";
+            rows.push(`| ${status} | ${id} | ${c.tier} | ${probe} | ${http} | ${dl} | ${title} | ${up} | ${fmts} | ${bytes} | ${esc(note)} |`);
+          }
+          const total=list.length;
+          const summary=`## backend e2e (shard ${si}/${st} · tier ${tier})` + `\n\n${pass}/${total} passed · solid failed ${fail} · soft failed ${soft}\n\n| status | platform | tier | probe | http | download | title | uploader | fmts | bytes | note |\n|---|---|---|---|---|---|---|---|---|---|---|\n${rows.join("\n")}\n`;
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY||"/dev/null", summary);
+          fs.writeFileSync(`e2e-report-${si}.tsv`, rows.join("\n"));
+          console.log(summary);
+          '  || true
+          # raw log (collapsed)
           {
-            echo "## backend e2e (shard $SHARD_INDEX/$SHARD_TOTAL · tier $TIER_MODE)"
+            echo ""
+            echo "<details><summary>raw log (first 300 lines)</summary>"
             echo ""
             echo '```'
-            sed -n '1,200p' e2e.log
+            sed -n '1,300p' e2e.log
             echo '```'
+            echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
           exit $EXIT
 
@@ -135,7 +183,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: backend-e2e-log-${{ matrix.shard }}
-          path: web/backend/e2e.log
+          path: |
+            web/backend/e2e.log
+            web/backend/e2e-report-*.tsv
           retention-days: 7
           if-no-files-found: ignore
 
