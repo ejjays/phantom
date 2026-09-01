@@ -42,7 +42,7 @@ ldescribe('backend e2e browser smoke (Playwright on GH, puppeteer-core on Termux
         const browser = await chromium.launch({ headless: true });
         try {
           const page = await browser.newPage();
-          await page.goto(apiUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+          await page.goto(apiUrl, { waitUntil: 'networkidle', timeout: 60000 });
           body = await page.evaluate(() => document.body.innerText);
         } finally {
           await browser.close();
