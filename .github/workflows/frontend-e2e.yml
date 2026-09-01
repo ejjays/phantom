@@ -90,13 +90,13 @@ jobs:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
         run: |
-          node --import ./dist/backend/src/instrument.js dist/backend/src/app.js &
+          node --import ./dist/backend/src/instrument.js dist/backend/src/app.js > /tmp/backend.log 2>&1 &
           BACKEND_PID=$!
           echo "BACKEND_PID=$BACKEND_PID" >> "$GITHUB_ENV"
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:5000/ping >/dev/null 2>&1; then echo "backend ready"; break; fi
             sleep 2
-            if ! kill -0 $BACKEND_PID 2>/dev/null; then echo "backend died"; exit 1; fi
+            if ! kill -0 $BACKEND_PID 2>/dev/null; then echo "backend died"; cat /tmp/backend.log; exit 1; fi
           done
 
       - name: Start frontend dev server
@@ -116,7 +116,17 @@ jobs:
         working-directory: web/frontend
         env:
           CI: '1'
-        run: npx playwright test --reporter=list,junit
+        run: |
+          echo "--- backend health check ---"
+          curl -fsS http://127.0.0.1:5000/ping
+          echo ""
+          echo "--- testing /info directly ---"
+          curl -sS "http://127.0.0.1:5000/info?url=https://vimeo.com/76979871" | head -c 300
+          echo ""
+          echo "--- running playwright ---"
+          npx playwright test --reporter=list,junit
+          echo "--- backend log tail ---"
+          tail -50 /tmp/backend.log || true
 
       - name: Upload Playwright report
         if: always()
@@ -132,6 +142,8 @@ jobs:
       - name: Stop services
         if: always()
         run: |
+          echo "--- backend log ---"
+          tail -100 /tmp/backend.log || true
           kill $FRONTEND_PID || true
           kill $BACKEND_PID || true
 
