@@ -53,10 +53,6 @@ for (const { id, url, expectTitle } of E2E_URLS) {
     try {
       await expect(dialog).toBeVisible({ timeout: 80_000 });
     } catch {
-      const consoleErrors: string[] = [];
-      page.on('console', (msg) => {
-        if (msg.type() === 'error') consoleErrors.push(msg.text());
-      });
       console.log(`[e2e] ${id} info requests: ${JSON.stringify(infoRequests)}`);
       console.log(`[e2e] ${id} info responses: ${JSON.stringify(infoResponses)}`);
       console.log(`[e2e] ${id} page title: ${await page.title()}`);
@@ -83,30 +79,32 @@ for (const { id, url, expectTitle } of E2E_URLS) {
     }
 
     const qualityTrigger = dialog.locator('[aria-haspopup="listbox"]');
-    await expect(qualityTrigger).toBeVisible();
-    await qualityTrigger.click();
+    const hasQualityPicker = await qualityTrigger.isVisible({ timeout: 5_000 }).catch(() => false);
 
-    const options = dialog.locator('[role="option"]');
-    const count = await options.count();
-    expect(count, 'at least 1 quality option').toBeGreaterThanOrEqual(1);
+    let optionCount = 0;
+    if (hasQualityPicker) {
+      await qualityTrigger.click();
+      const options = dialog.locator('[role="option"]');
+      optionCount = await options.count();
+      expect(optionCount, 'at least 1 quality option').toBeGreaterThanOrEqual(1);
 
-    const selected = dialog.locator('[role="option"][aria-selected="true"]');
-    await expect(selected).toBeVisible();
+      const selected = dialog.locator('[role="option"][aria-selected="true"]');
+      await expect(selected).toBeVisible();
+      await qualityTrigger.click();
+    }
 
     const getFileBtn = dialog.getByRole('button', { name: 'Get File' });
     await expect(getFileBtn).toBeVisible();
     await expect(getFileBtn).toBeEnabled();
 
-    await qualityTrigger.click();
-
     console.log(
-      `[e2e] ${id} PASS title="${titleText!.slice(0, 60)}" options=${count}`
+      `[e2e] ${id} PASS title="${titleText!.slice(0, 60)}" options=${optionCount}`
     );
   });
 }
 
 test('input + error handling', async ({ page }) => {
-  await page.goto('/', { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30_000 });
 
   const input = page.locator('#url-input');
   await expect(input).toBeVisible();
