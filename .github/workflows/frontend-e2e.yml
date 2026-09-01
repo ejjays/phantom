@@ -1,4 +1,4 @@
-name: Frontend E2E (Playwright)
+name: Frontend E2E
 
 on:
   workflow_dispatch:
