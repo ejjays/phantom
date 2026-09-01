@@ -22,6 +22,15 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/backend-e2e.yml'
+  push:
+    branches: [feat/backend-e2e]
+    paths:
+      - 'web/backend/**'
+      - 'web/shared/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/backend-e2e.yml'
   schedule:
     - cron: '30 3 * * *'
 
@@ -37,7 +46,7 @@ env:
 
 jobs:
   e2e:
-    name: e2e ${{ matrix.shard }}/3 (${{ env.TIER_MODE }})
+    name: e2e ${{ matrix.shard }}/3
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
