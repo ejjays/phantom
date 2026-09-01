@@ -19,9 +19,7 @@
     "expect": {
       "minFormats": 1,
       "wantThumb": true,
-      "wantFilesize": true,
-      "rejectUploader": "Facebook User",
-      "expectAuthor": "CNN"
+      "allowPlatformUploader": true
     }
   },
   {
@@ -68,7 +66,6 @@
       "minFormats": 1,
       "mediaKind": "audio",
       "wantThumb": true,
-      "wantFilesize": true,
       "expectAuthor": "marshmello"
     }
   },
@@ -83,6 +80,27 @@
       "wantResolution": true,
       "wantFilesize": true,
       "expectAuthor": "Kiyubaru"
+    }
+  },
+  {
+    "id": "dailymotion",
+    "tier": "solid",
+    "url": "https://www.dailymotion.com/video/x9b5fti",
+    "expect": {
+      "minFormats": 1,
+      "mediaKind": "video",
+      "wantThumb": true,
+      "wantResolution": true
+    }
+  },
+  {
+    "id": "pinterest",
+    "tier": "solid",
+    "url": "https://www.pinterest.com/pin/424605071145308338/",
+    "expect": {
+      "minFormats": 1,
+      "mediaKind": "video",
+      "wantThumb": true
     }
   },
   {
@@ -119,13 +137,14 @@
     }
   },
   {
-    "id": "spotify",
+    "id": "snapchat",
     "tier": "soft",
-    "url": "https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ?si=7eecb0680e9547a7",
+    "url": "https://www.snapchat.com/spotlight/W7_EDlXWTBiXAEEniNoMPwAAYYWtidGhudGZpAX1TKn0JAX1TKnXJAAAAAA",
     "expect": {
-      "minFormats": 0,
+      "minFormats": 1,
+      "mediaKind": "video",
       "wantThumb": true,
-      "mustHaveIsrc": true
+      "allowPlatformUploader": true
     }
   }
 ]

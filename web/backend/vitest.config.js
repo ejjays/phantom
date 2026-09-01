@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitest/config';
-import path from 'path';
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const baseExcludes = ['**/node_modules/**', '**/dist/**'];
 const includeManual = process.env.VITEST_INCLUDE_MANUAL === '1';
 const includeE2E = process.env.VITEST_INCLUDE_E2E === '1' || process.env.E2E === '1';
@@ -9,7 +11,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    // vitest4 stopped auto-setting this; guards app boot
     env: { NODE_ENV: 'test' },
     setupFiles: ['./tests/setup.ts'],
     testTimeout: 60000,
@@ -20,15 +21,8 @@ export default defineConfig({
       ...(!includeManual ? ['tests/manual/**', 'tests/lite/**'] : []),
       ...(!includeE2E ? ['tests/e2e/**'] : []),
     ],
-    // avoid resource contention in android
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: false,
-        minForks: 1,
-        maxForks: 1,
-      },
-    },
+    maxWorkers: 1,
     isolate: true,
     sequence: {
       concurrent: false,
@@ -36,7 +30,7 @@ export default defineConfig({
     fileParallelism: false,
     maxConcurrency: 1,
     alias: {
-      '@shared': path.resolve(__dirname, '../shared'),
+      '@shared': `${__dirname}/../shared`,
     },
     coverage: {
       provider: 'v8',
