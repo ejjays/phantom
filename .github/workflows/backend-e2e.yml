@@ -291,11 +291,19 @@ jobs:
           for f in logs/*.log; do
             [ -f "$f" ] || continue
             SHARD=$(basename "$f" .log | sed 's/backend-e2e-log-//')
-            FAILS=$(grep -c 'META FAIL\|FAIL ' "$f" 2>/dev/null || true)
-            PASSES=$(grep -c ' PASS ' "$f" 2>/dev/null || true)
+            # new maestro table: | FAIL | vs | SOFT FAIL | — fall back to old META FAIL
+            FAILS=$(grep -c '| FAIL |' "$f" 2>/dev/null || true)
+            SOFTS=$(grep -c '| SOFT FAIL |' "$f" 2>/dev/null || true)
+            PASSES=$(grep -c '| PASS |' "$f" 2>/dev/null || true)
+            if [ "$PASSES" -eq 0 ]; then PASSES=$(grep -c ' PASS ' "$f" 2>/dev/null || true); fi
+            if [ "$FAILS" -eq 0 ] && [ "$SOFTS" -eq 0 ]; then FAILS=$(grep -c 'META FAIL' "$f" 2>/dev/null || true); fi
             if [ "$FAILS" -gt 0 ]; then
-              DETAILS=$(grep -E 'META FAIL|× ' "$f" | head -5 | sed 's/\x1b\[[0-9;]*m//g')
-              TEXT+="shard ${SHARD}: ${PASSES} passed, ${FAILS} failed"$'\n'"${DETAILS}"$'\n\n'
+              DETAILS=$(grep -E '\| FAIL \||META FAIL|× ' "$f" | head -5 | sed 's/\x1b\[[0-9;]*m//g')
+              TEXT+="shard ${SHARD}: ${PASSES} passed, ${FAILS} solid failed"
+              if [ "$SOFTS" -gt 0 ]; then TEXT+=", ${SOFTS} soft ignored"; fi
+              TEXT+=$'\n'"${DETAILS}"$'\n\n'
+            elif [ "$SOFTS" -gt 0 ]; then
+              TEXT+="shard ${SHARD}: ${PASSES} passed ✓ (${SOFTS} soft ignored)"$'\n'
             else
               TEXT+="shard ${SHARD}: ${PASSES} passed ✓"$'\n'
             fi
