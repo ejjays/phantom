@@ -38,7 +38,7 @@ for (const { id, url, expectTitle } of E2E_URLS) {
       }
     });
 
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30_000 });
 
     const input = page.locator('#url-input');
     await expect(input).toBeVisible();

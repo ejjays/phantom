@@ -117,10 +117,7 @@ jobs:
           CI: '1'
         run: |
           echo "--- backend health check ---"
-          curl -fsS http://127.0.0.1:5000/ping
-          echo ""
-          echo "--- testing /info directly ---"
-          curl -sS "http://127.0.0.1:5000/info?url=https://vimeo.com/76979871" | head -c 300
+          curl -fsS --max-time 5 http://127.0.0.1:5000/ping
           echo ""
           echo "--- running playwright ---"
           npx playwright test --reporter=list,junit
