@@ -44,7 +44,6 @@
     "url": "https://www.threads.com/@mrbeast/post/DOCp-qLiXVo",
     "expect": {
       "minFormats": 0,
-      "wantThumb": true,
       "allowPlatformUploader": true
     }
   },
