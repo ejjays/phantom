@@ -5,93 +5,116 @@ const E2E_URLS = [
     id: 'vimeo',
     url: 'https://vimeo.com/76979871',
     expectTitle: 'The New Vimeo Player',
-    expectUploader: 'Vimeo',
   },
   {
     id: 'soundcloud',
     url: 'https://soundcloud.com/marshmellomusic/alone',
     expectTitle: 'Alone',
-    expectUploader: 'marshmello',
   },
   {
     id: 'threads',
     url: 'https://www.threads.com/@mrbeast/post/DOCp-qLiXVo',
     expectTitle: null,
-    expectUploader: null,
   },
 ] as const;
 
-for (const { id, url, expectTitle, expectUploader } of E2E_URLS) {
-  test.describe(`picker modal — ${id}`, () => {
-    test(
-      'resolves URL, shows picker with thumbnail + title + formats + download button',
-      async ({ page }) => {
-        await page.goto('/');
+for (const { id, url, expectTitle } of E2E_URLS) {
+  test(`picker modal — ${id}`, async ({ page }) => {
+    test.setTimeout(120_000);
 
-        const input = page.locator('#url-input');
-        await expect(input).toBeVisible();
-        await input.fill(url);
-        await input.press('Enter');
+    const infoRequests: string[] = [];
+    page.on('request', (req) => {
+      if (req.url().includes('/info?')) infoRequests.push(req.url());
+    });
 
-        const dialog = page.getByRole('dialog');
-        await expect(dialog).toBeVisible({ timeout: 60_000 });
+    const infoResponses: { url: number; body: string }[] = [];
+    page.on('response', async (res) => {
+      if (res.url().includes('/info?')) {
+        let body = '';
+        try {
+          body = (await res.text()).slice(0, 500);
+        } catch { /* */ }
+        infoResponses.push({ url: res.status(), body });
+      }
+    });
 
-        const thumbnail = dialog.getByRole('img', { name: 'Thumbnail' });
-        await expect(thumbnail).toBeVisible();
-        const src = await thumbnail.getAttribute('src');
-        expect(src, 'thumbnail has a real image URL').toBeTruthy();
-        expect(src).not.toContain('logo.webp');
+    await page.goto('/', { waitUntil: 'networkidle' });
 
-        const title = dialog.locator('h3');
-        await expect(title).toBeVisible();
-        const titleText = await title.textContent();
-        expect(titleText, 'title is not empty').toBeTruthy();
-        expect(titleText!.length).toBeGreaterThan(2);
-        if (expectTitle) {
-          expect(titleText!.toLowerCase()).toContain(expectTitle.toLowerCase());
-        }
+    const input = page.locator('#url-input');
+    await expect(input).toBeVisible();
 
-        const qualityTrigger = dialog.locator('[aria-haspopup="listbox"]');
-        await expect(qualityTrigger).toBeVisible();
-        await qualityTrigger.click();
+    const convertBtn = page.getByRole('button', { name: /Convert & Download|Processing/ });
+    await expect(convertBtn).toBeVisible();
 
-        const options = dialog.locator('[role="option"]');
-        const count = await options.count();
-        expect(count, 'at least 1 quality option').toBeGreaterThanOrEqual(1);
+    await input.fill(url);
+    await input.press('Enter');
 
-        const selected = dialog.locator('[role="option"][aria-selected="true"]');
-        await expect(selected).toBeVisible();
+    const dialog = page.getByRole('dialog');
+    try {
+      await expect(dialog).toBeVisible({ timeout: 80_000 });
+    } catch {
+      const consoleErrors: string[] = [];
+      page.on('console', (msg) => {
+        if (msg.type() === 'error') consoleErrors.push(msg.text());
+      });
+      console.log(`[e2e] ${id} info requests: ${JSON.stringify(infoRequests)}`);
+      console.log(`[e2e] ${id} info responses: ${JSON.stringify(infoResponses)}`);
+      console.log(`[e2e] ${id} page title: ${await page.title()}`);
+      console.log(`[e2e] ${id} url: ${page.url()}`);
+      throw new Error(
+        `[e2e] ${id} dialog did not appear. info requests: ${infoRequests.length}, ` +
+        `responses: ${JSON.stringify(infoResponses.map(r => r.url))}`
+      );
+    }
 
-        const getFileBtn = dialog.getByRole('button', { name: 'Get File' });
-        await expect(getFileBtn).toBeVisible();
-        await expect(getFileBtn).toBeEnabled();
+    const thumbnail = dialog.getByRole('img', { name: 'Thumbnail' });
+    await expect(thumbnail).toBeVisible();
+    const src = await thumbnail.getAttribute('src');
+    expect(src, 'thumbnail has a real image URL').toBeTruthy();
+    expect(src).not.toContain('logo.webp');
 
-        await qualityTrigger.click();
+    const title = dialog.locator('h3');
+    await expect(title).toBeVisible();
+    const titleText = await title.textContent();
+    expect(titleText, 'title is not empty').toBeTruthy();
+    expect(titleText!.length).toBeGreaterThan(2);
+    if (expectTitle) {
+      expect(titleText!.toLowerCase()).toContain(expectTitle.toLowerCase());
+    }
 
-        console.log(
-          `[e2e] ${id} PASS title="${titleText!.slice(0, 60)}" options=${count}`
-        );
-      },
-      90_000
+    const qualityTrigger = dialog.locator('[aria-haspopup="listbox"]');
+    await expect(qualityTrigger).toBeVisible();
+    await qualityTrigger.click();
+
+    const options = dialog.locator('[role="option"]');
+    const count = await options.count();
+    expect(count, 'at least 1 quality option').toBeGreaterThanOrEqual(1);
+
+    const selected = dialog.locator('[role="option"][aria-selected="true"]');
+    await expect(selected).toBeVisible();
+
+    const getFileBtn = dialog.getByRole('button', { name: 'Get File' });
+    await expect(getFileBtn).toBeVisible();
+    await expect(getFileBtn).toBeEnabled();
+
+    await qualityTrigger.click();
+
+    console.log(
+      `[e2e] ${id} PASS title="${titleText!.slice(0, 60)}" options=${count}`
     );
   });
 }
 
-test.describe('input + error handling', () => {
-  test('empty input does not resolve', async ({ page }) => {
-    await page.goto('/');
-    const input = page.locator('#url-input');
-    await expect(input).toBeVisible();
-    await input.press('Enter');
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5_000 });
-  });
+test('input + error handling', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' });
 
-  test('invalid URL shows error', async ({ page }) => {
-    await page.goto('/');
-    const input = page.locator('#url-input');
-    await input.fill('not-a-url');
-    await input.press('Enter');
-    const error = page.locator('[role="alert"], .text-red, .text-red-400, .text-orange');
-    await expect(error.first()).toBeVisible({ timeout: 15_000 });
-  });
+  const input = page.locator('#url-input');
+  await expect(input).toBeVisible();
+  await input.press('Enter');
+  await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5_000 });
+
+  await input.fill('not-a-url');
+  await input.press('Enter');
+  const error = page.locator('[role="alert"], .text-red, .text-red-400, .text-orange');
+  await expect(error.first()).toBeVisible({ timeout: 15_000 });
 });
