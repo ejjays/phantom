@@ -24,7 +24,11 @@
     "tier": "solid",
     "url": "https://vimeo.com/76979871",
     "expect": {
-      "minFormats": 0,
+      "minFormats": 2,
+      "mediaKind": "video",
+      "wantThumb": true,
+      "wantResolution": true,
+      "wantFilesize": true,
       "allowPlatformUploader": true
     }
   },
@@ -33,9 +37,11 @@
     "tier": "solid",
     "url": "https://www.facebook.com/cnn/videos/10155529876156509/",
     "expect": {
-      "minFormats": 0,
+      "minFormats": 1,
       "wantThumb": true,
-      "allowPlatformUploader": true
+      "wantFilesize": true,
+      "rejectUploader": "Facebook User",
+      "expectAuthor": "CNN"
     }
   },
   {
@@ -43,8 +49,10 @@
     "tier": "solid",
     "url": "https://www.threads.com/@mrbeast/post/DOCp-qLiXVo",
     "expect": {
-      "minFormats": 0,
-      "allowPlatformUploader": true
+      "minFormats": 1,
+      "wantThumb": true,
+      "wantFilesize": true,
+      "expectAuthor": "MrBeast"
     }
   },
   {
@@ -52,9 +60,12 @@
     "tier": "solid",
     "url": "https://x.com/i/status/2030683209466335363",
     "expect": {
-      "minFormats": 0,
+      "minFormats": 2,
       "wantThumb": true,
-      "allowPlatformUploader": true
+      "wantResolution": true,
+      "wantFilesize": true,
+      "rejectUploader": "X User",
+      "expectAuthor": "MrBeast"
     }
   },
   {
@@ -74,9 +85,11 @@
     "tier": "solid",
     "url": "https://soundcloud.com/marshmellomusic/alone",
     "expect": {
-      "minFormats": 0,
+      "minFormats": 1,
+      "mediaKind": "audio",
       "wantThumb": true,
-      "allowPlatformUploader": true
+      "wantFilesize": true,
+      "expectAuthor": "marshmello"
     }
   },
   {
@@ -84,8 +97,11 @@
     "tier": "solid",
     "url": "https://bsky.app/profile/kiyubaru.bsky.social/post/3mily7njuds27",
     "expect": {
-      "minFormats": 0,
+      "minFormats": 1,
+      "mediaKind": "video",
       "wantThumb": true,
+      "wantResolution": true,
+      "wantFilesize": true,
       "expectAuthor": "Kiyubaru"
     }
   },
