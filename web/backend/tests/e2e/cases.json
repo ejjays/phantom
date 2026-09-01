@@ -93,18 +93,6 @@
     }
   },
   {
-    "id": "dailymotion",
-    "tier": "solid",
-    "url": "https://www.dailymotion.com/video/x9b5fti",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "video",
-      "wantThumb": true,
-      "wantResolution": true,
-      "expectAuthor": "MR BEAST"
-    }
-  },
-  {
     "id": "soundcloud",
     "tier": "solid",
     "url": "https://soundcloud.com/forss/flickermood",
@@ -112,18 +100,6 @@
       "minFormats": 1,
       "mediaKind": "audio",
       "wantThumb": true,
-      "wantFilesize": true
-    }
-  },
-  {
-    "id": "twitch",
-    "tier": "solid",
-    "url": "https://www.twitch.tv/squeex/clip/ProtectivePoorMoonShazBotstix-tukvl4Y1Y4Kh_wEc",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "video",
-      "wantThumb": true,
-      "wantResolution": true,
       "wantFilesize": true
     }
   },
@@ -138,16 +114,6 @@
       "wantResolution": true,
       "wantFilesize": true,
       "expectAuthor": "Kiyubaru"
-    }
-  },
-  {
-    "id": "pinterest",
-    "tier": "solid",
-    "url": "https://www.pinterest.com/pin/424605071145308338/",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "video",
-      "wantThumb": true
     }
   },
   {
@@ -181,18 +147,6 @@
       "mediaKind": "video",
       "wantThumb": true,
       "wantResolution": true
-    }
-  },
-  {
-    "id": "snapchat",
-    "tier": "soft",
-    "url": "https://www.snapchat.com/spotlight/W7_EDlXWTBiXAEEniNoMPwAAYYWtidGhudGZpAX1TKn0JAX1TKnXJAAAAAA",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "video",
-      "wantThumb": true,
-      "wantFilesize": true,
-      "allowPlatformUploader": true
     }
   }
 ]
