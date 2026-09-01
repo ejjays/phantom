@@ -61,7 +61,6 @@ function wrapPkg(pkg: {
   };
 }
 
-// reverse lookup for failure labels
 const extractorNames = new Map<Extractor, string>([
   [youtube, 'youtube'],
   [instagram, 'instagram'],
@@ -73,13 +72,8 @@ const extractorNames = new Map<Extractor, string>([
   [bilibili, 'bilibili'],
 ]);
 
-// map in-flight JS
 const inFlightJsTasks = new Map<string, Promise<VideoInfo | null>>();
 
-/**
- * Returns the in-flight (or recently completed) JS extraction promise for a URL.
- * Used by handleYoutubeTiktokInfo to skip yt-dlp deep-scan when JS already has formats.
- */
 export function getInFlightJsResult(
   url: string
 ): Promise<VideoInfo | null> | undefined {
@@ -87,7 +81,6 @@ export function getInFlightJsResult(
 }
 
 const genericExtractor: Extractor = {
-  // yt-dlp generic: Pure's get_video.dat + onLoadResource in one engine
   getInfo: genGetInfo,
   getStream: genGetStream,
 };
@@ -95,11 +88,12 @@ const genericExtractor: Extractor = {
 function pkgLabel(url: string): string {
   if (isHost(url, 'vimeo.com')) return 'vimeo';
   if (isHost(url, 'bsky.app')) return 'bluesky';
-  if (
-    isHost(url, 'twitter.com') ||
-    /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url)
-  )
-    return 'x';
+  if (isHost(url, 'twitter.com') || /\/\/(?:www\.|mobile\.)?x\.com\//u.test(url)) return 'x';
+  if (isHost(url, 'dailymotion.com') || isHost(url, 'dai.ly')) return 'dailymotion';
+  if (isHost(url, 'pinterest.com') || isHost(url, 'pin.it')) return 'pinterest';
+  if (isHost(url, 'reddit.com') || isHost(url, 'redd.it')) return 'reddit';
+  if (isHost(url, 'snapchat.com') || isHost(url, 't.snapchat.com')) return 'snapchat';
+  if (isHost(url, 'twitch.tv')) return 'twitch';
   return 'pkg-shared';
 }
 
@@ -195,7 +189,6 @@ export async function getInfo(
           );
           finalEarlyData.isPartial = true;
 
-          // skip flickery paint for platform labels
           if (isLowValueEarlyAuthor(finalEarlyData.artist)) {
             logger.info(
               `[Metadata] Skipped low-value early hit (author "${finalEarlyData.artist}")`
@@ -243,7 +236,6 @@ export async function getInfo(
         inFlightJsTasks.delete(url);
       }
     }, 30000);
-    // allow process exit
     cleanupTimer.unref?.();
   });
 
@@ -265,14 +257,12 @@ export async function getInfo(
     fastResult.data.formats.length > 0
   ) {
     const meta = await metascraperTask;
-    // extractor thumbnail wins; metascraper only fills gaps
     if (meta && !fastResult.data.thumbnail) {
       fastResult.data.metascraper = { image: meta.image };
     }
     return fastResult.data as VideoInfo;
   }
 
-  // js slow/empty: metascraper fallback
   if (fastResult.type === 'meta' && fastResult.data) {
     const meta = fastResult.data;
     return {
@@ -300,7 +290,6 @@ export function shouldJSStream(url: string, quality: string, format: string) {
     return false;
   }
 
-  // dash: only audio is single-stream
   if (
     isHost(url, 'bilibili.tv') ||
     isHost(url, 'biliintl.com') ||
@@ -316,11 +305,20 @@ export function shouldJSStream(url: string, quality: string, format: string) {
     isHost(url, 'threads.com') ||
     isHost(url, 'spotify.com') ||
     isHost(url, 'soundcloud.com') ||
-    isHost(url, 'vimeo.com')
+    isHost(url, 'vimeo.com') ||
+    isHost(url, 'dailymotion.com') ||
+    isHost(url, 'dai.ly') ||
+    isHost(url, 'pinterest.com') ||
+    isHost(url, 'pin.it') ||
+    isHost(url, 'reddit.com') ||
+    isHost(url, 'redd.it') ||
+    isHost(url, 'snapchat.com') ||
+    isHost(url, 't.snapchat.com') ||
+    isHost(url, 'twitch.tv')
   )
     return true;
 
-  if (isHost(url, 'tiktok.com')) return false; // download issues
+  if (isHost(url, 'tiktok.com')) return false;
 
   if (['mp3', 'm4a', 'audio'].includes(format)) return true;
 

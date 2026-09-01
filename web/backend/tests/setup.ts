@@ -79,7 +79,13 @@ async function initTestDb(client: DBClient) {
   }
 }
 
+const isE2EMode =
+  process.env.VITEST_INCLUDE_E2E === '1' || process.env.E2E === '1';
+
 vi.mock('youtubei.js', async (importOriginal) => {
+  if (isE2EMode) {
+    return await importOriginal<typeof import('youtubei.js')>();
+  }
   const actual = await importOriginal<typeof import('youtubei.js')>();
   // mock streaming data
   const mockStreamingData = {
@@ -549,6 +555,11 @@ export const server = setupServer(...handlers);
 beforeAll(async () => {
   const testPath = expect.getState().testPath;
   const isLiveTest = testPath?.includes('live.test.ts');
+  const isE2ETest = testPath?.includes('/e2e/');
+
+  if (isE2EMode && isE2ETest) {
+    return;
+  }
 
   if (!isLiveTest) {
     server.listen({ onUnhandledRequest: 'bypass' });

@@ -3,6 +3,11 @@ import { ExtractorEnv, defaultEnv } from './env.js';
 import { createXExtractor } from './x.js';
 import { createBlueskyExtractor } from './bluesky.js';
 import { createVimeoExtractor } from './vimeo.js';
+import { createDailymotionExtractor } from './dailymotion.js';
+import { createPinterestExtractor } from './pinterest.js';
+import { createRedditExtractor } from './reddit.js';
+import { createSnapchatExtractor } from './snapchat.js';
+import { createTwitchExtractor } from './twitch.js';
 
 function hostOf(url: string): string {
   const cleaned = url.replace(/^https?:\/\//iu, '');
@@ -27,6 +32,25 @@ export function getExtractor(
   }
   if (matches(host, 'vimeo.com')) {
     return createVimeoExtractor(env);
+  }
+  if (matches(host, 'dailymotion.com') || matches(host, 'dai.ly')) {
+    return createDailymotionExtractor(env);
+  }
+  if (matches(host, 'pinterest.com') || matches(host, 'pinterest.co.uk') || matches(host, 'pin.it')) {
+    return createPinterestExtractor(env);
+  }
+  if (matches(host, 'reddit.com') || matches(host, 'redd.it') || matches(host, 'old.reddit.com')) {
+    return createRedditExtractor(env);
+  }
+  if (
+    matches(host, 'snapchat.com') ||
+    matches(host, 't.snapchat.com') ||
+    matches(host, 'story.snapchat.com')
+  ) {
+    return createSnapchatExtractor(env);
+  }
+  if (matches(host, 'twitch.tv') || matches(host, 'clip.twitch.tv')) {
+    return createTwitchExtractor(env);
   }
   return null;
 }
