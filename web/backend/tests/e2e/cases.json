@@ -41,7 +41,7 @@
   },
   {
     "id": "threads",
-    "tier": "solid",
+    "tier": "soft",
     "url": "https://www.threads.com/@mrbeast/post/DOCp-qLiXVo",
     "expect": {
       "minFormats": 0,
