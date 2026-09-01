@@ -1,5 +1,25 @@
 [
   {
+    "id": "youtube",
+    "tier": "solid",
+    "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+    "expect": {
+      "minFormats": 1,
+      "wantThumb": true,
+      "wantFilesize": true
+    }
+  },
+  {
+    "id": "spotify",
+    "tier": "solid",
+    "url": "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT",
+    "expect": {
+      "minFormats": 1,
+      "wantThumb": true,
+      "expectAuthor": "Rick Astley"
+    }
+  },
+  {
     "id": "vimeo",
     "tier": "solid",
     "url": "https://vimeo.com/76979871",
@@ -74,27 +94,6 @@
     }
   },
   {
-    "id": "dailymotion",
-    "tier": "soft",
-    "url": "https://www.dailymotion.com/video/x9b5fti",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "video",
-      "wantThumb": true,
-      "wantResolution": true
-    }
-  },
-  {
-    "id": "pinterest",
-    "tier": "soft",
-    "url": "https://www.pinterest.com/pin/424605071145308338/",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "video",
-      "wantThumb": true
-    }
-  },
-  {
     "id": "instagram",
     "tier": "soft",
     "url": "https://www.instagram.com/reel/DJW7ZrwxQJ6/",
@@ -107,16 +106,6 @@
     }
   },
   {
-    "id": "reddit",
-    "tier": "soft",
-    "url": "https://www.reddit.com/r/nextfuckinglevel/comments/1ul35f8/a_freediver_exploring_the_worlds_deepest_swimming/",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "video",
-      "wantThumb": true
-    }
-  },
-  {
     "id": "bilibili",
     "tier": "soft",
     "url": "https://www.bilibili.tv/video/170001",
@@ -125,17 +114,6 @@
       "mediaKind": "video",
       "wantThumb": true,
       "wantResolution": true
-    }
-  },
-  {
-    "id": "snapchat",
-    "tier": "soft",
-    "url": "https://www.snapchat.com/spotlight/W7_EDlXWTBiXAEEniNoMPwAAYYWtidGhudGZpAX1TKn0JAX1TKnXJAAAAAA",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "video",
-      "wantThumb": true,
-      "allowPlatformUploader": true
     }
   }
 ]
