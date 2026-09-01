@@ -61,7 +61,6 @@ function wrapPkg(pkg: {
   };
 }
 
-// reverse lookup for failure labels
 const extractorNames = new Map<Extractor, string>([
   [youtube, 'youtube'],
   [instagram, 'instagram'],
@@ -73,13 +72,8 @@ const extractorNames = new Map<Extractor, string>([
   [bilibili, 'bilibili'],
 ]);
 
-// map in-flight JS
 const inFlightJsTasks = new Map<string, Promise<VideoInfo | null>>();
 
-/**
- * Returns the in-flight (or recently completed) JS extraction promise for a URL.
- * Used by handleYoutubeTiktokInfo to skip yt-dlp deep-scan when JS already has formats.
- */
 export function getInFlightJsResult(
   url: string
 ): Promise<VideoInfo | null> | undefined {
@@ -87,7 +81,6 @@ export function getInFlightJsResult(
 }
 
 const genericExtractor: Extractor = {
-  // yt-dlp generic: Pure's get_video.dat + onLoadResource in one engine
   getInfo: genGetInfo,
   getStream: genGetStream,
 };
@@ -196,7 +189,6 @@ export async function getInfo(
           );
           finalEarlyData.isPartial = true;
 
-          // skip flickery paint for platform labels
           if (isLowValueEarlyAuthor(finalEarlyData.artist)) {
             logger.info(
               `[Metadata] Skipped low-value early hit (author "${finalEarlyData.artist}")`
@@ -244,7 +236,6 @@ export async function getInfo(
         inFlightJsTasks.delete(url);
       }
     }, 30000);
-    // allow process exit
     cleanupTimer.unref?.();
   });
 
@@ -266,14 +257,12 @@ export async function getInfo(
     fastResult.data.formats.length > 0
   ) {
     const meta = await metascraperTask;
-    // extractor thumbnail wins; metascraper only fills gaps
     if (meta && !fastResult.data.thumbnail) {
       fastResult.data.metascraper = { image: meta.image };
     }
     return fastResult.data as VideoInfo;
   }
 
-  // js slow/empty: metascraper fallback
   if (fastResult.type === 'meta' && fastResult.data) {
     const meta = fastResult.data;
     return {
@@ -301,7 +290,6 @@ export function shouldJSStream(url: string, quality: string, format: string) {
     return false;
   }
 
-  // dash: only audio is single-stream
   if (
     isHost(url, 'bilibili.tv') ||
     isHost(url, 'biliintl.com') ||
@@ -330,7 +318,7 @@ export function shouldJSStream(url: string, quality: string, format: string) {
   )
     return true;
 
-  if (isHost(url, 'tiktok.com')) return false; // download issues
+  if (isHost(url, 'tiktok.com')) return false;
 
   if (['mp3', 'm4a', 'audio'].includes(format)) return true;
 

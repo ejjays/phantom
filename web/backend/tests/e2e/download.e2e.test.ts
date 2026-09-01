@@ -36,7 +36,6 @@ function dispatchUrl(): string | undefined {
   return process.env.DISPATCH_URL || process.env.TEST_URL || undefined;
 }
 
-// pick smallest streamable format — audio preferred (tiny) else lowest muxed
 function pickDownloadFormat(body: Record<string, unknown>): string | null {
   const fmts = (body.formats as Array<Record<string, unknown>> | undefined) ?? [];
   const audio = (body.audioFormats as Array<Record<string, unknown>> | undefined) ?? [];
@@ -55,7 +54,6 @@ ldescribe('backend e2e download (info → stream-urls → proxy bytes)', () => {
   const shardIndex = Number(process.env.SHARD_INDEX || '0');
   const shardTotal = Number(process.env.SHARD_TOTAL || '1');
 
-  // keep download e2e light: only 2 smallest platforms per shard to avoid OOM / long run
   const candidates = selectCases(rawCases, { tierMode: tier, shardIndex, shardTotal, singleUrl: single });
   const cases = candidates.filter((entry) => ['soundcloud', 'threads', 'vimeo', 'bluesky'].includes(entry.id)).slice(0, 2);
 
@@ -68,7 +66,6 @@ ldescribe('backend e2e download (info → stream-urls → proxy bytes)', () => {
     const skip = shouldSkipForEnv(id);
     if (skip) { console.warn(`[download] skip ${id}: ${skip}`); return; }
 
-    // 1) resolve info
     const infoRes = await request(app).get(`/info?url=${encodeURIComponent(url)}`).set('Accept', 'application/json').timeout(65000);
     if (infoRes.status !== 200) {
       if (caseTier === 'soft') { console.warn(`[download] soft ${id} info ${infoRes.status} ignored`); return; }
@@ -83,7 +80,6 @@ ldescribe('backend e2e download (info → stream-urls → proxy bytes)', () => {
       return;
     }
 
-    // 2) resolve manifest → signed proxy url
     const streamRes = await request(app).get(`/stream-urls?url=${encodeURIComponent(url)}&formatId=${encodeURIComponent(fmtId)}`).set('Accept', 'application/json').timeout(65000);
     if (streamRes.status !== 200) {
       if (caseTier === 'soft') { console.warn(`[download] soft ${id} stream-urls ${streamRes.status} ignored`); return; }
@@ -100,8 +96,6 @@ ldescribe('backend e2e download (info → stream-urls → proxy bytes)', () => {
       return;
     }
 
-    // 3) fetch first bytes via signed proxy (range 0-64k, tiny, proves pipeline)
-    // tunnel is already signed with sig+exp, just GET it
     const proxyPath = proxyUrl.startsWith('http') ? new URL(proxyUrl).pathname + new URL(proxyUrl).search : proxyUrl;
     const dlRes = await request(app).get(proxyPath).set('Range', 'bytes=0-65535').timeout(65000).buffer(true).parse((res, cb) => {
       const chunks: Buffer[] = [];
