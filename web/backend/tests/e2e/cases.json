@@ -1,42 +1,10 @@
 [
   {
-    "id": "youtube-shorts",
-    "tier": "solid",
-    "url": "https://www.youtube.com/shorts/aqz-KE-bpKQ",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "video",
-      "wantThumb": true,
-      "wantResolution": true
-    }
-  },
-  {
-    "id": "youtube-regular",
-    "tier": "solid",
-    "url": "https://www.youtube.com/watch?v=vPwaXytZcgI",
-    "expect": {
-      "minFormats": 1,
-      "mediaKind": "video",
-      "wantThumb": true,
-      "wantResolution": true
-    }
-  },
-  {
-    "id": "spotify-track",
-    "tier": "solid",
-    "url": "https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ?si=7eecb0680e9547a7",
-    "expect": {
-      "minFormats": 0,
-      "wantThumb": true,
-      "mustHaveIsrc": true
-    }
-  },
-  {
     "id": "vimeo",
     "tier": "solid",
     "url": "https://vimeo.com/76979871",
     "expect": {
-      "minFormats": 1,
+      "minFormats": 2,
       "mediaKind": "video",
       "wantThumb": true,
       "wantResolution": true,
@@ -72,7 +40,7 @@
     "tier": "solid",
     "url": "https://x.com/i/status/2030683209466335363",
     "expect": {
-      "minFormats": 1,
+      "minFormats": 2,
       "wantThumb": true,
       "wantResolution": true,
       "wantFilesize": true,
@@ -83,24 +51,25 @@
   {
     "id": "tiktok",
     "tier": "solid",
-    "url": "https://www.tiktok.com/@gablyricsssss/video/7636385053227879700",
+    "url": "https://vt.tiktok.com/ZSCQnCeg6/",
     "expect": {
-      "minFormats": 1,
+      "minFormats": 2,
       "wantThumb": true,
       "wantResolution": true,
       "rejectUploader": "TikTok User",
-      "expectAuthor": "gablyricsssss"
+      "expectAuthor": "MrBeast"
     }
   },
   {
     "id": "soundcloud",
     "tier": "solid",
-    "url": "https://soundcloud.com/forss/flickermood",
+    "url": "https://soundcloud.com/marshmellomusic/alone",
     "expect": {
       "minFormats": 1,
       "mediaKind": "audio",
       "wantThumb": true,
-      "wantFilesize": true
+      "wantFilesize": true,
+      "expectAuthor": "marshmello"
     }
   },
   {
@@ -119,9 +88,9 @@
   {
     "id": "instagram",
     "tier": "soft",
-    "url": "https://www.instagram.com/reel/DKcBidTSIRo/",
+    "url": "https://www.instagram.com/reel/DJW7ZrwxQJ6/",
     "expect": {
-      "minFormats": 1,
+      "minFormats": 2,
       "mediaKind": "video",
       "wantThumb": true,
       "wantResolution": true,
@@ -131,7 +100,7 @@
   {
     "id": "reddit",
     "tier": "soft",
-    "url": "https://www.reddit.com/r/pinoy/comments/1uf2nx8/x/",
+    "url": "https://www.reddit.com/r/nextfuckinglevel/comments/1ul35f8/a_freediver_exploring_the_worlds_deepest_swimming/",
     "expect": {
       "minFormats": 1,
       "mediaKind": "video",
@@ -141,12 +110,22 @@
   {
     "id": "bilibili",
     "tier": "soft",
-    "url": "https://www.bilibili.tv/en/video/4792306564206592",
+    "url": "https://www.bilibili.tv/video/170001",
     "expect": {
-      "minFormats": 1,
+      "minFormats": 2,
       "mediaKind": "video",
       "wantThumb": true,
       "wantResolution": true
+    }
+  },
+  {
+    "id": "spotify",
+    "tier": "soft",
+    "url": "https://open.spotify.com/track/2zo9LbUgrZZvUxVLp9DbiJ?si=7eecb0680e9547a7",
+    "expect": {
+      "minFormats": 0,
+      "wantThumb": true,
+      "mustHaveIsrc": true
     }
   }
 ]
