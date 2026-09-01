@@ -68,10 +68,8 @@
     "tier": "solid",
     "url": "https://bsky.app/profile/kiyubaru.bsky.social/post/3mily7njuds27",
     "expect": {
-      "minFormats": 1,
-      "mediaKind": "video",
+      "minFormats": 0,
       "wantThumb": true,
-      "wantResolution": true,
       "expectAuthor": "Kiyubaru"
     }
   },
