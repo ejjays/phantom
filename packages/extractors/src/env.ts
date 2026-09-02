@@ -4,7 +4,6 @@ export interface ExtractorEnv {
     url: string,
     headers: Record<string, string>
   ): Promise<ReadableStream>;
-  // HLS → mp4; unset = getStream() throws instead of spawning ffmpeg
   remuxHls?(
     url: string,
     headers: Record<string, string>
@@ -12,6 +11,7 @@ export interface ExtractorEnv {
   skipDurationFetch?: boolean;
   oembedThumb?(url: string): Promise<string | undefined>;
   ogImageThumb?(url: string): Promise<string | undefined>;
+  cookie?: string;
 }
 
 export const defaultEnv: ExtractorEnv = {
