@@ -1,7 +1,7 @@
 import { Format, VideoInfo, ExtractorOptions } from './types.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
 import { DESKTOP_UA, decodeEntities } from './util.js';
-import { notFound, noVideo, fromStatus, classifyThrown, ExtractorError } from './errors.js';
+import { noVideo, fromStatus, classifyThrown, ExtractorError } from './errors.js';
 
 const PLAYURL_API = 'https://api.bilibili.tv/intl/gateway/web/playurl';
 const REFERER = 'https://www.bilibili.tv/';
@@ -35,14 +35,7 @@ function parseIds(url: string): { aid?: string; epId?: string } {
   if (video) return { aid: video[1] };
   return {};
 }
-function parseFrameRate(fr?: string): number | undefined {
-  if (!fr) return undefined;
-  const [num, den] = fr.split('/').map((p) => Number(p));
-  if (!num || Number.isNaN(num)) return undefined;
-  if (!den || Number.isNaN(den)) return Math.round(num);
-  const v = num / den;
-  return Number.isFinite(v) ? Math.round(v) : undefined;
-}
+
 function ogTag(html: string, prop: string): string | undefined {
   const escaped = prop.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
   const fwd = new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']*)["']`, 'iu');

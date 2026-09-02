@@ -1,10 +1,9 @@
 import { Format, VideoInfo, ExtractorOptions } from './types.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
 import { DESKTOP_UA } from './util.js';
-import { notFound, noVideo, fromStatus, classifyThrown, temporaryError, ExtractorError } from './errors.js';
+import { notFound, noVideo, fromStatus, temporaryError, ExtractorError } from './errors.js';
 
 const API = 'https://api-v2.soundcloud.com';
-const REFERER = 'https://soundcloud.com/';
 const CLIENT_ID_TTL = 3600000;
 
 let cachedClientId: string | null = null;

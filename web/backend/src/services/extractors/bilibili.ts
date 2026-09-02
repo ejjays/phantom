@@ -10,9 +10,14 @@ export function getInfo(url: string, options: ExtractorOptions = {}): Promise<Vi
 }
 
 export function getStream(videoInfo: VideoInfo, options: ExtractorOptions = {}): Promise<Readable> {
-  return biliExtractor.getStream(videoInfo as unknown as Parameters<typeof biliExtractor.getStream>[0], options as unknown as Parameters<typeof biliExtractor.getStream>[1]).then(
-    (s) => Readable.fromWeb(s as unknown as import('node:stream/web').ReadableStream)
-  );
+  return biliExtractor
+    .getStream(
+      videoInfo as unknown as Parameters<typeof biliExtractor.getStream>[0],
+      options as unknown as Parameters<typeof biliExtractor.getStream>[1]
+    )
+    .then((stream) =>
+      Readable.fromWeb(stream as unknown as import('node:stream/web').ReadableStream)
+    );
 }
 
 export const bilibili: Extractor = {
