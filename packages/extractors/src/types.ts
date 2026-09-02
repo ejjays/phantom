@@ -14,12 +14,14 @@ export interface Format {
   isMuxed: boolean;
   isVideo: boolean;
   isAudio: boolean;
-  // 'hls m3u8' marker — getStream() routes via env.remuxHls
   note?: string;
-  // mobile uses these; web ignores
   isHls?: boolean;
   hlsAudioUrl?: string;
   hlsKeepAlive?: boolean;
+  muxAudioUrl?: string;
+  muxAudioExt?: string;
+  noTranscode?: boolean;
+  audioDemux?: boolean;
 }
 
 export interface VideoInfo {
@@ -40,8 +42,28 @@ export interface VideoInfo {
   isPartial: boolean;
   isIsrcMatch: boolean;
   isFullData: boolean;
-  // ranged/segmented downloads need these
   downloadHeaders?: Record<string, string>;
+  album?: string;
+  source?: 'webview';
+  previewUrl?: string | null;
+  playlist?: {
+    id: string;
+    title: string;
+    author?: string;
+    authorAvatar?: string;
+    entries: { id: string; title?: string; channel?: string; durationSec?: number; thumb?: string }[];
+  };
+}
+
+export class ExtractorError extends Error {
+  readonly retryable: boolean;
+  readonly expected: boolean;
+  constructor(message: string, retryable = true, expected = false) {
+    super(message);
+    this.name = 'ExtractorError';
+    this.retryable = retryable;
+    this.expected = expected;
+  }
 }
 
 export interface ExtractorOptions {

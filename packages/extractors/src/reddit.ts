@@ -1,7 +1,8 @@
 import { Format, VideoInfo, ExtractorOptions } from './types.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
 import { normalizeTitle, normalizeArtist } from './social.js';
-import { DESKTOP_UA } from './util.js';
+import { DESKTOP_UA, decodeEntities } from './util.js';
+import { noVideo, fromStatus, classifyThrown, ExtractorError } from './errors.js';
 
 const REFERER = 'https://www.reddit.com/';
 
@@ -18,16 +19,6 @@ interface RedditPostData {
 
 function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined;
-}
-
-function decodeEntities(s: string): string {
-  return s
-    .replace(/&lt;/gu, '<')
-    .replace(/&gt;/gu, '>')
-    .replace(/&quot;/gu, '"')
-    .replace(/&#39;/gu, "'")
-    .replace(/&#x27;/gu, "'")
-    .replace(/&amp;/gu, '&');
 }
 
 function vidOf(post: RedditPostData | undefined): string | undefined {
@@ -125,6 +116,10 @@ function parseDuration(mpd: string): number | undefined {
   return m ? Math.round(Number(m[1] ?? 0) * 60 + Number(m[2])) : undefined;
 }
 
+function pickAudioUrl(reps: { attrs: string; name: string }[], base: string): string | undefined {
+  const audio = reps.filter((r) => /audio/iu.test(r.name)).sort((a, b) => attrNum(b.attrs, 'bandwidth') - attrNum(a.attrs, 'bandwidth'))[0];
+  return audio ? `${base}/${audio.name}` : undefined;
+}
 function buildFormats(reps: { attrs: string; name: string }[], base: string, audioUrl?: string): Format[] {
   const seen = new Set<number>();
   const formats: Format[] = [];
@@ -150,6 +145,8 @@ function buildFormats(reps: { attrs: string; name: string }[], base: string, aud
       isVideo: true,
       isAudio: false,
       isMuxed: !audioUrl,
+      muxAudioUrl: audioUrl,
+      muxAudioExt: 'm4a',
     });
   }
   formats.sort((a, b) => (b.height ?? 0) - (a.height ?? 0));
@@ -158,21 +155,19 @@ function buildFormats(reps: { attrs: string; name: string }[], base: string, aud
 
 export function createRedditExtractor(env: ExtractorEnv = defaultEnv) {
   async function getInfo(url: string, _opts: ExtractorOptions = {}): Promise<VideoInfo | null> {
+    const id = await postId(env, url);
+    if (!id) return null;
     try {
-      const id = await postId(env, url);
-      if (!id) return null;
       const meta = await fetchMeta(env, id);
-      if (!meta) return null;
+      if (!meta) throw noVideo('Reddit');
       const base = `https://v.redd.it/${meta.vid}`;
       const mpdRes = await env.fetch(`${base}/DASHPlaylist.mpd`, { headers: { 'User-Agent': DESKTOP_UA } });
-      if (!mpdRes.ok) return null;
+      if (!mpdRes.ok) throw fromStatus(mpdRes.status, 'Reddit');
       const mpd = await mpdRes.text();
       const reps = repBlocks(mpd);
-      const audioUrl = reps.filter((r) => /audio/iu.test(r.name)).sort((a, b) => attrNum(b.attrs, 'bandwidth') - attrNum(a.attrs, 'bandwidth'))[0]?.name
-        ? `${base}/${reps.filter((r) => /audio/iu.test(r.name)).sort((a, b) => attrNum(b.attrs, 'bandwidth') - attrNum(a.attrs, 'bandwidth'))[0].name}`
-        : undefined;
+      const audioUrl = pickAudioUrl(reps, base);
       const formats = buildFormats(reps, base, audioUrl);
-      if (formats.length === 0) return null;
+      if (formats.length === 0) throw noVideo('Reddit', 'clip');
       const info: VideoInfo = {
         type: 'video',
         id,
@@ -194,9 +189,8 @@ export function createRedditExtractor(env: ExtractorEnv = defaultEnv) {
       info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
       return info;
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.error(`[reddit] ${msg}`);
-      return null;
+      if (error instanceof ExtractorError) throw error;
+      throw classifyThrown(error, 'Reddit');
     }
   }
 

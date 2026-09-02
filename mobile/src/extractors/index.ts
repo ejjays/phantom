@@ -6,8 +6,8 @@ import { getInfo as youtubeGetInfo } from './youtube';
 import { getInfo as bilibiliGetInfo } from './bilibili';
 import { getInfo as instagramGetInfo } from './instagram';
 import { getInfo as spotifyGetInfo } from './spotify';
-import { getInfo as redditGetInfo } from './reddit';
 import { getInfo as soundcloudGetInfo } from './soundcloud';
+import { getInfo as redditGetInfo } from './reddit';
 import { getInfo as dailymotionGetInfo } from './dailymotion';
 import { getInfo as pinterestGetInfo } from './pinterest';
 import { getInfo as twitchGetInfo } from './twitch';
@@ -39,9 +39,6 @@ function dispatch(
   url: string,
   onPartial?: OnPartial
 ): Promise<VideoInfo | null> {
-  const pkg = pkgGetExtractor(url, mobileSharedEnvWithThumbs);
-  if (pkg) return pkg.getInfo(url) as Promise<VideoInfo | null>;
-
   if (matches(host, 'youtube.com') || matches(host, 'youtu.be')) {
     return youtubeGetInfo(url, onPartial);
   }
@@ -78,37 +75,30 @@ function dispatch(
     return facebookGetInfo(url, onPartial);
   }
 
-  if (matches(host, 'reddit.com') || matches(host, 'redd.it')) {
-    return redditGetInfo(url);
-  }
-
   if (matches(host, 'soundcloud.com')) {
     return soundcloudGetInfo(url, onPartial);
   }
 
+  // shared pkg handles reddit/dailymotion/pinterest/twitch/snapchat
+  // but keep explicit imports for typed error + single source
+  if (matches(host, 'reddit.com') || matches(host, 'redd.it')) {
+    return redditGetInfo(url);
+  }
   if (matches(host, 'dailymotion.com') || matches(host, 'dai.ly')) {
     return dailymotionGetInfo(url);
   }
-
-  // intl tlds handled inside pinterest extractor
-  if (
-    matches(host, 'pin.it') ||
-    /(?:^|\.)pinterest\.(?:[a-z]{2,4}|com?\.[a-z]{2})$/u.test(host)
-  ) {
+  if (matches(host, 'pin.it') || /(?:^|\.)pinterest\.(?:[a-z]{2,4}|com?\.[a-z]{2})$/u.test(host)) {
     return pinterestGetInfo(url);
   }
-
-  if (matches(host, 'twitch.tv')) {
-    return twitchGetInfo(url, onPartial);
+  if (matches(host, 'twitch.tv') || matches(host, 'clip.twitch.tv')) {
+    return twitchGetInfo(url, onPartial as unknown as never);
   }
-
-  if (
-    matches(host, 'snapchat.com') ||
-    matches(host, 't.snapchat.com') ||
-    matches(host, 'story.snapchat.com')
-  ) {
+  if (matches(host, 'snapchat.com') || matches(host, 't.snapchat.com') || matches(host, 'story.snapchat.com')) {
     return snapchatGetInfo(url);
   }
+
+  const pkg = pkgGetExtractor(url, mobileSharedEnvWithThumbs);
+  if (pkg) return pkg.getInfo(url) as Promise<VideoInfo | null>;
 
   return Promise.resolve(null);
 }
