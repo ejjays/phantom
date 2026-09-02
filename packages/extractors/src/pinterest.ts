@@ -1,7 +1,8 @@
 import { Format, VideoInfo, ExtractorOptions } from './types.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
 import { normalizeTitle, normalizeArtist } from './social.js';
-import { DESKTOP_UA } from './util.js';
+import { DESKTOP_UA, decodeEntities } from './util.js';
+import { notFound, noVideo, fromStatus, classifyThrown, ExtractorError } from './errors.js';
 
 const REFERER = 'https://www.pinterest.com/';
 const PIDGETS_API = 'https://widgets.pinterest.com/v3/pidgets/pins/info/';
@@ -36,16 +37,6 @@ interface PidgetsPin {
 interface PidgetsResponse {
   status?: string;
   data?: (PidgetsPin | null)[] | null;
-}
-
-function decodeEntities(s: string): string {
-  return s
-    .replace(/&lt;/gu, '<')
-    .replace(/&gt;/gu, '>')
-    .replace(/&quot;/gu, '"')
-    .replace(/&#39;/gu, "'")
-    .replace(/&#x27;/gu, "'")
-    .replace(/&amp;/gu, '&');
 }
 
 function titleFrom(pin: PidgetsPin): string {
@@ -151,23 +142,26 @@ function pickVideoList(pin: PidgetsPin): Record<string, PinVideoEntry> | null {
 export function createPinterestExtractor(env: ExtractorEnv = defaultEnv) {
   async function getInfo(url: string, _opts: ExtractorOptions = {}): Promise<VideoInfo | null> {
     if (!isPinterestHost(url)) return null;
+    const isShort = /(?:^|\/\/)pin\.it\//iu.test(url);
+    let target = url;
+    if (isShort) target = await resolveShortLink(env, url);
+    const id = parsePinId(target);
+    if (!id) {
+      if (isShort) throw notFound('Pinterest', 'pin');
+      return null;
+    }
     try {
-      const isShort = /(?:^|\/\/)pin\.it\//iu.test(url);
-      let target = url;
-      if (isShort) target = await resolveShortLink(env, url);
-      const id = parsePinId(target);
-      if (!id) return null;
       const res = await env.fetch(`${PIDGETS_API}?pin_ids=${encodeURIComponent(id)}`, {
         headers: { 'User-Agent': DESKTOP_UA, Referer: REFERER },
       });
-      if (!res.ok) return null;
+      if (!res.ok) throw fromStatus(res.status, 'Pinterest', 'pin');
       const body = (await res.json()) as PidgetsResponse;
       const pin = body.data?.[0];
-      if (!pin) return null;
+      if (!pin) throw notFound('Pinterest', 'pin');
       const videoList = pickVideoList(pin);
-      if (!videoList) return null;
+      if (!videoList) throw noVideo('Pinterest');
       const formats = buildFormats(videoList);
-      if (formats.length === 0) return null;
+      if (formats.length === 0) throw noVideo('Pinterest');
       const first = Object.values(videoList).find((e) => e.url);
       const durationMs = first?.duration ?? 0;
       const info: VideoInfo = {
@@ -191,9 +185,8 @@ export function createPinterestExtractor(env: ExtractorEnv = defaultEnv) {
       info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
       return info;
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.error(`[pinterest] ${msg}`);
-      return null;
+      if (error instanceof ExtractorError) throw error;
+      throw classifyThrown(error, 'Pinterest');
     }
   }
 

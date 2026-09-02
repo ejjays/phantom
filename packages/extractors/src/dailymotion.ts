@@ -2,6 +2,7 @@ import { Format, VideoInfo, ExtractorOptions } from './types.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
 import { normalizeTitle, normalizeArtist } from './social.js';
 import { DESKTOP_UA, estimateSize } from './util.js';
+import { notFound, restricted, noVideo, fromStatus, classifyThrown, ExtractorError } from './errors.js';
 
 const REFERER = 'https://www.dailymotion.com/';
 
@@ -28,6 +29,13 @@ function pickThumb(thumbs?: Record<string, string>): string | undefined {
   if (!thumbs) return undefined;
   const entries = Object.entries(thumbs).sort((a, b) => Number(b[0]) - Number(a[0]));
   return entries[0]?.[1] ?? Object.values(thumbs)[0];
+}
+
+function dmError(error: NonNullable<DmMeta['error']>): ExtractorError {
+  const code = String(error.code ?? '');
+  if (code === '404') return notFound('Dailymotion');
+  if (code === 'DM016') return restricted('Dailymotion', 'by its owner');
+  return error.title ? new ExtractorError(`This Dailymotion video can't be loaded — ${error.title}.`, false) : noVideo('Dailymotion');
 }
 
 function hlsDurationSec(playlist: string): number {
@@ -95,18 +103,18 @@ async function fetchHlsVariants(
 
 export function createDailymotionExtractor(env: ExtractorEnv = defaultEnv) {
   async function getInfo(url: string, _opts: ExtractorOptions = {}): Promise<VideoInfo | null> {
+    const id = parseId(url);
+    if (!id) return null;
     try {
-      const id = parseId(url);
-      if (!id) return null;
       const res = await env.fetch(
         `https://www.dailymotion.com/player/metadata/video/${id}`,
         { headers: { 'User-Agent': DESKTOP_UA, Referer: REFERER } }
       );
-      if (!res.ok) return null;
+      if (!res.ok) throw fromStatus(res.status, 'Dailymotion');
       const meta = (await res.json()) as DmMeta;
-      if (meta.error) return null;
+      if (meta.error) throw dmError(meta.error);
       const master = meta.qualities?.auto?.[0]?.url;
-      if (!master) return null;
+      if (!master) throw noVideo('Dailymotion');
 
       let formats = await fetchHlsVariants(env, master, meta.duration ?? 0, {
         'User-Agent': DESKTOP_UA,
@@ -152,9 +160,8 @@ export function createDailymotionExtractor(env: ExtractorEnv = defaultEnv) {
       info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
       return info;
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.error(`[dailymotion] ${msg}`);
-      return null;
+      if (error instanceof ExtractorError) throw error;
+      throw classifyThrown(error, 'Dailymotion');
     }
   }
 

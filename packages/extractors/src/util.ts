@@ -37,3 +37,20 @@ export function normalizeUrl(
     return undefined;
   }
 }
+
+export function decodeEntities(text: string): string {
+  return text.replace(
+    /&(#x[0-9a-fA-F]+|#\d+|amp|lt|gt|quot|apos);/giu,
+    (entity, code: string) => {
+      if (code.startsWith('#x')) return String.fromCodePoint(parseInt(code.slice(2), 16));
+      if (code.startsWith('#')) return String.fromCodePoint(parseInt(code.slice(1), 10));
+      switch (code.toLowerCase()) {
+        case 'amp': return '&';
+        case 'lt': return '<';
+        case 'gt': return '>';
+        case 'quot': return '"';
+        default: return "'";
+      }
+    }
+  );
+}
