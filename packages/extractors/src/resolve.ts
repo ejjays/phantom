@@ -8,6 +8,8 @@ import { createPinterestExtractor } from './pinterest.js';
 import { createRedditExtractor } from './reddit.js';
 import { createSnapchatExtractor } from './snapchat.js';
 import { createTwitchExtractor } from './twitch.js';
+import { createSoundCloudExtractor } from './soundcloud.js';
+import { createBilibiliExtractor } from './bilibili.js';
 
 function hostOf(url: string): string {
   const cleaned = url.replace(/^https?:\/\//iu, '');
@@ -51,6 +53,12 @@ export function getExtractor(
   }
   if (matches(host, 'twitch.tv') || matches(host, 'clip.twitch.tv')) {
     return createTwitchExtractor(env);
+  }
+  if (matches(host, 'soundcloud.com') || matches(host, 'on.soundcloud.com')) {
+    return createSoundCloudExtractor(env);
+  }
+  if (matches(host, 'bilibili.tv') || matches(host, 'bilibili.com') || matches(host, 'biliintl.com') || matches(host, 'bili.im')) {
+    return createBilibiliExtractor(env);
   }
   return null;
 }

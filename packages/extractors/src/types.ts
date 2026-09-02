@@ -22,6 +22,9 @@ export interface Format {
   muxAudioExt?: string;
   noTranscode?: boolean;
   audioDemux?: boolean;
+  abr?: number;
+  itag?: number | string;
+  audioUrl?: string;
 }
 
 export interface VideoInfo {
@@ -36,6 +39,7 @@ export interface VideoInfo {
   description?: string;
   metascraper?: Record<string, unknown>;
   formats: Format[];
+  audioFormats?: Format[];
   extractorKey?: string;
   isJsInfo: boolean;
   fromBrain: boolean;
@@ -69,8 +73,11 @@ export class ExtractorError extends Error {
 export interface ExtractorOptions {
   formatId?: string;
   downloadHeaders?: Record<string, string>;
-  // x only: mark muxed mp4 as isAudio so mobile takes audio path
   isAudioMuxed?: boolean;
+  format?: string;
+  type?: string;
+  cookie?: string;
+  onPartial?: (info: VideoInfo) => void;
 }
 
 export interface Extractor {

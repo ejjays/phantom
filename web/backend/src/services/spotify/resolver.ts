@@ -259,6 +259,7 @@ async function searchOnSoundCloud(
     if (!searchResults?.length) return null;
 
     const info = await soundCloudModule.getInfo(searchResults[0].permalink_url);
+    if (!info) return null;
     const targetDurationMs = targetMetadata?.duration ?? 0;
     const drift =
       targetDurationMs > 0
