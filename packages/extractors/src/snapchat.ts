@@ -1,6 +1,5 @@
 import { Format, VideoInfo, ExtractorOptions } from './types.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
-import { normalizeTitle, normalizeArtist } from './social.js';
 import { DESKTOP_UA } from './util.js';
 import { notFound, noVideo, fromStatus, classifyThrown, ExtractorError } from './errors.js';
 
@@ -190,8 +189,6 @@ export function createSnapchatExtractor(env: ExtractorEnv = defaultEnv) {
         isFullData: true,
         downloadHeaders: { 'User-Agent': DESKTOP_UA, Referer: REFERER },
       };
-      info.title = normalizeTitle(info as unknown as Record<string, unknown>);
-      info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
       return info;
     } catch (error: unknown) {
       if (error instanceof ExtractorError) throw error;
