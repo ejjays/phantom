@@ -1,7 +1,22 @@
-export * from './types.js';
+export type { Format, VideoInfo, Extractor, ExtractorOptions } from './types.js';
+export { ExtractorError } from './types.js';
 export * from './env.js';
 export * from './util.js';
-export * from './errors.js';
+export {
+  notFound,
+  privateVideo,
+  loginRequired,
+  geoBlocked,
+  ageRestricted,
+  restricted,
+  noVideo,
+  networkError,
+  rateLimited,
+  serverError,
+  temporaryError,
+  fromStatus,
+  classifyThrown,
+} from './errors.js';
 export { createXExtractor, tweetToken } from './x.js';
 export { createBlueskyExtractor } from './bluesky.js';
 export { createVimeoExtractor } from './vimeo.js';
