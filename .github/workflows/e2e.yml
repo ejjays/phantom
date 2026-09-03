@@ -76,7 +76,7 @@ jobs:
 
       - name: Restore e2e apk cache
         id: apkcache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: mobile/app-e2e.apk
           key: e2e-apk-${{ steps.apphash.outputs.hash }}
