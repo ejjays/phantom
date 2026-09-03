@@ -67,8 +67,28 @@ const website = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: 'Phantom',
+  alternateName: ['c-phantom.pages.dev'],
   url: SITE_URL,
   description: `Download videos & music from ${PLATFORM_NAMES.length} platforms right on your phone.`,
+  publisher: {
+    '@type': 'Organization',
+    name: 'Phantom',
+    url: SITE_URL,
+    logo: {
+      '@type': 'ImageObject',
+      url: `${SITE_URL}/icon-512x512.png`,
+      width: 512,
+      height: 512,
+    },
+  },
+};
+
+const organization = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Phantom',
+  url: SITE_URL,
+  logo: `${SITE_URL}/icon-512x512.png`,
 };
 ---
 
@@ -80,6 +100,7 @@ const website = {
   <script type="application/ld+json" set:html={JSON.stringify(faqPage)} />
   <script type="application/ld+json" set:html={JSON.stringify(howTo)} />
   <script type="application/ld+json" set:html={JSON.stringify(website)} />
+  <script type="application/ld+json" set:html={JSON.stringify(organization)} />
   <Navbar />
   <main class="relative z-10 bg-background">
     <Hero />

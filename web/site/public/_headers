@@ -24,6 +24,18 @@
 
 /og.png
 /og-portrait.png
+/favicon.ico
+/favicon-16x16.png
+/favicon-32x32.png
+/favicon-48x48.png
+/favicon-96x96.png
+/apple-touch-icon.png
+/icon-192x192.png
+/icon-512x512.png
+  Cache-Control: public, max-age=1209600
+
+/site.webmanifest
+  Content-Type: application/manifest+json
   Cache-Control: public, max-age=1209600
 
 /app/assets/*
