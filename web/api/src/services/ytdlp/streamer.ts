@@ -506,6 +506,7 @@ export function streamDownload(
   const combinedStdout: StreamerProcess = new PassThrough();
   let activeChildProcess: ChildProcess | null = null;
 
+  // skipcq: JS-R1005 -- downloader iife, complexity inherent, covered by e2e
   (async () => {
     try {
       const info: VideoInfo =
