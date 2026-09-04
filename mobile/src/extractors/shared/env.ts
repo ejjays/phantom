@@ -1,6 +1,6 @@
 import type { ExtractorEnv } from '@phantom/extractors';
-import { gatedFetch } from '../lib/net';
-import { error as logError } from '../lib/log';
+import { gatedFetch } from '../../lib/net';
+import { error as logError } from '../../lib/log';
 
 export const mobileSharedEnv: ExtractorEnv = {
   fetch: gatedFetch as unknown as typeof fetch,
@@ -22,7 +22,7 @@ export async function oembedThumbImpl(url: string): Promise<string | undefined> 
     const data = (await res.json()) as { thumbnail_url?: string };
     return data.thumbnail_url;
   } catch (err) {
-    logError('sharedEnv', `oembedThumb failed: ${(err as Error).message}`);
+    logError('shared/env', `oembedThumb failed: ${(err as Error).message}`);
     return undefined;
   }
 }
@@ -40,7 +40,7 @@ export async function ogImageThumbImpl(
       );
     return match?.[1]?.replace(/&amp;/gu, '&') ?? undefined;
   } catch (err) {
-    logError('sharedEnv', `ogImageThumb failed: ${(err as Error).message}`);
+    logError('shared/env', `ogImageThumb failed: ${(err as Error).message}`);
     return undefined;
   }
 }

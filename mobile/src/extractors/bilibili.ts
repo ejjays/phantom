@@ -1,6 +1,6 @@
 import { createBilibiliExtractor } from '@phantom/extractors';
 import { ExtractorError } from './shared/types';
-import { mobileSharedEnv } from './sharedEnv';
+import { mobileSharedEnv } from './shared/env';
 import { getBilibiliCookie } from '../lib/settings';
 import type { VideoInfo } from './shared/types';
 

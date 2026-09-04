@@ -1,7 +1,7 @@
 import { createDailymotionExtractor } from '@phantom/extractors';
 import type { VideoInfo } from './shared/types';
 import { ExtractorError } from './shared/types';
-import { mobileSharedEnv } from './sharedEnv';
+import { mobileSharedEnv } from './shared/env';
 
 const { getInfo: sharedGetInfo } = createDailymotionExtractor(mobileSharedEnv);
 
