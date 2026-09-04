@@ -1,7 +1,7 @@
-import { VideoInfo, Format, ExtractorError } from './shared/types';
+import { VideoInfo, Format, ExtractorError } from '@phantom/extractors';
 import { gatedFetch } from '../lib/net';
 import { probeFileSize } from './shared/utils';
-import { noVideo, fromStatus, temporaryError, classifyThrown } from './shared/errors';
+import { noVideo, fromStatus, temporaryError, classifyThrown } from '@phantom/extractors';
 import { getScClientId, setScClientId } from '../lib/settings';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { buildVideoInfo } from './shared/videoInfo';
