@@ -197,17 +197,49 @@ class MediaDownloaderModule : Module() {
     resumeBytes: Long,
     workers: Int
   ) {
-    // 4MB regions dodge throttling; shared cursor keeps resume offset
-    val region = 4L * 1024 * 1024
     if (resumeBytes == 0L) dest.delete()
     RandomAccessFile(dest.path, "rw").use { it.setLength(length) }
     job.finalSize = length
+    RegionFetch(jobId, job, baseRequest, dest, length, resumeBytes, workers).start()
+  }
 
-    val cursor = AtomicLong(resumeBytes)
-    val active = AtomicInteger(workers)
-    val done = AtomicBoolean(false)
+  // member fns so fetchRegion/next can call each other (local fns can't)
+  private inner class RegionFetch(
+    private val jobId: String,
+    private val job: JobState,
+    private val baseRequest: Request,
+    private val dest: File,
+    private val length: Long,
+    resumeBytes: Long,
+    private val workers: Int
+  ) {
+    // 4MB regions dodge throttling; shared cursor keeps resume offset
+    private val region = 4L * 1024 * 1024
+    private val cursor = AtomicLong(resumeBytes)
+    private val active = AtomicInteger(workers)
+    private val done = AtomicBoolean(false)
 
-    fun fetchRegion(start: Long, end: Long, attempt: Int) {
+    fun start() {
+      repeat(workers) { next() }
+    }
+
+    private fun next() {
+      while (true) {
+        if (done.get()) return
+        val start = cursor.getAndAdd(region)
+        if (start >= length) {
+          if (active.decrementAndGet() == 0 && done.compareAndSet(false, true)) {
+            finish(jobId, job, cancelled = false)
+          }
+          return
+        }
+        val end = minOf(start + region - 1, length - 1)
+        fetchRegion(start, end, 0)
+        return
+      }
+    }
+
+    private fun fetchRegion(start: Long, end: Long, attempt: Int) {
       if (done.get() || !jobAlive(jobId, job)) return
       val regionCall = client.newCall(
         baseRequest.newBuilder().header("Range", "bytes=$start-$end").build()
@@ -251,23 +283,6 @@ class MediaDownloaderModule : Module() {
         }
       })
     }
-
-    fun next() {
-      while (true) {
-        if (done.get()) return
-        val start = cursor.getAndAdd(region)
-        if (start >= length) {
-          if (active.decrementAndGet() == 0 && done.compareAndSet(false, true)) {
-            finish(jobId, job, cancelled = false)
-          }
-          return
-        }
-        val end = minOf(start + region - 1, length - 1)
-        fetchRegion(start, end, 0)
-        return
-      }
-    }
-    repeat(workers) { next() }
   }
 
   private fun singleStream(

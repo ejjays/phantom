@@ -222,10 +222,9 @@ export default function CookieListPanel({
                 >
                   A cookie is your{' '}
                   <Text style={tw`font-sans-semibold text-cyan-300`}>
-                    "real account's identity"
+                    {`"real account's identity"`}
                   </Text>{' '}
-                  (data) consisting of texts that's saved in a browser after you
-                  logged in to specific platforms.
+                  {`(data) consisting of texts that's saved in a browser after you logged in to specific platforms.`}
                 </Text>
               </View>
             </View>
@@ -269,7 +268,7 @@ export default function CookieListPanel({
                 <Text
                   style={tw`mt-1 font-sans text-[13.5px] leading-5 text-violet-100/90`}
                 >
-                  Downloads already work. Most videos don't need this.
+                  {`Downloads already work. Most videos don't need this.`}
                 </Text>
               </View>
             </View>

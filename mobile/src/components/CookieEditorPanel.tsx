@@ -35,9 +35,6 @@ export default function CookieEditorPanel({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
-  const [checkResult, setCheckResult] = useState<CookieCheckResult | null>(
-    null
-  );
   const canSave = value.trim().length > 0 && !saving;
   const { showDialog } = useAppDialog();
   const inputRef = useRef<TextInput>(null);
@@ -45,13 +42,10 @@ export default function CookieEditorPanel({
   const runCheck = async (cookie: string) => {
     const trimmed = cookie.trim();
     if (!trimmed) {
-      setCheckResult(null);
       return;
     }
     setChecking(true);
-    setCheckResult(null);
-    const result = await onCheck(trimmed);
-    setCheckResult(result);
+    await onCheck(trimmed);
     setChecking(false);
   };
 
@@ -69,7 +63,6 @@ export default function CookieEditorPanel({
   const paste = async () => {
     const text = await ClipboardAPI.getStringAsync();
     if (text) {
-      setCheckResult(null);
       setError(null);
       onChangeValue(text);
       void runCheck(text);
@@ -83,7 +76,6 @@ export default function CookieEditorPanel({
 
   const confirmClear = () => {
     if (!value) {
-      setCheckResult(null);
       onChangeValue('');
       return;
     }
@@ -93,7 +85,6 @@ export default function CookieEditorPanel({
       confirmLabel: 'Clear',
       destructive: true,
       onConfirm: () => {
-        setCheckResult(null);
         setError(null);
         _onClear();
       },
@@ -144,7 +135,6 @@ export default function CookieEditorPanel({
             value={value}
             onChangeText={(next) => {
               const prevLen = value.length;
-              setCheckResult(null);
               onChangeValue(next);
               const pasted = next.length - prevLen > 10 && next.includes('=');
               if (pasted) {

@@ -640,6 +640,143 @@ function SignInCard({
   );
 }
 
+async function persistCookie(target: 'youtube' | 'bilibili', value: string) {
+  if (target === 'youtube') await setYoutubeCookie(value);
+  else await setBilibiliCookie(value);
+}
+
+function CookieOverlays({
+  cookiesScreen,
+  cookieScreen,
+  cookieSet,
+  cookieTarget,
+  cookieValue,
+  cookieSaving,
+  cookieUnsavedOpen,
+  openCookie,
+  setCookieValue,
+  saveCookie,
+  clearCookie,
+  handleCookieBack,
+  setCookieUnsavedOpen,
+  confirmCookieSave,
+  confirmCookieDiscard,
+}: {
+  cookiesScreen: ReturnType<typeof useSubScreen>;
+  cookieScreen: ReturnType<typeof useSubScreen>;
+  cookieSet: { youtube: string; bilibili: string };
+  cookieTarget: 'youtube' | 'bilibili' | null;
+  cookieValue: string;
+  cookieSaving: boolean;
+  cookieUnsavedOpen: boolean;
+  openCookie: (target: 'youtube' | 'bilibili') => void;
+  setCookieValue: (value: string) => void;
+  saveCookie: () => void;
+  clearCookie: () => void;
+  handleCookieBack: () => void;
+  setCookieUnsavedOpen: (open: boolean) => void;
+  confirmCookieSave: () => void;
+  confirmCookieDiscard: () => void;
+}) {
+  return (
+    <>
+      <Animated.View
+        pointerEvents={cookiesScreen.open ? 'auto' : 'none'}
+        style={[
+          StyleSheet.absoluteFill,
+          tw`bg-background`,
+          cookiesScreen.style,
+        ]}
+      >
+        {cookiesScreen.mounted && (
+          <CookieListPanel
+            youtubeCookie={cookieSet.youtube}
+            bilibiliCookie={cookieSet.bilibili}
+            onOpen={openCookie}
+            onBack={() => {
+              tapSelection();
+              cookiesScreen.setOpen(false);
+            }}
+          />
+        )}
+      </Animated.View>
+
+      <Animated.View
+        pointerEvents={cookieScreen.open ? 'auto' : 'none'}
+        style={[
+          StyleSheet.absoluteFill,
+          tw`bg-background`,
+          cookieScreen.style,
+        ]}
+      >
+        {cookieScreen.mounted && cookieTarget ? (
+          <CookieEditorPanel
+            title={
+              cookieTarget === 'youtube'
+                ? 'YouTube cookie'
+                : 'Bilibili cookie'
+            }
+            value={cookieValue}
+            onChangeValue={setCookieValue}
+            onSave={() => void saveCookie()}
+            saving={cookieSaving}
+            onCheck={
+              cookieTarget === 'youtube'
+                ? checkYoutubeCookie
+                : checkBilibiliCookie
+            }
+            onClear={() => void clearCookie()}
+            onBack={handleCookieBack}
+          />
+        ) : null}
+      </Animated.View>
+
+      {cookieUnsavedOpen ? (
+        <Host matchContents>
+          <AlertDialog
+            onDismissRequest={() => setCookieUnsavedOpen(false)}
+            colors={{
+              containerColor: '#2b2930',
+              titleContentColor: '#e6e0e9',
+              textContentColor: '#cac4d0',
+            }}
+          >
+            <AlertDialog.Title>
+              <ComposeText style={{ fontWeight: 'bold', fontSize: 20 }}>
+                Unsaved cookie
+              </ComposeText>
+            </AlertDialog.Title>
+            <AlertDialog.Text>
+              <ComposeText style={{ fontSize: 16 }}>
+                You pasted a cookie but didn&apos;t save it. Save or discard
+                changes?
+              </ComposeText>
+            </AlertDialog.Text>
+            <AlertDialog.DismissButton>
+              <ComposeTextButton
+                onClick={confirmCookieDiscard}
+                colors={{ contentColor: '#ef4444' }}
+              >
+                <ComposeText style={{ fontWeight: 'bold' }}>
+                  Discard
+                </ComposeText>
+              </ComposeTextButton>
+            </AlertDialog.DismissButton>
+            <AlertDialog.ConfirmButton>
+              <ComposeTextButton
+                onClick={confirmCookieSave}
+                colors={{ contentColor: '#22d3ee' }}
+              >
+                <ComposeText style={{ fontWeight: 'bold' }}>Save</ComposeText>
+              </ComposeTextButton>
+            </AlertDialog.ConfirmButton>
+          </AlertDialog>
+        </Host>
+      ) : null}
+    </>
+  );
+}
+
 function SettingsScreen({
   visible,
   onFullScreen,
@@ -908,8 +1045,7 @@ function SettingsScreen({
     if (!target) return;
     setCookieSaving(true);
     try {
-      if (target === 'youtube') await setYoutubeCookie(cookieValue);
-      else await setBilibiliCookie(cookieValue);
+      await persistCookie(target, cookieValue);
       tapSuccess();
       setCookieSet((prev) => ({ ...prev, [target]: cookieValue.trim() }));
       cookieScreen.setOpen(false);
@@ -923,8 +1059,7 @@ function SettingsScreen({
     if (!target) return;
     tapSelection();
     setCookieValue('');
-    if (target === 'youtube') await setYoutubeCookie('');
-    else await setBilibiliCookie('');
+    await persistCookie(target, '');
     setCookieSet((prev) => ({ ...prev, [target]: '' }));
     cookieScreen.setOpen(false);
   };
@@ -1442,56 +1577,23 @@ function SettingsScreen({
           )}
         </Animated.View>
 
-        <Animated.View
-          pointerEvents={cookiesScreen.open ? 'auto' : 'none'}
-          style={[
-            StyleSheet.absoluteFill,
-            tw`bg-background`,
-            cookiesScreen.style,
-          ]}
-        >
-          {cookiesScreen.mounted && (
-            <CookieListPanel
-              youtubeCookie={cookieSet.youtube}
-              bilibiliCookie={cookieSet.bilibili}
-              onOpen={openCookie}
-              onBack={() => {
-                tapSelection();
-                cookiesScreen.setOpen(false);
-              }}
-            />
-          )}
-        </Animated.View>
-
-        <Animated.View
-          pointerEvents={cookieScreen.open ? 'auto' : 'none'}
-          style={[
-            StyleSheet.absoluteFill,
-            tw`bg-background`,
-            cookieScreen.style,
-          ]}
-        >
-          {cookieScreen.mounted && cookieTarget ? (
-            <CookieEditorPanel
-              title={
-                cookieTarget === 'youtube'
-                  ? 'YouTube cookie'
-                  : 'Bilibili cookie'
-              }
-              value={cookieValue}
-              onChangeValue={setCookieValue}
-              onSave={() => void saveCookie()}
-              saving={cookieSaving}
-              onCheck={
-                cookieTarget === 'youtube'
-                  ? checkYoutubeCookie
-                  : checkBilibiliCookie
-              }
-              onClear={() => void clearCookie()}
-              onBack={handleCookieBack}
-            />
-          ) : null}
-        </Animated.View>
+        <CookieOverlays
+          cookiesScreen={cookiesScreen}
+          cookieScreen={cookieScreen}
+          cookieSet={cookieSet}
+          cookieTarget={cookieTarget}
+          cookieValue={cookieValue}
+          cookieSaving={cookieSaving}
+          cookieUnsavedOpen={cookieUnsavedOpen}
+          openCookie={openCookie}
+          setCookieValue={setCookieValue}
+          saveCookie={() => void saveCookie()}
+          clearCookie={() => void clearCookie()}
+          handleCookieBack={handleCookieBack}
+          setCookieUnsavedOpen={setCookieUnsavedOpen}
+          confirmCookieSave={confirmCookieSave}
+          confirmCookieDiscard={confirmCookieDiscard}
+        />
 
         <BottomSheet
           open={shareOpen}
@@ -1500,49 +1602,6 @@ function SettingsScreen({
         >
           <ShareAppSheet />
         </BottomSheet>
-
-        {cookieUnsavedOpen ? (
-          <Host matchContents>
-            <AlertDialog
-              onDismissRequest={() => setCookieUnsavedOpen(false)}
-              colors={{
-                containerColor: '#2b2930',
-                titleContentColor: '#e6e0e9',
-                textContentColor: '#cac4d0',
-              }}
-            >
-              <AlertDialog.Title>
-                <ComposeText style={{ fontWeight: 'bold', fontSize: 20 }}>
-                  Unsaved cookie
-                </ComposeText>
-              </AlertDialog.Title>
-              <AlertDialog.Text>
-                <ComposeText style={{ fontSize: 16 }}>
-                  You pasted a cookie but didn&apos;t save it. Save or discard
-                  changes?
-                </ComposeText>
-              </AlertDialog.Text>
-              <AlertDialog.DismissButton>
-                <ComposeTextButton
-                  onClick={confirmCookieDiscard}
-                  colors={{ contentColor: '#ef4444' }}
-                >
-                  <ComposeText style={{ fontWeight: 'bold' }}>
-                    Discard
-                  </ComposeText>
-                </ComposeTextButton>
-              </AlertDialog.DismissButton>
-              <AlertDialog.ConfirmButton>
-                <ComposeTextButton
-                  onClick={confirmCookieSave}
-                  colors={{ contentColor: '#22d3ee' }}
-                >
-                  <ComposeText style={{ fontWeight: 'bold' }}>Save</ComposeText>
-                </ComposeTextButton>
-              </AlertDialog.ConfirmButton>
-            </AlertDialog>
-          </Host>
-        ) : null}
 
         {formatMenuOpen ? (
           <Host matchContents>
