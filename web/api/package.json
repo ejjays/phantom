@@ -5,8 +5,8 @@
   "main": "src/app.ts",
   "scripts": {
     "build": "npx tsc",
-    "dev": "npx tsc && node --import ./dist/backend/src/instrument.js scripts/termux-shim.js",
-    "start": "node --import ./dist/backend/src/instrument.js scripts/termux-shim.js",
+    "dev": "npx tsc && node --import ./dist/api/src/instrument.js scripts/termux-shim.js",
+    "start": "node --import ./dist/api/src/instrument.js scripts/termux-shim.js",
     "test:lite": "npx tsc && node --test tests/lite/*.lite.test.js",
     "test:ci": "./scripts/ci-test.sh",
     "test:ci:keep": "./scripts/ci-test.sh --keep",

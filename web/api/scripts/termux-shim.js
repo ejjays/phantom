@@ -33,5 +33,5 @@ console.log('[env] termux bypass active');
 
 // skip server boot under tests
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
-  await import('../dist/backend/src/app.js');
+  await import('../dist/api/src/app.js');
 }

@@ -7,7 +7,7 @@ import process from 'node:process';
 
 // tsc runs via node (termux shebangs); tsgo under proot on android — kernel kills its fanotify probe
 const WORKSPACES = [
-  'web/backend',
+  'web/api',
   'web/app',
   'mobile',
   'packages/extractors',

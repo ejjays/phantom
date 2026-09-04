@@ -83,9 +83,7 @@ if (process.platform === 'android') {
     logger.info('[System] Mocked native modules for Termux compatibility');
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.warn(
-      `[System] Failed to mock @ffmpeg-installer/ffmpeg: ${message}`
-    );
+    logger.warn(`[System] Failed to mock @ffmpeg-installer/ffmpeg: ${message}`);
   }
 }
 
@@ -326,10 +324,7 @@ app.get('/api/get-url', async (_req: Request, res: Response) => {
 });
 
 // opt-in auth; gated: localhost or API_KEY only
-app.use(
-  ['/info', '/stream-urls', '/convert', '/proxy'],
-  requireApiKey
-);
+app.use(['/info', '/stream-urls', '/convert', '/proxy'], requireApiKey);
 app.use('/', videoRoutes);
 logger.info('[System] Routes ready');
 
@@ -366,7 +361,7 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   }
 });
 
-const distPath = path.join(__dirname, '../../app/dist');
+const distPath = path.join(__dirname, '../../../../app/dist');
 
 if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
   app.use(express.static(distPath));

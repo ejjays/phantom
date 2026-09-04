@@ -1,4 +1,4 @@
-name: Backend E2E
+name: API E2E
 
 on:
   workflow_dispatch:
@@ -16,21 +16,21 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'web/backend/**'
+      - 'web/api/**'
       - 'web/shared/**'
       - 'packages/**'
       - 'package.json'
       - 'package-lock.json'
-      - '.github/workflows/backend-e2e.yml'
+      - '.github/workflows/api-e2e.yml'
   push:
-    branches: [feat/backend-e2e]
+    branches: [feat/api-e2e]
     paths:
-      - 'web/backend/**'
+      - 'web/api/**'
       - 'web/shared/**'
       - 'packages/**'
       - 'package.json'
       - 'package-lock.json'
-      - '.github/workflows/backend-e2e.yml'
+      - '.github/workflows/api-e2e.yml'
   schedule:
     - cron: '30 3 * * *'
 
@@ -38,7 +38,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: backend-e2e-${{ github.ref }}
+  group: api-e2e-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -97,15 +97,15 @@ jobs:
 
       - name: Typecheck and build
         run: |
-          cd web/backend
+          cd web/api
           npx tsc --noEmit
           npm run build
 
       - name: Install Playwright chromium (for optional browser smoke)
         run: npx playwright install --with-deps chromium
 
-      - name: Run backend e2e (probe + http)
-        working-directory: web/backend
+      - name: Run api e2e (probe + http)
+        working-directory: web/api
         env:
           LIVE_PROXY: ${{ secrets.LIVE_PROXY }}
           IG_COOKIE: ${{ secrets.EXPO_PUBLIC_IG_COOKIE }}
@@ -161,7 +161,7 @@ jobs:
             rows.push(`| ${status} | ${id} | ${c.tier} | ${probe} | ${http} | ${dl} | ${title} | ${up} | ${fmts} | ${bytes} | ${esc(note)} |`);
           }
           const total=list.length;
-          const summary=`## backend e2e (shard ${si}/${st} · tier ${tier})` + `\n\n${pass}/${total} passed · solid failed ${fail} · soft failed ${soft}\n\n| status | platform | tier | probe | http | download | title | uploader | fmts | bytes | note |\n|---|---|---|---|---|---|---|---|---|---|---|\n${rows.join("\n")}\n`;
+          const summary=`## api e2e (shard ${si}/${st} · tier ${tier})` + `\n\n${pass}/${total} passed · solid failed ${fail} · soft failed ${soft}\n\n| status | platform | tier | probe | http | download | title | uploader | fmts | bytes | note |\n|---|---|---|---|---|---|---|---|---|---|---|\n${rows.join("\n")}\n`;
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY||"/dev/null", summary);
           fs.writeFileSync(`e2e-report-${si}.tsv`, rows.join("\n"));
           console.log(summary);
@@ -182,10 +182,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: backend-e2e-log-${{ matrix.shard }}
+          name: api-e2e-log-${{ matrix.shard }}
           path: |
-            web/backend/e2e.log
-            web/backend/e2e-report-*.tsv
+            web/api/e2e.log
+            web/api/e2e-report-*.tsv
           retention-days: 7
           if-no-files-found: ignore
 
@@ -194,8 +194,8 @@ jobs:
         continue-on-error: true
         uses: dorny/test-reporter@v3
         with:
-          name: "Test Report: Backend E2E ${{ matrix.shard }}"
-          path: web/backend/test-results.xml
+          name: 'Test Report: API E2E ${{ matrix.shard }}'
+          path: web/api/test-results.xml
           reporter: jest-junit
           use-actions-summary: false
 
@@ -237,17 +237,17 @@ jobs:
           build-extractors: 'true'
           build-shared: 'true'
 
-      - name: Build backend
+      - name: Build api
         run: |
-          cd web/backend
+          cd web/api
           npx tsc --noEmit
           npm run build
 
-      - name: Install Playwright chromium
+      - name: Install Playwright chromium (for optional browser smoke)
         run: npx playwright install --with-deps chromium
 
-      - name: Browser smoke via Playwright against live backend
-        working-directory: web/backend
+      - name: Browser smoke via Playwright against live api
+        working-directory: web/api
         env:
           BROWSER_E2E: '1'
           VITEST_INCLUDE_E2E: '1'
@@ -257,12 +257,12 @@ jobs:
           LIVE_PROXY: ${{ secrets.LIVE_PROXY }}
           IG_COOKIE: ${{ secrets.EXPO_PUBLIC_IG_COOKIE }}
         run: |
-          PORT=5000 node --import ./dist/backend/src/instrument.js dist/backend/src/app.js &
+          PORT=5000 node --import ./dist/api/src/instrument.js dist/api/src/app.js &
           APP_PID=$!
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:5000/ping >/dev/null 2>&1; then echo "backend ready"; break; fi
+            if curl -fsS http://127.0.0.1:5000/ping >/dev/null 2>&1; then echo "api ready"; break; fi
             sleep 2
-            if ! kill -0 $APP_PID 2>/dev/null; then echo "backend died"; exit 1; fi
+            if ! kill -0 $APP_PID 2>/dev/null; then echo "api died"; exit 1; fi
           done
           npx vitest run tests/e2e/browser.e2e.test.ts --no-coverage --reporter=verbose
           kill $APP_PID || true
@@ -276,7 +276,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v7
         with:
-          pattern: backend-e2e-log-*
+          pattern: api-e2e-log-*
           merge-multiple: true
           path: logs
 
@@ -287,10 +287,10 @@ jobs:
         run: |
           [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ] || { echo "telegram secrets not set, skipping"; exit 0; }
           RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          TEXT="phantom backend e2e FAILED"$'\n\n'
+          TEXT="phantom api e2e FAILED"$'\n\n'
           for f in logs/*.log; do
             [ -f "$f" ] || continue
-            SHARD=$(basename "$f" .log | sed 's/backend-e2e-log-//')
+            SHARD=$(basename "$f" .log | sed 's/api-e2e-log-//')
             # new maestro table: | FAIL | vs | SOFT FAIL | — fall back to old META FAIL
             FAILS=$(grep -c '| FAIL |' "$f" 2>/dev/null || true)
             SOFTS=$(grep -c '| SOFT FAIL |' "$f" 2>/dev/null || true)

@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import {
   randomizeCiphers,
   startCipherRotation,
-} from '../../dist/backend/src/utils/network/cipher.util.js';
+} from '../../dist/api/src/utils/network/cipher.util.js';
 
 const ORIGINAL = tls.DEFAULT_CIPHERS;
 

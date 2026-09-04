@@ -1,20 +1,20 @@
-name: deploy backend to oracle micro
+name: deploy api to oracle micro
 
 on:
   push:
     branches: [main]
     paths:
-      - web/backend/**
+      - web/api/**
       - web/shared/**
       - packages/extractors/**
       - packages/web-mux/**
       - package.json
       - package-lock.json
-      - .github/workflows/deploy-backend.yml
+      - .github/workflows/deploy-api.yml
   workflow_dispatch:
 
 concurrency:
-  group: phantom-backend-deploy
+  group: phantom-api-deploy
   cancel-in-progress: false
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
           npm run build -w web/shared
           npx tsc -p packages/extractors
           npm run build -w @phantom/web-mux
-          npm run build -w web/backend
+          npm run build -w web/api
 
       - name: deploy to vm
         env:
@@ -59,4 +59,4 @@ jobs:
             --include='dist/' --include='dist/**' --filter=':- .gitignore' --exclude='.env' \
             --exclude web/app/ --exclude mobile/ \
             ./ "$USER@$HOST:/home/ubuntu/nexstream/"
-          ssh -i "$PWD/deploy_key" -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$PWD/known_hosts" "$USER@$HOST" 'cd /home/ubuntu/nexstream && npm install -w web/backend -w web/shared -w @phantom/extractors -w @phantom/web-mux --omit=dev --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=60000 >/tmp/deploy-install.log 2>&1 && sudo systemctl restart nexstream-backend && sleep 12 && curl -sf http://localhost:5000/health >/dev/null && echo DEPLOY_OK'
+          ssh -i "$PWD/deploy_key" -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$PWD/known_hosts" "$USER@$HOST" 'cd /home/ubuntu/nexstream && npm install -w web/api -w web/shared -w @phantom/extractors -w @phantom/web-mux --omit=dev --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=60000 >/tmp/deploy-install.log 2>&1 && sudo systemctl restart nexstream-backend && sleep 12 && curl -sf http://localhost:5000/health >/dev/null && echo DEPLOY_OK'

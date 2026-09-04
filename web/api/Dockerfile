@@ -29,16 +29,16 @@ ENV PATH="/opt/tool-venv/bin:$PATH"
 # --ignore-scripts skips husky + native postinstalls
 COPY package.json package-lock.json ./
 COPY web/shared/package.json ./web/shared/
-COPY web/backend/package.json ./web/backend/
+COPY web/api/package.json ./web/api/
 COPY packages/extractors/package.json ./packages/extractors/
-RUN npm ci --ignore-scripts -w web/backend -w web/shared -w packages/extractors
+RUN npm ci --ignore-scripts -w web/api -w web/shared -w packages/extractors
 
 COPY web/shared/ ./web/shared/
 COPY packages/extractors/ ./packages/extractors/
 RUN npm run build -w packages/extractors
 
-WORKDIR /app/web/backend
-COPY web/backend/ ./
+WORKDIR /app/web/api
+COPY web/api/ ./
 RUN npx tsc
 
 RUN mkdir -p temp && chmod 777 temp
@@ -47,4 +47,4 @@ ENV PORT=8000
 ENV API_ONLY=true
 EXPOSE 8000
 
-CMD ["node", "--import", "./dist/backend/src/instrument.js", "dist/backend/src/app.js"]
+CMD ["node", "--import", "./dist/api/src/instrument.js", "dist/api/src/app.js"]

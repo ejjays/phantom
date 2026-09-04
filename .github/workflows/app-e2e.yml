@@ -11,7 +11,7 @@ on:
     branches: [main]
     paths:
       - 'web/app/**'
-      - 'web/backend/**'
+      - 'web/api/**'
       - 'web/shared/**'
       - 'packages/**'
       - '.github/workflows/app-e2e.yml'
@@ -67,17 +67,17 @@ jobs:
           build-extractors: 'true'
           build-shared: 'true'
 
-      - name: Build backend
+      - name: Build api
         run: |
-          cd web/backend
+          cd web/api
           npx tsc --noEmit
           npm run build
 
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Start backend
-        working-directory: web/backend
+      - name: Start api
+        working-directory: web/api
         env:
           PORT: '5000'
           REDIS_URL: redis://localhost:6379
@@ -89,13 +89,13 @@ jobs:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
         run: |
-          node dist/backend/src/app.js > /tmp/backend.log 2>&1 &
-          BACKEND_PID=$!
-          echo "BACKEND_PID=$BACKEND_PID" >> "$GITHUB_ENV"
+          node dist/api/src/app.js > /tmp/api.log 2>&1 &
+          API_PID=$!
+          echo "API_PID=$API_PID" >> "$GITHUB_ENV"
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:5000/ping >/dev/null 2>&1; then echo "backend ready"; break; fi
+            if curl -fsS http://127.0.0.1:5000/ping >/dev/null 2>&1; then echo "api ready"; break; fi
             sleep 2
-            if ! kill -0 $BACKEND_PID 2>/dev/null; then echo "backend died"; cat /tmp/backend.log; exit 1; fi
+            if ! kill -0 $API_PID 2>/dev/null; then echo "api died"; cat /tmp/api.log; exit 1; fi
           done
 
       - name: Start app dev server
@@ -116,13 +116,13 @@ jobs:
         env:
           CI: '1'
         run: |
-          echo "--- backend health check ---"
+          echo "--- api health check ---"
           curl -fsS --max-time 5 http://127.0.0.1:5000/ping
           echo ""
           echo "--- running playwright ---"
           npx playwright test --reporter=list,junit
-          echo "--- backend log tail ---"
-          tail -50 /tmp/backend.log || true
+          echo "--- api log tail ---"
+          tail -50 /tmp/api.log || true
 
       - name: Upload Playwright report
         if: always()
@@ -138,10 +138,10 @@ jobs:
       - name: Stop services
         if: always()
         run: |
-          echo "--- backend log ---"
-          tail -100 /tmp/backend.log || true
+          echo "--- api log ---"
+          tail -100 /tmp/api.log || true
           kill $APP_PID || true
-          kill $BACKEND_PID || true
+          kill $API_PID || true
 
   telegram-notify:
     name: Telegram notify

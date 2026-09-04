@@ -52,7 +52,7 @@ response shapes for `/info` and `/convert` are documented in [`../../docs/api.md
 
 ## Environment
 
-configure via `web/backend/.env`. the full reference is in [`../../docs/env-variables.md`](../../docs/env-variables.md). the backend boots without most of these — they enable optional features and degrade gracefully when unset. minimum to get something useful:
+configure via `web/api/.env`. the full reference is in [`../../docs/env-variables.md`](../../docs/env-variables.md). the api boots without most of these — they enable optional features and degrade gracefully when unset. minimum to get something useful:
 
 - `REDIS_URL` — Redis for the metadata cache and BullMQ job queue (defaults to `redis://127.0.0.1:6379`).
 - `GEMINI_API_KEY` and/or `GROQ_API_KEY` — at least one for the AI fallback in Spotify resolution.

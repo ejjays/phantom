@@ -14,13 +14,13 @@ LAST_URL=""
 # keep android from sleeping/killing us
 termux-wake-lock 2>/dev/null || true
 
-# load turso creds from web/backend/.env
-if [ -f "$BASE_DIR/web/backend/.env" ]; then
+# load turso creds from web/api/.env
+if [ -f "$BASE_DIR/web/api/.env" ]; then
   while IFS='=' read -r k v || [ -n "$k" ]; do
     case "$k" in ''|\#*) continue ;; esac
     v="${v%$'\r'}"; v="${v#\"}"; v="${v%\"}"; v="${v#\'}"; v="${v%\'}"
     export "$k=$v"
-  done < "$BASE_DIR/web/backend/.env"
+  done < "$BASE_DIR/web/api/.env"
 fi
 
 if [ -n "$TURSO_URL" ] && [ -n "$TURSO_AUTH_TOKEN" ]; then
@@ -45,7 +45,7 @@ publish_url() {
 ensure_backend() {
   pgrep -f "termux-shim.js" >/dev/null 2>&1 && return 0
   echo "[keepalive] (re)starting backend..."
-  ( cd "$BASE_DIR/backend" && nohup npm start >"$BE_LOG" 2>&1 & )
+  ( cd "$BASE_DIR/web/api" && nohup npm start >"$BE_LOG" 2>&1 & )
 }
 
 ensure_tunnel() {

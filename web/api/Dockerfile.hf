@@ -1,7 +1,7 @@
 # Hugging Face Spaces (Docker SDK) build.
 # Place this file as ./Dockerfile at the Space repo root.
 # Space layout mirrors the monorepo: package.json + package-lock.json +
-# packages/ + web/shared + web/backend (see deploy-hf-space job).
+# packages/ + web/shared + web/api (see deploy-hf-space job).
 FROM node:22-slim
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -31,16 +31,16 @@ RUN curl -fsSL https://deno.land/install.sh | sh
 # single root lockfile; -w keeps the image lean (no mobile/app deps)
 COPY --chown=node:node package.json package-lock.json ./
 COPY --chown=node:node web/shared/package.json ./web/shared/
-COPY --chown=node:node web/backend/package.json ./web/backend/
+COPY --chown=node:node web/api/package.json ./web/api/
 COPY --chown=node:node packages/extractors/package.json ./packages/extractors/
-RUN npm ci --ignore-scripts -w web/backend -w web/shared -w packages/extractors
+RUN npm ci --ignore-scripts -w web/api -w web/shared -w packages/extractors
 
 COPY --chown=node:node web/shared/ ./web/shared/
 COPY --chown=node:node packages/extractors/ ./packages/extractors/
 RUN (cd packages/extractors && npm run build)
 
-WORKDIR $HOME/app/web/backend
-COPY --chown=node:node web/backend/ ./
+WORKDIR $HOME/app/web/api
+COPY --chown=node:node web/api/ ./
 RUN npx tsc && mkdir -p temp
 
 ENV PORT=7860 \
@@ -48,4 +48,4 @@ ENV PORT=7860 \
     NODE_ENV=production
 EXPOSE 7860
 
-CMD ["node", "--import", "./dist/backend/src/instrument.js", "dist/backend/src/app.js"]
+CMD ["node", "--import", "./dist/api/src/instrument.js", "dist/api/src/app.js"]

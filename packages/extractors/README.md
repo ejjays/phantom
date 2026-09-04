@@ -1,6 +1,6 @@
 # @phantom/extractors
 
-pulls the JS extractors out of `web/backend` into a standalone, dependency-free
+pulls the JS extractors out of `web/api` into a standalone, dependency-free
 package. it's the sibling to [`../web-mux`](../web-mux/README.md) — this
 resolves a URL into format URLs, web-mux combines separate video/audio URLs
 into one file.
@@ -45,7 +45,7 @@ const stream = extractor && (await extractor.getStream(info));
 
 this package stops at "resolve a URL into normalized metadata + formats." it
 does **not** include the racing orchestrator or metascraper fallback that
-`web/backend/extractors/index.ts` has — the layer that races the real
+`web/api/extractors/index.ts` has — the layer that races the real
 extractor against an oEmbed/metascraper fetch and fires an early "metadata
 found" progress event for the picker UI. that's left out on purpose:
 
@@ -75,7 +75,7 @@ two checks, both real (not mocks):
 
 1. **`npm run demo:mock`** — builds `dist/` and runs `examples/mock-demo.ts`
    against the built output, using the same fixture as
-   `web/backend/tests/extractors/x_extractor.test.ts`.
+   `web/api/tests/extractors/x_extractor.test.ts`.
 2. **tarball install** — `npm pack`, install the `.tgz` into a scratch
    project, run a script that imports `@phantom/extractors` from
    `node_modules`. catches "works in the repo, missing from what gets

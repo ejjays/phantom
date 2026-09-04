@@ -9,14 +9,14 @@
   "ignoreWorkspaces": ["web/site"],
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.mjs"]
+      "entry": ["scripts/*.mjs"],
     },
     "packages/extractors": {},
     "packages/web-mux": {},
-    "web/backend": {
+    "web/api": {
       "vite": false,
       "vitest": false,
-      "ignoreDependencies": ["pino-pretty"]
+      "ignoreDependencies": ["pino-pretty"],
     },
     "web/app": {
       "entry": ["src/main.tsx"],
@@ -27,14 +27,14 @@
         "@testing-library/jest-dom",
         "@types/styled-components",
         "@vitejs/plugin-react",
-        "vite-plugin-sitemap"
-      ]
+        "vite-plugin-sitemap",
+      ],
     },
     "mobile": {
       "entry": [
         "tests/**/*.test.{ts,tsx}",
         "supabase/functions/**/index.ts",
-        "plugins/*.js"
+        "plugins/*.js",
       ],
       "ignore": ["vitest.config.ts"],
       "ignoreDependencies": [
@@ -44,10 +44,10 @@
         "expo-status-bar",
         "expo-updates",
         "expo-blur",
-        "expo-video"
+        "expo-video",
       ],
       "vitest": false,
-      "expo": false
-    }
-  }
+      "expo": false,
+    },
+  },
 }
