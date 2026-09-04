@@ -28,7 +28,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ChevronRight, Ghost } from 'lucide-react-native';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
-import { cacheSize, clearCache, formatBytes } from '../lib/diskcache';
+import { cacheSize, clearCache, formatBytes } from '../lib/storageUsage';
 import tw from '../lib/tw';
 import BottomSheet from '../components/sheets/BottomSheet';
 import ShareAppSheet from '../components/sheets/ShareAppSheet';

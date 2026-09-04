@@ -8,6 +8,7 @@ export type {
 export { ExtractorError } from './shared/types.js';
 export * from './shared/env.js';
 export * from './shared/util.js';
+export * from './shared/headers.js';
 export {
   notFound,
   privateVideo,

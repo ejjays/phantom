@@ -1,4 +1,34 @@
+import { DESKTOP_UA } from '../../lib/userAgents';
 import { gatedFetch, timeoutSignal } from '../../lib/net';
+import { HEADERS } from './headers';
+
+export type PageFetchOptions = {
+  cookie?: string;
+};
+
+export type PageFetchResult = { html: string; targetUrl: string };
+
+export async function fetchPageHtml(
+  target: string,
+  options: PageFetchOptions,
+  timeoutMs = 10000
+): Promise<PageFetchResult | null> {
+  const cookie = typeof options.cookie === 'string' ? options.cookie : null;
+  const response = await gatedFetch(target, {
+    headers: {
+      ...HEADERS,
+      ...(cookie && { Cookie: cookie }),
+    },
+    redirect: 'follow',
+    signal: timeoutSignal(timeoutMs),
+  });
+  if (!response.ok) return null;
+  return { html: await response.text(), targetUrl: response.url || target };
+}
+
+export function fetchFileSize(url: string): Promise<number | undefined> {
+  return probeFileSize(url, { 'User-Agent': DESKTOP_UA });
+}
 
 // HEAD the media url for its size; referer+cookies sent because tokenized CDNs
 // 403 bare requests. fail-soft: picker just shows no size.
