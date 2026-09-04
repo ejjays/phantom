@@ -33,7 +33,7 @@ import { getInfo as snapchatGetInfo } from '../../src/extractors/snapchat';
 import {
   ExtractorError,
   type VideoInfo,
-} from '../../src/extractors/shared/types';
+} from '@phantom/extractors';
 import {
   noVideo,
   notFound,
@@ -42,7 +42,7 @@ import {
   rateLimited,
   serverError,
   networkError,
-} from '../../src/extractors/shared/errors';
+} from '@phantom/extractors';
 import {
   MEDIA_JUNK_RE,
   hlsVideosOf,

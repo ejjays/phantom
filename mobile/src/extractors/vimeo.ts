@@ -1,7 +1,7 @@
 import { createVimeoExtractor } from '@phantom/extractors';
-import { noVideo, classifyThrown } from './shared/errors';
+import { noVideo, classifyThrown } from '@phantom/extractors';
 import { mobileSharedEnvWithThumbs } from './shared/env';
-import type { VideoInfo } from './shared/types';
+import type { VideoInfo } from '@phantom/extractors';
 
 const { getInfo: sharedGetInfo } = createVimeoExtractor(
   mobileSharedEnvWithThumbs

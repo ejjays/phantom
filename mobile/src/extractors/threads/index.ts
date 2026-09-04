@@ -1,9 +1,9 @@
-import { VideoInfo, Format, ExtractorOptions } from '../shared/types';
+import { VideoInfo, Format, ExtractorOptions } from '@phantom/extractors';
 import { fetchHtml, fetchEmbed, fetchFileSize } from './fetcher';
 import { parseHtml } from '@phantom/extractors/threads/parser';
 import { normalizeVideoInfo } from './normalizer';
 import { mapLimit } from '../../lib/net';
-import { noVideo, classifyThrown } from '../shared/errors';
+import { noVideo, classifyThrown } from '@phantom/extractors';
 import { error as logError } from '../../lib/log';
 
 function extract(html: string, targetUrl: string): VideoInfo | null {

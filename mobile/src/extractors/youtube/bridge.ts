@@ -1,6 +1,6 @@
 import type { SabrConfig } from '../../lib/download/youtubeSabr';
 import { YT_INTERNAL_UA } from '../../lib/userAgents';
-import { ExtractorError } from '../shared/types';
+import { ExtractorError } from '@phantom/extractors';
 import {
   privateVideo,
   ageRestricted,
@@ -9,7 +9,7 @@ import {
   notFound,
   noVideo,
   temporaryError,
-} from '../shared/errors';
+} from '@phantom/extractors';
 import { log, warn as logWarn } from '../../lib/log';
 import { getYoutubeCookie } from '../../lib/settings';
 

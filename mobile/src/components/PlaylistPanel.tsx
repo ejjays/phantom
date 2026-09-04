@@ -44,7 +44,7 @@ import type {
   VideoInfo,
   PlaylistEntry,
   Format,
-} from '../extractors/shared/types';
+} from '@phantom/extractors';
 
 type Props = {
   info: VideoInfo;

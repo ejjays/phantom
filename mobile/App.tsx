@@ -26,7 +26,7 @@ import {
   Format,
   VideoInfo,
   ExtractorError,
-} from './src/extractors/shared/types';
+} from '@phantom/extractors';
 import PickerModal from './src/components/PickerModal';
 import SpotifyPickerModal from './src/components/SpotifyPickerModal';
 import NotificationPermissionSheet from './src/components/sheets/NotificationPermissionSheet';

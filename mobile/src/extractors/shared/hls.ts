@@ -1,4 +1,4 @@
-import { Format } from './types';
+import type { Format } from '@phantom/extractors';
 import { gatedFetch } from '../../lib/net';
 
 // master -> per-quality variants; separate audio rendition if present, else muxed

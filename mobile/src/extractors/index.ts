@@ -1,4 +1,4 @@
-import { VideoInfo, Format, ExtractorError } from './shared/types';
+import { VideoInfo, Format, ExtractorError } from '@phantom/extractors';
 import { getInfo as facebookGetInfo } from './facebook';
 import { getInfo as tiktokGetInfo } from './tiktok';
 import { getInfo as threadsGetInfo } from './threads';

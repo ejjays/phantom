@@ -13,8 +13,8 @@ import {
   temporaryError,
   fromStatus,
   classifyThrown,
-} from '../src/extractors/shared/errors';
-import { ExtractorError } from '../src/extractors/shared/types';
+} from '@phantom/extractors';
+import { ExtractorError } from '@phantom/extractors';
 import { mapYtError } from '../src/extractors/youtube/bridge';
 
 describe('extractor error helpers', () => {

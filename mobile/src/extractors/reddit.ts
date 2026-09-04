@@ -1,10 +1,11 @@
-import { VideoInfo, Format } from './shared/types';
+import { VideoInfo, Format } from '@phantom/extractors';
 import { gatedFetch, mapLimit } from '../lib/net';
 import { cookieGet } from '../lib/authFetch';
-import { noVideo, fromStatus, classifyThrown } from './shared/errors';
+import { noVideo, fromStatus, classifyThrown } from '@phantom/extractors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError, log } from '../lib/log';
-import { decodeEntities, probeFileSize } from './shared/utils';
+import { decodeEntities } from '@phantom/extractors';
+import { probeFileSize } from './shared/utils';
 import { buildVideoInfo } from './shared/videoInfo';
 const REFERER = 'https://www.reddit.com/';
 const RD_DEBUG = false;

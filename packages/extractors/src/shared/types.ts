@@ -27,6 +27,14 @@ export interface Format {
   audioUrl?: string;
 }
 
+export interface PlaylistEntry {
+  id: string;
+  title?: string;
+  channel?: string;
+  durationSec?: number;
+  thumb?: string;
+}
+
 export interface VideoInfo {
   type: 'video';
   id: string;
@@ -55,7 +63,7 @@ export interface VideoInfo {
     title: string;
     author?: string;
     authorAvatar?: string;
-    entries: { id: string; title?: string; channel?: string; durationSec?: number; thumb?: string }[];
+    entries: PlaylistEntry[];
   };
 }
 

@@ -1,7 +1,7 @@
-import { VideoInfo, Format } from './shared/types';
-import { normalizeTitle, normalizeArtist } from './shared/utils';
+import { VideoInfo, Format } from '@phantom/extractors';
+import { normalizeTitle, normalizeArtist } from '@phantom/extractors';
 import { gatedFetch } from '../lib/net';
-import { noVideo, fromStatus, temporaryError, classifyThrown } from './shared/errors';
+import { noVideo, fromStatus, temporaryError, classifyThrown } from '@phantom/extractors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError, log, warn as logWarn } from '../lib/log';
 import { buildVideoInfo } from './shared/videoInfo';

@@ -1,8 +1,8 @@
-import { VideoInfo, Format, ExtractorError } from '../shared/types';
+import { VideoInfo, Format, ExtractorError } from '@phantom/extractors';
 import { gatedFetch, mapLimit } from '../../lib/net';
 import { getInstagramCookie } from '../../lib/settings';
 import { cookieGet } from '../../lib/authFetch';
-import { noVideo, fromStatus, classifyThrown } from '../shared/errors';
+import { noVideo, fromStatus, classifyThrown } from '@phantom/extractors';
 import { DESKTOP_UA } from '../../lib/userAgents';
 import { error as logError } from '../../lib/log';
 import { webviewFetch } from './bridge';

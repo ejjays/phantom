@@ -1,4 +1,10 @@
-export type { Format, VideoInfo, Extractor, ExtractorOptions } from './shared/types.js';
+export type {
+  Format,
+  VideoInfo,
+  Extractor,
+  ExtractorOptions,
+  PlaylistEntry,
+} from './shared/types.js';
 export { ExtractorError } from './shared/types.js';
 export * from './shared/env.js';
 export * from './shared/util.js';

@@ -1,36 +1,5 @@
 import { gatedFetch, timeoutSignal } from '../../lib/net';
 
-/**
- * html entity decode for scraped pages; matches the entity set social
- * platforms actually emit (&amp; &lt; &gt; &quot; &apos; + numeric).
- * duplicated in 3 extractors historically — single source now.
- */
-export function decodeEntities(text: string): string {
-  return text.replace(
-    /&(#x[0-9a-fA-F]+|#\d+|amp|lt|gt|quot|apos);/giu,
-    (entity, code: string) => {
-      if (code.startsWith('#x')) {
-        return String.fromCodePoint(parseInt(code.slice(2), 16));
-      }
-      if (code.startsWith('#')) {
-        return String.fromCodePoint(parseInt(code.slice(1), 10));
-      }
-      switch (code.toLowerCase()) {
-        case 'amp':
-          return '&';
-        case 'lt':
-          return '<';
-        case 'gt':
-          return '>';
-        case 'quot':
-          return '"';
-        default:
-          return "'";
-      }
-    }
-  );
-}
-
 // HEAD the media url for its size; referer+cookies sent because tokenized CDNs
 // 403 bare requests. fail-soft: picker just shows no size.
 export async function probeFileSize(
@@ -52,9 +21,3 @@ export async function probeFileSize(
     return undefined;
   }
 }
-
-export {
-  normalizeArtist,
-  normalizeTitle,
-  type RawSocialData,
-} from '@phantom/extractors/social';

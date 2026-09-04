@@ -1,4 +1,4 @@
-import { VideoInfo } from './types';
+import type { VideoInfo } from '@phantom/extractors';
 
 // identity fields required, rest defaulted — keeps isPartial => !isFullData
 // invariant in one place so partial emitters can't drift out of sync.
