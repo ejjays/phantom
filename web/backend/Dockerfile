@@ -25,7 +25,7 @@ RUN python3 -m venv /opt/tool-venv \
     && /opt/tool-venv/bin/pip install --upgrade --pre yt-dlp kaggle yt-dlp-getpot-wpc
 ENV PATH="/opt/tool-venv/bin:$PATH"
 
-# single root lockfile; -w keeps the image lean (no mobile/frontend deps),
+# single root lockfile; -w keeps the image lean (no mobile/app deps),
 # --ignore-scripts skips husky + native postinstalls
 COPY package.json package-lock.json ./
 COPY web/shared/package.json ./web/shared/

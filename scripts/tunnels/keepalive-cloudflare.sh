@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # Keeps the phone-hosted backend + Cloudflare quick tunnel alive.
 # Republishes the rotating trycloudflare URL to Turso (configs.BACKEND_URL)
-# whenever it changes, so the frontend always finds the current backend.
+# whenever it changes, so the app always finds the current backend.
 
 PORT=5000
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

@@ -80,15 +80,15 @@ git clone https://github.com/ejjays/phantom.git
 cd phantom
 
 npm install              # root tooling (husky, prettier)
-npm run install:web      # installs frontend, backend, shared
+npm run install:web      # installs app, backend, shared
 
 # Create env files (see docs/env-variables.md)
 cp web/backend/.env.example web/backend/.env
-cp web/frontend/.env.example web/frontend/.env
+cp web/app/.env.example web/app/.env
 
 # Dev (two terminals)
 npm run api   # backend on :5000
-npm run ui    # frontend dev server
+npm run ui    # app dev server
 ```
 
 **Production-style:**
@@ -127,8 +127,9 @@ Prebuilt APKs: built via EAS on GitHub Actions (`build-apk.yml`, `eas build --lo
 ```
 phantom/
 ├── web/
-│   ├── frontend/       # React 19 + Vite + Tailwind + Styled Components
+│   ├── app/            # React 19 + Vite + Tailwind + Styled Components
 │   ├── backend/        # Express 5 + yt-dlp + ffmpeg + Redis + Turso
+│   ├── site/           # Astro landing page (merges app under /app/ at deploy)
 │   └── shared/         # @phantom/shared (Zod schemas)
 ├── mobile/             # Expo SDK 57, RN 0.86, Hermes, New Arch
 │   ├── src/extractors/ # 16 pure-JS platform extractors

@@ -59,7 +59,7 @@ configure via `web/backend/.env`. the full reference is in [`../../docs/env-vari
 - `SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET` — Spotify Web API for ISRC and metadata.
 - `TURSO_URL` + `TURSO_AUTH_TOKEN` — global edge registry. unset is fine for local dev (falls back to an in-memory mock).
 - `COOKIES_URL` — remote `yt-dlp` cookie sync. improves YouTube reliability.
-- `API_ONLY=true` — disable serving the bundled `frontend/dist` (split deployments).
+- `API_ONLY=true` — disable serving the bundled `app/dist` (split deployments).
 
 ## Running
 

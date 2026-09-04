@@ -366,7 +366,7 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   }
 });
 
-const distPath = path.join(__dirname, '../../frontend/dist');
+const distPath = path.join(__dirname, '../../app/dist');
 
 if (fs.existsSync(distPath) && process.env.API_ONLY !== 'true') {
   app.use(express.static(distPath));

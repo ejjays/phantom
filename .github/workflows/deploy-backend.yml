@@ -57,6 +57,6 @@ jobs:
           SSH="ssh -i $PWD/deploy_key -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$PWD/known_hosts"
           rsync -az --delete -e "$SSH" \
             --include='dist/' --include='dist/**' --filter=':- .gitignore' --exclude='.env' \
-            --exclude web/frontend/ --exclude mobile/ \
+            --exclude web/app/ --exclude mobile/ \
             ./ "$USER@$HOST:/home/ubuntu/nexstream/"
           ssh -i "$PWD/deploy_key" -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$PWD/known_hosts" "$USER@$HOST" 'cd /home/ubuntu/nexstream && npm install -w web/backend -w web/shared -w @phantom/extractors -w @phantom/web-mux --omit=dev --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=60000 >/tmp/deploy-install.log 2>&1 && sudo systemctl restart nexstream-backend && sleep 12 && curl -sf http://localhost:5000/health >/dev/null && echo DEPLOY_OK'

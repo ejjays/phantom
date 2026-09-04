@@ -28,7 +28,7 @@ WORKDIR $HOME/app
 
 RUN curl -fsSL https://deno.land/install.sh | sh
 
-# single root lockfile; -w keeps the image lean (no mobile/frontend deps)
+# single root lockfile; -w keeps the image lean (no mobile/app deps)
 COPY --chown=node:node package.json package-lock.json ./
 COPY --chown=node:node web/shared/package.json ./web/shared/
 COPY --chown=node:node web/backend/package.json ./web/backend/

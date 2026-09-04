@@ -1,6 +1,6 @@
 # Environment Variables
 
-Phantom boots without most of these — they enable optional features and degrade gracefully when unset. Backend vars go in `web/backend/.env`, frontend vars in `web/frontend/.env`, mobile vars in `mobile/.env` (or `eas.json` for builds).
+Phantom boots without most of these — they enable optional features and degrade gracefully when unset. Backend vars go in `web/backend/.env`, app vars in `web/app/.env`, mobile vars in `mobile/.env` (or `eas.json` for builds).
 
 ## Where to Get Keys
 
@@ -25,7 +25,7 @@ Phantom boots without most of these — they enable optional features and degrad
 | Variable    | Default | Purpose                                                  |
 | ----------- | ------- | -------------------------------------------------------- |
 | `PORT`      | `5000`  | Port the server listens on                               |
-| `API_ONLY`  | `false` | Set `true` to serve only API (skip bundled frontend)     |
+| `API_ONLY`  | `false` | Set `true` to serve only API (skip bundled app)     |
 | `LOG_LEVEL` | `info`  | Log level                                                |
 | `NODE_ENV`  | —       | `production` tightens logging; `test` set by test runner |
 
@@ -107,12 +107,12 @@ Phantom boots without most of these — they enable optional features and degrad
 
 ---
 
-## Frontend (`web/frontend/.env`)
+## App (`web/app/.env`)
 
 | Variable          | Default | Purpose                                                                             |
 | ----------------- | ------- | ----------------------------------------------------------------------------------- |
-| `VITE_API_URL`    | —       | Backend base URL (e.g. your tunnel URL). Required for frontend to reach remote API. |
-| `VITE_SENTRY_DSN` | —       | Sentry DSN for the frontend                                                         |
+| `VITE_API_URL`    | —       | Backend base URL (e.g. your tunnel URL). Required for app to reach remote API. |
+| `VITE_SENTRY_DSN` | —       | Sentry DSN for the app                                                         |
 
 ---
 

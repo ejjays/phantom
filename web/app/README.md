@@ -1,11 +1,11 @@
-# Frontend
+# App
 
 the React 19 SPA (Vite + Tailwind + styled-components). resolves media through the API, then does the heavy lifting in the browser — a Web Worker muxes 4K straight to disk via OPFS (`mediabunny`), so nothing buffers in memory. for the web overview see [`../README.md`](../README.md).
 
 ## Layout
 
 ```text
-frontend/
+app/
 ├── src/
 │   ├── lib/          # muxer, OPFS, SSE client, download orchestrator
 │   ├── components/   # UI (modals, terminal, ui primitives)

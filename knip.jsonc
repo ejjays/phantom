@@ -18,7 +18,7 @@
       "vitest": false,
       "ignoreDependencies": ["pino-pretty"]
     },
-    "web/frontend": {
+    "web/app": {
       "entry": ["src/main.tsx"],
       "vite": false,
       "vitest": false,
