@@ -195,7 +195,11 @@ function LegendPill({ cap, label }: { cap: Cap; label: string }) {
   );
 }
 
-export default function SupportedPlatforms({ onBack }: { onBack: () => void }) {
+export default function SupportedPlatformsPanel({
+  onBack,
+}: {
+  onBack: () => void;
+}) {
   const insets = useSafeAreaInsets();
   const { width: windowW } = useWindowDimensions();
   // header scales with device; capped so "Images" fits its column slot on any width

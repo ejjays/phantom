@@ -38,9 +38,9 @@ import CookieEditorPanel from '../components/CookieEditorPanel';
 import CookieListPanel from '../components/CookieListPanel';
 import ThemeSwitch from '../components/ThemeSwitch';
 import switchTheme from 'react-native-theme-switch-animation';
-import SupportPage, { type SupportMethod } from '../components/SupportPage';
+import SupportPanel, { type SupportMethod } from '../components/SupportPanel';
 import SupportCarousel from '../components/SupportCarousel';
-import SupportedPlatforms from '../components/SupportedPlatforms';
+import SupportedPlatformsPanel from '../components/SupportedPlatformsPanel';
 import Card from '../components/Card';
 import AccountPanel, { AccountSkeleton } from '../components/AccountPanel';
 import {
@@ -703,18 +703,12 @@ function CookieOverlays({
 
       <Animated.View
         pointerEvents={cookieScreen.open ? 'auto' : 'none'}
-        style={[
-          StyleSheet.absoluteFill,
-          tw`bg-background`,
-          cookieScreen.style,
-        ]}
+        style={[StyleSheet.absoluteFill, tw`bg-background`, cookieScreen.style]}
       >
         {cookieScreen.mounted && cookieTarget ? (
           <CookieEditorPanel
             title={
-              cookieTarget === 'youtube'
-                ? 'YouTube cookie'
-                : 'Bilibili cookie'
+              cookieTarget === 'youtube' ? 'YouTube cookie' : 'Bilibili cookie'
             }
             value={cookieValue}
             onChangeValue={setCookieValue}
@@ -1110,7 +1104,7 @@ function SettingsScreen({
     Linking.openURL(url).catch(() => undefined);
   };
 
-  const openSupportPage = () => {
+  const openSupportPanel = () => {
     tapSelection();
     supportScreen.setOpen(true);
   };
@@ -1480,7 +1474,7 @@ function SettingsScreen({
                 isWide={isWide}
                 visible={visible}
                 light={!darkOn}
-                onOpenSupport={openSupportPage}
+                onOpenSupport={openSupportPanel}
                 onOpenSource={openSourceCode}
                 onOpenSocial={openSocial}
               />
@@ -1547,7 +1541,7 @@ function SettingsScreen({
           ]}
         >
           {supportScreen.mounted && (
-            <SupportPage
+            <SupportPanel
               methods={SUPPORT_METHODS}
               onPay={paySupport}
               onBack={() => {
@@ -1568,7 +1562,7 @@ function SettingsScreen({
           ]}
         >
           {platformsScreen.mounted && (
-            <SupportedPlatforms
+            <SupportedPlatformsPanel
               onBack={() => {
                 tapSelection();
                 platformsScreen.setOpen(false);

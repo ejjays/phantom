@@ -1,9 +1,4 @@
-import {
-  useState,
-  useRef,
-  useCallback,
-  useEffect,
-} from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   ScrollView,
   View,
@@ -32,7 +27,7 @@ import {
   Loader,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
-import SearchOverlay, { SearchHighlight } from '../components/SearchOverlay';
+import SearchOverlay, { SearchHighlight } from './SearchOverlay';
 import { tapSelection, tapSuccess } from '../lib/haptics';
 import { resolve } from '../extractors';
 import { runDownload } from '../lib/download/downloadPipeline';
@@ -45,7 +40,11 @@ import {
   updateDownloadProgress,
   setDownloadCancelHandler,
 } from '../lib/fgservice';
-import type { VideoInfo, PlaylistEntry, Format } from '../extractors/shared/types';
+import type {
+  VideoInfo,
+  PlaylistEntry,
+  Format,
+} from '../extractors/shared/types';
 
 type Props = {
   info: VideoInfo;
@@ -88,7 +87,7 @@ function formatDuration(sec?: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export default function PlaylistScreen({ info, visible, onClose }: Props) {
+export default function PlaylistPanel({ info, visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const progress = useSharedValue(0);
   const playlist = info.playlist;

@@ -18,7 +18,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import UpdatesScreen from './src/screens/UpdatesScreen';
 import DownloadsScreen from './src/screens/DownloadsScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
-import PlaylistScreen from './src/screens/PlaylistScreen';
+import PlaylistPanel from './src/components/PlaylistPanel';
 import { type DownloadMode } from './src/components/FormatBar';
 import { resolve } from './src/extractors';
 import { prewarmClientId } from './src/extractors/soundcloud';
@@ -408,7 +408,7 @@ function AppRoot() {
                 hidden={navHidden || playlistOpen}
               />
               {playlistOpen && playlistInfo ? (
-                <PlaylistScreen
+                <PlaylistPanel
                   info={playlistInfo}
                   visible={playlistOpen}
                   onClose={handlePlaylistClose}

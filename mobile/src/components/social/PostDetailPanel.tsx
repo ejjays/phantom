@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-} from 'react-native';
-import { useBackHandler } from '../lib/back';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useBackHandler } from '../../lib/back';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -16,19 +11,17 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import tw from '../lib/tw';
-import CommentsPanel from '../components/social/CommentsPanel';
-import ReactionBar from '../components/social/ReactionBar';
-import PostMarkdown from '../components/PostMarkdown';
-import ImageFocusOverlay, {
-  type FocusOrigin,
-} from '../components/ImageFocusOverlay';
+import tw from '../../lib/tw';
+import CommentsPanel from './CommentsPanel';
+import ReactionBar from './ReactionBar';
+import PostMarkdown from '../PostMarkdown';
+import ImageFocusOverlay, { type FocusOrigin } from '../ImageFocusOverlay';
 import {
   relativeTime,
   type Update,
   type ReactionTally,
   type UpdateCategory,
-} from '../lib/social/updates';
+} from '../../lib/social/updates';
 
 const SCREEN_BG = '#080d1a';
 const CYAN = '#22d3ee';
@@ -93,7 +86,7 @@ function PostHeader({
   );
 }
 
-export default function PostDetailScreen({
+export default function PostDetailPanel({
   update,
   tallies,
   myName,

@@ -38,7 +38,7 @@ const TIPS: readonly Tip[] = [
 const TIP_W = 140;
 const TIP_H = 108;
 
-export default function SupportPage({
+export default function SupportPanel({
   methods,
   onPay,
   onBack,
