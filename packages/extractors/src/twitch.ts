@@ -1,7 +1,7 @@
-import { Format, VideoInfo, ExtractorOptions } from './types.js';
-import { ExtractorEnv, defaultEnv } from './env.js';
-import { normalizeTitle, normalizeArtist } from './social.js';
-import { DESKTOP_UA } from './util.js';
+import { Format, VideoInfo, ExtractorOptions } from './shared/types.js';
+import { ExtractorEnv, defaultEnv } from './shared/env.js';
+import { normalizeTitle, normalizeArtist } from './shared/social.js';
+import { DESKTOP_UA } from './shared/util.js';
 
 const REFERER = 'https://www.twitch.tv/';
 const CLIENT_ID = 'ue6666qo983tsx6so1t0vnawi233wa';

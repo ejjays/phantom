@@ -1,15 +1,15 @@
 import { Extractor, VideoInfo } from './types.js';
 import { ExtractorEnv, defaultEnv } from './env.js';
-import { createXExtractor } from './x.js';
-import { createBlueskyExtractor } from './bluesky.js';
-import { createVimeoExtractor } from './vimeo.js';
-import { createDailymotionExtractor } from './dailymotion.js';
-import { createPinterestExtractor } from './pinterest.js';
-import { createRedditExtractor } from './reddit.js';
-import { createSnapchatExtractor } from './snapchat.js';
-import { createTwitchExtractor } from './twitch.js';
-import { createSoundCloudExtractor } from './soundcloud.js';
-import { createBilibiliExtractor } from './bilibili.js';
+import { createXExtractor } from '../x.js';
+import { createBlueskyExtractor } from '../bluesky.js';
+import { createVimeoExtractor } from '../vimeo.js';
+import { createDailymotionExtractor } from '../dailymotion.js';
+import { createPinterestExtractor } from '../pinterest.js';
+import { createRedditExtractor } from '../reddit.js';
+import { createSnapchatExtractor } from '../snapchat.js';
+import { createTwitchExtractor } from '../twitch.js';
+import { createSoundCloudExtractor } from '../soundcloud.js';
+import { createBilibiliExtractor } from '../bilibili.js';
 
 function hostOf(url: string): string {
   const cleaned = url.replace(/^https?:\/\//iu, '');

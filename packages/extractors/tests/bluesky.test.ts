@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createBlueskyExtractor } from '../src/bluesky.js';
-import type { ExtractorEnv } from '../src/env.js';
+import type { ExtractorEnv } from '../src/shared/env.js';
 
 const PLAYLIST = 'https://video.bsky.app/watch/did/cid/playlist.m3u8';
 

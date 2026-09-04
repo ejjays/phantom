@@ -1,7 +1,7 @@
-import { Format, VideoInfo, ExtractorOptions } from './types.js';
-import { ExtractorEnv, defaultEnv } from './env.js';
-import { DESKTOP_UA } from './util.js';
-import { notFound, noVideo, fromStatus, temporaryError, ExtractorError } from './errors.js';
+import { Format, VideoInfo, ExtractorOptions } from './shared/types.js';
+import { ExtractorEnv, defaultEnv } from './shared/env.js';
+import { DESKTOP_UA } from './shared/util.js';
+import { notFound, noVideo, fromStatus, temporaryError, ExtractorError } from './shared/errors.js';
 
 const API = 'https://api-v2.soundcloud.com';
 const CLIENT_ID_TTL = 3600000;

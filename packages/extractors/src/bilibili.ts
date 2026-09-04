@@ -1,7 +1,7 @@
-import { Format, VideoInfo, ExtractorOptions } from './types.js';
-import { ExtractorEnv, defaultEnv } from './env.js';
-import { DESKTOP_UA, decodeEntities } from './util.js';
-import { noVideo, fromStatus, classifyThrown, ExtractorError } from './errors.js';
+import { Format, VideoInfo, ExtractorOptions } from './shared/types.js';
+import { ExtractorEnv, defaultEnv } from './shared/env.js';
+import { DESKTOP_UA, decodeEntities } from './shared/util.js';
+import { noVideo, fromStatus, classifyThrown, ExtractorError } from './shared/errors.js';
 
 const PLAYURL_API = 'https://api.bilibili.tv/intl/gateway/web/playurl';
 const REFERER = 'https://www.bilibili.tv/';

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createXExtractor, tweetToken } from '../src/x.js';
-import type { ExtractorEnv } from '../src/env.js';
+import type { ExtractorEnv } from '../src/shared/env.js';
 
 function jsonRes(body: unknown, ok = true): Response {
   return {

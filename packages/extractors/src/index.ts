@@ -1,7 +1,7 @@
-export type { Format, VideoInfo, Extractor, ExtractorOptions } from './types.js';
-export { ExtractorError } from './types.js';
-export * from './env.js';
-export * from './util.js';
+export type { Format, VideoInfo, Extractor, ExtractorOptions } from './shared/types.js';
+export { ExtractorError } from './shared/types.js';
+export * from './shared/env.js';
+export * from './shared/util.js';
 export {
   notFound,
   privateVideo,
@@ -16,7 +16,7 @@ export {
   temporaryError,
   fromStatus,
   classifyThrown,
-} from './errors.js';
+} from './shared/errors.js';
 export { createXExtractor, tweetToken } from './x.js';
 export { createBlueskyExtractor } from './bluesky.js';
 export { createVimeoExtractor } from './vimeo.js';
@@ -29,4 +29,4 @@ export { createSoundCloudExtractor } from './soundcloud.js';
 export { createBilibiliExtractor } from './bilibili.js';
 export { normalizeTitle, normalizeArtist } from './social.js';
 export type { RawSocialData } from './social.js';
-export { getExtractor, resolve } from './resolve.js';
+export { getExtractor, resolve } from './shared/resolve.js';

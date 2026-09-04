@@ -1,5 +1,5 @@
-import { VideoInfo, Format } from '../types.js';
-import { normalizeTitle, normalizeArtist } from '../social.js';
+import { VideoInfo, Format } from '../shared/types.js';
+import { normalizeTitle, normalizeArtist } from '../shared/social.js';
 import { FbParsed } from './types.js';
 
 export function normalizeVideoInfo(

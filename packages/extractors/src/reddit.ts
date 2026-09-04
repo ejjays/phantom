@@ -1,8 +1,8 @@
-import { Format, VideoInfo, ExtractorOptions } from './types.js';
-import { ExtractorEnv, defaultEnv } from './env.js';
-import { normalizeTitle, normalizeArtist } from './social.js';
-import { DESKTOP_UA, decodeEntities } from './util.js';
-import { noVideo, fromStatus, classifyThrown, ExtractorError } from './errors.js';
+import { Format, VideoInfo, ExtractorOptions } from './shared/types.js';
+import { ExtractorEnv, defaultEnv } from './shared/env.js';
+import { normalizeTitle, normalizeArtist } from './shared/social.js';
+import { DESKTOP_UA, decodeEntities } from './shared/util.js';
+import { noVideo, fromStatus, classifyThrown, ExtractorError } from './shared/errors.js';
 
 const REFERER = 'https://www.reddit.com/';
 
