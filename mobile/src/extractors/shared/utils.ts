@@ -1,6 +1,8 @@
+import { buildPageHeaders } from '@phantom/extractors';
 import { DESKTOP_UA } from '../../lib/userAgents';
 import { gatedFetch, timeoutSignal } from '../../lib/net';
-import { HEADERS } from './headers';
+
+const HEADERS = buildPageHeaders(DESKTOP_UA);
 
 export type PageFetchOptions = {
   cookie?: string;

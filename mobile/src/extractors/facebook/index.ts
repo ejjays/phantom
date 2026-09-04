@@ -7,7 +7,7 @@ import {
 } from '@phantom/extractors';
 import { fetchHtml, fetchFileSize } from './fetcher';
 import { parseHtml } from '@phantom/extractors/facebook/parser';
-import { normalizeVideoInfo } from './normalizer';
+import { normalizeVideoInfo } from '@phantom/extractors/facebook/normalizer';
 import { mapLimit } from '../../lib/net';
 import { buildVideoInfo } from '../shared/videoInfo';
 import { error as logError } from '../../lib/log';

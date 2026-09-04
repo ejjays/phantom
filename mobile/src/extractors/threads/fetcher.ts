@@ -2,6 +2,7 @@ import {
   fetchPageHtml,
   fetchFileSize,
   type PageFetchOptions,
+  type PageFetchResult,
 } from '../shared/utils';
 
 function buildEmbedUrl(url: string): string {
@@ -12,14 +13,14 @@ function buildEmbedUrl(url: string): string {
 export function fetchHtml(
   url: string,
   options: PageFetchOptions
-): Promise<{ html: string; targetUrl: string } | null> {
+): Promise<PageFetchResult | null> {
   return fetchPageHtml(url, options);
 }
 
 export function fetchEmbed(
   url: string,
   options: PageFetchOptions
-): Promise<{ html: string; targetUrl: string } | null> {
+): Promise<PageFetchResult | null> {
   return fetchPageHtml(buildEmbedUrl(url), options);
 }
 

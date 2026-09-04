@@ -7,7 +7,7 @@ import {
 } from '@phantom/extractors';
 import { fetchHtml, fetchEmbed, fetchFileSize } from './fetcher';
 import { parseHtml } from '@phantom/extractors/threads/parser';
-import { normalizeVideoInfo } from './normalizer';
+import { normalizeVideoInfo } from '@phantom/extractors/threads/normalizer';
 import { mapLimit } from '../../lib/net';
 import { error as logError } from '../../lib/log';
 
