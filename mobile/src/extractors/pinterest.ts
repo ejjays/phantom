@@ -1,7 +1,10 @@
-import { createPinterestExtractor, parsePinId } from '@phantom/extractors';
-import { ExtractorError } from '@phantom/extractors';
+import {
+  createPinterestExtractor,
+  parsePinId,
+  ExtractorError,
+  type VideoInfo,
+} from '@phantom/extractors';
 import { mobileSharedEnv } from './shared/env';
-import type { VideoInfo } from '@phantom/extractors';
 
 const { getInfo: sharedGetInfo } = createPinterestExtractor(mobileSharedEnv);
 

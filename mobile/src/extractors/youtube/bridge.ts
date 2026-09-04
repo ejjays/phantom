@@ -1,7 +1,7 @@
 import type { SabrConfig } from '../../lib/download/youtubeSabr';
 import { YT_INTERNAL_UA } from '../../lib/userAgents';
-import { ExtractorError } from '@phantom/extractors';
 import {
+  ExtractorError,
   privateVideo,
   ageRestricted,
   geoBlocked,

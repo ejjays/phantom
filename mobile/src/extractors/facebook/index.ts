@@ -1,9 +1,14 @@
-import { VideoInfo, Format } from '@phantom/extractors';
+import {
+  VideoInfo,
+  Format,
+  noVideo,
+  temporaryError,
+  classifyThrown,
+} from '@phantom/extractors';
 import { fetchHtml, fetchFileSize } from './fetcher';
 import { parseHtml } from '@phantom/extractors/facebook/parser';
 import { normalizeVideoInfo } from './normalizer';
 import { mapLimit } from '../../lib/net';
-import { noVideo, temporaryError, classifyThrown } from '@phantom/extractors';
 import { buildVideoInfo } from '../shared/videoInfo';
 import { error as logError } from '../../lib/log';
 

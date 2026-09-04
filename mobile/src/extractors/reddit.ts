@@ -1,10 +1,15 @@
-import { VideoInfo, Format } from '@phantom/extractors';
+import {
+  VideoInfo,
+  Format,
+  noVideo,
+  fromStatus,
+  classifyThrown,
+  decodeEntities,
+} from '@phantom/extractors';
 import { gatedFetch, mapLimit } from '../lib/net';
 import { cookieGet } from '../lib/authFetch';
-import { noVideo, fromStatus, classifyThrown } from '@phantom/extractors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError, log } from '../lib/log';
-import { decodeEntities } from '@phantom/extractors';
 import { probeFileSize } from './shared/utils';
 import { buildVideoInfo } from './shared/videoInfo';
 const REFERER = 'https://www.reddit.com/';

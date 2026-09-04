@@ -1,4 +1,10 @@
-import { VideoInfo, Format } from '@phantom/extractors';
+import {
+  VideoInfo,
+  Format,
+  noVideo,
+  temporaryError,
+  classifyThrown,
+} from '@phantom/extractors';
 import {
   extractViaWebView,
   playlistViaWebView,
@@ -6,7 +12,6 @@ import {
   type RawYtResult,
   type RawYtPlaylist,
 } from './bridge';
-import { noVideo, temporaryError, classifyThrown } from '@phantom/extractors';
 import { DESKTOP_UA } from '../../lib/userAgents';
 import { getYoutubeCookie } from '../../lib/settings';
 import { buildVideoInfo } from '../shared/videoInfo';

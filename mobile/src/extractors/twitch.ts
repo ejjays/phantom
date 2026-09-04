@@ -1,6 +1,11 @@
-import { VideoInfo, Format } from '@phantom/extractors';
+import {
+  VideoInfo,
+  Format,
+  noVideo,
+  notFound,
+  classifyThrown,
+} from '@phantom/extractors';
 import { gatedFetch, mapLimit } from '../lib/net';
-import { noVideo, notFound, classifyThrown } from '@phantom/extractors';
 import { DESKTOP_UA } from '../lib/userAgents';
 import { error as logError, log, warn as logWarn } from '../lib/log';
 import { OnPartial } from '../extractors/index';
