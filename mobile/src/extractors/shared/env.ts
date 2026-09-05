@@ -1,5 +1,6 @@
 import type { ExtractorEnv } from '@phantom/extractors';
 import { gatedFetch } from '../../lib/net';
+import { cookieGet } from '../../lib/authFetch';
 import { error as logError } from '../../lib/log';
 
 export const mobileSharedEnv: ExtractorEnv = {
@@ -10,6 +11,18 @@ export const mobileSharedEnv: ExtractorEnv = {
       throw new Error(`streamUrl: ${res.status} ${res.statusText} for ${url}`);
     }
     return res.body as unknown as ReadableStream;
+  },
+  async fetchSessionHeaders(url, headers) {
+    try {
+      const res = await cookieGet(url, headers);
+      const bag = res.headers ?? {};
+      const setCookie =
+        bag['set-cookie'] ?? bag['Set-Cookie'] ?? bag['SET-COOKIE'] ?? null;
+      return { ok: res.ok, status: res.status, setCookie };
+    } catch (err) {
+      logError('shared/env', `session fetch failed: ${(err as Error).message}`);
+      return { ok: false, status: 0, setCookie: null };
+    }
   },
 };
 

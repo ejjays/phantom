@@ -30,5 +30,7 @@ export const sharedBackendEnv: ExtractorEnv = {
   streamUrl,
   remuxHls,
   skipDurationFetch: true,
-  cookie: process.env.BILIBILI_COOKIE?.trim(),
+  get cookie() {
+    return process.env.BILIBILI_COOKIE?.trim() || undefined;
+  },
 };

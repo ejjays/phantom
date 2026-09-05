@@ -34,6 +34,11 @@ export function prewarmClientId(env: ExtractorEnv = defaultEnv): void {
   void getClientId(env);
 }
 
+export function __resetClientIdForTests(): void {
+  cachedClientId = null;
+  clientIdAt = 0;
+}
+
 interface Transcoding {
   url: string;
   format: { protocol: string; mime_type: string };
@@ -67,8 +72,35 @@ function pickTranscodings(track: Track): Transcoding[] {
   };
   return list.sort((a, b) => rank(a) - rank(b));
 }
-function drmProtected(): ExtractorError {
-  return new ExtractorError('This SoundCloud track is DRM-protected by its label and can\u2019t be downloaded.', false, true);
+function drmProtected(meta?: SoundCloudDrmMeta): ExtractorError {
+  const err = new ExtractorError('This SoundCloud track is DRM-protected by its label and can\u2019t be downloaded.', false, true);
+  if (meta) (err as unknown as { trackMeta: SoundCloudDrmMeta }).trackMeta = meta;
+  return err;
+}
+
+export interface SoundCloudDrmMeta {
+  id: string;
+  title: string;
+  artist: string;
+  album?: string;
+  cover?: string;
+  durationMs: number;
+  isrc?: string;
+}
+
+function drmMetaOf(track: Track, webpageUrl: string): SoundCloudDrmMeta | undefined {
+  const title = track.publisher_metadata?.release_title || track.title;
+  const artist = track.publisher_metadata?.artist || track.user?.username;
+  if (!title || !artist) return undefined;
+  return {
+    id: String(track.id ?? webpageUrl),
+    title,
+    artist,
+    album: track.publisher_metadata?.album_title,
+    cover: pickThumbnail(track),
+    durationMs: track.full_duration || track.duration || 0,
+    isrc: track.publisher_metadata?.isrc,
+  };
 }
 async function permalink(env: ExtractorEnv, url: string): Promise<string> {
   if (!/on\.soundcloud\.com/iu.test(url)) return url;
@@ -144,7 +176,7 @@ export function createSoundCloudExtractor(env: ExtractorEnv = defaultEnv) {
     const all = track.media?.transcodings ?? [];
     const candidates = pickTranscodings(track);
     if (candidates.length === 0) {
-      if (all.some(isEncrypted)) throw drmProtected();
+      if (all.some(isEncrypted)) throw drmProtected(drmMetaOf(track, target));
       throw noVideo('SoundCloud', 'track');
     }
     const meta = {
@@ -174,7 +206,7 @@ export function createSoundCloudExtractor(env: ExtractorEnv = defaultEnv) {
     onPartial?.(partial);
     const { streamUrl, picked, lastStatus } = await resolveStreamUrl(env, candidates, clientId);
     if (!streamUrl || !picked) {
-      if (all.some(isEncrypted)) throw drmProtected();
+      if (all.some(isEncrypted)) throw drmProtected(drmMetaOf(track, target));
       if (lastStatus) throw fromStatus(lastStatus, 'SoundCloud', 'track');
       throw noVideo('SoundCloud', 'track');
     }

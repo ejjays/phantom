@@ -10,6 +10,9 @@ import { createSnapchatExtractor } from '../snapchat.js';
 import { createTwitchExtractor } from '../twitch.js';
 import { createSoundCloudExtractor } from '../soundcloud.js';
 import { createBilibiliExtractor } from '../bilibili.js';
+import { createFacebookExtractor } from '../facebook.js';
+import { createThreadsExtractor } from '../threads.js';
+import { createTikTokExtractor } from '../tiktok.js';
 
 function hostOf(url: string): string {
   const cleaned = url.replace(/^https?:\/\//iu, '');
@@ -59,6 +62,15 @@ export function getExtractor(
   }
   if (matches(host, 'bilibili.tv') || matches(host, 'bilibili.com') || matches(host, 'biliintl.com') || matches(host, 'bili.im')) {
     return createBilibiliExtractor(env);
+  }
+  if (matches(host, 'facebook.com') || matches(host, 'fb.watch') || matches(host, 'fb.com')) {
+    return createFacebookExtractor(env);
+  }
+  if (matches(host, 'threads.net') || matches(host, 'threads.com')) {
+    return createThreadsExtractor(env);
+  }
+  if (matches(host, 'tiktok.com')) {
+    return createTikTokExtractor(env);
   }
   return null;
 }

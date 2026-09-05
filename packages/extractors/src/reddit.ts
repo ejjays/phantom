@@ -61,24 +61,72 @@ function parsePostJson(text: string): { vid?: string; title?: string; uploader?:
   return { isVideo: post.is_video === true };
 }
 
+let sessionJar: { value: string; at: number } | null = null;
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function harvestSession(env: ExtractorEnv, id: string): Promise<string | null> {
+  if (sessionJar && Date.now() - sessionJar.at < SESSION_TTL_MS) return sessionJar.value;
+  try {
+    const target = `https://www.reddit.com/svc/shreddit/comments/${id}?seeker-session=false&render-mode=partial&referer=${encodeURIComponent(REFERER)}`;
+    const headers = { 'User-Agent': DESKTOP_UA, Accept: 'text/html' };
+    let raw: string | null = null;
+    if (env.fetchSessionHeaders) {
+      const out = await env.fetchSessionHeaders(target, headers);
+      if (!out.ok) return null;
+      raw = out.setCookie;
+    } else {
+      const res = await env.fetch(target, { headers });
+      if (!res.ok) return null;
+      raw = res.headers.get('set-cookie');
+    }
+    const jar = (raw ?? '')
+      .split(/,(?=[^;,]+?=)/u)
+      .map((cookie) => cookie.split(';')[0].trim())
+      .filter((pair) => /^[a-z][a-z0-9_]*=/iu.test(pair));
+    const merged = [...new Set(jar)].join('; ');
+    if (!/loid=/iu.test(merged)) return null;
+    sessionJar = { value: merged, at: Date.now() };
+    return merged;
+  } catch {
+    return null;
+  }
+}
+
+export function __resetRedditSessionForTests(): void {
+  sessionJar = null;
+}
+
 async function fetchMeta(env: ExtractorEnv, id: string): Promise<{ vid: string; title: string; uploader: string; thumbnail?: string } | null> {
-  for (let attempt = 0; attempt < 2; attempt++) {
+  let cookie = await harvestSession(env, id);
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const res = await env.fetch(`https://www.reddit.com/comments/${id}.json?raw_json=1`, {
-        headers: { 'User-Agent': DESKTOP_UA, Accept: 'application/json' },
+        headers: { 'User-Agent': DESKTOP_UA, Accept: 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
       });
-      if (!res.ok) continue;
+      lastStatus = res.status;
+      if (!res.ok) {
+        sessionJar = null;
+        cookie = await harvestSession(env, id);
+        if (attempt < 2) await sleep(1500 * (attempt + 1));
+        continue;
+      }
       const text = await res.text();
       const parsed = parsePostJson(text);
       if (parsed?.vid) return parsed as { vid: string; title: string; uploader: string; thumbnail?: string };
       if (parsed && !parsed.isVideo) return null;
     } catch {
-      /* retry */
+      /* retry below */
     }
+    sessionJar = null;
+    cookie = await harvestSession(env, id);
+    if (attempt < 2) await sleep(1500 * (attempt + 1));
   }
   for (const url of [`https://old.reddit.com/comments/${id}/`, `https://www.reddit.com/comments/${id}/`]) {
     try {
-      const res = await env.fetch(url, { headers: { 'User-Agent': DESKTOP_UA, Accept: 'text/html' } });
+      const res = await env.fetch(url, { headers: { 'User-Agent': DESKTOP_UA, Accept: 'text/html', ...(cookie ? { Cookie: cookie } : {}) } });
       if (!res.ok) continue;
       const html = await res.text();
       const vid = /data-url="https?:\/\/v\.redd\.it\/([a-z0-9]+)"/iu.exec(html)?.[1] ?? /fallback_url\\?":\\?"https?:\\?\/\\?\/v\.redd\.it\/([a-z0-9]+)/iu.exec(html)?.[1];
@@ -91,7 +139,7 @@ async function fetchMeta(env: ExtractorEnv, id: string): Promise<{ vid: string; 
       continue;
     }
   }
-  return null;
+  throw fromStatus(lastStatus || 503, 'Reddit');
 }
 
 function attrNum(attrs: string, name: string): number {
