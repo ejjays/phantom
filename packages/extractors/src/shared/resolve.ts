@@ -10,8 +10,8 @@ import { createSnapchatExtractor } from '../snapchat.js';
 import { createTwitchExtractor } from '../twitch.js';
 import { createSoundCloudExtractor } from '../soundcloud.js';
 import { createBilibiliExtractor } from '../bilibili.js';
-import { createFacebookExtractor } from '../facebook.js';
-import { createThreadsExtractor } from '../threads.js';
+import { createFacebookExtractor } from '../facebook/index.js';
+import { createThreadsExtractor } from '../threads/index.js';
 import { createTikTokExtractor } from '../tiktok.js';
 
 function hostOf(url: string): string {

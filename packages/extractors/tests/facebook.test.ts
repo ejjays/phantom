@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createFacebookExtractor } from '../src/facebook.js';
+import { createFacebookExtractor } from '../src/facebook/index.js';
 import type { ExtractorEnv } from '../src/shared/env.js';
 
 const VIDEO_URL = 'https://video.fbcdn.net/v123.mp4';

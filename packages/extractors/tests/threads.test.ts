@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createThreadsExtractor } from '../src/threads.js';
+import { createThreadsExtractor } from '../src/threads/index.js';
 import type { ExtractorEnv } from '../src/shared/env.js';
 
 const VIDEO_URL = 'https://video.twimg.com/threads/v1.mp4';

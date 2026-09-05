@@ -1,6 +1,5 @@
 import type { ExtractorEnv } from '@phantom/extractors';
 import { gatedFetch } from '../../lib/net';
-import { cookieGet } from '../../lib/authFetch';
 import { error as logError } from '../../lib/log';
 
 export const mobileSharedEnv: ExtractorEnv = {
@@ -12,8 +11,11 @@ export const mobileSharedEnv: ExtractorEnv = {
     }
     return res.body as unknown as ReadableStream;
   },
+  // lazy: authFetch pulls the native blob-util client, which breaks
+  // node test collection for every importer — only load on demand
   async fetchSessionHeaders(url, headers) {
     try {
+      const { cookieGet } = await import('../../lib/authFetch');
       const res = await cookieGet(url, headers);
       const bag = res.headers ?? {};
       const setCookie =
