@@ -10,7 +10,8 @@ const STREAM_REFERER = 'https://www.threads.com/';
 const HEADERS = buildPageHeaders(DESKTOP_UA);
 
 function buildEmbedUrl(url: string): string {
-  const clean = url.split('?')[0].replace(/\/+$/u, '');
+  let clean = url.split('?')[0];
+  while (clean.endsWith('/')) clean = clean.slice(0, -1);
   return `${clean}/embed`;
 }
 

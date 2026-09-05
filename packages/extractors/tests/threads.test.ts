@@ -63,6 +63,18 @@ describe('threads getInfo', () => {
     expect(fetchSpy.mock.calls[1][0]).toContain('/embed');
   });
 
+  it('trims trailing slashes when building the embed fallback', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(pageRes('<html></html>'))
+      .mockResolvedValueOnce(pageRes(PAGE_HTML, `${PAGE_URL}/embed`))
+      .mockResolvedValueOnce(headRes());
+    const { getInfo } = createThreadsExtractor(env);
+    const info = await getInfo(`${PAGE_URL}/?x=1`);
+    expect(info?.formats[0].url).toBe(VIDEO_URL);
+    const embedCall = fetchSpy.mock.calls.find(([u]) => String(u).includes('/embed'));
+    expect(String(embedCall?.[0])).toBe(`${PAGE_URL}/embed`);
+  });
+
   it('throws noVideo when both primary and embed are empty', async () => {
     fetchSpy
       .mockResolvedValueOnce(pageRes('<html></html>'))

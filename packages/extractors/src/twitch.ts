@@ -48,7 +48,8 @@ function parseClipId(url: string): string | null {
   const patterns = [
     /twitch\.tv\/[^/]+\/clip\/([a-zA-Z0-9_-]+)/u,
     /twitch\.tv\/clip\/([a-zA-Z0-9_-]+)/u,
-    /clip\.twitch\.tv\/(?:embed\?.*?\bclip=)?([a-zA-Z0-9_-]+)/u,
+    /clip\.twitch\.tv\/[^?\s#]*\?[^#\s]*\bclip=([a-zA-Z0-9_-]+)/u,
+    /clip\.twitch\.tv\/([a-zA-Z0-9_-]+)/u,
   ];
   for (const p of patterns) {
     const m = url.match(p);

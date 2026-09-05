@@ -80,6 +80,14 @@ describe('twitch getInfo', () => {
     expect(info?.formats[0].filesize).toBe(1000);
   });
 
+  it('parses clip.twitch.tv embed urls with extra query params', async () => {
+    fetchSpy.mockResolvedValueOnce(gqlRes(CLIP_GQL)).mockResolvedValue(headRes()).mockResolvedValue(headRes());
+    const { getInfo } = createTwitchExtractor(env);
+    const info = await getInfo('https://clip.twitch.tv/embed?autoplay=true&clip=AbC123');
+    expect(info?.formats).toHaveLength(2);
+    expect(info?.formats[0].url).toContain('sig=sig');
+  });
+
   it('throws notFound when clip GQL returns null with HTTP 200', async () => {
     fetchSpy.mockResolvedValueOnce(gqlRes(JSON.stringify([{ data: { clip: null } }])));
     const { getInfo } = createTwitchExtractor(env);
@@ -97,8 +105,14 @@ describe('twitch getInfo', () => {
     expect(info?.duration).toBe(3600);
     expect(info?.formats).toHaveLength(2);
     expect(info?.formats[0].isHls).toBe(true);
-    expect(info?.formats[0].url).toContain('usher.ttvnw.net');
-    const masterCall = fetchSpy.mock.calls.find(([u]) => String(u).includes('usher.ttvnw.net'));
+    expect(new URL(info?.formats[0].url ?? '').hostname).toBe('usher.ttvnw.net');
+    const masterCall = fetchSpy.mock.calls.find(([u]) => {
+      try {
+        return new URL(String(u)).hostname === 'usher.ttvnw.net';
+      } catch {
+        return false;
+      }
+    });
     expect(String(masterCall?.[0])).toContain('sig=s');
   });
 
