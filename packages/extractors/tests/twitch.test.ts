@@ -88,6 +88,13 @@ describe('twitch getInfo', () => {
     expect(info?.formats[0].url).toContain('sig=sig');
   });
 
+  it('parses schemeless clip links without regex backtracking', async () => {
+    fetchSpy.mockResolvedValueOnce(gqlRes(CLIP_GQL)).mockResolvedValue(headRes()).mockResolvedValue(headRes());
+    const { getInfo } = createTwitchExtractor(env);
+    const info = await getInfo('clip.twitch.tv/embed?clip=AbC123&autoplay=true');
+    expect(info?.formats).toHaveLength(2);
+  });
+
   it('throws notFound when clip GQL returns null with HTTP 200', async () => {
     fetchSpy.mockResolvedValueOnce(gqlRes(JSON.stringify([{ data: { clip: null } }])));
     const { getInfo } = createTwitchExtractor(env);

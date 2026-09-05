@@ -43,17 +43,32 @@ function parseClipId(url: string): string | null {
       if (seg && /^[a-zA-Z0-9_-]+$/u.test(seg)) return seg;
     }
   } catch {
-    /* not a valid URL, fall through to regex */
+    const queried = clipIdFromEmbedQuery(url);
+    if (queried) return queried;
   }
   const patterns = [
     /twitch\.tv\/[^/]+\/clip\/([a-zA-Z0-9_-]+)/u,
     /twitch\.tv\/clip\/([a-zA-Z0-9_-]+)/u,
-    /clip\.twitch\.tv\/[^?\s#]*\?[^#\s]*\bclip=([a-zA-Z0-9_-]+)/u,
     /clip\.twitch\.tv\/([a-zA-Z0-9_-]+)/u,
   ];
   for (const p of patterns) {
     const m = url.match(p);
     if (m) return m[1];
+  }
+  return null;
+}
+
+// schemeless embed links (new URL threw above): plain string split,
+// no regex backtracking surface at all
+function clipIdFromEmbedQuery(url: string): string | null {
+  const q = url.indexOf('?');
+  if (q < 0) return null;
+  for (const part of url.slice(q + 1).split('&')) {
+    const eq = part.indexOf('=');
+    if (eq < 0) continue;
+    if (part.slice(0, eq) !== 'clip') continue;
+    const value = part.slice(eq + 1);
+    if (/^[a-zA-Z0-9_-]+$/u.test(value)) return value;
   }
   return null;
 }
