@@ -92,9 +92,9 @@ export async function fetchSpotifyTrack(
 export function fetchSpotifyEmbed(
   trackId: string
 ): Promise<SpotifyEmbed | null> {
-  return sharedFetchEmbed(mobileSharedEnv, trackId);
+  return sharedFetchEmbed(trackId, mobileSharedEnv);
 }
 
 export function fetchOdesli(trackId: string): Promise<OdesliResult | null> {
-  return sharedFetchOdesli(mobileSharedEnv, trackId);
+  return sharedFetchOdesli(trackId, mobileSharedEnv);
 }

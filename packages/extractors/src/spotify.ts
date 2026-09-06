@@ -172,8 +172,8 @@ const DESKTOP_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 export async function fetchSpotifyEmbed(
-  env: ExtractorEnv = defaultEnv,
-  trackId: string
+  trackId: string,
+  env: ExtractorEnv = defaultEnv
 ): Promise<SpotifyEmbed | null> {
   try {
     const res = await env.fetch(
@@ -226,8 +226,8 @@ interface SongLinkResponse {
 }
 
 export async function fetchOdesli(
-  env: ExtractorEnv = defaultEnv,
-  trackId: string
+  trackId: string,
+  env: ExtractorEnv = defaultEnv
 ): Promise<OdesliResult | null> {
   try {
     const target = encodeURIComponent(
