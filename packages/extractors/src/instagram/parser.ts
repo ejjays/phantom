@@ -256,22 +256,68 @@ function ogMeta(html: string, prop: string): string | undefined {
 }
 
 function extractEmbedContext(html: string): GqlNode | null {
-  try {
-    const initMatch = html.match(/"init",\[\],\[(.*?)\]\],/u);
-    if (!initMatch) return null;
-    const init = JSON.parse(initMatch[1]) as { contextJSON?: string };
-    if (!init?.contextJSON) return null;
-    const ctx = JSON.parse(init.contextJSON) as {
-      gql_data?: { shortcode_media?: GqlNode; xdt_shortcode_media?: GqlNode };
-    };
-    return (
-      ctx?.gql_data?.shortcode_media ??
-      ctx?.gql_data?.xdt_shortcode_media ??
-      null
-    );
-  } catch {
-    return null;
+  const marker = '"init",[],[';
+  const start = html.indexOf(marker);
+  if (start < 0) return null;
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  let end = -1;
+  const scanEnd = Math.min(html.length, start + marker.length + 500000);
+  for (let i = start + marker.length - 1; i < scanEnd; i++) {
+    const ch = html[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === '[') depth++;
+    else if (ch === ']') {
+      depth -= 1;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
   }
+  if (end < 0) return null;
+  const inner = html.slice(start + marker.length, end);
+  const candidates: unknown[] = [];
+  try {
+    candidates.push(JSON.parse(inner));
+  } catch {
+    /* not a bare object */
+  }
+  try {
+    candidates.push(JSON.parse(`[${inner}]`));
+  } catch {
+    /* not an arg list */
+  }
+  for (const candidate of candidates) {
+    const pool = Array.isArray(candidate) ? candidate : [candidate];
+    for (const entry of pool) {
+      const ctxRaw = (entry as { contextJSON?: unknown })?.contextJSON;
+      if (typeof ctxRaw !== 'string') continue;
+      try {
+        const ctx = JSON.parse(ctxRaw) as {
+          gql_data?: {
+            shortcode_media?: GqlNode;
+            xdt_shortcode_media?: GqlNode;
+          };
+        };
+        const node =
+          ctx?.gql_data?.shortcode_media ??
+          ctx?.gql_data?.xdt_shortcode_media ??
+          null;
+        if (node) return node;
+      } catch {
+        continue;
+      }
+    }
+  }
+  return null;
 }
 
 export function parseEmbed(html: string): IgParsed | null {

@@ -75,6 +75,22 @@ describe('instagram pure helpers', () => {
     expect(parseEmbed('<html></html>')).toBeNull();
   });
 
+  it('parseEmbed reads the init contextJSON without regex backtracking', () => {
+    const node = {
+      shortcode: 'CTX123',
+      video_url: 'https://cdn.test/ctx.mp4',
+      display_url: 'https://cdn.test/ctx.jpg',
+      dimensions: { width: 640, height: 640 },
+      edge_media_to_caption: { edges: [{ node: { text: 'ctx caption [brackets]' } }] },
+      owner: { username: 'ctx_user' },
+    };
+    const html = `<html><body>"init",[],[{"contextJSON":${JSON.stringify(JSON.stringify({ gql_data: { shortcode_media: node } }))}}]],</body></html>`;
+    const parsed = parseEmbed(html);
+    expect(parsed?.id).toBe('CTX123');
+    expect(parsed?.title).toBe('ctx caption [brackets]');
+    expect(parsed?.media[0].url).toBe('https://cdn.test/ctx.mp4');
+  });
+
   it('parseLoggedOutProduct maps product to parsed media', () => {
     const parsed = parseLoggedOutProduct(mobileItem);
     expect(parsed?.id).toBe(SHORTCODE);
