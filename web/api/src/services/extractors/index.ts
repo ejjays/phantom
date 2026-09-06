@@ -98,6 +98,7 @@ function pkgLabel(url: string): string {
 }
 
 export function getExtractor(url: string): Extractor | null {
+  if (isHost(url, 'instagram.com')) return instagram;
   const pkg = pkgGetExtractor(url, sharedBackendEnv);
   if (pkg) {
     const wrapped = wrapPkg(pkg);
@@ -105,7 +106,6 @@ export function getExtractor(url: string): Extractor | null {
     return wrapped;
   }
   if (isHost(url, 'youtube.com') || isHost(url, 'youtu.be')) return youtube;
-  if (isHost(url, 'instagram.com')) return instagram;
   if (isHost(url, 'facebook.com') || isHost(url, 'fb.watch')) return facebook;
   if (isHost(url, 'threads.net') || isHost(url, 'threads.com'))
     return threads;

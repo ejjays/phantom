@@ -38,6 +38,29 @@ export { createBilibiliExtractor } from './bilibili.js';
 export { createFacebookExtractor } from './facebook/index.js';
 export { createThreadsExtractor } from './threads/index.js';
 export { createTikTokExtractor, parseUniversalData, getTikTokCookie } from './tiktok.js';
+export { createInstagramExtractor } from './instagram/index.js';
+export {
+  extractShortcode as extractInstagramShortcode,
+  shortcodeToMediaId as instagramShortcodeToMediaId,
+  parseDashManifest as parseInstagramDash,
+  parseGraphqlMedia as parseInstagramGraphql,
+  parseLoggedOutProduct as parseInstagramProduct,
+  parseMobileItem as parseInstagramMobileItem,
+  parseEmbed as parseInstagramEmbed,
+  normalizeVideoInfo as normalizeInstagramInfo,
+} from './instagram/index.js';
+export type { IgParsed, IgMedia } from './instagram/types.js';
+export {
+  parseTrackId as parseSpotifyTrackId,
+  parseEmbedHtml as parseSpotifyEmbedHtml,
+  metaFromEmbed as spotifyMetaFromEmbed,
+  metaFromOdesli as spotifyMetaFromOdesli,
+  mergeSpotifyMeta,
+  cleanSpotifyTitle,
+  fetchSpotifyEmbed,
+  fetchOdesli as fetchSpotifyOdesli,
+} from './spotify.js';
+export type { SpotifyEmbed, SpotifyMeta, OdesliResult as SpotifyOdesliResult } from './spotify.js';
 export { normalizeTitle, normalizeArtist } from './social.js';
 export type { RawSocialData } from './social.js';
 export { getExtractor, resolve } from './shared/resolve.js';

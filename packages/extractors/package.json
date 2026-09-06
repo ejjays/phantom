@@ -43,6 +43,14 @@
     "./threads/*": {
       "types": "./dist/threads/*.d.ts",
       "import": "./dist/threads/*.js"
+    },
+    "./instagram/*": {
+      "types": "./dist/instagram/*.d.ts",
+      "import": "./dist/instagram/*.js"
+    },
+    "./spotify": {
+      "types": "./dist/spotify.d.ts",
+      "import": "./dist/spotify.js"
     }
   },
   "files": [

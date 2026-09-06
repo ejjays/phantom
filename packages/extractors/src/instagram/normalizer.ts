@@ -1,16 +1,14 @@
-import { VideoInfo, Format } from '../../../types/index.js';
-import { normalizeTitle, normalizeArtist } from '../../social.service.js';
+import { Format, VideoInfo } from '../shared/types.js';
+import { normalizeTitle, normalizeArtist } from '../shared/social.js';
 import { IgParsed, IgMedia } from './types.js';
 
 function toFormat(media: IgMedia, index: number, total: number): Format {
   const dims =
     media.width && media.height ? `${media.width}x${media.height}` : undefined;
-  // label carousel children for the picker
   const prefix = total > 1 ? `item${index + 1}_` : '';
-
   if (media.isVideo) {
-    // dash variants ship video-only with separate audio
-    const muxed = media.muxed !== false;
+    const muxed = media.isMuxed !== false;
+    const audioUrl = muxed ? undefined : media.muxAudioUrl;
     return {
       formatId: media.formatId ?? `${prefix}hd`,
       url: media.url,
@@ -21,13 +19,14 @@ function toFormat(media: IgMedia, index: number, total: number): Format {
       height: media.height,
       vcodec: 'h264',
       acodec: 'aac',
-      audioUrl: media.audioUrl,
-      isMuxed: muxed,
       isVideo: true,
-      isAudio: muxed,
+      isAudio: false,
+      isMuxed: muxed,
+      audioUrl,
+      muxAudioUrl: audioUrl,
+      muxAudioExt: audioUrl ? (media.muxAudioExt ?? 'm4a') : undefined,
     };
   }
-
   return {
     formatId: media.formatId ?? `${prefix}photo`,
     url: media.url,
@@ -37,9 +36,10 @@ function toFormat(media: IgMedia, index: number, total: number): Format {
     width: media.width,
     height: media.height,
     vcodec: 'none',
-    isMuxed: false,
+    acodec: 'none',
     isVideo: false,
     isAudio: false,
+    isMuxed: false,
   };
 }
 
@@ -48,13 +48,11 @@ export function normalizeVideoInfo(
   parsedData: IgParsed | null
 ): VideoInfo | null {
   if (!parsedData) return null;
-
   const total = parsedData.media.length;
   const formats: Format[] = parsedData.media.map((media, index) =>
     toFormat(media, index, total)
   );
   if (formats.length === 0) return null;
-
   const info: VideoInfo = {
     type: 'video',
     id: parsedData.id || url,
@@ -69,15 +67,19 @@ export function normalizeVideoInfo(
     isPartial: false,
     isIsrcMatch: false,
     isFullData: true,
+    downloadHeaders: {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+      Referer: 'https://www.instagram.com/',
+      Accept: '*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      Range: 'bytes=0-',
+    },
   };
-
-  // make caption authoritative over og:title
   if (parsedData.title) {
     info.metascraper = { title: parsedData.title };
   }
-
   info.title = normalizeTitle(info as unknown as Record<string, unknown>);
   info.uploader = normalizeArtist(info as unknown as Record<string, unknown>);
-
   return info;
 }

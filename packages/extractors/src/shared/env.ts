@@ -12,6 +12,10 @@ export interface ExtractorEnv {
   oembedThumb?(url: string): Promise<string | undefined>;
   ogImageThumb?(url: string): Promise<string | undefined>;
   cookie?: string;
+  authedFetch?: (
+    url: string,
+    headers: Record<string, string>
+  ) => Promise<Response>;
   fetchSessionHeaders?: (
     url: string,
     headers: Record<string, string>

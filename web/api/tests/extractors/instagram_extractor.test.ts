@@ -3,7 +3,7 @@ import {
   getInfo,
   getStream,
 } from '../../src/services/extractors/instagram/index.js';
-import { IG_APP_ID } from '../../src/services/extractors/instagram/constants.js';
+import { IG_APP_ID } from '@phantom/extractors/instagram/constants';
 import { server } from '../setup.js';
 import { http, HttpResponse } from 'msw';
 import { Readable } from 'node:stream';

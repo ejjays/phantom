@@ -13,6 +13,7 @@ import { createBilibiliExtractor } from '../bilibili.js';
 import { createFacebookExtractor } from '../facebook/index.js';
 import { createThreadsExtractor } from '../threads/index.js';
 import { createTikTokExtractor } from '../tiktok.js';
+import { createInstagramExtractor } from '../instagram/index.js';
 
 function hostOf(url: string): string {
   const cleaned = url.replace(/^https?:\/\//iu, '');
@@ -42,6 +43,7 @@ const ROUTES: Route[] = [
   { domains: ['facebook.com', 'fb.watch', 'fb.com'], create: createFacebookExtractor },
   { domains: ['threads.net', 'threads.com'], create: createThreadsExtractor },
   { domains: ['tiktok.com'], create: createTikTokExtractor },
+  { domains: ['instagram.com'], create: createInstagramExtractor },
 ];
 
 // host -> extractor, one env shared across whichever extractor gets picked
