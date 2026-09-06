@@ -1,7 +1,7 @@
-import { Format, VideoInfo, ExtractorOptions } from './types.js';
-import { ExtractorEnv, defaultEnv } from './env.js';
-import { DESKTOP_UA, decodeEntities } from './util.js';
-import { noVideo, fromStatus, classifyThrown, ExtractorError } from './errors.js';
+import { Format, VideoInfo, ExtractorOptions } from './shared/types.js';
+import { ExtractorEnv, defaultEnv } from './shared/env.js';
+import { DESKTOP_UA, decodeEntities } from './shared/util.js';
+import { noVideo, fromStatus, classifyThrown, ExtractorError } from './shared/errors.js';
 
 const PLAYURL_API = 'https://api.bilibili.tv/intl/gateway/web/playurl';
 const REFERER = 'https://www.bilibili.tv/';
@@ -49,14 +49,28 @@ function pickThumbnail(html: string): string | undefined {
   const og = ogTag(html, 'og:image');
   return og ? og.split('?')[0] : undefined;
 }
-async function fetchPageMeta(env: ExtractorEnv, url: string, cookie: Record<string, string>): Promise<{ title?: string; thumbnail?: string }> {
+function parseFrameRate(fr?: string): number | undefined {
+  if (!fr) return undefined;
+  const [num, den] = fr.split('/').map((part) => Number(part));
+  if (!num || Number.isNaN(num)) return undefined;
+  if (!den || Number.isNaN(den)) return Math.round(num);
+  const value = num / den;
+  return Number.isFinite(value) ? Math.round(value) : undefined;
+}
+
+async function fetchPageMeta(env: ExtractorEnv, url: string, cookie: Record<string, string>): Promise<{ title?: string; thumbnail?: string; description?: string }> {
   try {
     const res = await env.fetch(url, { headers: { 'User-Agent': DESKTOP_UA, 'Accept-Language': 'en-US,en;q=0.9', ...cookie } });
     if (!res.ok) return {};
     const html = await res.text();
     const raw = ogTag(html, 'og:title');
     const title = raw ? decodeEntities(raw).replace(/\s*[|\-–]\s*bili\s*bili\s*$/iu, '').trim() : undefined;
-    return { title: title || undefined, thumbnail: pickThumbnail(html) };
+    const descRaw = ogTag(html, 'og:description');
+    return {
+      title: title || undefined,
+      thumbnail: pickThumbnail(html),
+      description: descRaw ? decodeEntities(descRaw).trim() || undefined : undefined,
+    };
   } catch { return {}; }
 }
 function videoFormat(res: BiliResource, audioUrl: string | undefined, audioSize: number): Format {
@@ -71,13 +85,15 @@ function videoFormat(res: BiliResource, audioUrl: string | undefined, audioSize:
     quality: h ? `${h}p` : undefined,
     width: res.width || undefined,
     height: h || undefined,
+    fps: parseFrameRate(res.frame_rate),
     tbr: res.bandwidth ? Math.round(res.bandwidth / 1000) : undefined,
-    vcodec: 'h264',
-    acodec: audioUrl ? 'aac' : 'none',
+    vcodec: res.codecs || 'avc1',
+    acodec: 'none',
     isVideo: true,
     isAudio: false,
     isMuxed: false,
     filesize: total > 0 ? total : undefined,
+    audioUrl,
     muxAudioUrl: audioUrl,
     muxAudioExt: 'm4a',
   };
@@ -161,6 +177,7 @@ export function createBilibiliExtractor(env: ExtractorEnv = defaultEnv) {
         uploader: 'Bilibili',
         webpageUrl: target,
         thumbnail: meta.thumbnail,
+        description: meta.description,
         duration: dur,
         formats: videoFormats.length ? videoFormats : audioFormats,
         audioFormats: audioFormats.length ? audioFormats : undefined,

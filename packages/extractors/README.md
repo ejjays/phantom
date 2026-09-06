@@ -1,6 +1,6 @@
 # @phantom/extractors
 
-pulls the JS extractors out of `web/backend` into a standalone, dependency-free
+pulls the JS extractors out of `web/api` into a standalone, dependency-free
 package. it's the sibling to [`../web-mux`](../web-mux/README.md) — this
 resolves a URL into format URLs, web-mux combines separate video/audio URLs
 into one file.
@@ -23,10 +23,12 @@ export interface ExtractorEnv {
 pass nothing (`createXExtractor()`) and it uses plain global `fetch`, or
 inject your own SSRF-safe fetch / proxy pool / auth headers.
 
-ported so far: `x.ts`, `bluesky.ts`, `vimeo.ts` — 3 of 11, as a template for
-the rest. each one runs its output through `normalizeTitle`/`normalizeArtist`
-(vendored from `social.service.ts`) before returning, so titles/uploaders
-match what the app shows — not just raw platform data.
+ported so far: `x`, `bluesky`, `vimeo`, `dailymotion`, `pinterest`,
+`reddit`, `snapchat`, `twitch`, `soundcloud`, `bilibili`, `facebook`,
+`threads`, `tiktok`, `instagram` — 14 platforms. each one runs its output
+through `normalizeTitle`/`normalizeArtist` (vendored from
+`social.service.ts`) before returning, so titles/uploaders match what the
+app shows — not just raw platform data.
 
 for URLs you don't want to route by hand, `resolve(url)` picks the right
 extractor by host and calls `getInfo` in one step; `getExtractor(url)` gives
@@ -45,7 +47,7 @@ const stream = extractor && (await extractor.getStream(info));
 
 this package stops at "resolve a URL into normalized metadata + formats." it
 does **not** include the racing orchestrator or metascraper fallback that
-`web/backend/extractors/index.ts` has — the layer that races the real
+`web/api/extractors/index.ts` has — the layer that races the real
 extractor against an oEmbed/metascraper fetch and fires an early "metadata
 found" progress event for the picker UI. that's left out on purpose:
 
@@ -75,7 +77,7 @@ two checks, both real (not mocks):
 
 1. **`npm run demo:mock`** — builds `dist/` and runs `examples/mock-demo.ts`
    against the built output, using the same fixture as
-   `web/backend/tests/extractors/x_extractor.test.ts`.
+   `web/api/tests/extractors/x_extractor.test.ts`.
 2. **tarball install** — `npm pack`, install the `.tgz` into a scratch
    project, run a script that imports `@phantom/extractors` from
    `node_modules`. catches "works in the repo, missing from what gets
@@ -88,10 +90,11 @@ Vimeo's CDN.
 
 ## What's still unresolved
 
-- 3 of 11 web extractors ported (`x.ts`, `bluesky.ts`, `vimeo.ts`). same
-  mechanical conversion needed for the rest — vimeo (multi-step
-  config/page-hash/player-page fallback chain) was the most involved of the
-  three; the remaining 8 range between x's simplicity and vimeo's.
+- `spotify` ships as shared metadata helpers only (`parseTrackId`,
+  `parseEmbedHtml`, `mergeSpotifyMeta`, embed/odesli fetchers) — full
+  resolution stays runtime-local (web: brain registry + soundcharts;
+  mobile: supabase token + on-device youtube match). `youtube` stays split
+  too (server `youtubei.js` vs WebView BotGuard) — same reason.
 - `env.remuxHls` is unimplemented in `defaultEnv` — a consumer wanting
   bluesky or HLS-fallback vimeo streams has to supply it themselves (e.g.
   spawn `ffmpeg`, or a WASM remuxer for browser/RN use).

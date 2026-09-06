@@ -1,7 +1,7 @@
-import { Format, VideoInfo, ExtractorOptions } from './types.js';
-import { ExtractorEnv, defaultEnv } from './env.js';
-import { DESKTOP_UA } from './util.js';
-import { notFound, noVideo, fromStatus, classifyThrown, ExtractorError } from './errors.js';
+import { Format, VideoInfo, ExtractorOptions } from './shared/types.js';
+import { ExtractorEnv, defaultEnv } from './shared/env.js';
+import { DESKTOP_UA } from './shared/util.js';
+import { notFound, noVideo, fromStatus, classifyThrown, ExtractorError } from './shared/errors.js';
 
 const REFERER = 'https://www.snapchat.com/';
 const PUBLIC_PAGE = 'https://www.snapchat.com/spotlight/';

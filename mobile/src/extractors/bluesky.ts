@@ -1,7 +1,10 @@
-import { createBlueskyExtractor } from '@phantom/extractors';
-import { noVideo, classifyThrown } from './shared/errors';
-import { mobileSharedEnv } from './sharedEnv';
-import type { VideoInfo } from './shared/types';
+import {
+  createBlueskyExtractor,
+  noVideo,
+  classifyThrown,
+  type VideoInfo,
+} from '@phantom/extractors';
+import { mobileSharedEnv } from './shared/env';
 
 const { getInfo: sharedGetInfo } = createBlueskyExtractor(mobileSharedEnv);
 

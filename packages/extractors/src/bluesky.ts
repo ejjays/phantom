@@ -1,7 +1,7 @@
-import { Format, VideoInfo, ExtractorOptions } from './types.js';
-import { ExtractorEnv, defaultEnv } from './env.js';
-import { normalizeTitle, normalizeArtist } from './social.js';
-import { DESKTOP_UA, hlsDurationSec, estimateSize } from './util.js';
+import { Format, VideoInfo, ExtractorOptions } from './shared/types.js';
+import { ExtractorEnv, defaultEnv } from './shared/env.js';
+import { normalizeTitle, normalizeArtist } from './shared/social.js';
+import { DESKTOP_UA, hlsDurationSec, estimateSize } from './shared/util.js';
 
 const APPVIEW = 'https://public.api.bsky.app/xrpc';
 

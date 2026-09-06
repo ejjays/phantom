@@ -1,4 +1,9 @@
-import { VideoInfo, Format, ExtractorError } from './shared/types';
+import {
+  VideoInfo,
+  Format,
+  ExtractorError,
+  getExtractor as pkgGetExtractor,
+} from '@phantom/extractors';
 import { getInfo as facebookGetInfo } from './facebook';
 import { getInfo as tiktokGetInfo } from './tiktok';
 import { getInfo as threadsGetInfo } from './threads';
@@ -20,8 +25,7 @@ import { getGenericSnifferEnabled } from '../lib/settings';
 import { extractFromPage } from '../lib/webviewExtraction/host';
 import { pageScanToVideoInfo } from '../lib/webviewExtraction/normalize';
 import { probeFileSize } from './shared/utils';
-import { getExtractor as pkgGetExtractor } from '@phantom/extractors';
-import { mobileSharedEnvWithThumbs } from './sharedEnv';
+import { mobileSharedEnvWithThumbs } from './shared/env';
 
 export type OnPartial = (info: VideoInfo) => void;
 

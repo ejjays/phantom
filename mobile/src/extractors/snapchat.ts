@@ -1,7 +1,10 @@
-import { createSnapchatExtractor, parseSpotlightId } from '@phantom/extractors';
-import { ExtractorError } from './shared/types';
-import { mobileSharedEnv } from './sharedEnv';
-import type { VideoInfo } from './shared/types';
+import {
+  createSnapchatExtractor,
+  parseSpotlightId,
+  ExtractorError,
+  type VideoInfo,
+} from '@phantom/extractors';
+import { mobileSharedEnv } from './shared/env';
 
 const { getInfo: sharedGetInfo } = createSnapchatExtractor(mobileSharedEnv);
 

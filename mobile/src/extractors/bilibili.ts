@@ -1,8 +1,10 @@
-import { createBilibiliExtractor } from '@phantom/extractors';
-import { ExtractorError } from './shared/types';
-import { mobileSharedEnv } from './sharedEnv';
+import {
+  createBilibiliExtractor,
+  ExtractorError,
+  type VideoInfo,
+} from '@phantom/extractors';
+import { mobileSharedEnv } from './shared/env';
 import { getBilibiliCookie } from '../lib/settings';
-import type { VideoInfo } from './shared/types';
 
 export async function getInfo(url: string): Promise<VideoInfo | null> {
   const cookie = await getBilibiliCookie();

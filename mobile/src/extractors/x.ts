@@ -1,10 +1,10 @@
 import {
   createXExtractor,
+  classifyThrown,
   type VideoInfo as SharedVideoInfo,
+  type VideoInfo,
 } from '@phantom/extractors';
-import { classifyThrown } from './shared/errors';
-import { mobileSharedEnv } from './sharedEnv';
-import type { VideoInfo } from './shared/types';
+import { mobileSharedEnv } from './shared/env';
 
 const { getInfo: sharedGetInfo } = createXExtractor(mobileSharedEnv);
 

@@ -1,4 +1,4 @@
-import { VideoInfo } from '../shared/types';
+import { VideoInfo } from '@phantom/extractors';
 import { getInfo as youtubeGetInfo } from './index';
 import { searchViaWebView, type YtSearchResult } from './bridge';
 import { buildVideoInfo } from '../shared/videoInfo';
