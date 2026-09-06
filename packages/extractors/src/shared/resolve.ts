@@ -23,56 +23,37 @@ function matches(host: string, domain: string): boolean {
   return host === domain || host.endsWith(`.${domain}`);
 }
 
+interface Route {
+  domains: string[];
+  create: (env: ExtractorEnv) => Extractor;
+}
+
+const ROUTES: Route[] = [
+  { domains: ['x.com', 'twitter.com'], create: createXExtractor },
+  { domains: ['bsky.app'], create: createBlueskyExtractor },
+  { domains: ['vimeo.com'], create: createVimeoExtractor },
+  { domains: ['dailymotion.com', 'dai.ly'], create: createDailymotionExtractor },
+  { domains: ['pinterest.com', 'pinterest.co.uk', 'pin.it'], create: createPinterestExtractor },
+  { domains: ['reddit.com', 'redd.it', 'old.reddit.com'], create: createRedditExtractor },
+  { domains: ['snapchat.com', 't.snapchat.com', 'story.snapchat.com'], create: createSnapchatExtractor },
+  { domains: ['twitch.tv', 'clip.twitch.tv'], create: createTwitchExtractor },
+  { domains: ['soundcloud.com', 'on.soundcloud.com'], create: createSoundCloudExtractor },
+  { domains: ['bilibili.tv', 'bilibili.com', 'biliintl.com', 'bili.im'], create: createBilibiliExtractor },
+  { domains: ['facebook.com', 'fb.watch', 'fb.com'], create: createFacebookExtractor },
+  { domains: ['threads.net', 'threads.com'], create: createThreadsExtractor },
+  { domains: ['tiktok.com'], create: createTikTokExtractor },
+];
+
 // host -> extractor, one env shared across whichever extractor gets picked
 export function getExtractor(
   url: string,
   env: ExtractorEnv = defaultEnv
 ): Extractor | null {
   const host = hostOf(url);
-  if (matches(host, 'x.com') || matches(host, 'twitter.com')) {
-    return createXExtractor(env);
-  }
-  if (matches(host, 'bsky.app')) {
-    return createBlueskyExtractor(env);
-  }
-  if (matches(host, 'vimeo.com')) {
-    return createVimeoExtractor(env);
-  }
-  if (matches(host, 'dailymotion.com') || matches(host, 'dai.ly')) {
-    return createDailymotionExtractor(env);
-  }
-  if (matches(host, 'pinterest.com') || matches(host, 'pinterest.co.uk') || matches(host, 'pin.it')) {
-    return createPinterestExtractor(env);
-  }
-  if (matches(host, 'reddit.com') || matches(host, 'redd.it') || matches(host, 'old.reddit.com')) {
-    return createRedditExtractor(env);
-  }
-  if (
-    matches(host, 'snapchat.com') ||
-    matches(host, 't.snapchat.com') ||
-    matches(host, 'story.snapchat.com')
-  ) {
-    return createSnapchatExtractor(env);
-  }
-  if (matches(host, 'twitch.tv') || matches(host, 'clip.twitch.tv')) {
-    return createTwitchExtractor(env);
-  }
-  if (matches(host, 'soundcloud.com') || matches(host, 'on.soundcloud.com')) {
-    return createSoundCloudExtractor(env);
-  }
-  if (matches(host, 'bilibili.tv') || matches(host, 'bilibili.com') || matches(host, 'biliintl.com') || matches(host, 'bili.im')) {
-    return createBilibiliExtractor(env);
-  }
-  if (matches(host, 'facebook.com') || matches(host, 'fb.watch') || matches(host, 'fb.com')) {
-    return createFacebookExtractor(env);
-  }
-  if (matches(host, 'threads.net') || matches(host, 'threads.com')) {
-    return createThreadsExtractor(env);
-  }
-  if (matches(host, 'tiktok.com')) {
-    return createTikTokExtractor(env);
-  }
-  return null;
+  const route = ROUTES.find((entry) =>
+    entry.domains.some((domain) => matches(host, domain))
+  );
+  return route ? route.create(env) : null;
 }
 
 // convenience: getExtractor + getInfo in one call, for when you don't need getStream too
