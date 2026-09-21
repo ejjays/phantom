@@ -20,7 +20,7 @@
     "astro": "^7.2.4",
     "embla-carousel-react": "^8.6.0",
     "embla-carousel-wheel-gestures": "^8.1.0",
-    "framer-motion": "^13.0.0",
+    "motion": "^13.0.0",
     "lucide-react": "^0.577.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
