@@ -243,6 +243,12 @@ describe('watchluna getInfo', () => {
     expect(info?.formats.length).toBeGreaterThan(0);
   });
 
+  it('decodes entities in titles exactly once', async () => {
+    const { parseLunaMeta } = await import('../src/extractors/watchluna/parse');
+    expect(parseLunaMeta('<title>A &amp; B | Watchluna</title>', '1').title).toBe('A & B');
+    expect(parseLunaMeta('<title>A &amp;lt; B | Watchluna</title>', '1').title).toBe('A &lt; B');
+  });
+
   it('returns null for non-luna urls', async () => {
     expect(await getInfo('https://example.com/movie/1477317')).toBeNull();
   });

@@ -68,11 +68,11 @@ function decodeEntities(text: string): string {
   return text
     .replace(/&#x([0-9a-f]+);/giu, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
     .replace(/&#(\d+);/gu, (_, d: string) => String.fromCodePoint(parseInt(d, 10)))
-    .replace(/&amp;/giu, '&')
     .replace(/&lt;/giu, '<')
     .replace(/&gt;/giu, '>')
     .replace(/&quot;/giu, '"')
-    .replace(/&#39;|&apos;/gu, "'");
+    .replace(/&#39;|&apos;/gu, "'")
+    .replace(/&amp;/giu, '&');
 }
 
 function metaContent(html: string, key: string): string | undefined {
