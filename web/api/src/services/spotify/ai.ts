@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { logger } from '../../utils/infra/logger.util.js';
 import { secureFetch } from '../../utils/network/security.util.js';
 import { recordFailure } from '../../utils/infra/metrics.util.js';
+import { LRUCache } from 'lru-cache';
 
 type GroqResponse = {
   choices: Array<{
@@ -38,7 +39,10 @@ export interface AIQueryResult {
   confidence: number;
 }
 
-const aiCache = new Map<string, AIQueryResult>();
+const aiCache = new LRUCache<string, AIQueryResult>({
+  max: 500,
+  ttl: 24 * 60 * 60 * 1000,
+});
 
 async function queryGroq(promptText: string): Promise<AIQueryResult | null> {
   if (!process.env.GROQ_API_KEY) return null;

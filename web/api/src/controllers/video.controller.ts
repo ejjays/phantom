@@ -13,6 +13,7 @@ import {
   decodeUrlIfNeeded,
 } from '../utils/network/validation.util.js';
 import { pipeWebStream } from '../utils/network/proxy.util.js';
+import { ResolveTimeoutError } from '../utils/errors.js';
 import { verifyProxyParams } from '../utils/network/secrets.util.js';
 import { recordFailure } from '../utils/infra/metrics.util.js';
 import {
@@ -91,7 +92,7 @@ export const getVideoInformation = async (
       fetchMediaInfo(videoURL, clientId, serviceName, cookieArgs),
       new Promise<never>((_, reject) => {
         setTimeout(
-          () => reject(new Error('RESOLVE_TIMEOUT')),
+          () => reject(new ResolveTimeoutError()),
           Number(process.env.RESOLVE_TIMEOUT_MS) || 30000
         ).unref();
       }),
@@ -125,7 +126,7 @@ export const getVideoInformation = async (
 
     res.json(finalResponse);
   } catch (error: unknown) {
-    const isTimeout = (error as Error).message === 'RESOLVE_TIMEOUT';
+    const isTimeout = error instanceof ResolveTimeoutError;
     recordFailure('info');
     logger.error('[VideoInfo] Error:', (error as Error).message);
     if (!isTimeout) Sentry.captureException(error);

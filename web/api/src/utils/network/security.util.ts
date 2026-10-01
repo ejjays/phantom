@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { URL } from 'node:url';
 import { fetch as undiciFetch, Agent } from 'undici';
 import { createRedisClient } from '../infra/redis.util.js';
+import { SsrfError } from '../errors.js';
 
 const redis = createRedisClient('security');
 
@@ -39,7 +40,7 @@ export async function resolveAndValidateHost(
 ): Promise<string> {
   if (isIP(hostname)) {
     if (!isSafeIp(hostname)) {
-      throw new Error(
+      throw new SsrfError(
         `SSRF Blocked: Attempted to access private IP (${hostname})`
       );
     }
@@ -49,13 +50,13 @@ export async function resolveAndValidateHost(
   try {
     const { address } = await lookup(hostname, { family: 0 });
     if (!isSafeIp(address)) {
-      throw new Error(
+      throw new SsrfError(
         `SSRF Blocked: Hostname ${hostname} resolved to private IP (${address})`
       );
     }
     return address;
   } catch (error: unknown) {
-    if (error instanceof Error && error.message.includes('SSRF')) throw error;
+    if (error instanceof SsrfError) throw error;
     throw new Error(`DNS Lookup failed for hostname: ${hostname}`, {
       cause: error,
     });
@@ -85,7 +86,7 @@ export function ssrfLookup(
     for (const addr of addrsToCheck) {
       if (!isSafeIp(addr.address)) {
         callback(
-          new Error(
+          new SsrfError(
             `[SSRF BLOCK] Resolution to internal IP blocked: ${addr.address}`
           ),
           address as unknown as string,
