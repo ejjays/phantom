@@ -37,6 +37,18 @@ const MASTER_PLAYLIST = [
   'https://cdn.example/720.m3u8',
 ].join('\n');
 
+const VARIANT_MEDIA = [
+  '#EXTM3U',
+  '#EXTINF:10,',
+  'https://seg.example/v-0.ts',
+  '#EXTINF:10,',
+  'https://seg.example/v-1.ts',
+  '#EXTINF:10,',
+  'https://seg.example/v-2.ts',
+  '#EXTINF:10,',
+  'https://seg.example/v-3.ts',
+].join('\n');
+
 function textRes(body: string, ok = true): Response {
   return { ok, status: ok ? 200 : 404, text: () => Promise.resolve(body) } as unknown as Response;
 }
@@ -64,6 +76,10 @@ describe('parseWatchlunaUrl', () => {
     ['https://watchluna.gd/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
     ['https://watchluna.gd/watch/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
     ['https://www.watchluna.gd/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
+    ['https://watchluna.to/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
+    ['https://watchluna.to/watch/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
+    ['https://watchluna.io/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
+    ['https://watchluna.io/tv/1399/2/3', { kind: 'tv', tmdbId: '1399', season: '2', episode: '3' }],
     [
       'https://watchluna.com/movies/watch-your-fault-london-online-free-1477317',
       { kind: 'movie', tmdbId: '1477317' },
@@ -134,6 +150,7 @@ describe('watchluna getInfo', () => {
       }
       if (target.includes('cdn.ngcorp.dad')) return Promise.resolve(playlistRes(MEDIA_PLAYLIST));
       if (target.includes('roguefrequency.live')) return Promise.resolve(playlistRes(MASTER_PLAYLIST));
+      if (target.includes('cdn.example/')) return Promise.resolve(playlistRes(VARIANT_MEDIA));
       if (target.includes('seg.example') && init?.method === 'HEAD') {
         return Promise.resolve(headRes('video/mp2t', 300000));
       }
@@ -154,6 +171,13 @@ describe('watchluna getInfo', () => {
     expect(info?.formats[0].isHls).toBe(true);
     const nova = info?.formats.find((f) => f.formatId.includes('nova'));
     expect(nova?.filesize).toBe(300000);
+  });
+
+  it('measures variant sizes from real segments, not the inflated claim', async () => {
+    mockHappy();
+    const info = await getInfo('https://watchluna.gd/watch/movie/1477317');
+    const orion1080 = info?.formats.find((f) => f.formatId.includes('orion-1080p'));
+    expect(orion1080?.filesize).toBe(1200000);
   });
 
   it('skips sources whose segments already serve placeholders', async () => {
@@ -210,6 +234,13 @@ describe('watchluna getInfo', () => {
       return Promise.resolve(textRes('', false));
     });
     await expect(getInfo('https://watchluna.gd/movie/1477317')).rejects.toThrow(/downloadable/iu);
+  });
+
+  it('falls back to the canonical host when the pasted domain fails meta', async () => {
+    mockHappy();
+    const info = await getInfo('https://watchluna.to/movie/1477317');
+    expect(info?.title).toBe('Your Fault: London');
+    expect(info?.formats.length).toBeGreaterThan(0);
   });
 
   it('returns null for non-luna urls', async () => {

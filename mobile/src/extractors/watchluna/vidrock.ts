@@ -132,15 +132,24 @@ function playlistSegments(playlist: string, base: string): string[] {
   return out;
 }
 
-async function probeSingleHls(
+function probeSingleHls(
   url: string,
   playlist: string
 ): Promise<{ dead: boolean; filesize?: number }> {
   const all = playlistSegments(playlist, url);
-  if (all.length === 0) return { dead: true };
+  if (all.length === 0) return Promise.resolve({ dead: true });
+  return sampleSegments(all.slice(0, 2), all.length);
+}
+
+// mean segment bytes × segment count — measures the real stream instead
+// of trusting the master playlist's (often inflated) BANDWIDTH claim
+async function sampleSegments(
+  picks: string[],
+  totalSegments: number
+): Promise<{ dead: boolean; filesize?: number }> {
   let total = 0;
   let count = 0;
-  for (const seg of all.slice(0, 2)) {
+  for (const seg of picks) {
     try {
       const head = await gatedFetch(seg, { method: 'HEAD', headers: VIDROCK_HEADERS });
       if ((head.headers.get('content-type') ?? '').startsWith('image/')) {
@@ -157,7 +166,29 @@ async function probeSingleHls(
     }
   }
   if (count === 0) return { dead: false };
-  return { dead: false, filesize: Math.round((total / count) * all.length) };
+  return { dead: false, filesize: Math.round((total / count) * totalSegments) };
+}
+
+// master BANDWIDTH claims run ~2-3x hot — sample each variant's real
+// media playlist instead, falling back to the claim when probing fails
+async function estimateVariantSize(variantUrl: string): Promise<number | undefined> {
+  try {
+    const res = await gatedFetch(variantUrl, { headers: VIDROCK_HEADERS });
+    if (!res.ok) return undefined;
+    const text = await res.text();
+    if (!text.includes('#EXTM3U') || text.includes('#EXT-X-STREAM-INF')) {
+      return undefined;
+    }
+    const all = playlistSegments(text, variantUrl);
+    if (all.length === 0) return undefined;
+    const picks = [all[0], all[Math.floor(all.length / 2)], all[all.length - 1]].filter(
+      (seg, idx, arr) => seg && arr.indexOf(seg) === idx
+    );
+    const { dead, filesize } = await sampleSegments(picks.slice(0, 3), all.length);
+    return dead ? undefined : filesize;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function vidrockToFormats(
@@ -217,14 +248,18 @@ export async function vidrockToFormats(
     }
     const master = parseHlsMaster(playlist, source.url);
     const variants = hlsVariantsToFormats(master, { durationSec });
-    for (const variant of variants) {
+    const measured = await Promise.all(
+      variants.map((variant) => estimateVariantSize(variant.url))
+    );
+    variants.forEach((variant, idx) => {
       push({
         ...variant,
+        filesize: measured[idx] ?? variant.filesize,
         formatId: `vidrock-${source.name.toLowerCase()}-${variant.formatId}`,
         hlsKeepAlive: true,
         note: `vidrock ${source.name}`,
       });
-    }
+    });
   }
 
   formats.sort((lhs, rhs) => (rhs.height ?? 0) - (lhs.height ?? 0));
