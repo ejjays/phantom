@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/ejjays/phantom/actions/workflows/ci.yml"><img src="https://github.com/ejjays/phantom/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://app.deepsource.com/gh/ejjays/phantom/"><img src="https://app.deepsource.com/gh/ejjays/phantom.svg/?label=active+issues&show_trend=true&token=AjSUM1LGBlY2Uzo6_spxrx9Q" alt="DeepSource" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-green?style=flat" alt="License: Apache 2.0" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT%2FApache%202.0-green?style=flat" alt="License: MIT/Apache 2.0" /></a>
 </p>
 
 ---
@@ -53,23 +53,23 @@ Phantom downloads 4K+ video and audio. It pushes heavy media work onto your devi
 
 | Platform    | Web | Mobile | Video | Audio | Images | Notes                                      |
 | ----------- | :-: | :----: | :---: | :---: | :----: | ------------------------------------------ |
-| YouTube     | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | playlists, shorts, 4K                      |
-| Spotify     | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | tracks & albums resolve via youtube search |
-| SoundCloud  | ✅  |   ✅   |  ➖   |  ✅   |   ➖   | audio-only service                         |
-| Bilibili    | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | some videos need a cookie                  |
-| TikTok      | ✅  |   ✅   |  ✅   |  ✅   |   ✅   | videos + photo carousels                   |
-| Instagram   | ✅  |   ✅   |  ✅   |  ✅   |   ✅   | reels, posts, multi-image picker           |
-| Facebook    | ✅  |   ✅   |  ✅   |  ✅   |   ✅   | public posts only                          |
-| Threads     | ✅  |   ✅   |  ✅   |  ✅   |   ✅   |                                            |
-| X / Twitter | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | videos & gifs only                         |
-| Bluesky     | ✅  |   ✅   |  ✅   |  ❌   |   ➖   | hls only, no audio                         |
-| Vimeo       | ✅  |   ✅   |  ✅   |  ❌   |   ➖   | hls only, no audio                         |
-| Dailymotion | ✅  |   ✅   |  ✅   |  ❌   |   ➖   | hls only, no audio                         |
-| Reddit      | ✅  |   ✅   |  ✅   |  ✅   |   ➖   |                                            |
-| Pinterest   | ✅  |   ✅   |  ✅   |  ✅   |   ✅   | video pins + photos                        |
-| Twitch      | ✅  |   ✅   |  ✅   |  ❌   |   ➖   | clips, hls only                            |
-| Snapchat    | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | spotlight videos + t.snapchat.com shorts   |
-| Watchluna   | ❌  |   ✅   |  ✅   |  ❌   |   ➖   | movies & shows, 1080p hls                  |
+| [YouTube](https://www.youtube.com)     | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | playlists, shorts, 4K                      |
+| [Spotify](https://open.spotify.com)     | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | tracks & albums resolve via youtube search |
+| [SoundCloud](https://soundcloud.com)  | ✅  |   ✅   |  ➖   |  ✅   |   ➖   | audio-only service                         |
+| [Bilibili](https://www.bilibili.com)    | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | some videos need a cookie                  |
+| [TikTok](https://www.tiktok.com)      | ✅  |   ✅   |  ✅   |  ✅   |   ✅   | videos + photo carousels                   |
+| [Instagram](https://www.instagram.com)   | ✅  |   ✅   |  ✅   |  ✅   |   ✅   | reels, posts, multi-image picker           |
+| [Facebook](https://www.facebook.com)    | ✅  |   ✅   |  ✅   |  ✅   |   ✅   | public posts only                          |
+| [Threads](https://www.threads.com)     | ✅  |   ✅   |  ✅   |  ✅   |   ✅   |                                            |
+| [X / Twitter](https://x.com) | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | videos & gifs only                         |
+| [Bluesky](https://bsky.app)     | ✅  |   ✅   |  ✅   |  ❌   |   ➖   | hls only, no audio                         |
+| [Vimeo](https://vimeo.com)       | ✅  |   ✅   |  ✅   |  ❌   |   ➖   | hls only, no audio                         |
+| [Dailymotion](https://www.dailymotion.com) | ✅  |   ✅   |  ✅   |  ❌   |   ➖   | hls only, no audio                         |
+| [Reddit](https://www.reddit.com)      | ✅  |   ✅   |  ✅   |  ✅   |   ➖   |                                            |
+| [Pinterest](https://www.pinterest.com)   | ✅  |   ✅   |  ✅   |  ✅   |   ✅   | video pins + photos                        |
+| [Twitch](https://www.twitch.tv)      | ✅  |   ✅   |  ✅   |  ❌   |   ➖   | clips, hls only                            |
+| [Snapchat](https://www.snapchat.com)    | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | spotlight videos + t.snapchat.com shorts   |
+| [Watchluna](https://lunagate.org)   | ❌  |   ✅   |  ✅   |  ❌   |   ➖   | movies & shows, 1080p hls                  |
 
 ---
 

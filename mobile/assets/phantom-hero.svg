@@ -113,6 +113,5 @@
   </g>
 
   <text x="530" y="225" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="100" font-weight="900" fill="url(#title-grad)" filter="url(#title-glow)">Cyan Phantom</text>
-  <text x="534" y="286" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="600" letter-spacing="6" fill="#22d3ee">MEDIA ORCHESTRATION ENGINE</text>
-  <text x="534" y="336" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="18" letter-spacing="1" fill="#7dd3fc">Download · Mux · Save — fully on-device</text>
+  <text x="534" y="286" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="600" letter-spacing="6" fill="#22d3ee">Download · Mux — fully on-device</text>
 </svg>
