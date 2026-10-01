@@ -67,3 +67,9 @@ Before putting an instance on the public internet, read [`protect-an-instance.md
 ## Mobile App
 
 - **Android app** (standalone, no backend): see [`mobile-app.md`](mobile-app.md) and `mobile/README.md`
+
+## Design Notes
+
+- **No server for mobile** — each phone is its own residential IP + compute. Avoids datacenter bot-blocks and OOM kills on free tiers.
+- **Client-side muxing is primary** — `mediabunny` (pure-JS muxer) runs in a Web Worker, streams to OPFS. Server fallback via `ffmpeg -c copy` only when client mux fails or browser unsupported.
+- **Googlevideo throttle bypass** — api uses 8 MB ranged chunks, mobile uses 4 MB. Both parallel with per-chunk retry.

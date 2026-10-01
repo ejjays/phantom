@@ -119,7 +119,7 @@ npm start       # Expo dev client
 eas build --profile development  # dev client APK
 ```
 
-Prebuilt APKs: built via EAS on GitHub Actions (`build-apk.yml`, `eas build --local`, profiles development/preview/production) and downloadable from the workflow's artifacts. Android only — iOS untested/unsupported.
+Prebuilt APKs: see [the mobile README](mobile/README.md) (Android only — iOS untested/unsupported).
 
 ---
 
@@ -143,11 +143,7 @@ phantom/
 └── docs/               # self-host, env, hardening, API, mobile
 ```
 
-**Key architectural decisions:**
-
-- **No server for mobile** — each phone is its own residential IP + compute. Avoids datacenter bot-blocks and OOM kills on free tiers.
-- **Client-side muxing is primary** — `mediabunny` (pure-JS muxer) runs in a Web Worker, streams to OPFS. Server fallback via `ffmpeg -c copy` only when client mux fails or browser unsupported.
-- **Googlevideo throttle bypass** — api uses 8 MB ranged chunks, mobile uses 4 MB. Both parallel with per-chunk retry.
+**Key architectural decisions** live in [`docs/run-an-instance.md`](docs/run-an-instance.md#design-notes).
 
 ---
 
