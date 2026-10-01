@@ -115,6 +115,12 @@ export const PLATFORMS: readonly Platform[] = [
     caps: { video: 'yes', audio: 'yes', image: 'na' },
     note: 'spotlight videos, t.snapchat.com short links',
   },
+  {
+    id: 'watchluna',
+    name: 'Watchluna',
+    caps: { video: 'yes', audio: 'no', image: 'na' },
+    note: 'movies & shows, 1080p hls',
+  },
 ];
 
 export const PLATFORM_NAMES = PLATFORMS.map((platform) => platform.name);

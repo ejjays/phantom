@@ -69,6 +69,7 @@ Phantom downloads 4K+ video and audio. It pushes heavy media work onto your devi
 | Pinterest   | ✅  |   ✅   |  ✅   |  ✅   |   ✅   | video pins + photos                        |
 | Twitch      | ✅  |   ✅   |  ✅   |  ❌   |   ➖   | clips, hls only                            |
 | Snapchat    | ✅  |   ✅   |  ✅   |  ✅   |   ➖   | spotlight videos + t.snapchat.com shorts   |
+| Watchluna   | ❌  |   ✅   |  ✅   |  ❌   |   ➖   | movies & shows, 1080p hls                  |
 
 ---
 
