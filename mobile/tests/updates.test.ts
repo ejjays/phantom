@@ -5,7 +5,7 @@ import {
   suggestUsernameFrom,
   summarizeReactions,
   planReactionToggle,
-  reactionImageUrl,
+  reactionAnimation,
   relativeTime,
   generateGuestName,
   isGuestName,
@@ -136,15 +136,13 @@ describe('summarizeReactions', () => {
   });
 });
 
-describe('reactionImageUrl', () => {
-  it.each(REACTION_EMOJIS)('maps %s to an animated smiley url', (emoji) => {
-    expect(reactionImageUrl(emoji)).toMatch(
-      /^https:\/\/c-phantom\.pages\.dev\/i\/smileys\/[\w-]+\.webp$/u
-    );
+describe('reactionAnimation', () => {
+  it.each(REACTION_EMOJIS)('maps %s to a bundled lottie source', (emoji) => {
+    expect(reactionAnimation(emoji)).toBeTruthy();
   });
 
   it('returns null for unknown emoji', () => {
-    expect(reactionImageUrl('😳')).toBeNull();
+    expect(reactionAnimation('😳')).toBeNull();
   });
 });
 

@@ -144,4 +144,77 @@ describe('downloadPlaylistToFile', () => {
     expect(result.segments).toBe(4);
     expect(result.bytes).toBe(4);
   });
+
+  it('rejects image-typed segments instead of baking placeholders in', async () => {
+    const playlist = ['#EXTM3U', '#EXTINF:1,', 's0.ts'].join('\n');
+    global.fetch = ((input: string) => {
+      if (input.includes('playlist.m3u8')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(playlist),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: () => 'image/png' },
+        arrayBuffer: () =>
+          Promise.resolve(new Uint8Array([0x89, 0x50, 0x4e, 0x47]).buffer),
+      });
+    }) as unknown as typeof fetch;
+    const file = {
+      exists: false,
+      delete: vi.fn(),
+      create: vi.fn(),
+      open: () => ({ writeBytes: vi.fn(), close: vi.fn() }),
+    };
+    await expect(
+      downloadPlaylistToFile(
+        'https://cdn.example/hls/playlist.m3u8',
+        {},
+        file as unknown as Parameters<typeof downloadPlaylistToFile>[2],
+        () => {},
+        4
+      )
+    ).rejects.toThrow(/expired link/iu);
+  });
+
+  it('rejects png magic bytes even without a content type', async () => {
+    const playlist = ['#EXTM3U', '#EXTINF:1,', 's0.ts'].join('\n');
+    global.fetch = ((input: string) => {
+      if (input.includes('playlist.m3u8')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(playlist),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        arrayBuffer: () =>
+          Promise.resolve(
+            new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+              .buffer
+          ),
+      });
+    }) as unknown as typeof fetch;
+    const file = {
+      exists: false,
+      delete: vi.fn(),
+      create: vi.fn(),
+      open: () => ({ writeBytes: vi.fn(), close: vi.fn() }),
+    };
+    await expect(
+      downloadPlaylistToFile(
+        'https://cdn.example/hls/playlist.m3u8',
+        {},
+        file as unknown as Parameters<typeof downloadPlaylistToFile>[2],
+        () => {},
+        4
+      )
+    ).rejects.toThrow(/png/iu);
+  });
 });

@@ -42,6 +42,7 @@ PickerModal → useDownload → downloadPipeline.ts
 | Spotify                                                                                            | Token minted server-side by the `spotify-token` Supabase edge function; track/album/playlist → search YouTube                                  |
 | Bilibili, TikTok, Instagram, X, Threads, Facebook, Bluesky, Reddit, SoundCloud, Vimeo, Dailymotion | Pure JS: fetch page/API → parse embedded JSON (regex fallback) via `gatedFetch`                                                                |
 | Pinterest, Twitch                                                                                  | Pure JS via `gatedFetch`                                                                                                                        |
+| Watchluna                                                                                          | Luna page meta + Vidrock API sources, AES-GCM decrypt in pure TS (no WebCrypto), HLS ladders via `gatedFetch`                                     |
 
 All extractors return common `VideoInfo` / `Format[]` (`types.ts`). Pure-JS extractors use `gatedFetch` (`lib/net.ts`) — per-host concurrency + 429 backoff to avoid bot-blocks.
 

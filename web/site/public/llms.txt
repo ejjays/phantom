@@ -1,6 +1,6 @@
 # Phantom
 
-> Phantom is a free, ad-free Android app that downloads videos and music from 15 platforms — YouTube, TikTok, Instagram, X, Facebook, Threads, Bluesky, Reddit, SoundCloud, Spotify, Vimeo, Bilibili, Dailymotion, Pinterest and Twitch — and saves them straight to the device gallery. It has no backend and no server component at all — the entire pipeline (resolve, download, mux, tag) runs fully on the user's own phone, through their own IP.
+> Phantom is a free, ad-free Android app that downloads videos and music from 16 platforms — YouTube, TikTok, Instagram, X, Facebook, Threads, Bluesky, Reddit, SoundCloud, Spotify, Vimeo, Bilibili, Dailymotion, Pinterest, Twitch and Watchluna — and saves them straight to the device gallery. It has no backend and no server component at all — the entire pipeline (resolve, download, mux, tag) runs fully on the user's own phone, through their own IP.
 
 ## Product
 
@@ -13,7 +13,7 @@
 - Platform: Android (APK, sideloaded; updates ship over-the-air as JS-only patches)
 - Price: completely free, no premium tier, no ads, no download caps
 - Quality: video up to 8K, audio as properly tagged MP3/M4A, HLS streams assembled locally
-- Platforms: 15 dedicated extractors (YouTube, TikTok, Instagram, X/Twitter, Facebook, Threads, Bluesky, Reddit, SoundCloud, Spotify, Vimeo, Bilibili, Dailymotion, Pinterest, Twitch) plus an opt-in generic extractor that can grab media from other sites
+- Platforms: 16 dedicated extractors (YouTube, TikTok, Instagram, X/Twitter, Facebook, Threads, Bluesky, Reddit, SoundCloud, Spotify, Vimeo, Bilibili, Dailymotion, Pinterest, Twitch, Watchluna) plus an opt-in generic extractor that can grab media from other sites
 - Privacy: media never leaves the phone; nothing is uploaded, tracked or logged
 - Accounts: none required; optional community feed sign-in only for reactions/comments
 

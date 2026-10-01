@@ -1,4 +1,10 @@
+import type { ComponentProps } from 'react';
+import type LottieView from 'lottie-react-native';
 import { getRandomValues } from 'expo-crypto';
+import fireAnimation from '../../../assets/reactions/fire.json';
+import heartAnimation from '../../../assets/reactions/heart.json';
+import partyAnimation from '../../../assets/reactions/party.json';
+import thumbsupAnimation from '../../../assets/reactions/thumbsup.json';
 
 export type UpdateCategory = 'feature' | 'optimization' | 'fix';
 
@@ -45,28 +51,17 @@ export type Validation =
 
 export const REACTION_EMOJIS = ['🔥', '❤️', '🎉', '👍'] as const;
 
-const REACTION_SLUGS: Record<string, string> = {
-  '🔥': 'star-struck',
-  '❤️': 'smiling-face-with-hearts',
-  '🎉': 'partying-face',
-  '👍': 'grinning-face',
+type LottieSource = ComponentProps<typeof LottieView>['source'];
+
+const REACTION_ANIMATIONS: Record<string, LottieSource> = {
+  '🔥': fireAnimation,
+  '❤️': heartAnimation,
+  '🎉': partyAnimation,
+  '👍': thumbsupAnimation,
 };
 
-export function reactionImageUrl(emoji: string): string | null {
-  const slug = REACTION_SLUGS[emoji];
-  return slug ? `https://c-phantom.pages.dev/i/smileys/${slug}.webp` : null;
-}
-
-const REACTION_PLAY_MS: Record<string, number> = {
-  'star-struck': 2970,
-  'smiling-face-with-hearts': 2407,
-  'partying-face': 2970,
-  'grinning-face': 2970,
-};
-
-export function reactionPlayMs(emoji: string): number | null {
-  const slug = REACTION_SLUGS[emoji];
-  return slug ? (REACTION_PLAY_MS[slug] ?? 0) : null;
+export function reactionAnimation(emoji: string): LottieSource | null {
+  return REACTION_ANIMATIONS[emoji] ?? null;
 }
 const USERNAME_MIN = 3;
 const USERNAME_MAX = 20;

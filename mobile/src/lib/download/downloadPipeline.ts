@@ -1,7 +1,7 @@
 import { File, Paths } from 'expo-file-system';
 import { deleteAsync, moveAsync } from 'expo-file-system/legacy';
 import { DESKTOP_UA } from '../userAgents';
-import type { Format, VideoInfo } from '../../extractors/shared/types';
+import type { Format, VideoInfo } from '@phantom/extractors';
 import { refererFor, type DownloadState } from '../format';
 import { chunkedDownload } from './download';
 import {
@@ -62,7 +62,7 @@ function buildInflight(
     id: stem,
     title: pick(seed?.title, info.title),
     author: pick(seed?.author, info.uploader),
-    platform: pick(seed?.platform, info.extractorKey),
+    platform: pick(seed?.platform, info.extractorKey ?? ''),
     ext: pick(seed?.ext, format.extension || 'mp4'),
     isAudio: pick(seed?.isAudio, format.isAudio && !format.isVideo),
     thumbnail: pick(seed?.thumbnail, info.thumbnail),
@@ -156,7 +156,7 @@ async function fetchMedia({
   const ext = format.extension || 'mp4';
   const headers = info.downloadHeaders ?? {
     'User-Agent': DESKTOP_UA,
-    Referer: refererFor(info.extractorKey),
+    Referer: refererFor(info.extractorKey ?? ''),
   };
 
   const fetchTo = async (
@@ -314,38 +314,65 @@ async function fetchMedia({
     const onHls = (pct: number): void =>
       onState({ status: 'downloading', progress: Math.min(98, pct) });
     // separate video+audio hls -> parallel fetch; else ffmpeg
-    let ok = false;
+    // signed hls urls expire mid-queue — one fresh-resolve retry before failing
     let path = 'ffmpeg';
-    if (format.hlsAudioUrl) {
-      ok = await parallelHlsToMp4(
-        format.url,
-        format.hlsAudioUrl,
+    const runHls = async (playlistUrl: string): Promise<boolean> => {
+      if (format.hlsAudioUrl) {
+        const okSplit = await parallelHlsToMp4(
+          playlistUrl,
+          format.hlsAudioUrl,
+          outFile,
+          headers,
+          onHls,
+          signal
+        );
+        if (okSplit) {
+          path = 'parallel';
+          return true;
+        }
+        return hlsToMp4(
+          playlistUrl,
+          outFile,
+          durationSec,
+          onHls,
+          format.hlsAudioUrl,
+          format.hlsKeepAlive
+        );
+      }
+      const okMuxed = await parallelHlsMuxedToMp4(
+        playlistUrl,
         outFile,
         headers,
         onHls,
         signal
       );
-      if (ok) path = 'parallel';
-    } else {
-      ok = await parallelHlsMuxedToMp4(
-        format.url,
-        outFile,
-        headers,
-        onHls,
-        signal
-      );
-      if (ok) path = 'parallel-muxed';
-    }
-    if (signal.aborted) throw new Error(ABORT_MESSAGE);
-    if (!ok) {
-      ok = await hlsToMp4(
-        format.url,
+      if (okMuxed) {
+        path = 'parallel-muxed';
+        return true;
+      }
+      return hlsToMp4(
+        playlistUrl,
         outFile,
         durationSec,
         onHls,
-        format.hlsAudioUrl,
+        undefined,
         format.hlsKeepAlive
       );
+    };
+    let ok = await runHls(format.url);
+    if (!ok && !signal.aborted) {
+      let freshUrl: string | null = null;
+      try {
+        freshUrl = await refreshStreamUrl(info, format, format.url);
+      } catch {
+        freshUrl = null;
+      }
+      if (freshUrl && freshUrl !== format.url) {
+        log('downloadPipeline', '[Download] hls links expired, re-resolved');
+        onState({ status: 'downloading', progress: 0 });
+        ok = await runHls(freshUrl);
+        if (ok) path = `${path}-refresh`;
+      }
     }
     log(
       'downloadPipeline',
