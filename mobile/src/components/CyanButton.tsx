@@ -1,10 +1,15 @@
-import { ActivityIndicator, Pressable, Text } from 'react-native';
+import { useEffect } from 'react';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
 import tw from '../lib/tw';
-
-// donate-button glow, dimmed cyan for dark theme
-const DONATE_GLOW =
-  '0px 0px 16px rgba(34, 168, 195, 0.35), 0px 4px 5px -1px rgba(19, 111, 134, 0.4)';
 
 export default function CyanButton({
   label,
@@ -20,51 +25,67 @@ export default function CyanButton({
   accessibilityLabel?: string;
 }) {
   const isDisabled = Boolean(disabled || loading);
+  const pulse = useSharedValue(0);
+
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, [pulse]);
+
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: 0.4 + pulse.value * 0.45,
+    transform: [{ scale: 1 + pulse.value * 0.06 }],
+  }));
+
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={isDisabled}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
-      style={({ pressed }) => [
-        tw`w-full rounded-full`,
-        !isDisabled ? { boxShadow: DONATE_GLOW } : null,
-        pressed && !isDisabled ? tw`opacity-90` : null,
-      ]}
-    >
-      <LinearGradient
-        colors={
-          isDisabled
-            ? ['#1e293b', '#1e293b']
-            : ['#136f86', '#22a8c3', '#136f86']
-        }
-        locations={isDisabled ? undefined : [0, 0.55, 0.9]}
-        start={{ x: 1, y: 1 }}
-        end={{ x: 0, y: 0 }}
-        style={tw`w-full items-center justify-center overflow-hidden rounded-full py-4`}
+    <View>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          { position: 'absolute', top: -28, left: -28, right: -28, bottom: -28 },
+          haloStyle,
+        ]}
       >
-        {isDisabled ? null : (
-          <LinearGradient
-            colors={[
-              'rgba(165, 243, 252, 0.3)',
-              'rgba(165, 243, 252, 0)',
-              'rgba(8, 60, 75, 0.3)',
-            ]}
-            locations={[0, 0.5, 1]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            pointerEvents="none"
-            style={tw`absolute inset-0 rounded-full`}
-          />
-        )}
-        {loading ? (
-          <ActivityIndicator size="small" color="#ffffff" />
-        ) : (
-          <Text style={tw`text-[17px] font-sans-medium text-white`}>
-            {label}
-          </Text>
-        )}
-      </LinearGradient>
-    </Pressable>
+        <Svg width="100%" height="100%">
+          <Defs>
+            <RadialGradient id="halo" cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor="#22d3ee" stopOpacity={0.55} />
+              <Stop offset="45%" stopColor="#0e7490" stopOpacity={0.3} />
+              <Stop offset="100%" stopColor="#06b6d4" stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill="url(#halo)" />
+        </Svg>
+      </Animated.View>
+
+      <Pressable
+        disabled={isDisabled}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? label}
+        style={({ pressed }) => [
+          tw.style('rounded-3xl', isDisabled && 'opacity-50'),
+          pressed && !isDisabled ? tw`opacity-90` : null,
+        ]}
+      >
+        <LinearGradient
+          colors={['#00c0b7', '#002396'] as const}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={tw`items-center justify-center overflow-hidden rounded-3xl py-4`}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <Text style={tw`text-[15px] font-mono-bold uppercase tracking-wider text-white`}>
+              {label}
+            </Text>
+          )}
+        </LinearGradient>
+      </Pressable>
+    </View>
   );
 }
