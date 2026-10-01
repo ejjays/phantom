@@ -1,5 +1,5 @@
 import { type TextStyle, type StyleProp } from 'react-native';
-import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 export default function AnimatedCount({
   value,
@@ -13,7 +13,6 @@ export default function AnimatedCount({
     <Animated.Text
       key={value}
       entering={FadeInDown.duration(200)}
-      exiting={FadeOutUp.duration(200)}
       style={style}
     >
       {value}
