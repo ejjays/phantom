@@ -1,4 +1,4 @@
-export const LUNA_HOSTS = ['watchluna.com', 'watchluna.gd'];
+export const LUNA_HOSTS = ['watchluna.com', 'watchluna.gd', 'watchluna.to', 'watchluna.io'];
 
 export const LUNA_BASE = 'https://watchluna.gd';
 
