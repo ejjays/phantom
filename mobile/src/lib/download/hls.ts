@@ -5,6 +5,42 @@ interface WriteHandle {
   writeBytes: (bytes: Uint8Array) => void;
 }
 
+// expired signed segment urls often return http 200 with a placeholder
+// (image, error page) instead of an error — sniff every segment so a
+// dead link fails loud instead of baking garbage into the output file
+function assertVideoSegment(bytes: Uint8Array, contentType: string | null): void {
+  if (contentType?.startsWith('image/')) {
+    throw new Error(`segment content ${contentType} (expired link?)`);
+  }
+  if (bytes.length >= 8) {
+    if (
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47
+    ) {
+      throw new Error('segment content png (expired link?)');
+    }
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+      throw new Error('segment content jpeg (expired link?)');
+    }
+    if (
+      bytes[0] === 0x47 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x38
+    ) {
+      throw new Error('segment content gif (expired link?)');
+    }
+    if (
+      bytes[0] === 0x3c &&
+      (bytes[1] === 0x21 || bytes[1] === 0x68 || bytes[1] === 0x48)
+    ) {
+      throw new Error('segment content html (expired link?)');
+    }
+  }
+}
+
 // init (#EXT-X-MAP) + media segments, in playlist order
 export function parseMediaPlaylist(text: string, baseUrl: string): string[] {
   const urls: string[] = [];
@@ -108,7 +144,9 @@ export async function downloadPlaylistToFile(
             if (seg.status >= 400) {
               throw new Error(`segment HTTP ${seg.status}`);
             }
-            return new Uint8Array(await seg.arrayBuffer());
+            const bytes = new Uint8Array(await seg.arrayBuffer());
+            assertVideoSegment(bytes, seg.headers?.get?.('content-type') ?? null);
+            return bytes;
           },
           { retries: 2, delayMs: 400, signal }
         ),

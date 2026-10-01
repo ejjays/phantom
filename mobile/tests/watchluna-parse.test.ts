@@ -99,13 +99,28 @@ describe('decryptVidrockPayload', () => {
   });
 });
 
+function headRes(contentType: string, length: number): Response {
+  return {
+    ok: true,
+    status: 200,
+    headers: {
+      get: (name: string) =>
+        name === 'content-type'
+          ? contentType
+          : name === 'content-length'
+            ? String(length)
+            : null,
+    },
+  } as unknown as Response;
+}
+
 describe('watchluna getInfo', () => {
   beforeEach(() => {
     mockFetch.mockReset();
   });
 
   function mockHappy(): void {
-    mockFetch.mockImplementation((reqUrl: unknown) => {
+    mockFetch.mockImplementation((reqUrl: unknown, init?: RequestInit) => {
       const target = String(reqUrl);
       if (target.includes('watchluna.gd/movie/')) return Promise.resolve(textRes(LUNA_HTML));
       if (target.includes('vidrock.net/api/movie/')) {
@@ -119,6 +134,9 @@ describe('watchluna getInfo', () => {
       }
       if (target.includes('cdn.ngcorp.dad')) return Promise.resolve(playlistRes(MEDIA_PLAYLIST));
       if (target.includes('roguefrequency.live')) return Promise.resolve(playlistRes(MASTER_PLAYLIST));
+      if (target.includes('seg.example') && init?.method === 'HEAD') {
+        return Promise.resolve(headRes('video/mp2t', 300000));
+      }
       return Promise.resolve(textRes('', false));
     });
   }
@@ -134,6 +152,34 @@ describe('watchluna getInfo', () => {
     expect(ids.some((id) => id.includes('1080p'))).toBe(true);
     expect(info?.formats[0].height).toBe(1080);
     expect(info?.formats[0].isHls).toBe(true);
+    const nova = info?.formats.find((f) => f.formatId.includes('nova'));
+    expect(nova?.filesize).toBe(300000);
+  });
+
+  it('skips sources whose segments already serve placeholders', async () => {
+    mockHappy();
+    mockFetch.mockImplementation((reqUrl: unknown, init?: RequestInit) => {
+      const target = String(reqUrl);
+      if (target.includes('watchluna.gd/movie/')) return Promise.resolve(textRes(LUNA_HTML));
+      if (target.includes('vidrock.net/api/movie/')) {
+        return Promise.resolve(
+          jsonRes({
+            Nova: { url: NOVA_ENC, type: 'hls' },
+            Orion: { url: ORION_ENC, type: 'hls' },
+          })
+        );
+      }
+      if (target.includes('cdn.ngcorp.dad')) return Promise.resolve(playlistRes(MEDIA_PLAYLIST));
+      if (target.includes('roguefrequency.live')) return Promise.resolve(playlistRes(MASTER_PLAYLIST));
+      if (target.includes('seg.example') && init?.method === 'HEAD') {
+        return Promise.resolve(headRes('image/png', 618214));
+      }
+      return Promise.resolve(textRes('', false));
+    });
+    const info = await getInfo('https://watchluna.gd/movie/1477317');
+    const ids = (info?.formats ?? []).map((f) => f.formatId);
+    expect(ids.some((id) => id.includes('nova'))).toBe(false);
+    expect(ids.some((id) => id.includes('1080p'))).toBe(true);
   });
 
   it('resolves the legacy watchluna.com movie slug', async () => {

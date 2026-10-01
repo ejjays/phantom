@@ -97,8 +97,7 @@ function mp4Format(name: string, url: string): Format {
   };
 }
 
-function singleHls(name: string, url: string, durationSec: number): Format {
-  void durationSec;
+function singleHls(name: string, url: string, filesize?: number): Format {
   return {
     formatId: `vidrock-${name.toLowerCase()}-1080p`,
     url,
@@ -107,6 +106,7 @@ function singleHls(name: string, url: string, durationSec: number): Format {
     quality: '1080p',
     width: 1920,
     height: 1080,
+    filesize,
     vcodec: 'h264',
     acodec: 'aac',
     isMuxed: true,
@@ -116,6 +116,48 @@ function singleHls(name: string, url: string, durationSec: number): Format {
     hlsKeepAlive: true,
     note: `vidrock ${name} hls`,
   };
+}
+
+function playlistSegments(playlist: string, base: string): string[] {
+  const out: string[] = [];
+  for (const raw of playlist.split(/\r?\n/u)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    try {
+      out.push(new URL(line, base).toString());
+    } catch {
+      continue;
+    }
+  }
+  return out;
+}
+
+async function probeSingleHls(
+  url: string,
+  playlist: string
+): Promise<{ dead: boolean; filesize?: number }> {
+  const all = playlistSegments(playlist, url);
+  if (all.length === 0) return { dead: true };
+  let total = 0;
+  let count = 0;
+  for (const seg of all.slice(0, 2)) {
+    try {
+      const head = await gatedFetch(seg, { method: 'HEAD', headers: VIDROCK_HEADERS });
+      if ((head.headers.get('content-type') ?? '').startsWith('image/')) {
+        return { dead: true };
+      }
+      if (!head.ok) continue;
+      const len = Number(head.headers.get('content-length') ?? 0);
+      if (Number.isFinite(len) && len > 0) {
+        total += len;
+        count += 1;
+      }
+    } catch {
+      continue;
+    }
+  }
+  if (count === 0) return { dead: false };
+  return { dead: false, filesize: Math.round((total / count) * all.length) };
 }
 
 export async function vidrockToFormats(
@@ -168,7 +210,9 @@ export async function vidrockToFormats(
       continue;
     }
     if (!playlist.includes('#EXT-X-STREAM-INF')) {
-      push(singleHls(source.name, source.url, durationSec));
+      const probe = await probeSingleHls(source.url, playlist);
+      if (probe.dead) continue;
+      push(singleHls(source.name, source.url, probe.filesize));
       continue;
     }
     const master = parseHlsMaster(playlist, source.url);
