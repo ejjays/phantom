@@ -1,5 +1,5 @@
 import { File } from 'expo-file-system';
-import { muxAv, remuxParts, concatFiles } from '../../../modules/media-mux';
+import { muxAv, remuxParts, remuxWebm, concatFiles } from '../../../modules/media-mux';
 import { log, warn as logWarn } from '../log';
 
 // dev-only A/B switch: true skips every native attempt so timings can be
@@ -33,6 +33,11 @@ export async function nativeMuxVideoAudio(
   outFile: File
 ): Promise<boolean> {
   if (forcedOff('av')) return false;
+  const videoPath = rawPath(videoFile);
+  const audioPath = rawPath(audioFile);
+  if (videoPath.toLowerCase().endsWith('.webm') || audioPath.toLowerCase().endsWith('.webm')) {
+    return nativeRemuxWebm(videoFile, audioFile, outFile);
+  }
   try {
     if (outFile.exists) outFile.delete();
     const started = Date.now();
@@ -63,6 +68,27 @@ export async function nativeRemux(srcFile: File, outFile: File): Promise<boolean
     return validOutput(outFile, stats);
   } catch (error: unknown) {
     logWarn('nativeMux', `[native-mux] remux failed (${reason(error)}), ffmpeg next`);
+    return false;
+  }
+}
+
+export async function nativeRemuxWebm(
+  videoFile: File,
+  audioFile: File,
+  outFile: File
+): Promise<boolean> {
+  if (forcedOff('webm')) return false;
+  try {
+    if (outFile.exists) outFile.delete();
+    const started = Date.now();
+    const { bytes } = await remuxWebm(rawPath(videoFile), rawPath(audioFile), rawPath(outFile));
+    log(
+      'nativeMux',
+      `[native-mux] webm ok: ${bytes} bytes in ${((Date.now() - started) / 1000).toFixed(1)}s`
+    );
+    return validOutput(outFile, { bytes });
+  } catch (error: unknown) {
+    logWarn('nativeMux', `[native-mux] webm failed (${reason(error)}), ffmpeg next`);
     return false;
   }
 }

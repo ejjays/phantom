@@ -1,1 +1,8 @@
-export { muxAv, remuxParts, concatFiles, type MuxStats } from './src/MediaMux';
+export {
+  muxAv,
+  remuxParts,
+  concatFiles,
+  remuxWebm,
+  cloneFragmentedMp4,
+  type MuxStats,
+} from './src/MediaMux';

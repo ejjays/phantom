@@ -10,6 +10,12 @@ type MediaMuxModuleType = {
   muxAv(videoPath: string, audioPath: string, outPath: string): Promise<MuxStats>;
   remuxParts(inputs: string[], outPath: string): Promise<MuxStats>;
   concatFiles(inputs: string[], outPath: string): Promise<{ bytes: number }>;
+  remuxWebm(
+    videoPath: string | null,
+    audioPath: string | null,
+    outPath: string
+  ): Promise<{ bytes: number }>;
+  cloneFragmentedMp4(inPath: string, outPath: string): Promise<{ bytes: number }>;
 };
 
 const native = requireNativeModule<MediaMuxModuleType>('MediaMux');
@@ -28,4 +34,16 @@ export function remuxParts(inputs: string[], outPath: string): Promise<MuxStats>
 
 export function concatFiles(inputs: string[], outPath: string): Promise<{ bytes: number }> {
   return native.concatFiles(inputs, outPath);
+}
+
+export function remuxWebm(
+  videoPath: string | null,
+  audioPath: string | null,
+  outPath: string
+): Promise<{ bytes: number }> {
+  return native.remuxWebm(videoPath, audioPath, outPath);
+}
+
+export function cloneFragmentedMp4(inPath: string, outPath: string): Promise<{ bytes: number }> {
+  return native.cloneFragmentedMp4(inPath, outPath);
 }

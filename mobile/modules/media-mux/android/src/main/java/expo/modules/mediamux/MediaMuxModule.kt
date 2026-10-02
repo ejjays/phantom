@@ -26,6 +26,14 @@ class MediaMuxModule : Module() {
     AsyncFunction("concatFiles") { inputs: List<String>, outPath: String ->
       concatFiles(inputs, outPath)
     }
+
+    AsyncFunction("remuxWebm") { videoPath: String?, audioPath: String?, outPath: String ->
+      remuxWebm(videoPath, audioPath, outPath)
+    }
+
+    AsyncFunction("cloneFragmentedMp4") { inPath: String, outPath: String ->
+      cloneFragmentedMp4(inPath, outPath)
+    }
   }
 
   private fun concatFiles(inputs: List<String>, outPath: String): Map<String, Any> {
@@ -46,6 +54,23 @@ class MediaMuxModule : Module() {
       }
     }
     return mapOf("bytes" to bytes)
+  }
+
+  private fun remuxWebm(
+    videoPath: String?,
+    audioPath: String?,
+    outPath: String
+  ): Map<String, Any> {
+    if (videoPath == null && audioPath == null) {
+      throw CodedException("ERR_NO_INPUTS", "need a video and/or audio path", null)
+    }
+    WebmRemux.remuxWebm(videoPath, audioPath, outPath)
+    return mapOf("bytes" to java.io.File(outPath).length())
+  }
+
+  private fun cloneFragmentedMp4(inPath: String, outPath: String): Map<String, Any> {
+    CloneRemux.remuxFragmented(inPath, outPath)
+    return mapOf("bytes" to java.io.File(outPath).length())
   }
 
   private fun muxableVideo(mime: String): Boolean =
