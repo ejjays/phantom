@@ -105,6 +105,7 @@ class MainActivity : ComponentActivity() {
                 testRemuxTs()
                 play = testKiteRemux(av)
                 play = testCloneVp9() ?: play
+                play = testWebmVp9() ?: play
                 FileLog.line("===== all tests DONE =====")
             } catch (err: Throwable) {
                 FileLog.error("all", err)
@@ -168,5 +169,20 @@ class MainActivity : ComponentActivity() {
         CloneRemux.remuxFragmented(src, out)
         verifyOutput(out)
         return out
+    }
+
+    private suspend fun testWebmVp9(): String? {
+        return try {
+            val v = assetToCache("u4k-v.webm")
+            val a = assetToCache("u4k-a.webm")
+            val out = File(workDir, "out-webm.mp4").also { it.delete() }.absolutePath
+            FileLog.line("webm vp9+opus -> $out")
+            WebmRemux.remuxWebm(v, a, out)
+            verifyOutput(out)
+            out
+        } catch (err: Throwable) {
+            FileLog.error("webm", err)
+            null
+        }
     }
 }

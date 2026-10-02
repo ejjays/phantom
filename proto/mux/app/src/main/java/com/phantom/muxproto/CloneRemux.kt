@@ -20,7 +20,7 @@ private fun fullHeader(bb: ByteBuffer): Pair<Int, Int> {
     return ver to flags
 }
 
-private fun patchDuration(body: ByteArray, duration: Long) {
+fun patchDuration(body: ByteArray, duration: Long) {
     val ver = body[0].toInt()
     val off = if (ver == 0) 16 else 24
     val bb = ByteBuffer.wrap(body).order(ByteOrder.BIG_ENDIAN)
@@ -28,7 +28,7 @@ private fun patchDuration(body: ByteArray, duration: Long) {
     else bb.putLong(off, duration)
 }
 
-private fun buildStts(durations: List<Long>): ByteArray {
+fun buildStts(durations: List<Long>): ByteArray {
     val w = Writer()
     w.fullBox("stts", 0, 0) {
         if (durations.isEmpty()) {
@@ -56,7 +56,7 @@ private fun buildStts(durations: List<Long>): ByteArray {
     return w.toByteArray()
 }
 
-private fun buildStsc(total: Int): ByteArray {
+fun buildStsc(total: Int): ByteArray {
     val w = Writer()
     w.fullBox("stsc", 0, 0) {
         u32(1)
@@ -67,7 +67,7 @@ private fun buildStsc(total: Int): ByteArray {
     return w.toByteArray()
 }
 
-private fun buildStsz(sizes: List<Int>): ByteArray {
+fun buildStsz(sizes: List<Int>): ByteArray {
     val w = Writer()
     w.fullBox("stsz", 0, 0) {
         u32(0)
@@ -77,7 +77,7 @@ private fun buildStsz(sizes: List<Int>): ByteArray {
     return w.toByteArray()
 }
 
-private fun buildStco(offsets: List<Long>): ByteArray {
+fun buildStco(offsets: List<Long>): ByteArray {
     val w = Writer()
     w.fullBox("stco", 0, 0) {
         u32(offsets.size.toLong())
@@ -86,7 +86,7 @@ private fun buildStco(offsets: List<Long>): ByteArray {
     return w.toByteArray()
 }
 
-private fun buildStss(syncs: List<Int>): ByteArray? {
+fun buildStss(syncs: List<Int>): ByteArray? {
     if (syncs.isEmpty()) return null
     val w = Writer()
     w.fullBox("stss", 0, 0) {
@@ -96,7 +96,7 @@ private fun buildStss(syncs: List<Int>): ByteArray? {
     return w.toByteArray()
 }
 
-private fun buildCtts(offsets: List<Long>): ByteArray? {
+fun buildCtts(offsets: List<Long>): ByteArray? {
     if (offsets.all { it == 0L }) return null
     val negative = offsets.any { it < 0 }
     val w = Writer()
