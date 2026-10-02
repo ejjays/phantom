@@ -104,6 +104,7 @@ class MainActivity : ComponentActivity() {
                 val av = testMuxAv()
                 testRemuxTs()
                 play = testKiteRemux(av)
+                play = testCloneVp9() ?: play
                 FileLog.line("===== all tests DONE =====")
             } catch (err: Throwable) {
                 FileLog.error("all", err)
@@ -156,6 +157,15 @@ class MainActivity : ComponentActivity() {
         FileLog.line("kite remux $avPath -> $out")
         io.github.yuroyami.kiteffmpeg.Remuxer.remux(input = avPath, output = out)
         FileLog.line("kite done (${File(out).length()} bytes)")
+        verifyOutput(out)
+        return out
+    }
+
+    private suspend fun testCloneVp9(): String {
+        val src = assetToCache("vp9frag.mp4")
+        val out = File(workDir, "out-vp9clone.mp4").also { it.delete() }.absolutePath
+        FileLog.line("clone vp9 $src -> $out")
+        CloneRemux.remuxFragmented(src, out)
         verifyOutput(out)
         return out
     }
