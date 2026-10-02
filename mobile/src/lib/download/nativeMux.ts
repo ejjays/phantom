@@ -2,6 +2,19 @@ import { File } from 'expo-file-system';
 import { muxAv, remuxParts, concatFiles } from '../../../modules/media-mux';
 import { log, warn as logWarn } from '../log';
 
+// dev-only A/B switch: true skips every native attempt so timings can be
+// compared against the ffmpeg path on the same file. flip + metro reload,
+// no rebuild needed. never ship true.
+export const FORCE_FFMPEG_MUX = false;
+
+function forcedOff(where: string): boolean {
+  if (FORCE_FFMPEG_MUX) {
+    log('nativeMux', `[native-mux] ${where} skipped (forced ffmpeg)`);
+    return true;
+  }
+  return false;
+}
+
 function reason(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -19,6 +32,7 @@ export async function nativeMuxVideoAudio(
   audioFile: File,
   outFile: File
 ): Promise<boolean> {
+  if (forcedOff('av')) return false;
   try {
     if (outFile.exists) outFile.delete();
     const started = Date.now();
@@ -42,6 +56,7 @@ export async function nativeMuxVideoAudio(
 }
 
 export async function nativeRemux(srcFile: File, outFile: File): Promise<boolean> {
+  if (forcedOff('remux')) return false;
   try {
     if (outFile.exists) outFile.delete();
     const stats = await remuxParts([rawPath(srcFile)], rawPath(outFile));
@@ -53,6 +68,7 @@ export async function nativeRemux(srcFile: File, outFile: File): Promise<boolean
 }
 
 export async function nativeRemuxParts(files: File[], outFile: File): Promise<boolean> {
+  if (forcedOff('parts')) return false;
   try {
     if (outFile.exists) outFile.delete();
     const started = Date.now();
