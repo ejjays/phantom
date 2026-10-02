@@ -56,15 +56,11 @@ class MainActivity : ComponentActivity() {
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text("MuxProto — MediaMuxer torture tests")
+                        Text("MuxProto — mux torture tests")
                         Button(
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = { runTest("mux-av", ::testMuxAv) },
-                        ) { Text("1. Mux separate A/V -> MP4") }
-                        Button(
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = { runTest("remux-ts", ::testRemuxTs) },
-                        ) { Text("2. Remux TS segments -> MP4") }
+                            onClick = { runAll() },
+                        ) { Text("Run all tests") }
                         OutlinedButton(
                             modifier = Modifier.fillMaxWidth(),
                             onClick = { copyLog() },
@@ -99,18 +95,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun runTest(name: String, block: suspend () -> String?) {
-        FileLog.line("===== $name =====")
+    private fun runAll() {
+        FileLog.line("===== all tests =====")
         refreshLog()
         lifecycleScope.launch(Dispatchers.IO) {
-            var out: String? = null
+            var play: String? = null
             try {
-                out = block()
-                FileLog.line("===== $name DONE =====")
+                val av = testMuxAv()
+                testRemuxTs()
+                play = testKiteRemux(av)
+                FileLog.line("===== all tests DONE =====")
             } catch (err: Throwable) {
-                FileLog.error(name, err)
+                FileLog.error("all", err)
             }
-            val done = out
+            val done = play
             withContext(Dispatchers.Main) {
                 playPath = done
                 refreshLog()
@@ -140,17 +138,25 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun testMuxAv(): String {
-        val v = assetToCache("test-v.mp4")
-        val a = assetToCache("test-a.m4a")
+        val v = assetToCache("short-v.mp4")
+        val a = assetToCache("short-a.m4a")
         val out = File(workDir, "out-av.mp4").also { it.delete() }.absolutePath
         Mux.muxAv(v, a, out)
         return out
     }
 
-    private suspend fun testRemuxTs(): String {
+    private suspend fun testRemuxTs() {
         val inputs = listOf("seg-0.ts", "seg-1.ts").map(::assetToCache)
         val out = File(workDir, "out-ts.mp4").also { it.delete() }.absolutePath
         Mux.remuxTs(inputs, out)
+    }
+
+    private suspend fun testKiteRemux(avPath: String): String {
+        val out = File(workDir, "out-kite.mp4").also { it.delete() }.absolutePath
+        FileLog.line("kite remux $avPath -> $out")
+        io.github.yuroyami.kiteffmpeg.Remuxer.remux(input = avPath, output = out)
+        FileLog.line("kite done (${File(out).length()} bytes)")
+        verifyOutput(out)
         return out
     }
 }

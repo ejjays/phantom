@@ -73,7 +73,7 @@ private fun copyTrack(
     return maxPts to samples
 }
 
-private fun verifyOutput(path: String) {
+fun verifyOutput(path: String) {
     val ext = MediaExtractor().also { it.setDataSource(path) }
     try {
         for (i in 0 until ext.trackCount) {
