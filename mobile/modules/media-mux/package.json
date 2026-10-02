@@ -1,0 +1,12 @@
+{
+  "name": "media-mux",
+  "version": "1.0.0",
+  "description": "Framework MediaMuxer remux: mux separate A/V + join TS segments, no re-encode",
+  "main": "index.ts",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "expo-modules-core": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

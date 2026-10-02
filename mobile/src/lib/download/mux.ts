@@ -6,6 +6,7 @@ import {
   ReturnCode,
 } from '@nikhil-cephei/ffmpeg-kit-react-native';
 import { downloadPlaylistToFile } from './hls';
+import { nativeMuxVideoAudio, nativeRemux } from './nativeMux';
 import { DESKTOP_UA } from '../userAgents';
 import { log, warn as logWarn } from '../log';
 
@@ -31,6 +32,7 @@ export async function muxVideoAudio(
   audio: File,
   out: File
 ): Promise<boolean> {
+  if (await nativeMuxVideoAudio(video, audio, out)) return true;
   const faststart = out.name.toLowerCase().endsWith('.mp4')
     ? ' -movflags +faststart'
     : '';
@@ -230,6 +232,7 @@ export async function parallelHlsToMp4(
 }
 
 export async function remuxToMp4(src: File, out: File): Promise<boolean> {
+  if (await nativeRemux(src, out)) return true;
   const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -c copy -movflags +faststart "${fsPath(out.uri)}"`;
   const session = await FFmpegKit.execute(cmd);
   const code = await session.getReturnCode();
