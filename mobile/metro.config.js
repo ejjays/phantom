@@ -26,6 +26,9 @@ const skipNative = [
   /[/\\]node_modules[/\\].*[/\\]cpp[/\\].*/,
   /[/\\]node_modules[/\\].*[/\\]windows[/\\].*/,
   /[/\\]node_modules[/\\]@react-native[/\\]gradle-plugin[/\\].*/,
+  // standalone kotlin prototype: gradle outputs choke the haste map
+  /[/\\]proto[/\\]mux[/\\]app[/\\]build[/\\].*/,
+  /[/\\]proto[/\\]mux[/\\]\.gradle[/\\].*/,
 ];
 const existing = config.resolver.blockList;
 config.resolver.blockList = [
