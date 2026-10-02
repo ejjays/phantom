@@ -70,7 +70,12 @@ class MediaMuxModule : Module() {
     offsetUs: Long,
   ): Pair<Long, Int> {
     ext.selectTrack(track)
-    val buf = ByteBuffer.allocate(BUF_SIZE)
+    val maxSize = try {
+      ext.getTrackFormat(track).getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)
+    } catch (_: Exception) {
+      BUF_SIZE
+    }
+    val buf = ByteBuffer.allocate(maxOf(maxSize, BUF_SIZE))
     val info = MediaCodec.BufferInfo()
     var samples = 0
     var maxPts = 0L
