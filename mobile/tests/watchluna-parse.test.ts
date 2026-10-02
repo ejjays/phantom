@@ -249,6 +249,32 @@ describe('watchluna getInfo', () => {
     expect(parseLunaMeta('<title>A &amp;lt; B | Watchluna</title>', '1').title).toBe('A &lt; B');
   });
 
+  it('labels dubbed sources and sorts english first', async () => {
+    mockFetch.mockImplementation((reqUrl: unknown, init?: RequestInit) => {
+      const target = String(reqUrl);
+      if (target.includes('watchluna.gd/movie/')) return Promise.resolve(textRes(LUNA_HTML));
+      if (target.includes('vidrock.net/api/movie/')) {
+        return Promise.resolve(
+          jsonRes({
+            Nova: { url: NOVA_ENC, type: 'hls', language: 'Hindi', flag: 'in' },
+            Orion: { url: ORION_ENC, type: 'hls', language: 'English', flag: 'us' },
+          })
+        );
+      }
+      if (target.includes('cdn.ngcorp.dad')) return Promise.resolve(playlistRes(MEDIA_PLAYLIST));
+      if (target.includes('roguefrequency.live')) return Promise.resolve(playlistRes(MASTER_PLAYLIST));
+      if (target.includes('cdn.example/')) return Promise.resolve(playlistRes(VARIANT_MEDIA));
+      if (target.includes('seg.example') && init?.method === 'HEAD') {
+        return Promise.resolve(headRes('video/mp2t', 300000));
+      }
+      return Promise.resolve(textRes('', false));
+    });
+    const info = await getInfo('https://watchluna.gd/movie/1477317');
+    const hindi = info?.formats.find((f) => f.formatId.includes('nova'));
+    expect(hindi?.quality).toContain('Hindi');
+    expect(info?.formats[0].quality).toBe('1080p');
+  });
+
   it('returns null for non-luna urls', async () => {
     expect(await getInfo('https://example.com/movie/1477317')).toBeNull();
   });

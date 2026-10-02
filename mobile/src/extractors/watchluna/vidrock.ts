@@ -24,7 +24,13 @@ type VidrockEntry = {
 
 type VidrockApi = Record<string, VidrockEntry>;
 
-export type VidrockSource = { name: string; url: string; streamType: string };
+export type VidrockSource = {
+  name: string;
+  url: string;
+  streamType: string;
+  language: string;
+  flag: string;
+};
 
 export function vidrockPath(ref: LunaRef): string {
   return ref.kind === 'movie'
@@ -44,7 +50,13 @@ export async function fetchVidrockSources(ref: LunaRef): Promise<VidrockSource[]
     try {
       const url = decryptVidrockPayload(entry.url, VIDROCK_KEY_HEX);
       if (!/^https?:\/\//u.test(url)) continue;
-      out.push({ name, url, streamType: entry.type ?? '' });
+      out.push({
+        name,
+        url,
+        streamType: entry.type ?? '',
+        language: entry.language ?? '',
+        flag: entry.flag ?? '',
+      });
     } catch {
       continue;
     }
@@ -79,13 +91,27 @@ async function playlistText(url: string): Promise<string | null> {
   }
 }
 
-function mp4Format(name: string, url: string): Format {
+function isEnglishAudio(language: string): boolean {
+  return language === '' || /english|original/i.test(language);
+}
+
+function tagQuality(label: string, source: VidrockSource): string {
+  return isEnglishAudio(source.language) ? label : `${label} · ${source.language}`;
+}
+
+function tagNote(source: VidrockSource): string {
+  return isEnglishAudio(source.language)
+    ? `vidrock ${source.name}`
+    : `vidrock ${source.name} · ${source.language}`;
+}
+
+function mp4Format(source: VidrockSource, url: string): Format {
   return {
-    formatId: `vidrock-${name.toLowerCase()}-1080p`,
+    formatId: `vidrock-${source.name.toLowerCase()}-1080p`,
     url,
     extension: 'mp4',
     resolution: '1920x1080',
-    quality: '1080p',
+    quality: tagQuality('1080p', source),
     width: 1920,
     height: 1080,
     vcodec: 'h264',
@@ -93,17 +119,17 @@ function mp4Format(name: string, url: string): Format {
     isMuxed: true,
     isVideo: true,
     isAudio: false,
-    note: `vidrock ${name}`,
+    note: tagNote(source),
   };
 }
 
-function singleHls(name: string, url: string, filesize?: number): Format {
+function singleHls(source: VidrockSource, url: string, filesize?: number): Format {
   return {
-    formatId: `vidrock-${name.toLowerCase()}-1080p`,
+    formatId: `vidrock-${source.name.toLowerCase()}-1080p`,
     url,
     extension: 'mp4',
     resolution: '1920x1080',
-    quality: '1080p',
+    quality: tagQuality('1080p', source),
     width: 1920,
     height: 1080,
     filesize,
@@ -114,7 +140,7 @@ function singleHls(name: string, url: string, filesize?: number): Format {
     isAudio: false,
     isHls: true,
     hlsKeepAlive: true,
-    note: `vidrock ${name} hls`,
+    note: tagNote(source),
   };
 }
 
@@ -196,15 +222,18 @@ export async function vidrockToFormats(
   durationSec: number
 ): Promise<Format[]> {
   const formats: Format[] = [];
+  const ranks = new Map<Format, number>();
   const seen = new Set<string>();
-  const push = (format: Format): void => {
+  const push = (format: Format, rank = 0): void => {
     const key = `${format.height ?? format.formatId}|${format.url}`;
     if (seen.has(key)) return;
     seen.add(key);
     formats.push(format);
+    ranks.set(format, rank);
   };
 
   for (const source of sources) {
+    const langRank = isEnglishAudio(source.language) ? 0 : 1;
     const levels = await jsonLevels(source.url);
     if (levels) {
       for (const level of levels) {
@@ -215,7 +244,7 @@ export async function vidrockToFormats(
           formatId: `vidrock-${source.name.toLowerCase()}-${label}`,
           url: level.url,
           extension: 'mp4',
-          quality: height > 0 ? label : 'Source',
+          quality: height > 0 ? tagQuality(label, source) : 'Source',
           height: height > 0 ? height : undefined,
           vcodec: 'h264',
           acodec: 'aac',
@@ -224,26 +253,26 @@ export async function vidrockToFormats(
           isAudio: false,
           isHls: level.url.includes('.m3u8'),
           hlsKeepAlive: true,
-          note: `vidrock ${source.name}`,
-        });
+          note: tagNote(source),
+        }, langRank);
       }
       continue;
     }
 
     if (source.streamType === 'mp4' && !source.url.includes('.m3u8')) {
-      push(mp4Format(source.name, source.url));
+      push(mp4Format(source, source.url), langRank);
       continue;
     }
 
     const playlist = await playlistText(source.url);
     if (!playlist) {
-      if (source.url.includes('.mp4')) push(mp4Format(source.name, source.url));
+      if (source.url.includes('.mp4')) push(mp4Format(source, source.url), langRank);
       continue;
     }
     if (!playlist.includes('#EXT-X-STREAM-INF')) {
       const probe = await probeSingleHls(source.url, playlist);
       if (probe.dead) continue;
-      push(singleHls(source.name, source.url, probe.filesize));
+      push(singleHls(source, source.url, probe.filesize), langRank);
       continue;
     }
     const master = parseHlsMaster(playlist, source.url);
@@ -255,13 +284,16 @@ export async function vidrockToFormats(
       push({
         ...variant,
         filesize: measured[idx] ?? variant.filesize,
+        quality: tagQuality(variant.quality ?? variant.formatId, source),
         formatId: `vidrock-${source.name.toLowerCase()}-${variant.formatId}`,
         hlsKeepAlive: true,
-        note: `vidrock ${source.name}`,
-      });
+        note: tagNote(source),
+      }, langRank);
     });
   }
 
-  formats.sort((lhs, rhs) => (rhs.height ?? 0) - (lhs.height ?? 0));
+  formats.sort(
+    (lhs, rhs) => (ranks.get(lhs) ?? 0) - (ranks.get(rhs) ?? 0) || (rhs.height ?? 0) - (lhs.height ?? 0)
+  );
   return formats;
 }
