@@ -336,7 +336,9 @@ async function fetchMedia({
           durationSec,
           onHls,
           format.hlsAudioUrl,
-          format.hlsKeepAlive
+          format.hlsKeepAlive,
+          headers,
+          signal
         );
       }
       const okMuxed = await parallelHlsMuxedToMp4(
@@ -356,7 +358,9 @@ async function fetchMedia({
         durationSec,
         onHls,
         undefined,
-        format.hlsKeepAlive
+        format.hlsKeepAlive,
+        headers,
+        signal
       );
     };
     let ok = await runHls(format.url);

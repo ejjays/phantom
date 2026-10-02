@@ -3,6 +3,7 @@ import ReactNativeBlobUtil from 'react-native-blob-util';
 import * as ImagePicker from 'expo-image-picker';
 import * as Crypto from 'expo-crypto';
 import { FFmpegKit, ReturnCode } from '@nikhil-cephei/ffmpeg-kit-react-native';
+import { convertImage as nativeConvertImage } from '../../../modules/media-mux';
 import {
   requestPermissionsAsync,
   saveToLibraryAsync,
@@ -74,6 +75,15 @@ export async function captureCommentImage(): Promise<{
 // min() guards prevent upscaling small images; decrease preserves aspect.
 async function compressToWebp(srcUri: string): Promise<File> {
   const out = new File(Paths.cache, `cimg-${Crypto.randomUUID()}.webp`);
+  try {
+    await nativeConvertImage(fsPath(srcUri), fsPath(out.uri), 'webp', MAX_EDGE, WEBP_QUALITY);
+    if (out.exists) return out;
+  } catch (error: unknown) {
+    logWarn(
+      'commentImage',
+      `[webp] native failed (${error instanceof Error ? error.message : String(error)}), ffmpeg next`
+    );
+  }
   const scale = `scale=w='min(${MAX_EDGE},iw)':h='min(${MAX_EDGE},ih)':force_original_aspect_ratio=decrease`;
   const cmd = `-hide_banner -loglevel error -y -i "${fsPath(srcUri)}" -vf "${scale}" -c:v libwebp -quality ${WEBP_QUALITY} "${fsPath(out.uri)}"`;
   const session = await FFmpegKit.execute(cmd);
@@ -125,6 +135,15 @@ export async function uploadCommentImage(
 
 // transcode via mjpeg encoder; q=2 is visually lossless (mjpeg range 2-31).
 async function webpToJpg(src: File, out: File): Promise<void> {
+  try {
+    await nativeConvertImage(fsPath(src.uri), fsPath(out.uri), 'jpeg', 4096, 92);
+    if (out.exists) return;
+  } catch (error: unknown) {
+    logWarn(
+      'commentImage',
+      `[jpg] native failed (${error instanceof Error ? error.message : String(error)}), ffmpeg next`
+    );
+  }
   const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -q:v 2 "${fsPath(out.uri)}"`;
   const session = await FFmpegKit.execute(cmd);
   const code = await session.getReturnCode();

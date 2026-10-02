@@ -11,6 +11,10 @@ import {
   nativeRemux,
   nativeRemuxParts,
   nativeConcat,
+  nativeDemuxAudio,
+  nativeExtractFrame,
+  nativeTagAudio,
+  nativeHlsAssemble,
 } from './nativeMux';
 import { DESKTOP_UA } from '../userAgents';
 import { log, warn as logWarn } from '../log';
@@ -56,6 +60,7 @@ export async function muxVideoAudio(
 }
 
 export async function demuxToM4a(src: File, out: File): Promise<boolean> {
+  if (await nativeDemuxAudio(src, out)) return true;
   const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -vn -c:a copy -movflags +faststart "${fsPath(out.uri)}"`;
   const session = await FFmpegKit.execute(cmd);
   const code = await session.getReturnCode();
@@ -70,6 +75,8 @@ export async function demuxToM4a(src: File, out: File): Promise<boolean> {
 }
 
 export async function extractFrame(src: File, out: File): Promise<boolean> {
+  if (await nativeExtractFrame(src, out, 1_000_000)) return true;
+  if (await nativeExtractFrame(src, out, 0)) return true;
   const base = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}"`;
   for (const seek of ['-ss 1', '']) {
     const session = await FFmpegKit.execute(
@@ -114,6 +121,9 @@ export async function tagAudio(
   meta: { title?: string; artist?: string; album?: string },
   cover?: File
 ): Promise<boolean> {
+  if (!out.name.toLowerCase().endsWith('.mp3')) {
+    if (await nativeTagAudio(audio, out, meta, cover)) return true;
+  }
   const args = [
     '-hide_banner',
     '-loglevel',
@@ -147,14 +157,19 @@ export async function tagAudio(
 
 const HLS_UA = DESKTOP_UA;
 
-export function hlsToMp4(
+export async function hlsToMp4(
   url: string,
   out: File,
   durationSec: number,
   onProgress: (pct: number) => void,
   audioUrl?: string,
-  keepAlive?: boolean
+  keepAlive?: boolean,
+  headers: Record<string, string> = {},
+  signal?: AbortSignal
 ): Promise<boolean> {
+  if (await nativeHlsAssemble(url, audioUrl, out, headers, onProgress, signal)) {
+    return true;
+  }
   // vimeo splits video/audio; persistent 0 avoids cross-host stall
   const inputs = audioUrl
     ? `-i "${url}" -i "${audioUrl}" -map 0:v:0 -map 1:a:0`

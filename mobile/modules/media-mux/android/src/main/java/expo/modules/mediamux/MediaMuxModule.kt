@@ -34,6 +34,41 @@ class MediaMuxModule : Module() {
     AsyncFunction("cloneFragmentedMp4") { inPath: String, outPath: String ->
       cloneFragmentedMp4(inPath, outPath)
     }
+
+    AsyncFunction("demuxAudio") { inPath: String, outPath: String ->
+      demuxAudio(inPath, outPath)
+    }
+
+    AsyncFunction("extractFrame") { inPath: String, outPath: String, positionUs: Long ->
+      extractFrame(inPath, outPath, positionUs)
+    }
+
+    AsyncFunction("convertImage") { inPath: String, outPath: String, format: String, maxEdge: Int, quality: Int ->
+      convertImage(inPath, outPath, format, maxEdge, quality)
+    }
+
+    AsyncFunction("tagAudioFile") {
+        srcPath: String,
+        outPath: String,
+        title: String?,
+        artist: String?,
+        album: String?,
+        coverPath: String?,
+      ->
+      tagAudioFile(srcPath, outPath, title, artist, album, coverPath)
+    }
+  }
+
+  private fun tagAudioFile(
+    srcPath: String,
+    outPath: String,
+    title: String?,
+    artist: String?,
+    album: String?,
+    coverPath: String?
+  ): Map<String, Any> {
+    TagAudio.tagFile(srcPath, outPath, title, artist, album, coverPath)
+    return mapOf("bytes" to java.io.File(outPath).length())
   }
 
   private fun concatFiles(inputs: List<String>, outPath: String): Map<String, Any> {
@@ -71,6 +106,150 @@ class MediaMuxModule : Module() {
   private fun cloneFragmentedMp4(inPath: String, outPath: String): Map<String, Any> {
     CloneRemux.remuxFragmented(inPath, outPath)
     return mapOf("bytes" to java.io.File(outPath).length())
+  }
+
+  private fun demuxAudio(inPath: String, outPath: String): Map<String, Any> {
+    val ext = MediaExtractor().also { it.setDataSource(inPath) }
+    try {
+      var track = -1
+      var format: MediaFormat? = null
+      for (i in 0 until ext.trackCount) {
+        val f = ext.getTrackFormat(i)
+        val mime = f.getString(MediaFormat.KEY_MIME) ?: continue
+        if (mime.startsWith("audio/")) {
+          track = i
+          format = f
+          break
+        }
+      }
+      if (track < 0 || format == null) {
+        throw CodedException("ERR_NO_AUDIO_TRACK", "no audio track", null)
+      }
+      val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
+      if (!muxableAudio(mime)) {
+        throw CodedException("ERR_UNSUPPORTED_CODEC", "cannot hold $mime", null)
+      }
+      val muxer = MediaMuxer(outPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+      try {
+        val out = muxer.addTrack(format)
+        muxer.start()
+        ext.selectTrack(track)
+        val buf = ByteBuffer.allocate(
+          maxOf(BUF_SIZE, audioMaxInput(ext, track))
+        )
+        val info = MediaCodec.BufferInfo()
+        var samples = 0
+        while (true) {
+          info.offset = 0
+          val n = ext.readSampleData(buf, 0)
+          if (n < 0) break
+          info.size = n
+          info.presentationTimeUs = ext.sampleTime
+          info.flags = ext.sampleFlags
+          buf.position(0)
+          muxer.writeSampleData(out, buf, info)
+          samples += 1
+          ext.advance()
+        }
+        muxer.stop()
+        return mapOf(
+          "bytes" to java.io.File(outPath).length(),
+          "audioSamples" to samples,
+        )
+      } finally {
+        try {
+          muxer.release()
+        } catch (_: Exception) {
+        }
+      }
+    } finally {
+      ext.release()
+    }
+  }
+
+  private fun audioMaxInput(ext: MediaExtractor, track: Int): Int {
+    return try {
+      ext.getTrackFormat(track).getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)
+    } catch (_: Exception) {
+      BUF_SIZE
+    }
+  }
+
+  private fun extractFrame(inPath: String, outPath: String, positionUs: Long): Map<String, Any> {
+    val retriever = android.media.MediaMetadataRetriever()
+    try {
+      retriever.setDataSource(inPath)
+      val frame = retriever.getFrameAtTime(
+        positionUs,
+        android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+      ) ?: throw CodedException("ERR_NO_FRAME", "no frame at $positionUs", null)
+      java.io.FileOutputStream(outPath).use { fos ->
+        if (!frame.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, fos)) {
+          throw CodedException("ERR_ENCODE_FRAME", "jpeg encode failed", null)
+        }
+      }
+      frame.recycle()
+      return mapOf("bytes" to java.io.File(outPath).length())
+    } finally {
+      try {
+        retriever.release()
+      } catch (_: Exception) {
+      }
+    }
+  }
+
+  private fun convertImage(
+    inPath: String,
+    outPath: String,
+    format: String,
+    maxEdge: Int,
+    quality: Int
+  ): Map<String, Any> {
+    val bounds = android.graphics.BitmapFactory.Options().also { it.inJustDecodeBounds = true }
+    android.graphics.BitmapFactory.decodeFile(inPath, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+      throw CodedException("ERR_BAD_IMAGE", "cannot decode image", null)
+    }
+    var sample = 1
+    while ((bounds.outWidth / sample) > maxEdge || (bounds.outHeight / sample) > maxEdge) {
+      sample *= 2
+    }
+    val opts = android.graphics.BitmapFactory.Options().also { it.inSampleSize = sample }
+    val bitmap = android.graphics.BitmapFactory.decodeFile(inPath, opts)
+      ?: throw CodedException("ERR_BAD_IMAGE", "cannot decode image", null)
+    try {
+      val scale = minOf(1f, maxEdge.toFloat() / maxOf(bitmap.width, bitmap.height))
+      val scaled =
+        if (scale < 1f) {
+          android.graphics.Bitmap.createScaledBitmap(
+            bitmap,
+            (bitmap.width * scale).toInt(),
+            (bitmap.height * scale).toInt(),
+            true
+          )
+        } else {
+          bitmap
+        }
+      try {
+        val compressFormat =
+          if (format == "webp") android.graphics.Bitmap.CompressFormat.WEBP_LOSSY
+          else android.graphics.Bitmap.CompressFormat.JPEG
+        java.io.FileOutputStream(outPath).use { fos ->
+          if (!scaled.compress(compressFormat, quality.coerceIn(1, 100), fos)) {
+            throw CodedException("ERR_ENCODE_IMAGE", "encode failed", null)
+          }
+        }
+        return mapOf(
+          "bytes" to java.io.File(outPath).length(),
+          "width" to scaled.width,
+          "height" to scaled.height
+        )
+      } finally {
+        if (scaled !== bitmap) scaled.recycle()
+      }
+    } finally {
+      bitmap.recycle()
+    }
   }
 
   private fun muxableVideo(mime: String): Boolean =
