@@ -162,7 +162,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun testCloneVp9(): String {
-        val src = assetToCache("vp9frag.mp4")
+        val src = assetToCache("vp9frag-av.mp4")
         val out = File(workDir, "out-vp9clone.mp4").also { it.delete() }.absolutePath
         FileLog.line("clone vp9 $src -> $out")
         CloneRemux.remuxFragmented(src, out)

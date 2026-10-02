@@ -134,7 +134,7 @@ fun parseMoov(data: ByteBuffer, moov: Box): Triple<Long, ByteArray, List<TrackPi
                         "tkhd" -> {
                             tkhd = slice(data, t.start, t.size)
                             val bb = ByteBuffer.wrap(tkhd).order(ByteOrder.BIG_ENDIAN)
-                            bb.position(t.headerSize + 4)
+                            bb.position(t.headerSize + 12)
                             trackId = bb.int
                         }
                         "edts" -> {
@@ -161,7 +161,7 @@ fun parseMoov(data: ByteBuffer, moov: Box): Triple<Long, ByteArray, List<TrackPi
                                     "hdlr" -> {
                                         hdlr = slice(data, m.start, m.size)
                                         val bb = ByteBuffer.wrap(hdlr).order(ByteOrder.BIG_ENDIAN)
-                                        bb.position(m.headerSize + 8)
+                                        bb.position(8)
                                         val h = ByteArray(4)
                                         bb.get(h)
                                         handler = String(h, Charsets.US_ASCII)
@@ -200,6 +200,11 @@ fun parseMoov(data: ByteBuffer, moov: Box): Triple<Long, ByteArray, List<TrackPi
                             trackId, handler == "vide", timescale, tkhd, hdlr,
                             mediaHeader, dinf, stsd, mdhdBody, elst,
                         ),
+                    )
+                } else {
+                    FileLog.line(
+                        "clone: skip trak id=$trackId scale=$timescale stsd=${stsd != null} handler=$handler " +
+                            "kids=" + children(data, child).joinToString(",") { "${it.type}:${it.size}" },
                     )
                 }
             }

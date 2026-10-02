@@ -12,6 +12,14 @@ private fun u32At(buf: ByteArray, off: Int): Long =
         ((buf[off + 2].toLong() and 0xFF) shl 8) or
         (buf[off + 3].toLong() and 0xFF)
 
+private fun fullHeader(bb: ByteBuffer): Pair<Int, Int> {
+    val ver = bb.get().toInt() and 0xFF
+    val flags = ((bb.get().toInt() and 0xFF) shl 16) or
+        ((bb.get().toInt() and 0xFF) shl 8) or
+        (bb.get().toInt() and 0xFF)
+    return ver to flags
+}
+
 private fun patchDuration(body: ByteArray, duration: Long) {
     val ver = body[0].toInt()
     val off = if (ver == 0) 16 else 24
@@ -152,6 +160,10 @@ object CloneRemux {
         }
         val moov = moovBox ?: error("no moov")
         val (mvhdScale, mvhdBody, tracks) = parseMoov(data, moov)
+        FileLog.line(
+            "clone: moov children=" +
+                children(data, moov).joinToString(",") { "${it.type}:${it.size}" },
+        )
         require(tracks.isNotEmpty()) { "no tracks with stsd" }
         val trex = walkTrex(data, moov)
         val byId = tracks.associateBy { it.trackId }
@@ -168,9 +180,7 @@ object CloneRemux {
                     if (tf.type == "tfhd") {
                         val body = slice(data, tf.start + tf.headerSize, tf.bodySize)
                         val bb = ByteBuffer.wrap(body).order(ByteOrder.BIG_ENDIAN)
-                        val flags = (bb.get().toInt() shl 16) or
-                            ((bb.get().toInt() and 0xFF) shl 8) or
-                            (bb.get().toInt() and 0xFF)
+                        val (_, flags) = fullHeader(bb)
                         trackId = bb.int
                         var p = 8
                         if (flags and 0x1 != 0) {
@@ -200,9 +210,7 @@ object CloneRemux {
                     if (tf.type != "trun") continue
                     val body = slice(data, tf.start + tf.headerSize, tf.bodySize)
                     val bb = ByteBuffer.wrap(body).order(ByteOrder.BIG_ENDIAN)
-                    val flags = (bb.get().toInt() shl 16) or
-                        ((bb.get().toInt() and 0xFF) shl 8) or
-                        (bb.get().toInt() and 0xFF)
+                    val (_, flags) = fullHeader(bb)
                     val count = bb.int
                     var p = 8
                     var dataOff = 0L
@@ -321,7 +329,7 @@ object CloneRemux {
         }
 
         val pass1 = buildMoov(tracks.map { 0L })
-        var cursor = (ftyp?.size?.toLong() ?: 0L) + pass1.size + 16
+        var cursor = (ftyp?.size?.toLong() ?: 0L) + pass1.size + 8
         val chunkOffsets = tracks.map { t ->
             val at = cursor
             cursor += t.samples.sumOf { it.size.toLong() }
@@ -338,10 +346,18 @@ object CloneRemux {
             }
         }
         val mdatPayload = mdatW.toByteArray()
-        out.u32(mdatPayload.size + 16L)
+        out.u32(mdatPayload.size + 8L)
         out.fourcc("mdat")
         out.bytes(mdatPayload)
 
+        for (t in tracks) {
+            val trackDur = t.samples.sumOf { it.duration }
+            FileLog.line(
+                "clone: track ${t.trackId} dur=${trackDur}us scale=${t.timescale} " +
+                    "syncs=${t.samples.count { it.sync }}/${t.samples.size} " +
+                    "cto!=0:${t.samples.count { it.cto != 0L }}",
+            )
+        }
         FileLog.line("clone: moov=${moovBytes.size} mdat=${mdatPayload.size}")
         File(outPath).writeBytes(out.toByteArray())
         FileLog.line("clone -> $outPath (${File(outPath).length()} bytes)")
