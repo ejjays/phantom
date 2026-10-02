@@ -201,6 +201,15 @@ object WebmDemux {
         }
         FileLog.line("webm: timescale=${timeScaleNs}ns tracks=${tracks.size} samples=${samples.size}")
         for (t in tracks) {
+            val mine = samples.filter { it.trackNumber == t.number }
+            if (mine.isNotEmpty()) {
+                FileLog.line(
+                    "webm pts track ${t.number}: n=${mine.size} " +
+                        "min=${mine.minOf { it.ptsNs }} max=${mine.maxOf { it.ptsNs }}",
+                )
+            }
+        }
+        for (t in tracks) {
             FileLog.line(
                 "webm track ${t.number} kind=${t.kind} codec=${t.codecId} " +
                     "defDur=${t.defaultDurationNs}ns ${t.width}x${t.height} ${t.sampleRate}Hz ch${t.channels}",
