@@ -48,6 +48,11 @@ class MediaMuxModule : Module() {
     return mapOf("bytes" to bytes)
   }
 
+  private fun muxableVideo(mime: String): Boolean =
+    mime == "video/avc" || mime == "video/hevc"
+
+  private fun muxableAudio(mime: String): Boolean = mime == "audio/mp4a-latm"
+
   private fun pickTrack(ext: MediaExtractor, prefix: String): Pair<Int, MediaFormat>? {
     for (i in 0 until ext.trackCount) {
       val format = ext.getTrackFormat(i)
@@ -111,6 +116,15 @@ class MediaMuxModule : Module() {
         ?: throw CodedException("ERR_NO_VIDEO_TRACK", "no video track", null)
       val (aTrack, aFormat) = pickTrack(aExt, "audio/")
         ?: throw CodedException("ERR_NO_AUDIO_TRACK", "no audio track", null)
+      val vMime = vFormat.getString(MediaFormat.KEY_MIME) ?: "?"
+      val aMime = aFormat.getString(MediaFormat.KEY_MIME) ?: "?"
+      if (!muxableVideo(vMime) || !muxableAudio(aMime)) {
+        throw CodedException(
+          "ERR_UNSUPPORTED_CODEC",
+          "mp4 muxer needs avc/hevc+aac, got $vMime+$aMime",
+          null,
+        )
+      }
       val muxer = MediaMuxer(outPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
       try {
         val mv = muxer.addTrack(vFormat)
@@ -145,8 +159,17 @@ class MediaMuxModule : Module() {
           for (i in 0 until first.trackCount) {
             val format = first.getTrackFormat(i)
             val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
-            if (!mime.startsWith("video/") && !mime.startsWith("audio/")) continue
-            val key = if (mime.startsWith("video/")) 0 else 1
+            val isVideo = mime.startsWith("video/")
+            val isAudio = mime.startsWith("audio/")
+            if (!isVideo && !isAudio) continue
+            if (isVideo && !muxableVideo(mime) || isAudio && !muxableAudio(mime)) {
+              throw CodedException(
+                "ERR_UNSUPPORTED_CODEC",
+                "mp4 muxer cannot hold $mime",
+                null,
+              )
+            }
+            val key = if (isVideo) 0 else 1
             if (!muxTracks.containsKey(key)) {
               muxTracks[key] = muxer.addTrack(format)
               offsets[key] = 0L
@@ -164,8 +187,17 @@ class MediaMuxModule : Module() {
           for (i in 0 until ext.trackCount) {
             val format = ext.getTrackFormat(i)
             val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
-            if (!mime.startsWith("video/") && !mime.startsWith("audio/")) continue
-            val key = if (mime.startsWith("video/")) 0 else 1
+            val isVideo = mime.startsWith("video/")
+            val isAudio = mime.startsWith("audio/")
+            if (!isVideo && !isAudio) continue
+            if (isVideo && !muxableVideo(mime) || isAudio && !muxableAudio(mime)) {
+              throw CodedException(
+                "ERR_UNSUPPORTED_CODEC",
+                "mp4 muxer cannot hold $mime",
+                null,
+              )
+            }
+            val key = if (isVideo) 0 else 1
             val muxTrack = muxTracks[key] ?: continue
             val (maxPts, n) = copyTrack(ext, i, muxer, muxTrack, offsets[key] ?: 0L)
             if (n > 0) {
