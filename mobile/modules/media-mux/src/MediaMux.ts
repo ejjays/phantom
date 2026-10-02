@@ -9,6 +9,7 @@ export type MuxStats = {
 type MediaMuxModuleType = {
   muxAv(videoPath: string, audioPath: string, outPath: string): Promise<MuxStats>;
   remuxParts(inputs: string[], outPath: string): Promise<MuxStats>;
+  concatFiles(inputs: string[], outPath: string): Promise<{ bytes: number }>;
 };
 
 const native = requireNativeModule<MediaMuxModuleType>('MediaMux');
@@ -23,4 +24,8 @@ export function muxAv(
 
 export function remuxParts(inputs: string[], outPath: string): Promise<MuxStats> {
   return native.remuxParts(inputs, outPath);
+}
+
+export function concatFiles(inputs: string[], outPath: string): Promise<{ bytes: number }> {
+  return native.concatFiles(inputs, outPath);
 }

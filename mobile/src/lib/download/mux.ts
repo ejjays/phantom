@@ -5,8 +5,13 @@ import {
   Level,
   ReturnCode,
 } from '@nikhil-cephei/ffmpeg-kit-react-native';
-import { downloadPlaylistToFile } from './hls';
-import { nativeMuxVideoAudio, nativeRemux } from './nativeMux';
+import { downloadPlaylistToFile, downloadPlaylistToFiles } from './hls';
+import {
+  nativeMuxVideoAudio,
+  nativeRemux,
+  nativeRemuxParts,
+  nativeConcat,
+} from './nativeMux';
 import { DESKTOP_UA } from '../userAgents';
 import { log, warn as logWarn } from '../log';
 
@@ -252,24 +257,43 @@ export async function parallelHlsMuxedToMp4(
   onProgress: (pct: number) => void,
   signal?: AbortSignal
 ): Promise<boolean> {
-  const seg = new File(Paths.cache, `${out.name}.seg`);
+  const segTag = `${out.name}.seg`;
+  const segFiles: File[] = [];
   try {
     const started = Date.now();
-    const { segments, bytes } = await downloadPlaylistToFile(
+    const { files, bytes } = await downloadPlaylistToFiles(
       playlist,
       headers,
-      seg,
+      (idx) => {
+        const file = new File(Paths.cache, `${segTag}-${idx}`);
+        segFiles.push(file);
+        return file;
+      },
       (done, total) => onProgress(Math.round((done / total) * 92)),
       MUXED_HLS_CONCURRENCY,
       signal
     );
+    if (await nativeRemuxParts(files, out)) {
+      const secs = (Date.now() - started) / 1000;
+      const mbps = secs > 0 ? ((bytes * 8) / 1e6 / secs).toFixed(1) : '0';
+      log(
+        'mux',
+        `[hls-parallel] ${files.length} chunks native, ${(bytes / 1e6).toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
+      );
+      return true;
+    }
+    const seg = new File(Paths.cache, segTag);
+    if (!(await nativeConcat(files, seg))) {
+      throw new Error('concat failed');
+    }
     const ok = await remuxToMp4(seg, out);
     const secs = (Date.now() - started) / 1000;
     const mbps = secs > 0 ? ((bytes * 8) / 1e6 / secs).toFixed(1) : '0';
     log(
       'mux',
-      `[hls-parallel] ${segments} chunks, ${(bytes / 1e6).toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
+      `[hls-parallel] ${files.length} chunks, ${(bytes / 1e6).toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
     );
+    if (seg.exists) seg.delete();
     return ok;
   } catch (err: unknown) {
     logWarn(
@@ -278,6 +302,8 @@ export async function parallelHlsMuxedToMp4(
     );
     return false;
   } finally {
-    if (seg.exists) seg.delete();
+    for (const file of segFiles) {
+      if (file.exists) file.delete();
+    }
   }
 }

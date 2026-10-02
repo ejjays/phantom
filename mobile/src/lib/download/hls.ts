@@ -159,3 +159,64 @@ export async function downloadPlaylistToFile(
     handle.close();
   }
 }
+
+// same fetch+validate as above, but one file per segment so a native
+// remuxer can walk them with per-file timestamp offsets instead of
+// choking on one giant discontinuous blob
+export async function downloadPlaylistToFiles(
+  playlistUrl: string,
+  headers: Record<string, string>,
+  makeFile: (index: number) => File,
+  onProgress: (done: number, total: number) => void,
+  concurrency = 4,
+  signal?: AbortSignal
+): Promise<{ files: File[]; bytes: number }> {
+  const res = await fetch(playlistUrl, { headers, signal });
+  if (!res.ok) throw new Error(`playlist HTTP ${res.status}`);
+  const text = await res.text();
+  if (!text.includes('#EXTM3U')) throw new Error('not a media playlist');
+  const urls = parseMediaPlaylist(text, playlistUrl);
+  if (urls.length === 0) throw new Error('empty playlist');
+
+  const files = urls.map((_, idx) => {
+    const file = makeFile(idx);
+    if (file.exists) file.delete();
+    file.create();
+    return file;
+  });
+
+  let bytes = 0;
+  let done = 0;
+  const queue = urls.map((_, idx) => idx);
+  const run = async (): Promise<void> => {
+    for (;;) {
+      const idx = queue.shift();
+      if (idx === undefined) return;
+      const data = await withRetry(
+        async () => {
+          const seg = await fetch(urls[idx], { headers, signal });
+          if (seg.status >= 400) {
+            throw new Error(`segment HTTP ${seg.status}`);
+          }
+          const chunk = new Uint8Array(await seg.arrayBuffer());
+          assertVideoSegment(chunk, seg.headers?.get?.('content-type') ?? null);
+          return chunk;
+        },
+        { retries: 2, delayMs: 400, signal }
+      );
+      const handle = files[idx].open(FileMode.WriteOnly);
+      try {
+        handle.writeBytes(data);
+      } finally {
+        handle.close();
+      }
+      bytes += data.byteLength;
+      done += 1;
+      onProgress(done, urls.length);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.max(1, Math.min(concurrency, urls.length)) }, run)
+  );
+  return { files, bytes };
+}

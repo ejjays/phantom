@@ -11,6 +11,7 @@ vi.mock('../src/lib/retry', () => ({
 import {
   parseMediaPlaylist,
   downloadPlaylistToFile,
+  downloadPlaylistToFiles,
 } from '../src/lib/download/hls';
 
 describe('parseMediaPlaylist', () => {
@@ -216,5 +217,55 @@ describe('downloadPlaylistToFile', () => {
         4
       )
     ).rejects.toThrow(/png/iu);
+  });
+
+  it('downloads segments to separate files in playlist order', async () => {
+    const playlist = ['#EXTM3U', '#EXTINF:1,', 'a.ts', '#EXTINF:1,', 'b.ts'].join('\n');
+    global.fetch = ((input: string) => {
+      if (input.includes('playlist.m3u8')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(playlist),
+        });
+      }
+      const marker = input.includes('a.ts') ? 7 : 9;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: () => 'video/mp2t' },
+        arrayBuffer: () =>
+          Promise.resolve(new Uint8Array([0x47, marker]).buffer),
+      });
+    }) as unknown as typeof fetch;
+    const made: string[] = [];
+    const written: Record<string, number[]> = {};
+    const makeFile = (idx: number) => {
+      const name = `seg-${idx}`;
+      made.push(name);
+      return {
+        exists: false,
+        delete: vi.fn(),
+        create: vi.fn(),
+        open: () => ({
+          writeBytes: (buf: Uint8Array) => {
+            written[name] = [...buf];
+          },
+          close: vi.fn(),
+        }),
+      };
+    };
+    const result = await downloadPlaylistToFiles(
+      'https://cdn.example/hls/playlist.m3u8',
+      {},
+      makeFile as unknown as Parameters<typeof downloadPlaylistToFiles>[2],
+      () => {},
+      2
+    );
+    expect(made).toEqual(['seg-0', 'seg-1']);
+    expect(written['seg-0']).toEqual([0x47, 7]);
+    expect(written['seg-1']).toEqual([0x47, 9]);
+    expect(result.files).toHaveLength(2);
+    expect(result.bytes).toBe(4);
   });
 });

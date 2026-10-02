@@ -22,6 +22,30 @@ class MediaMuxModule : Module() {
     AsyncFunction("remuxParts") { inputs: List<String>, outPath: String ->
       remuxParts(inputs, outPath)
     }
+
+    AsyncFunction("concatFiles") { inputs: List<String>, outPath: String ->
+      concatFiles(inputs, outPath)
+    }
+  }
+
+  private fun concatFiles(inputs: List<String>, outPath: String): Map<String, Any> {
+    val out = java.io.File(outPath)
+    if (out.exists()) out.delete()
+    var bytes = 0L
+    java.io.FileOutputStream(out).use { writer ->
+      val buf = ByteArray(64 * 1024)
+      for (path in inputs) {
+        java.io.FileInputStream(path).use { reader ->
+          while (true) {
+            val n = reader.read(buf)
+            if (n < 0) break
+            writer.write(buf, 0, n)
+            bytes += n
+          }
+        }
+      }
+    }
+    return mapOf("bytes" to bytes)
   }
 
   private fun pickTrack(ext: MediaExtractor, prefix: String): Pair<Int, MediaFormat>? {
