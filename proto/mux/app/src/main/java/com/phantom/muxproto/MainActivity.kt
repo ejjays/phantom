@@ -4,11 +4,14 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
+import android.widget.MediaController
 import android.widget.Toast
+import android.widget.VideoView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.lifecycleScope
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +37,7 @@ import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
 
     private var logText by mutableStateOf("")
+    private var playPath by mutableStateOf<String?>(null)
     private lateinit var workDir: File
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,6 +69,29 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth(),
                             onClick = { copyLog() },
                         ) { Text("Copy log") }
+                        playPath?.let { path ->
+                            AndroidView(
+                                factory = { ctx ->
+                                    VideoView(ctx).apply {
+                                        setVideoPath(path)
+                                        setMediaController(
+                                            MediaController(ctx).also { it.setAnchorView(this) },
+                                        )
+                                        setOnPreparedListener { start() }
+                                    }
+                                },
+                                update = { view ->
+                                    if (view.tag != path) {
+                                        view.tag = path
+                                        view.setVideoPath(path)
+                                        view.start()
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16f / 9f),
+                            )
+                        }
                         Text(logText)
                     }
                 }
@@ -71,17 +99,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun runTest(name: String, block: suspend () -> Unit) {
+    private fun runTest(name: String, block: suspend () -> String?) {
         FileLog.line("===== $name =====")
         refreshLog()
         lifecycleScope.launch(Dispatchers.IO) {
+            var out: String? = null
             try {
-                block()
+                out = block()
                 FileLog.line("===== $name DONE =====")
             } catch (err: Throwable) {
                 FileLog.error(name, err)
             }
-            withContext(Dispatchers.Main) { refreshLog() }
+            val done = out
+            withContext(Dispatchers.Main) {
+                playPath = done
+                refreshLog()
+            }
         }
     }
 
@@ -106,16 +139,18 @@ class MainActivity : ComponentActivity() {
         return out.absolutePath
     }
 
-    private suspend fun testMuxAv() {
+    private suspend fun testMuxAv(): String {
         val v = assetToCache("test-v.mp4")
         val a = assetToCache("test-a.m4a")
         val out = File(workDir, "out-av.mp4").also { it.delete() }.absolutePath
         Mux.muxAv(v, a, out)
+        return out
     }
 
-    private suspend fun testRemuxTs() {
+    private suspend fun testRemuxTs(): String {
         val inputs = listOf("seg-0.ts", "seg-1.ts").map(::assetToCache)
         val out = File(workDir, "out-ts.mp4").also { it.delete() }.absolutePath
         Mux.remuxTs(inputs, out)
+        return out
     }
 }
