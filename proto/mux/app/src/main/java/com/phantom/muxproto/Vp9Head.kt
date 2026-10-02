@@ -1,5 +1,8 @@
 package com.phantom.muxproto
 
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
 private class BitReader(val data: ByteArray, byteOff: Int) {
     var bitPos = byteOff * 8
     fun f(n: Int): Int {
