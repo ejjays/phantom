@@ -33,7 +33,14 @@ function rawPath(file: File): string {
 }
 
 function validOutput(out: File, stats: { bytes: number }): boolean {
-  return stats.bytes > 0 && out.exists && out.size > 0;
+  const ok = stats.bytes > 0 && out.exists && out.size > 0;
+  if (!ok) {
+    logWarn(
+      'nativeMux',
+      `[native-mux] empty output for ${out.name} (claimed ${stats.bytes} bytes)`
+    );
+  }
+  return ok;
 }
 
 export async function nativeMuxVideoAudio(
@@ -124,7 +131,9 @@ export async function nativeExtractFrame(
   try {
     if (outFile.exists) outFile.delete();
     const { bytes } = await extractFrame(rawPath(srcFile), rawPath(outFile), positionUs);
-    return bytes > 0 && validOutput(outFile, { bytes });
+    const ok = bytes > 0 && validOutput(outFile, { bytes });
+    if (ok) log('nativeMux', `[native-mux] frame ok: ${bytes} bytes @${positionUs}us`);
+    return ok;
   } catch (error: unknown) {
     logWarn('nativeMux', `[native-mux] frame failed (${reason(error)}), ffmpeg next`);
     return false;

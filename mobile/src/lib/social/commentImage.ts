@@ -9,7 +9,7 @@ import {
   saveToLibraryAsync,
 } from 'expo-media-library/legacy';
 import { supabase } from './supabase';
-import { warn as logWarn } from '../log';
+import { log, warn as logWarn } from '../log';
 
 function fsPath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//u, ''));
@@ -76,7 +76,8 @@ export async function captureCommentImage(): Promise<{
 async function compressToWebp(srcUri: string): Promise<File> {
   const out = new File(Paths.cache, `cimg-${Crypto.randomUUID()}.webp`);
   try {
-    await nativeConvertImage(fsPath(srcUri), fsPath(out.uri), 'webp', MAX_EDGE, WEBP_QUALITY);
+    const stats = await nativeConvertImage(fsPath(srcUri), fsPath(out.uri), 'webp', MAX_EDGE, WEBP_QUALITY);
+    log('commentImage', `[image] native webp ok: ${stats.width}x${stats.height}`);
     if (out.exists) return out;
   } catch (error: unknown) {
     logWarn(
@@ -136,7 +137,8 @@ export async function uploadCommentImage(
 // transcode via mjpeg encoder; q=2 is visually lossless (mjpeg range 2-31).
 async function webpToJpg(src: File, out: File): Promise<void> {
   try {
-    await nativeConvertImage(fsPath(src.uri), fsPath(out.uri), 'jpeg', 4096, 92);
+    const stats = await nativeConvertImage(fsPath(src.uri), fsPath(out.uri), 'jpeg', 4096, 92);
+    log('commentImage', `[image] native jpg ok: ${stats.width}x${stats.height}`);
     if (out.exists) return;
   } catch (error: unknown) {
     logWarn(
