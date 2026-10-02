@@ -1,5 +1,8 @@
 package com.phantom.muxproto
 
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
 private data class FlatSample(val bytes: ByteArray, val durationUs: Long, val sync: Boolean)
 
 private data class FlatTrack(
@@ -204,10 +207,11 @@ object WebmRemux {
             return moovW.toByteArray()
         }
 
-        val out = Writer()
-        out.bytes(buildFtyp())
+        val ftypBytes = buildFtyp()
+        val outHead = Writer()
+        outHead.bytes(ftypBytes)
         val pass1 = buildMoov(tracks.map { 0L })
-        var cursor = 0L + pass1.size + 8 + buildFtyp().size
+        var cursor = 0L + pass1.size + 8 + ftypBytes.size
         val chunkOffsets = tracks.map { t ->
             val at = cursor
             cursor += t.samples.sumOf { it.bytes.size.toLong() }
@@ -215,17 +219,31 @@ object WebmRemux {
         }
         val moovBytes = buildMoov(chunkOffsets)
         require(moovBytes.size == pass1.size) { "moov size moved" }
-        out.bytes(moovBytes)
-        val mdatW = Writer()
-        for (t in tracks) {
-            for (s in t.samples) mdatW.bytes(s.bytes)
+        var mdatBytes = 0L
+        java.io.FileOutputStream(outPath).use { fos ->
+            fos.write(ftypBytes)
+            mdatBytes += ftypBytes.size
+            fos.write(moovBytes)
+            mdatBytes += moovBytes.size
+            val mdatSizePos = mdatBytes
+            fos.write(ByteArray(8))
+            mdatBytes += 8
+            for (t in tracks) {
+                for (s in t.samples) {
+                    fos.write(s.bytes)
+                    mdatBytes += s.bytes.size
+                }
+            }
+            fos.flush()
+            java.io.RandomAccessFile(outPath, "rw").use { fix ->
+                fix.seek(mdatSizePos)
+                val bb = ByteBuffer.allocate(8).order(ByteOrder.BIG_ENDIAN)
+                bb.putInt((mdatBytes - mdatSizePos).toInt())
+                bb.put("mdat".toByteArray(Charsets.US_ASCII))
+                fix.write(bb.array())
+            }
         }
-        val mdatPayload = mdatW.toByteArray()
-        out.u32(mdatPayload.size + 8L)
-        out.fourcc("mdat")
-        out.bytes(mdatPayload)
-        FileLog.line("webm: moov=${moovBytes.size} mdat=${mdatPayload.size}")
-        java.io.File(outPath).writeBytes(out.toByteArray())
+        FileLog.line("webm: moov=${moovBytes.size} mdat=${mdatBytes - ftypBytes.size - moovBytes.size}")
         FileLog.line("webm -> $outPath (${java.io.File(outPath).length()} bytes)")
     }
 

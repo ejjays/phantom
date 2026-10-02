@@ -259,9 +259,7 @@ object CloneRemux {
             }
         }
 
-        val out = Writer()
-        if (ftyp != null) out.bytes(ftyp)
-        val mdatStarts = mutableMapOf<TrackPieces, Long>()
+        val ftypBytes = ftyp
         var totalSamples = 0
         for (t in tracks) totalSamples += t.samples.size
         FileLog.line("clone: ${tracks.size} tracks, $totalSamples samples")
@@ -329,7 +327,7 @@ object CloneRemux {
         }
 
         val pass1 = buildMoov(tracks.map { 0L })
-        var cursor = (ftyp?.size?.toLong() ?: 0L) + pass1.size + 8
+        var cursor = (ftypBytes?.size?.toLong() ?: 0L) + pass1.size + 8
         val chunkOffsets = tracks.map { t ->
             val at = cursor
             cursor += t.samples.sumOf { it.size.toLong() }
@@ -337,18 +335,46 @@ object CloneRemux {
         }
         val moovBytes = buildMoov(chunkOffsets)
         require(moovBytes.size == pass1.size) { "moov size moved" }
-        out.bytes(moovBytes)
 
-        val mdatW = Writer()
-        for (t in tracks) {
-            for (s in t.samples) {
-                mdatW.bytes(src.copyOfRange(s.fileOffset.toInt(), (s.fileOffset + s.size).toInt()))
+        var mdatBytes = 0L
+        java.io.FileOutputStream(outPath).use { fos ->
+            if (ftypBytes != null) {
+                fos.write(ftypBytes)
+                mdatBytes += ftypBytes.size
+            }
+            fos.write(moovBytes)
+            mdatBytes += moovBytes.size
+            val mdatSizePos = mdatBytes
+            fos.write(ByteArray(8))
+            mdatBytes += 8
+            val raf = java.io.RandomAccessFile(inPath, "r")
+            try {
+                val buf = ByteArray(64 * 1024)
+                for (t in tracks) {
+                    for (s in t.samples) {
+                        var left = s.size.toLong()
+                        raf.seek(s.fileOffset)
+                        while (left > 0) {
+                            val n = raf.read(buf, 0, minOf(buf.size.toLong(), left).toInt())
+                            if (n < 0) error("short read")
+                            fos.write(buf, 0, n)
+                            left -= n
+                        }
+                        mdatBytes += s.size
+                    }
+                }
+            } finally {
+                raf.close()
+            }
+            fos.flush()
+            java.io.RandomAccessFile(outPath, "rw").use { fix ->
+                fix.seek(mdatSizePos)
+                val bb = ByteBuffer.allocate(8).order(ByteOrder.BIG_ENDIAN)
+                bb.putInt((mdatBytes - mdatSizePos).toInt())
+                bb.put("mdat".toByteArray(Charsets.US_ASCII))
+                fix.write(bb.array())
             }
         }
-        val mdatPayload = mdatW.toByteArray()
-        out.u32(mdatPayload.size + 8L)
-        out.fourcc("mdat")
-        out.bytes(mdatPayload)
 
         for (t in tracks) {
             val trackDur = t.samples.sumOf { it.duration }
@@ -358,9 +384,8 @@ object CloneRemux {
                     "cto!=0:${t.samples.count { it.cto != 0L }}",
             )
         }
-        FileLog.line("clone: moov=${moovBytes.size} mdat=${mdatPayload.size}")
-        File(outPath).writeBytes(out.toByteArray())
-        FileLog.line("clone -> $outPath (${File(outPath).length()} bytes)")
+        FileLog.line("clone: moov=${moovBytes.size} mdat=${mdatBytes - (ftypBytes?.size ?: 0) - moovBytes.size}")
+        FileLog.line("clone -> $outPath (${java.io.File(outPath).length()} bytes)")
     }
 
     private fun patchTkhdDuration(tkhd: ByteArray, duration: Long) {
