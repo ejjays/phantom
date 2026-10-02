@@ -56,11 +56,19 @@ fun vp9LevelIdc(width: Int, height: Int, fps: Double): Int {
 }
 
 fun parseVp9Keyframe(frame: ByteArray): Vp9Header? {
+    return tryHeader(frame, twoBitProfile = false) ?: tryHeader(frame, twoBitProfile = true)
+}
+
+private fun tryHeader(frame: ByteArray, twoBitProfile: Boolean): Vp9Header? {
     try {
         val r = BitReader(frame, 0)
         if (r.f(2) != 0b10) return null
         var profile = r.f(1)
-        if (profile == 1) profile = profile or (r.f(1) shl 1)
+        if (twoBitProfile) {
+            profile = profile or (r.f(1) shl 1)
+        } else if (profile == 1) {
+            profile = profile or (r.f(1) shl 1)
+        }
         if (r.f(1) == 1) return null
         if (r.f(1) != 0) return null
         r.f(1)

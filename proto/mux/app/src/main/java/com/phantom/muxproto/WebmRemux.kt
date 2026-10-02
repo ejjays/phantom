@@ -246,10 +246,19 @@ object WebmRemux {
         require(fileOrder.isNotEmpty()) { "no video samples" }
         if (!reorderCheck(fileOrder)) error("needs decode reorder")
         val mine = fileOrder.sortedBy { it.ptsNs }
-        var key = mine.firstOrNull { it.sync }?.bytes ?: error("no keyframe")
-        val header = parseVp9Keyframe(key) ?: error("bad vp9 header")
+        var key = mine.firstOrNull { it.sync }?.bytes
+        var header = key?.let { parseVp9Keyframe(it) }
+        var tried = 1
+        for (s in mine) {
+            if (header != null || tried >= 20) break
+            if (!s.sync) continue
+            tried += 1
+            header = parseVp9Keyframe(s.bytes)
+        }
+        val good = header ?: error("bad vp9 header")
+        FileLog.line("webm: keyframe parsed after $tried tries")
         val fps = if (vt.defaultDurationNs > 0) 1e9 / vt.defaultDurationNs else 30.0
-        val stsdEntry = buildVp09Entry(header.width, header.height, buildVpcc(header, fps))
+        val stsdEntry = buildVp09Entry(good.width, good.height, buildVpcc(good, fps))
         val stsdW = Writer()
         stsdW.fullBox("stsd", 0, 0) {
             u32(1)
@@ -268,11 +277,11 @@ object WebmRemux {
             else (1e6 / fps).toLong()
         }
         FileLog.line(
-            "webm video ${vt.codecId} ${header.width}x${header.height} " +
-                "profile=${header.profile} frames=${flat.size} fps=${"%.1f".format(fps)}",
+            "webm video ${vt.codecId} ${good.width}x${good.height} " +
+                "profile=${good.profile} frames=${flat.size} fps=${"%.1f".format(fps)}",
         )
         return FlatTrack(
-            true, 1000000L, stsdW.toByteArray(), header.width, header.height,
+            true, 1000000L, stsdW.toByteArray(), good.width, good.height,
             flat.mapIndexed { idx, s -> s.copy(durationUs = durations[idx]) },
         )
     }
