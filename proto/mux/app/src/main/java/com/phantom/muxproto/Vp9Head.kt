@@ -166,9 +166,24 @@ fun buildVp09Entry(width: Int, height: Int, vpcC: ByteArray): ByteArray {
 }
 
 fun buildOpusEntry(channels: Int, sampleRate: Int, opusHead: ByteArray): ByteArray {
+    require(opusHead.size >= 19) { "short OpusHead" }
+    require(String(opusHead.copyOfRange(0, 8), Charsets.US_ASCII) == "OpusHead") { "bad OpusHead" }
+    val head = ByteBuffer.wrap(opusHead).order(ByteOrder.LITTLE_ENDIAN)
+    head.position(9)
+    val ch = head.get().toInt() and 0xFF
+    val preskip = head.short.toInt() and 0xFFFF
+    val rate = head.int
+    val gain = head.short.toInt()
+    val family = head.get().toInt() and 0xFF
+    require(family == 0) { "opus mapping family $family" }
     val dops = Writer()
     dops.fullBox("dOps", 0, 0) {
-        bytes(opusHead.copyOfRange(8, 19))
+        u8(0)
+        u8(if (channels > 0) channels else ch)
+        u16(preskip)
+        u32((if (sampleRate > 0) sampleRate else rate).toLong())
+        u16(gain and 0xFFFF)
+        u8(family)
     }
     val w = Writer()
     w.box("Opus") {
@@ -179,11 +194,11 @@ fun buildOpusEntry(channels: Int, sampleRate: Int, opusHead: ByteArray): ByteArr
         u32(0)
         u32(0)
         u32(0)
-        u16(channels)
+        u16(if (channels > 0) channels else ch)
         u16(16)
         u16(0)
         u16(0)
-        u32((sampleRate.toLong() shl 16))
+        u32(((if (sampleRate > 0) sampleRate else rate).toLong() shl 16))
         bytes(dops.toByteArray())
     }
     return w.toByteArray()
