@@ -159,6 +159,7 @@ jobs:
             adb shell settings put secure show_ime_with_hard_keyboard 0
             for i in 1 2 3; do if timeout -k 10 300 env MAESTRO_CLI_NO_ANALYTICS=1 "$HOME/.maestro/maestro/bin/maestro" test --debug-output "$GITHUB_WORKSPACE/smoke-debug" mobile/.maestro/smoke.yaml; then break; fi; if [ "$i" = "3" ]; then adb logcat -d > "$GITHUB_WORKSPACE/maestro-logcat.log"; exit 1; fi; sleep 10; done
             bash mobile/.maestro/run-matrix.sh
+            if [ "${SHARD_INDEX:-1}" = "1" ]; then bash mobile/.maestro/run-movies.sh; fi
 
       - name: Upload failure diagnostics
         if: always()

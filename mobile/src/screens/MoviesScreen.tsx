@@ -47,11 +47,13 @@ function PosterCard({
   item,
   width,
   height,
+  testID,
   onOpen,
 }: {
   item: LunaItem;
   width: number;
   height: number;
+  testID?: string;
   onOpen: (item: LunaItem) => void;
 }) {
   return (
@@ -60,6 +62,7 @@ function PosterCard({
         tapSelection();
         onOpen(item);
       }}
+      testID={testID}
       accessibilityLabel={`${item.title}, ${item.year ?? ''}`}
       style={({ pressed }) => [{ width, opacity: pressed ? 0.75 : 1 }]}
     >
@@ -96,10 +99,12 @@ function PosterCard({
 function TrendingCard({
   item,
   active,
+  testID,
   onOpen,
 }: {
   item: LunaItem;
   active: boolean;
+  testID?: string;
   onOpen: (item: LunaItem) => void;
 }) {
   const scale = useSharedValue(active ? 1 : 0.9);
@@ -119,6 +124,7 @@ function TrendingCard({
           tapSelection();
           onOpen(item);
         }}
+        testID={testID}
         accessibilityLabel={`Trending: ${item.title}`}
       >
         <View style={tw`overflow-hidden rounded-[28px] border border-white/10`}>
@@ -255,6 +261,7 @@ function MoviesScreenInner({ visible }: Props) {
         </View>
         <View style={tw`relative mt-3 justify-center`}>
           <TextInput
+            testID="movies-search"
             style={[
               tw`rounded-2xl border-2 border-primary bg-black/30 pl-12 pr-10 font-mono text-[15px] text-white`,
               { height: 52, textAlignVertical: 'center' },
@@ -294,8 +301,8 @@ function MoviesScreenInner({ visible }: Props) {
           columnWrapperStyle={tw`gap-3 px-4`}
           contentContainerStyle={tw`gap-3 pb-32 pt-2`}
           keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => (
-            <PosterCard item={item} width={gridW} height={gridW * 1.5} onOpen={openDetail} />
+          renderItem={({ item, index }) => (
+            <PosterCard item={item} width={gridW} height={gridW * 1.5} testID={`movie-result-${index}`} onOpen={openDetail} />
           )}
           ListHeaderComponent={
             searching ? (
@@ -349,10 +356,11 @@ function MoviesScreenInner({ visible }: Props) {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={tw`px-4`}
                 keyExtractor={(item) => `${item.kind}-${item.id}`}
-                renderItem={({ item }) => (
+                renderItem={({ item, index }) => (
                   <TrendingCard
                     item={item}
                     active={activeId === `${item.kind}-${item.id}`}
+                    testID={`movie-trending-${index}`}
                     onOpen={openDetail}
                   />
                 )}
@@ -373,8 +381,8 @@ function MoviesScreenInner({ visible }: Props) {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={tw`gap-3 px-4`}
                   keyExtractor={(item) => `${item.kind}-${item.id}`}
-                  renderItem={({ item }) => (
-                    <PosterCard item={item} width={112} height={168} onOpen={openDetail} />
+                  renderItem={({ item, index }) => (
+                    <PosterCard item={item} width={112} height={168} testID={`movie-rail-${rail.key}-${index}`} onOpen={openDetail} />
                   )}
                 />
               </View>

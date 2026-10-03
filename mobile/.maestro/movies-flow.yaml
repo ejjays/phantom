@@ -1,0 +1,25 @@
+appId: com.phantom.app
+name: movies tab - browse, search, detail, download to history
+---
+- tapOn: "Movies"
+- extendedWaitUntil:
+    visible: "Trending this week"
+    timeout: 120000
+- tapOn:
+    id: "movies-search"
+- inputText: "batman"
+- extendedWaitUntil:
+    visible: "results for"
+    timeout: 120000
+- tapOn:
+    id: "movie-result-0"
+- extendedWaitUntil:
+    id: "movie-download-btn"
+    timeout: 180000
+- tapOn:
+    id: "movie-download-btn"
+- extendedWaitUntil:
+    visible: "see History"
+    timeout: 600000
+- tapOn: "History"
+- assertVisible: "Saved"

@@ -152,6 +152,7 @@ function SheetFooter({
       <Pressable
         onPress={onDownload}
         disabled={!best || busy || saved}
+        testID="movie-download-btn"
         accessibilityLabel={saved ? 'Saved to history' : 'Download this title'}
         style={({ pressed }) => [
           tw`h-14 w-14 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-500/20 ${!best || saved ? 'opacity-50' : ''} ${pressed ? 'opacity-70' : ''}`,
