@@ -10,6 +10,8 @@ import {
   Keyboard,
   ActivityIndicator,
   useWindowDimensions,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -49,7 +51,12 @@ const RAIL_DEFS = [
   { key: 'popular', title: 'Popular Movies', path: '/movies' },
   { key: 'top', title: 'Top Rated', path: '/movies?sort=top_rated' },
   { key: 'now', title: 'Now Playing', path: '/movies?filter=now_playing' },
+  { key: 'tv-popular', title: 'Popular TV Shows', path: '/tv' },
+  { key: 'tv-top', title: 'Top Rated TV', path: '/tv?sort=top_rated' },
+  { key: 'airing', title: 'Airing Today', path: '/airing-today' },
 ];
+
+const EXPLORE_CAP = 10;
 
 function PosterCard({
   item,
@@ -116,8 +123,14 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
   const [selected, setSelected] = useState<LunaItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [railKey, setRailKey] = useState<string | null>(null);
+  const [exploreItems, setExploreItems] = useState<LunaItem[]>([]);
+  const [explorePage, setExplorePage] = useState(0);
+  const [exploreTotal, setExploreTotal] = useState(1);
+  const [exploreMore, setExploreMore] = useState(false);
   const booted = useRef(false);
   const seq = useRef(0);
+  const busyRails = useRef<Record<string, boolean>>({});
+  const busyExplore = useRef(false);
 
   const loadBrowse = useCallback(async () => {
     const started = Date.now();
@@ -146,6 +159,9 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
       ]);
       setTrending(foundTrending ?? []);
       setRails(foundRails);
+      setExploreItems([]);
+      setExplorePage(0);
+      setExploreTotal(1);
       const summary = foundRails.map((rail) => `${rail.key}:${rail.items.length}`).join(',');
       log(
         'Movies',
@@ -166,6 +182,8 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
     async (key: string) => {
       const rail = rails.find((entry) => entry.key === key);
       if (!rail || rail.loadingMore || rail.page >= rail.totalPages) return;
+      if (busyRails.current[key]) return;
+      busyRails.current[key] = true;
       setRails((prev) => prev.map((entry) => (entry.key === key ? { ...entry, loadingMore: true } : entry)));
       const started = Date.now();
       try {
@@ -174,21 +192,63 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
         const seen = new Set(rail.items.map((item) => `${item.kind}-${item.id}`));
         const fresh = next.items.filter((item) => !seen.has(`${item.kind}-${item.id}`));
         setRails((prev) =>
-          prev.map((entry) =>
-            entry.key === key
-              ? { ...entry, items: [...entry.items, ...fresh], page: rail.page + 1, totalPages: next.totalPages }
-              : entry
-          )
+          prev.map((entry) => {
+            if (entry.key !== key) return entry;
+            const known = new Set(entry.items.map((item) => `${item.kind}-${item.id}`));
+            return {
+              ...entry,
+              items: [...entry.items, ...fresh.filter((item) => !known.has(`${item.kind}-${item.id}`))],
+              page: rail.page + 1,
+              totalPages: next.totalPages,
+            };
+          })
         );
         log('Movies', `rail ${key} page=${rail.page + 1}/${next.totalPages} +${fresh.length} ms=${Date.now() - started}`);
       } catch (err) {
         logError('Movies', `rail ${key} more failed: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
+        busyRails.current[key] = false;
         setRails((prev) => prev.map((entry) => (entry.key === key ? { ...entry, loadingMore: false } : entry)));
       }
     },
     [rails]
   );
+
+  const loadMoreExplore = useCallback(async () => {
+    if (exploreMore || explorePage >= Math.min(exploreTotal, EXPLORE_CAP)) return;
+    if (busyExplore.current) return;
+    busyExplore.current = true;
+    setExploreMore(true);
+    const started = Date.now();
+    try {
+      const next = await listRail('/movies', explorePage + 1, 'Explore');
+      if (!next) return;
+      const seen = new Set([
+        ...rails.flatMap((rail) => rail.items.map((item) => `${item.kind}-${item.id}`)),
+        ...exploreItems.map((item) => `${item.kind}-${item.id}`),
+      ]);
+      const fresh = next.items.filter((item) => !seen.has(`${item.kind}-${item.id}`));
+      setExploreItems((prev) => {
+        const known = new Set(prev.map((item) => `${item.kind}-${item.id}`));
+        return [...prev, ...fresh.filter((item) => !known.has(`${item.kind}-${item.id}`))];
+      });
+      setExplorePage(explorePage + 1);
+      setExploreTotal(next.totalPages);
+      log('Movies', `explore page=${explorePage + 1}/${next.totalPages} +${fresh.length} ms=${Date.now() - started}`);
+    } catch (err) {
+      logError('Movies', `explore more failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      busyExplore.current = false;
+      setExploreMore(false);
+    }
+  }, [exploreMore, explorePage, exploreTotal, rails, exploreItems]);
+
+  const onBrowseScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 900) {
+      void loadMoreExplore();
+    }
+  };
 
   useEffect(() => {
     const term = query.trim();
@@ -384,6 +444,8 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
         <ScrollView
           contentContainerStyle={tw`pb-32`}
           keyboardShouldPersistTaps="handled"
+          onScroll={onBrowseScroll}
+          scrollEventThrottle={400}
           refreshControl={
             <RefreshControl
               refreshing={loading}
@@ -443,6 +505,26 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
               <Text style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}>
                 Pull down to retry.
               </Text>
+            </View>
+          )}
+          {(exploreItems.length > 0 || exploreMore) && (
+            <View style={tw`mt-6`}>
+              <Text style={tw`px-4 pb-2 font-sans-bold text-[16px] text-slate-200`}>
+                Explore more
+              </Text>
+              <View style={tw`flex-row flex-wrap gap-3 px-4`}>
+                {exploreItems.map((item, index) => (
+                  <PosterCard
+                    key={`${item.kind}-${item.id}`}
+                    item={item}
+                    width={gridW}
+                    height={gridW * 1.5}
+                    testID={`movie-explore-${index}`}
+                    onOpen={openDetail}
+                  />
+                ))}
+              </View>
+              {exploreMore && <ActivityIndicator size="small" color="#22d3ee" style={tw`py-4`} />}
             </View>
           )}
         </ScrollView>
