@@ -12,17 +12,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
 import LottieView from 'lottie-react-native';
 import { Search, X, Star, Play } from 'lucide-react-native';
 import tw from '../lib/tw';
 import ufo from '../../assets/UFO.json';
 import { PlatformLogo } from '../components/logos';
-import MovieDetailSheet from '../components/sheets/MovieDetailSheet';
+import TrendingCarousel from '../components/TrendingCarousel';
+import MovieDetailScreen from './MovieDetailScreen';
 import {
   searchTitles,
   listRail,
@@ -30,9 +26,11 @@ import {
   type LunaItem,
 } from '../extractors/watchluna/browse';
 import { tapSelection } from '../lib/haptics';
+import { log, error as logError } from '../lib/log';
 
 type Props = {
   visible: boolean;
+  onFullScreen?: (open: boolean) => void;
 };
 
 type Rail = { key: string; title: string; path: string; items: LunaItem[] };
@@ -96,65 +94,7 @@ function PosterCard({
   );
 }
 
-function TrendingCard({
-  item,
-  active,
-  testID,
-  onOpen,
-}: {
-  item: LunaItem;
-  active: boolean;
-  testID?: string;
-  onOpen: (item: LunaItem) => void;
-}) {
-  const scale = useSharedValue(active ? 1 : 0.9);
-
-  useEffect(() => {
-    scale.value = withSpring(active ? 1 : 0.9, { damping: 18, stiffness: 220 });
-  }, [active, scale]);
-
-  const animated = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  return (
-    <Animated.View style={[tw`mr-4`, animated]}>
-      <Pressable
-        onPress={() => {
-          tapSelection();
-          onOpen(item);
-        }}
-        testID={testID}
-        accessibilityLabel={`Trending: ${item.title}`}
-      >
-        <View style={tw`overflow-hidden rounded-[28px] border border-white/10`}>
-          {item.poster ? (
-            <Image
-              source={{ uri: item.poster }}
-              style={tw`h-64 w-44`}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-          ) : (
-            <View style={tw`h-64 w-44 items-center justify-center bg-white/5`}>
-              <Play size={26} color="#64748b" />
-            </View>
-          )}
-          <View style={tw`absolute inset-x-0 bottom-0 bg-black/60 px-3 pb-2.5 pt-6`}>
-            <Text style={tw`font-sans-bold text-[14px] text-white`} numberOfLines={1}>
-              {item.title}
-            </Text>
-            {item.year && (
-              <Text style={tw`font-mono text-[10px] text-slate-300`}>{item.year}</Text>
-            )}
-          </View>
-        </View>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-function MoviesScreenInner({ visible }: Props) {
+function MoviesScreenInner({ visible, onFullScreen }: Props) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [query, setQuery] = useState('');
@@ -163,26 +103,37 @@ function MoviesScreenInner({ visible }: Props) {
   const [trending, setTrending] = useState<LunaItem[]>([]);
   const [rails, setRails] = useState<Rail[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [selected, setSelected] = useState<LunaItem | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const booted = useRef(false);
   const seq = useRef(0);
 
   const loadBrowse = useCallback(async () => {
+    const started = Date.now();
+    log('Movies', 'browse start');
     setLoading(true);
     try {
       const [foundTrending, ...foundRails] = await Promise.all([
-        listTrending().catch(() => null),
+        listTrending().catch((err: unknown) => {
+          logError('Movies', `trending failed: ${err instanceof Error ? err.message : String(err)}`);
+          return null;
+        }),
         ...RAIL_DEFS.map((def) =>
           listRail(def.path, 1, def.title)
             .then((rail) => ({ ...def, items: rail?.items ?? [] }))
-            .catch(() => ({ ...def, items: [] }))
+            .catch((err: unknown) => {
+              logError('Movies', `rail ${def.key} failed: ${err instanceof Error ? err.message : String(err)}`);
+              return { ...def, items: [] };
+            })
         ),
       ]);
       setTrending(foundTrending ?? []);
-      setActiveId(foundTrending?.[0] ? `${foundTrending[0].kind}-${foundTrending[0].id}` : null);
       setRails(foundRails);
+      const summary = foundRails.map((rail) => `${rail.key}:${rail.items.length}`).join(',');
+      log(
+        'Movies',
+        `browse done trending=${foundTrending?.length ?? 0} rails=${summary} ms=${Date.now() - started}`
+      );
     } finally {
       setLoading(false);
     }
@@ -199,13 +150,20 @@ function MoviesScreenInner({ visible }: Props) {
     if (term.length < 2) return;
     const current = seq.current + 1;
     seq.current = current;
+    const started = Date.now();
     const timer = setTimeout(() => {
       void (async () => {
         try {
           const items = await searchTitles(term);
-          if (seq.current === current) setResults(items);
-        } catch {
-          if (seq.current === current) setResults([]);
+          if (seq.current === current) {
+            setResults(items);
+            log('Movies', `search "${term}" -> ${items.length} ms=${Date.now() - started}`);
+          }
+        } catch (err) {
+          if (seq.current === current) {
+            setResults([]);
+            logError('Movies', `search "${term}" failed: ${err instanceof Error ? err.message : String(err)}`);
+          }
         } finally {
           if (seq.current === current) setSearching(false);
         }
@@ -214,10 +172,20 @@ function MoviesScreenInner({ visible }: Props) {
     return () => clearTimeout(timer);
   }, [query]);
 
-  const openDetail = useCallback((item: LunaItem) => {
-    setSelected(item);
-    setSheetOpen(true);
-  }, []);
+  const openDetail = useCallback(
+    (item: LunaItem) => {
+      setSelected(item);
+      setDetailOpen(true);
+      onFullScreen?.(true);
+    },
+    [onFullScreen]
+  );
+
+  const closeDetail = useCallback(() => {
+    setDetailOpen(false);
+    setSelected(null);
+    onFullScreen?.(false);
+  }, [onFullScreen]);
 
   const onQuery = (text: string) => {
     setQuery(text);
@@ -229,13 +197,6 @@ function MoviesScreenInner({ visible }: Props) {
       setSearching(true);
     }
   };
-
-  const viewable = useRef(({ viewableItems }: { viewableItems: { item: LunaItem }[] }) => {
-    const first = viewableItems[0]?.item;
-    if (first) setActiveId(`${first.kind}-${first.id}`);
-  });
-
-  const viewConfig = useRef({ itemVisiblePercentThreshold: 70 });
 
   const inSearch = query.trim().length >= 2;
   const gridW = (width - 32 - 24) / 3;
@@ -281,7 +242,7 @@ function MoviesScreenInner({ visible }: Props) {
             <Pressable
               onPress={() => {
                 tapSelection();
-                setQuery('');
+                onQuery('');
                 Keyboard.dismiss();
               }}
               style={tw`absolute right-3 rounded-full p-1`}
@@ -305,17 +266,13 @@ function MoviesScreenInner({ visible }: Props) {
             <PosterCard item={item} width={gridW} height={gridW * 1.5} testID={`movie-result-${index}`} onOpen={openDetail} />
           )}
           ListHeaderComponent={
-            searching ? (
-              <Text style={tw`px-4 pb-2 font-mono text-[12px] text-slate-400`}>
-                Searching for “{query.trim()}”…
-              </Text>
-            ) : (
-              <Text style={tw`px-4 pb-2 font-mono text-[12px] text-slate-400`}>
-                {results.length === 0
+            <Text style={tw`px-4 pb-2 font-mono text-[12px] text-slate-400`}>
+              {searching
+                ? `Searching for “${query.trim()}”…`
+                : results.length === 0
                   ? `No results for “${query.trim()}”`
                   : `${results.length} results for “${query.trim()}”`}
-              </Text>
-            )
+            </Text>
           }
           ListEmptyComponent={
             searching ? null : (
@@ -350,23 +307,7 @@ function MoviesScreenInner({ visible }: Props) {
               <Text style={tw`px-4 pb-2 font-sans-bold text-[16px] text-slate-200`}>
                 Trending this week
               </Text>
-              <FlatList
-                data={trending}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={tw`px-4`}
-                keyExtractor={(item) => `${item.kind}-${item.id}`}
-                renderItem={({ item, index }) => (
-                  <TrendingCard
-                    item={item}
-                    active={activeId === `${item.kind}-${item.id}`}
-                    testID={`movie-trending-${index}`}
-                    onOpen={openDetail}
-                  />
-                )}
-                onViewableItemsChanged={viewable.current}
-                viewabilityConfig={viewConfig.current}
-              />
+              <TrendingCarousel items={trending} onOpen={openDetail} />
             </View>
           )}
           {rails.map((rail) =>
@@ -402,14 +343,7 @@ function MoviesScreenInner({ visible }: Props) {
         </ScrollView>
       )}
 
-      <MovieDetailSheet
-        item={selected}
-        open={sheetOpen}
-        onClose={() => {
-          setSheetOpen(false);
-          setSelected(null);
-        }}
-      />
+      <MovieDetailScreen visible={detailOpen} item={selected} onClose={closeDetail} />
     </View>
   );
 }

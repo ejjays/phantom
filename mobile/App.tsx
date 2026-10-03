@@ -393,7 +393,9 @@ function AppRoot() {
                   onFullScreen={setNavHidden}
                 />
               )}
-              {visited.movies && <MoviesScreen visible={tab === 'movies'} />}
+              {visited.movies && (
+                <MoviesScreen visible={tab === 'movies'} onFullScreen={setNavHidden} />
+              )}
               {visited.downloads && (
                 <DownloadsScreen visible={tab === 'downloads'} />
               )}
