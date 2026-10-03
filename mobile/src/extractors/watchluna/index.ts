@@ -64,7 +64,7 @@ export async function getInfo(
     const sources = await fetchVidrockSources(ref);
     if (sources.length === 0) throw noVideo('Watchluna');
 
-    const formats = await vidrockToFormats(sources, meta?.durationSec ?? 0);
+    const formats = await vidrockToFormats(sources, meta?.durationSec ?? 0, { quick: true });
     if (formats.length === 0) throw noVideo('Watchluna');
 
     return {

@@ -6,6 +6,7 @@ vi.mock('../src/lib/net', () => ({
 }));
 
 import { gatedFetch } from '../src/lib/net';
+import { vidrockToFormats } from '../src/extractors/watchluna/vidrock';
 import {
   searchTitles,
   parseCards,
@@ -26,6 +27,15 @@ function jsonRes(body: unknown, ok = true): Response {
     status: ok ? 200 : 404,
     json: () => Promise.resolve(body),
     headers: { get: () => 'application/json' },
+  } as unknown as Response;
+}
+
+function playlistRes(body: string): Response {
+  return {
+    ok: true,
+    status: 200,
+    text: () => Promise.resolve(body),
+    headers: { get: () => null },
   } as unknown as Response;
 }
 
@@ -174,8 +184,7 @@ describe('listTrending', () => {
   });
 });
 
-describe('getTitleDetails', () => {
-  beforeEach(() => {
+describe('getTitleDetails', () => {  beforeEach(() => {
     mockFetch.mockReset();
   });
 
@@ -202,5 +211,39 @@ describe('getTitleDetails', () => {
   it('returns null when every origin fails', async () => {
     mockFetch.mockRejectedValue(new Error('down'));
     await expect(getTitleDetails('movie', '414906')).resolves.toBeNull();
+  });
+});
+
+const QUICK_MASTER = [
+  '#EXTM3U',
+  '#EXT-X-STREAM-INF:BANDWIDTH=8000000,RESOLUTION=1920x1080,CODECS="avc1.640028,mp4a.40.2"',
+  'https://cdn.example/1080.m3u8',
+  '#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1280x720,CODECS="avc1.64001f,mp4a.40.2"',
+  'https://cdn.example/720.m3u8',
+].join('\n');
+
+describe('vidrockToFormats quick mode', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('lists variants without touching segments', async () => {
+    mockFetch.mockImplementation((reqUrl: unknown) => {
+      const target = String(reqUrl);
+      if (target.includes('roguefrequency.live')) return Promise.resolve(playlistRes(QUICK_MASTER));
+      return Promise.resolve(textRes('', false));
+    });
+    const formats = await vidrockToFormats(
+      [{ name: 'Orion', url: 'https://roguefrequency.live/master.m3u8', streamType: 'hls' }],
+      7380,
+      { quick: true }
+    );
+    expect(formats).toHaveLength(2);
+    expect(formats[0].formatId).toContain('orion-1080p');
+    expect(formats[0].filesize).toBeGreaterThan(0);
+    const touchedSegments = mockFetch.mock.calls.filter((call) =>
+      String(call[0]).includes('cdn.example') || String(call[0]).includes('seg.example')
+    );
+    expect(touchedSegments).toHaveLength(0);
   });
 });

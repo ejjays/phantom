@@ -193,7 +193,8 @@ async function estimateVariantSize(variantUrl: string): Promise<number | undefin
 
 export async function vidrockToFormats(
   sources: VidrockSource[],
-  durationSec: number
+  durationSec: number,
+  opts?: { quick?: boolean }
 ): Promise<Format[]> {
   const formats: Format[] = [];
   const seen = new Set<string>();
@@ -248,9 +249,11 @@ export async function vidrockToFormats(
     }
     const master = parseHlsMaster(playlist, source.url);
     const variants = hlsVariantsToFormats(master, { durationSec });
-    const measured = await Promise.all(
-      variants.map((variant) => estimateVariantSize(variant.url))
-    );
+    const measured = opts?.quick
+      ? variants.map(() => undefined)
+      : await Promise.all(
+          variants.map((variant) => estimateVariantSize(variant.url))
+        );
     variants.forEach((variant, idx) => {
       push({
         ...variant,

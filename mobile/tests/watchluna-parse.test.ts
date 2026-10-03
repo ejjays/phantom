@@ -173,11 +173,11 @@ describe('watchluna getInfo', () => {
     expect(nova?.filesize).toBe(300000);
   });
 
-  it('measures variant sizes from real segments, not the inflated claim', async () => {
+  it('uses playlist claims for variant sizes instead of probing segments', async () => {
     mockHappy();
     const info = await getInfo('https://watchluna.gd/watch/movie/1477317');
     const orion1080 = info?.formats.find((f) => f.formatId.includes('orion-1080p'));
-    expect(orion1080?.filesize).toBe(1200000);
+    expect(orion1080?.filesize).toBeGreaterThan(1000000000);
   });
 
   it('skips sources whose segments already serve placeholders', async () => {
