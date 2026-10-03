@@ -10,10 +10,15 @@ import Svg, {
   Polygon,
   Rect,
 } from 'react-native-svg';
+import { Clapperboard } from 'lucide-react-native';
 
 export { PasteIcon } from './FormatIcons';
 
 export type IconProps = { size?: number; color?: string };
+
+export function MoviesIcon({ size = 24, color = '#000000' }: IconProps) {
+  return <Clapperboard size={size} color={color} />;
+}
 
 export function HomeIcon({ size = 24, color = '#000000' }: IconProps) {
   return (

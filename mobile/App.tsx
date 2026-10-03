@@ -14,6 +14,7 @@ import ShootingStars from './src/components/backgrounds/ShootingStars';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import BottomNav, { type Tab } from './src/components/BottomNav';
 import HomeScreen from './src/screens/HomeScreen';
+import MoviesScreen from './src/screens/MoviesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import UpdatesScreen from './src/screens/UpdatesScreen';
 import DownloadsScreen from './src/screens/DownloadsScreen';
@@ -99,6 +100,7 @@ function AppRoot() {
   const [tab, setTab] = useState<Tab>('home');
   const [visited, setVisited] = useState({
     downloads: false,
+    movies: false,
     settings: false,
     updates: false,
   });
@@ -210,7 +212,7 @@ function AppRoot() {
   useEffect(
     () =>
       scheduleIdle(() =>
-        setVisited({ downloads: true, settings: true, updates: true })
+        setVisited({ downloads: true, movies: true, settings: true, updates: true })
       ),
     []
   );
@@ -305,8 +307,8 @@ function AppRoot() {
       else tabHistory.current = [...tabHistory.current, tab];
     }
     setTab(next);
-    if (next === 'downloads' || next === 'settings' || next === 'updates') {
-      setVisited((v) => (v[next] ? v : { ...v, [next]: true }));
+    if (next === 'downloads' || next === 'movies' || next === 'settings' || next === 'updates') {
+      setVisited((seen) => (seen[next] ? seen : { ...seen, [next]: true }));
     }
   };
   // back: walk tab stack → home, home owns exit
@@ -391,6 +393,7 @@ function AppRoot() {
                   onFullScreen={setNavHidden}
                 />
               )}
+              {visited.movies && <MoviesScreen visible={tab === 'movies'} />}
               {visited.downloads && (
                 <DownloadsScreen visible={tab === 'downloads'} />
               )}
