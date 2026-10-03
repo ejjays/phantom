@@ -84,8 +84,13 @@ function metaContent(html: string, key: string): string | undefined {
   return found ? decodeEntities(found[1] ?? found[2] ?? '') : undefined;
 }
 
-function ldMovie(html: string): Partial<LunaMeta> {
-  const out: Partial<LunaMeta> = {};
+function parseIsoDuration(raw: string): number | undefined {
+  const dur = raw.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/u);
+  if (!dur) return undefined;
+  return Number(dur[1] ?? 0) * 3600 + Number(dur[2] ?? 0) * 60 + Number(dur[3] ?? 0);
+}
+
+function movieNode(html: string): Record<string, unknown> | null {
   for (const hit of html.matchAll(
     /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/giu
   )) {
@@ -97,31 +102,82 @@ function ldMovie(html: string): Partial<LunaMeta> {
       const nodes = Array.isArray(graph) ? (graph as unknown[]) : [json];
       for (const node of nodes) {
         const rec = node as Record<string, unknown>;
-        const graph = rec['@graph'];
-        const list = Array.isArray(graph) ? (graph as Record<string, unknown>[]) : [rec];
+        const inner = rec['@graph'];
+        const list = Array.isArray(inner) ? (inner as Record<string, unknown>[]) : [rec];
         for (const item of list) {
-          if (item['@type'] !== 'Movie' && item['@type'] !== 'TVSeries' && item['@type'] !== 'VideoObject') continue;
-          if (typeof item['name'] === 'string' && !out.title) out.title = decodeEntities(item['name']);
-          const img = item['image'];
-          if (!out.image) {
-            if (typeof img === 'string') out.image = img;
-            else if (Array.isArray(img) && typeof img[0] === 'string') out.image = img[0] as string;
-          }
-          if (typeof item['description'] === 'string' && !out.description) {
-            out.description = decodeEntities(item['description']);
-          }
-          if (typeof item['duration'] === 'string' && !out.durationSec) {
-            const dur = (item['duration'] as string).match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/u);
-            if (dur) {
-              out.durationSec =
-                Number(dur[1] ?? 0) * 3600 + Number(dur[2] ?? 0) * 60 + Number(dur[3] ?? 0);
-            }
+          if (item['@type'] === 'Movie' || item['@type'] === 'TVSeries' || item['@type'] === 'VideoObject') {
+            return item;
           }
         }
       }
     } catch {
       continue;
     }
+  }
+  return null;
+}
+
+export type LunaDetails = {
+  title: string;
+  image?: string;
+  backdrop?: string;
+  durationSec?: number;
+  description?: string;
+  year?: string;
+  rating?: number;
+  votes?: number;
+  genres: string[];
+  contentRating?: string;
+  director?: string;
+  cast: string[];
+};
+
+function personName(value: unknown): string | undefined {
+  if (typeof value === 'string') return decodeEntities(value);
+  const rec = value as Record<string, unknown> | null;
+  return typeof rec?.['name'] === 'string' ? decodeEntities(rec['name']) : undefined;
+}
+
+export function parseLunaDetails(html: string, fallbackId: string): LunaDetails {
+  const meta = parseLunaMeta(html, fallbackId);
+  const node = movieNode(html);
+  const date = typeof node?.['datePublished'] === 'string' ? node['datePublished'] : undefined;
+  const agg = node?.['aggregateRating'] as Record<string, unknown> | undefined;
+  const rawGenres = node?.['genre'];
+  const rawCast = node?.['actor'];
+  const backdrop = html.match(
+    /<link[^>]+rel=["']preload["'][^>]+as=["']image["'][^>]+href=["']([^"']+)["']/iu
+  )?.[1];
+  return {
+    ...meta,
+    year: date?.slice(0, 4),
+    rating: typeof agg?.['ratingValue'] === 'number' ? agg['ratingValue'] : undefined,
+    votes: typeof agg?.['ratingCount'] === 'number' ? agg['ratingCount'] : undefined,
+    genres: Array.isArray(rawGenres)
+      ? rawGenres.filter((genre): genre is string => typeof genre === 'string')
+      : [],
+    contentRating: typeof node?.['contentRating'] === 'string' ? node['contentRating'] : undefined,
+    director: personName(node?.['director']),
+    cast: Array.isArray(rawCast)
+      ? rawCast.map(personName).filter((name): name is string => Boolean(name)).slice(0, 8)
+      : [],
+    backdrop,
+  };
+}
+
+function ldMovie(html: string): Partial<LunaMeta> {
+  const out: Partial<LunaMeta> = {};
+  const node = movieNode(html);
+  if (!node) return out;
+  if (typeof node['name'] === 'string') out.title = decodeEntities(node['name']);
+  const img = node['image'];
+  if (typeof img === 'string') out.image = img;
+  else if (Array.isArray(img) && typeof img[0] === 'string') out.image = img[0] as string;
+  if (typeof node['description'] === 'string') {
+    out.description = decodeEntities(node['description']);
+  }
+  if (typeof node['duration'] === 'string') {
+    out.durationSec = parseIsoDuration(node['duration']);
   }
   return out;
 }

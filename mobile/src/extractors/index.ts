@@ -12,6 +12,7 @@ import { getInfo as instagramGetInfo } from './instagram';
 import { getInfo as spotifyGetInfo } from './spotify';
 import { getInfo as soundcloudGetInfo } from './soundcloud';
 import { getInfo as watchlunaGetInfo } from './watchluna';
+import { isLunaHost } from './watchluna/parse';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 import { reportError } from '../lib/crash';
 import { log } from '../lib/log';
@@ -52,7 +53,7 @@ async function dispatch(
     return instagramGetInfo(url);
   }
 
-  if (matches(host, 'watchluna.com') || matches(host, 'watchluna.gd')) {
+  if (isLunaHost(host)) {
     return watchlunaGetInfo(url, onPartial);
   }
 
