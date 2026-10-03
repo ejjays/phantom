@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Download, Check, Star, ArrowLeft } from 'lucide-react-native';
+import { Download, Check, Star, ArrowLeft, RotateCcw } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { useBackHandler } from '../lib/back';
 import { resolve } from '../extractors';
 import { getTitleDetails, type LunaItem, type LunaTitle } from '../extractors/watchluna/browse';
 import { useDownload } from '../hooks/useDownload';
-import { formatLabel, type DownloadState } from '../lib/format';
+import { formatLabel, formatSize, type DownloadState } from '../lib/format';
 import { tapImpact, tapSelection } from '../lib/haptics';
 import { log, error as logError } from '../lib/log';
 import type { Format, VideoInfo } from '@phantom/extractors';
@@ -114,60 +114,106 @@ function TitleBlock({ details, kind }: { details: LunaTitle; kind: string }) {
   );
 }
 
-function DetailFooter({
+type DlPhase = 'busy' | 'saved' | 'errored' | 'ready' | 'waiting';
+
+function dlPhase(
+  status: DownloadState | undefined,
+  hasBest: boolean,
+  dlError: string | null
+): DlPhase {
+  if (status?.status === 'saved') return 'saved';
+  if (status?.status === 'error' || dlError !== null) return 'errored';
+  if (
+    status?.status === 'downloading' ||
+    status?.status === 'muxing' ||
+    status?.status === 'saving'
+  ) {
+    return 'busy';
+  }
+  if (hasBest) return 'ready';
+  return 'waiting';
+}
+
+function DlIcon({ phase }: { phase: DlPhase }) {
+  if (phase === 'busy') return <ActivityIndicator size="small" color="#083344" />;
+  if (phase === 'saved') return <Check size={24} color="#083344" strokeWidth={3} />;
+  if (phase === 'errored') return <RotateCcw size={22} color="#083344" strokeWidth={2.5} />;
+  return <Download size={22} color="#083344" strokeWidth={2.5} />;
+}
+
+function DownloadSection({
   best,
   status,
-  failed,
   noSources,
+  dlError,
   onDownload,
 }: {
   best: Format | undefined;
   status: DownloadState | undefined;
-  failed: boolean;
   noSources: boolean;
+  dlError: string | null;
   onDownload: () => void;
 }) {
-  const busy = status?.status === 'downloading';
-  const saved = status?.status === 'saved';
-  const label = saved
-    ? 'Saved — see History'
-    : best
-      ? `Download • ${formatLabel(best)}`
-      : noSources
-        ? 'No sources yet — check back later'
-        : 'Finding best quality…';
+  const phase = dlPhase(status, Boolean(best), dlError);
+  const size = best?.filesize ? formatSize(best.filesize) : '';
+  const sub = best ? [formatLabel(best), size].filter(Boolean).join(' • ') : '';
+  const shell =
+    phase === 'saved' ? 'bg-emerald-400' : phase === 'errored' ? 'bg-amber-400' : 'bg-cyan-400';
+  const title =
+    phase === 'saved'
+      ? 'Saved to History'
+      : phase === 'errored'
+        ? 'Tap to retry'
+        : phase === 'busy'
+          ? `${status?.progress ?? 0}%`
+          : phase === 'ready'
+            ? 'Download'
+            : noSources
+              ? 'No sources yet'
+              : 'Finding best quality…';
+  const hint =
+    phase === 'saved'
+      ? 'Find it in the History tab'
+      : phase === 'busy'
+        ? 'Downloading…'
+        : phase === 'ready'
+          ? sub
+          : '';
+  const idle = phase === 'ready' || phase === 'errored';
   return (
-    <View style={tw`flex-row items-center gap-3 px-5`}>
+    <View style={tw`mt-4`}>
       <Pressable
         onPress={onDownload}
-        disabled={!best || busy || saved}
+        disabled={!idle && phase !== 'busy' && phase !== 'saved'}
         testID="movie-download-btn"
-        accessibilityLabel={saved ? 'Saved to history' : 'Download this title'}
+        accessibilityLabel={phase === 'saved' ? 'Saved to history' : phase === 'errored' ? 'Retry download' : 'Download this title'}
         style={({ pressed }) => [
-          tw`h-14 w-14 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-500/20 ${!best || saved ? 'opacity-50' : ''} ${pressed ? 'opacity-70' : ''}`,
+          tw`h-16 overflow-hidden rounded-2xl ${shell} ${pressed && idle ? 'opacity-85' : ''} ${phase === 'waiting' ? 'opacity-60' : ''}`,
         ]}
       >
-        {busy ? (
-          <ActivityIndicator size="small" color="#67e8f9" />
-        ) : saved ? (
-          <Check size={24} color="#67e8f9" />
-        ) : (
-          <Download size={24} color="#67e8f9" />
+        {phase === 'busy' && (
+          <View
+            style={[tw`absolute inset-y-0 left-0 bg-black/20`, { width: `${status?.progress ?? 0}%` }]}
+          />
         )}
+        <View style={tw`flex-1 flex-row items-center gap-3 px-5`}>
+          <DlIcon phase={phase} />
+          <View style={tw`flex-1`}>
+            <Text style={tw`font-sans-bold text-[17px] text-slate-950`}>{title}</Text>
+            {hint !== '' && (
+              <Text style={tw`font-mono text-[12px] text-slate-800`}>{hint}</Text>
+            )}
+          </View>
+        </View>
       </Pressable>
-      <View style={tw`flex-1 rounded-2xl border border-white/10 bg-black/60 px-3.5 py-2.5`}>
-        <Text style={tw`font-mono-semibold text-[13px] text-slate-100`}>{label}</Text>
-        {busy && (
-          <Text style={tw`mt-0.5 font-mono text-[11px] text-cyan-300`}>
-            {status?.progress ?? 0}% downloaded
-          </Text>
-        )}
-        {failed && (
-          <Text style={tw`mt-0.5 font-mono text-[11px] text-red-400`}>
-            Could not load sources — retry later
-          </Text>
-        )}
-      </View>
+      {dlError && (
+        <Text style={tw`mt-2 font-mono text-[12px] text-red-400`}>{dlError}</Text>
+      )}
+      {noSources && !best && (
+        <Text style={tw`mt-2 font-mono text-[12px] text-slate-500`}>
+          This title has no streams right now — check back after release.
+        </Text>
+      )}
     </View>
   );
 }
@@ -178,6 +224,7 @@ export default function MovieDetailScreen({ visible, item, onClose }: Props) {
   const [video, setVideo] = useState<VideoInfo | null>(null);
   const [failed, setFailed] = useState(false);
   const [noSources, setNoSources] = useState(false);
+  const [dlError, setDlError] = useState<string | null>(null);
   const { downloads, startDownload } = useDownload(video);
 
   useBackHandler(() => {
@@ -196,6 +243,7 @@ export default function MovieDetailScreen({ visible, item, onClose }: Props) {
     setVideo(null);
     setFailed(false);
     setNoSources(false);
+    setDlError(null);
     void (async () => {
       const [found, full, sourceErr] = await loadTitle(item.kind, item.id);
       if (cancelled) return;
@@ -228,13 +276,17 @@ export default function MovieDetailScreen({ visible, item, onClose }: Props) {
   const saved = status?.status === 'saved';
 
   const onDownload = () => {
-    if (!best || busy || saved) return;
+    const errored = status?.status === 'error';
+    if ((!best && !errored) || busy || saved) return;
     tapImpact();
+    setDlError(null);
+    if (!best) return;
     log('Movies', `download tap ${best.formatId} ${formatLabel(best)}`);
     void startDownload(best).then((result) => {
       if (result.status === 'saved') {
         log('Movies', `download saved ${best.formatId} uri=${result.uri ?? 'gallery'}`);
       } else if (result.status === 'error') {
+        setDlError(result.message);
         logError('Movies', `download error ${best.formatId}: ${result.message}`);
       } else {
         log('Movies', `download cancelled ${best.formatId}`);
@@ -249,7 +301,7 @@ export default function MovieDetailScreen({ visible, item, onClose }: Props) {
         { opacity: visible ? 1 : 0, pointerEvents: visible ? 'auto' : 'none' },
       ]}
     >
-      <ScrollView contentContainerStyle={tw`pb-40`}>
+      <ScrollView contentContainerStyle={tw`pb-10`}>
         {details?.backdrop ? (
           <View>
             <Image
@@ -327,19 +379,16 @@ export default function MovieDetailScreen({ visible, item, onClose }: Props) {
                 value={best ? formatLabel(best) : noSources ? 'No sources yet' : failed ? 'Unavailable' : 'Resolving…'}
               />
             </View>
+            <DownloadSection
+              best={best}
+              status={status}
+              noSources={noSources}
+              dlError={dlError}
+              onDownload={onDownload}
+            />
           </View>
         )}
       </ScrollView>
-
-      <View style={[tw`absolute bottom-0 left-0 right-0`, { paddingBottom: insets.bottom + 108 }]}>
-        <DetailFooter
-          best={best}
-          status={status}
-          failed={failed}
-          noSources={noSources}
-          onDownload={onDownload}
-        />
-      </View>
     </View>
   );
 }
