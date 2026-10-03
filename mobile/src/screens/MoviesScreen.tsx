@@ -8,13 +8,15 @@ import {
   ScrollView,
   RefreshControl,
   Keyboard,
+  ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import LottieView from 'lottie-react-native';
-import { Search, X, Star, Play } from 'lucide-react-native';
+import { Search, X, Star, Play, ChevronRight } from 'lucide-react-native';
 import tw from '../lib/tw';
+import { useBackHandler } from '../lib/back';
 import ufo from '../../assets/UFO.json';
 import { PlatformLogo } from '../components/logos';
 import TrendingCarousel from '../components/TrendingCarousel';
@@ -33,7 +35,15 @@ type Props = {
   onFullScreen?: (open: boolean) => void;
 };
 
-type Rail = { key: string; title: string; path: string; items: LunaItem[] };
+type Rail = {
+  key: string;
+  title: string;
+  path: string;
+  items: LunaItem[];
+  page: number;
+  totalPages: number;
+  loadingMore: boolean;
+};
 
 const RAIL_DEFS = [
   { key: 'popular', title: 'Popular Movies', path: '/movies' },
@@ -105,6 +115,7 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<LunaItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [railKey, setRailKey] = useState<string | null>(null);
   const booted = useRef(false);
   const seq = useRef(0);
 
@@ -120,10 +131,16 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
         }),
         ...RAIL_DEFS.map((def) =>
           listRail(def.path, 1, def.title)
-            .then((rail) => ({ ...def, items: rail?.items ?? [] }))
+            .then((rail) => ({
+              ...def,
+              items: rail?.items ?? [],
+              page: 1,
+              totalPages: rail?.totalPages ?? 1,
+              loadingMore: false,
+            }))
             .catch((err: unknown) => {
               logError('Movies', `rail ${def.key} failed: ${err instanceof Error ? err.message : String(err)}`);
-              return { ...def, items: [] };
+              return { ...def, items: [], page: 1, totalPages: 1, loadingMore: false };
             })
         ),
       ]);
@@ -144,6 +161,34 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
     booted.current = true;
     void loadBrowse();
   }, [visible, loadBrowse]);
+
+  const loadMoreRail = useCallback(
+    async (key: string) => {
+      const rail = rails.find((entry) => entry.key === key);
+      if (!rail || rail.loadingMore || rail.page >= rail.totalPages) return;
+      setRails((prev) => prev.map((entry) => (entry.key === key ? { ...entry, loadingMore: true } : entry)));
+      const started = Date.now();
+      try {
+        const next = await listRail(rail.path, rail.page + 1, rail.title);
+        if (!next) return;
+        const seen = new Set(rail.items.map((item) => `${item.kind}-${item.id}`));
+        const fresh = next.items.filter((item) => !seen.has(`${item.kind}-${item.id}`));
+        setRails((prev) =>
+          prev.map((entry) =>
+            entry.key === key
+              ? { ...entry, items: [...entry.items, ...fresh], page: rail.page + 1, totalPages: next.totalPages }
+              : entry
+          )
+        );
+        log('Movies', `rail ${key} page=${rail.page + 1}/${next.totalPages} +${fresh.length} ms=${Date.now() - started}`);
+      } catch (err) {
+        logError('Movies', `rail ${key} more failed: ${err instanceof Error ? err.message : String(err)}`);
+      } finally {
+        setRails((prev) => prev.map((entry) => (entry.key === key ? { ...entry, loadingMore: false } : entry)));
+      }
+    },
+    [rails]
+  );
 
   useEffect(() => {
     const term = query.trim();
@@ -187,6 +232,12 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
     onFullScreen?.(false);
   }, [onFullScreen]);
 
+  useBackHandler(() => {
+    if (!visible || detailOpen || !railKey) return false;
+    setRailKey(null);
+    return true;
+  }, 5);
+
   const onQuery = (text: string) => {
     setQuery(text);
     if (text.trim().length < 2) {
@@ -200,6 +251,7 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
 
   const inSearch = query.trim().length >= 2;
   const gridW = (width - 32 - 24) / 3;
+  const openRail = !inSearch ? (rails.find((entry) => entry.key === railKey) ?? null) : null;
 
   return (
     <View
@@ -288,6 +340,46 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
             )
           }
         />
+      ) : openRail ? (
+        <FlatList
+          data={openRail.items}
+          numColumns={3}
+          keyExtractor={(item) => `${item.kind}-${item.id}`}
+          columnWrapperStyle={tw`gap-3 px-4`}
+          contentContainerStyle={tw`gap-3 pb-32 pt-2`}
+          onEndReached={() => void loadMoreRail(openRail.key)}
+          onEndReachedThreshold={0.5}
+          renderItem={({ item, index }) => (
+            <PosterCard item={item} width={gridW} height={gridW * 1.5} testID={`movie-grid-${index}`} onOpen={openDetail} />
+          )}
+          ListHeaderComponent={
+            <View style={tw`flex-row items-center gap-1 px-4 pb-2`}>
+              <Pressable
+                onPress={() => {
+                  tapSelection();
+                  setRailKey(null);
+                }}
+                style={tw`rounded-full p-1`}
+                accessibilityLabel="Back to browse"
+              >
+                <ChevronRight size={18} color="#94a3b8" style={{ transform: [{ rotate: '180deg' }] }} />
+              </Pressable>
+              <Text style={tw`font-sans-bold text-[18px] text-white`}>{openRail.title}</Text>
+              <Text style={tw`font-mono text-[11px] text-slate-500`}>
+                {openRail.items.length} titles
+              </Text>
+            </View>
+          }
+          ListFooterComponent={
+            openRail.loadingMore ? (
+              <ActivityIndicator size="small" color="#22d3ee" style={tw`py-4`} />
+            ) : openRail.page >= openRail.totalPages ? (
+              <Text style={tw`py-4 text-center font-mono text-[11px] text-slate-600`}>
+                That is everything — {openRail.totalPages} pages
+              </Text>
+            ) : null
+          }
+        />
       ) : (
         <ScrollView
           contentContainerStyle={tw`pb-32`}
@@ -313,15 +405,28 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
           {rails.map((rail) =>
             rail.items.length > 0 ? (
               <View key={rail.key} style={tw`mt-5`}>
-                <Text style={tw`px-4 pb-2 font-sans-bold text-[16px] text-slate-200`}>
-                  {rail.title}
-                </Text>
+                <Pressable
+                  onPress={() => {
+                    tapSelection();
+                    setRailKey(rail.key);
+                    log('Movies', `rail open ${rail.key} items=${rail.items.length}`);
+                  }}
+                  accessibilityLabel={`See all ${rail.title}`}
+                  style={tw`flex-row items-center justify-between pr-4`}
+                >
+                  <Text style={tw`px-4 pb-2 font-sans-bold text-[16px] text-slate-200`}>
+                    {rail.title}
+                  </Text>
+                  <Text style={tw`pb-2 font-mono text-[12px] text-cyan-400`}>See all ›</Text>
+                </Pressable>
                 <FlatList
                   data={rail.items}
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={tw`gap-3 px-4`}
                   keyExtractor={(item) => `${item.kind}-${item.id}`}
+                  onEndReached={() => void loadMoreRail(rail.key)}
+                  onEndReachedThreshold={0.6}
                   renderItem={({ item, index }) => (
                     <PosterCard item={item} width={112} height={168} testID={`movie-rail-${rail.key}-${index}`} onOpen={openDetail} />
                   )}

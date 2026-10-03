@@ -117,7 +117,8 @@ export async function listRail(
   page = 1,
   title = 'Movies'
 ): Promise<LunaRail | null> {
-  const target = `${path}?page=${page}`;
+  const sep = path.includes('?') ? '&' : '?';
+  const target = `${path}${sep}page=${page}`;
   const alt = page === 1 ? path : null;
   for (const suffix of [target, ...(alt ? [alt] : [])]) {
     const fetched = await fetchLuna(suffix);

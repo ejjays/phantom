@@ -150,6 +150,14 @@ describe('listRail', () => {
     mockFetch.mockResolvedValue(textRes('<html></html>'));
     await expect(listRail('/movies')).resolves.toBeNull();
   });
+
+  it('joins page with & when the path already has a query', async () => {
+    mockFetch.mockResolvedValue(textRes(RAIL_HTML));
+    await listRail('/movies?sort=top_rated', 2, 'Top');
+    expect(String(mockFetch.mock.calls[0]?.[0])).toContain(
+      '/movies?sort=top_rated&page=2'
+    );
+  });
 });
 
 describe('listTrending', () => {
