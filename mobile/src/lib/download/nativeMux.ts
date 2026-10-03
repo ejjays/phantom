@@ -1,4 +1,5 @@
 import { File, Paths } from 'expo-file-system';
+import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import {
   muxAv,
   remuxParts,
@@ -22,6 +23,19 @@ function forcedOff(where: string): boolean {
     return true;
   }
   return false;
+}
+
+async function isWebm(file: File): Promise<boolean> {
+  try {
+    const head = await readAsStringAsync(file.uri, {
+      encoding: EncodingType.Base64,
+      position: 0,
+      length: 4,
+    });
+    return head.startsWith('GkXf');
+  } catch {
+    return false;
+  }
 }
 
 function reason(error: unknown): string {
@@ -51,7 +65,12 @@ export async function nativeMuxVideoAudio(
   if (forcedOff('av')) return false;
   const videoPath = rawPath(videoFile);
   const audioPath = rawPath(audioFile);
-  if (videoPath.toLowerCase().endsWith('.webm') || audioPath.toLowerCase().endsWith('.webm')) {
+  if (
+    videoPath.toLowerCase().endsWith('.webm') ||
+    audioPath.toLowerCase().endsWith('.webm') ||
+    (await isWebm(videoFile)) ||
+    (await isWebm(audioFile))
+  ) {
     return nativeRemuxWebm(videoFile, audioFile, outFile);
   }
   try {
