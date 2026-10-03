@@ -31,14 +31,19 @@ fun ebmlChildren(data: ByteBuffer, start: Long, end: Long): List<EbmlElem> {
         val (size, sizeW) = readVint(data, off + idW, false)
         val allOnes = (1L shl (sizeW * 7)) - 1L
         val len = if (size == allOnes) -1L else size
+        val elemEnd = off + idW + sizeW + len
+        if (len >= 0 && (elemEnd > end || elemEnd < off)) break
         out.add(EbmlElem(id, off + idW + sizeW, len))
         if (len < 0) break
-        off += idW + sizeW + len
+        off = elemEnd
     }
     return out
 }
 
 fun ebmlBytes(data: ByteBuffer, elem: EbmlElem): ByteArray {
+    if (elem.dataLen < 0 || elem.dataOff + elem.dataLen > data.limit()) {
+        throw IllegalStateException("element out of range")
+    }
     val out = ByteArray(elem.dataLen.toInt())
     val pos = data.position()
     data.position(elem.dataOff.toInt())
