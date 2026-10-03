@@ -28,6 +28,46 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
+async function loadTitle(
+  kind: LunaItem['kind'],
+  id: string
+): Promise<[LunaTitle | null, VideoInfo | null, string]> {
+  let found: LunaTitle | null = null;
+  try {
+    found = await getTitleDetails(kind, id);
+  } catch (err) {
+    logError('Movies', `detail ${kind}/${id} meta failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  let full: VideoInfo | null = null;
+  let sourceErr = 'empty resolve';
+  try {
+    const resolved = await resolve(`https://watchluna.gd/${kind}/${id}`, undefined, { fresh: true });
+    if (resolved && !resolved.isPartial) full = resolved;
+  } catch (err) {
+    sourceErr = err instanceof Error ? err.message : String(err);
+  }
+  return [found, full, sourceErr];
+}
+
+function detailsFromVideo(kind: LunaItem['kind'], id: string, full: VideoInfo): LunaTitle {
+  return {
+    id,
+    kind,
+    title: full.title,
+    image: full.thumbnail ?? undefined,
+    backdrop: undefined,
+    durationSec: full.duration ?? undefined,
+    description: full.description ?? undefined,
+    year: undefined,
+    rating: undefined,
+    votes: undefined,
+    genres: [],
+    contentRating: undefined,
+    director: undefined,
+    cast: [],
+  };
+}
+
 function TitleBlock({ details, kind }: { details: LunaTitle; kind: string }) {
   return (
     <View style={tw`flex-row items-end gap-3`}>
@@ -78,11 +118,13 @@ function DetailFooter({
   best,
   status,
   failed,
+  noSources,
   onDownload,
 }: {
   best: Format | undefined;
   status: DownloadState | undefined;
   failed: boolean;
+  noSources: boolean;
   onDownload: () => void;
 }) {
   const busy = status?.status === 'downloading';
@@ -91,7 +133,9 @@ function DetailFooter({
     ? 'Saved — see History'
     : best
       ? `Download • ${formatLabel(best)}`
-      : 'Finding best quality…';
+      : noSources
+        ? 'No sources yet — check back later'
+        : 'Finding best quality…';
   return (
     <View style={tw`flex-row items-center gap-3 px-5`}>
       <Pressable
@@ -133,6 +177,7 @@ export default function MovieDetailScreen({ visible, item, onClose }: Props) {
   const [details, setDetails] = useState<LunaTitle | null>(null);
   const [video, setVideo] = useState<VideoInfo | null>(null);
   const [failed, setFailed] = useState(false);
+  const [noSources, setNoSources] = useState(false);
   const { downloads, startDownload } = useDownload(video);
 
   useBackHandler(() => {
@@ -150,29 +195,26 @@ export default function MovieDetailScreen({ visible, item, onClose }: Props) {
     setDetails(null);
     setVideo(null);
     setFailed(false);
+    setNoSources(false);
     void (async () => {
-      try {
-        const [found, resolved] = await Promise.all([
-          getTitleDetails(item.kind, item.id),
-          resolve(`https://watchluna.gd/${item.kind}/${item.id}`, undefined, { fresh: true }),
-        ]);
-        if (cancelled) return;
-        const full = resolved && !resolved.isPartial ? resolved : null;
-        if (found) setDetails(found);
-        if (full) setVideo(full);
-        if (!found && !full) {
-          setFailed(true);
-          logError('Movies', `detail ${item.kind}/${item.id} empty (no meta, no sources)`);
-        } else {
-          log(
-            'Movies',
-            `detail ${item.kind}/${item.id} ready title="${found?.title ?? full?.title}" formats=${full?.formats.length ?? 0} best=${full?.formats[0]?.formatId} ms=${Date.now() - started}`
-          );
-        }
-      } catch (err) {
-        if (cancelled) return;
+      const [found, full, sourceErr] = await loadTitle(item.kind, item.id);
+      if (cancelled) return;
+      if (found) setDetails(found);
+      else if (full) setDetails(detailsFromVideo(item.kind, item.id, full));
+      if (full) setVideo(full);
+      else if (found) {
+        setNoSources(true);
+        log('Movies', `detail ${item.kind}/${item.id} meta-only title="${found.title}" sources failed: ${sourceErr} ms=${Date.now() - started}`);
+        return;
+      }
+      if (!found && !full) {
         setFailed(true);
-        logError('Movies', `detail ${item.kind}/${item.id} failed: ${err instanceof Error ? err.message : String(err)}`);
+        logError('Movies', `detail ${item.kind}/${item.id} empty (no meta, no sources)`);
+      } else {
+        log(
+          'Movies',
+          `detail ${item.kind}/${item.id} ready title="${found?.title ?? full?.title}" formats=${full?.formats.length ?? 0} best=${full?.formats[0]?.formatId} ms=${Date.now() - started}`
+        );
       }
     })();
     return () => {
@@ -282,7 +324,7 @@ export default function MovieDetailScreen({ visible, item, onClose }: Props) {
               )}
               <Meta
                 label="Quality"
-                value={best ? formatLabel(best) : failed ? 'Unavailable' : 'Resolving…'}
+                value={best ? formatLabel(best) : noSources ? 'No sources yet' : failed ? 'Unavailable' : 'Resolving…'}
               />
             </View>
           </View>
@@ -294,6 +336,7 @@ export default function MovieDetailScreen({ visible, item, onClose }: Props) {
           best={best}
           status={status}
           failed={failed}
+          noSources={noSources}
           onDownload={onDownload}
         />
       </View>
