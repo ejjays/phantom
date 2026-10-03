@@ -1,11 +1,11 @@
 # Running an Instance (Web)
 
-Phantom's web backend runs on Node.js 22+. It shells out to `yt-dlp` and `ffmpeg`, uses Redis for caching/queueing, and optionally Turso (libSQL) for the persistent registry. Built to self-host cheaply — including directly on Android via Termux.
+Phantom's web backend runs on Node.js 22+. Extraction is pure-JS per platform, `ffmpeg` handles muxing, Redis is for caching/queueing, and optionally Turso (libSQL) for the persistent registry. `yt-dlp` is an optional fallback for deep-scan. Built to self-host cheaply — including directly on Android via Termux.
 
 ## Prerequisites
 
 - Node.js ≥ 22
-- `yt-dlp` and `ffmpeg` on `PATH`
+- `ffmpeg` on `PATH` (`yt-dlp` optional — deep-scan fallback only). The browser muxes first (`mediabunny`, copy-only); the server only shells out to `ffmpeg` when a transcode, MP3, HLS remux, or tagging job needs it.
 - Redis (local is fine — defaults to `redis://127.0.0.1:6379`)
 - Optional: a Turso database for the persistent edge registry
 

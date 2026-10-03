@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # syncs canonical assets from mobile/ -> web/site/public/ (mobile is source of truth)
-# add/update only, never deletes site-only extras like pinterest.svg
+# add/update only, never deletes site-only extras
+# brand SVGs in mobile/assets/logos/_src mostly come from https://svgl.app
+# (bilibili/vimeo/dailymotion aren't on svgl — kept from before)
 # usage: bash scripts/sync-assets.sh [--check]
 set -euo pipefail
 cd "$(dirname "$0")/.."

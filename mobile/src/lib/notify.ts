@@ -29,6 +29,7 @@ import redditLogo from '../../assets/logos/reddit.png';
 import soundcloudLogo from '../../assets/logos/soundcloud.png';
 import vimeoLogo from '../../assets/logos/vimeo.png';
 import dailymotionLogo from '../../assets/logos/dailymotion.png';
+import watchlunaLogo from '../../assets/logos/watchluna.png';
 
 const CHANNEL = 'complete';
 const TAP_TYPE = 'download-complete';
@@ -89,6 +90,7 @@ const PLATFORM_LOGOS: Record<string, number> = {
   soundcloud: soundcloudLogo,
   vimeo: vimeoLogo,
   dailymotion: dailymotionLogo,
+  watchluna: watchlunaLogo,
 };
 
 async function ensureNotificationPermission(): Promise<boolean> {
