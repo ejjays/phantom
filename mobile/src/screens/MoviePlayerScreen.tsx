@@ -15,10 +15,14 @@ import {
   RotateCw,
   Check,
   Download,
+  Maximize,
+  Minimize,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { useBackHandler } from '../lib/back';
 import { useMoviePlayer } from '../hooks/useMoviePlayer';
+import { useFullscreenLock } from '../hooks/useFullscreenLock';
+import { useBrightnessSwipe } from '../hooks/useBrightnessSwipe';
 import { useDownload } from '../hooks/useDownload';
 import { formatLabel, formatClock, formatSize } from '../lib/format';
 import { tapImpact, tapSelection } from '../lib/haptics';
@@ -99,15 +103,19 @@ function PlayerTopBar({
   title,
   quality,
   canQuality,
+  fullscreen,
   onBack,
   onQuality,
+  onFullscreen,
   top,
 }: {
   title: string;
   quality: string;
   canQuality: boolean;
+  fullscreen: boolean;
   onBack: () => void;
   onQuality: () => void;
+  onFullscreen: () => void;
   top: number;
 }) {
   return (
@@ -142,6 +150,17 @@ function PlayerTopBar({
             <Settings size={20} color="#ffffff" />
           </Pressable>
         )}
+        <Pressable
+          onPress={onFullscreen}
+          style={tw`rounded-full bg-black/60 p-2.5`}
+          accessibilityLabel={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        >
+          {fullscreen ? (
+            <Minimize size={20} color="#ffffff" />
+          ) : (
+            <Maximize size={20} color="#ffffff" />
+          )}
+        </Pressable>
       </View>
     </View>
   );
@@ -338,6 +357,7 @@ function ControlsOverlay({
   title,
   quality,
   canQuality,
+  fullscreen,
   isPlaying,
   position,
   duration,
@@ -346,6 +366,7 @@ function ControlsOverlay({
   top,
   onBack,
   onQuality,
+  onFullscreen,
   onSkip,
   onToggle,
   onSeek,
@@ -354,6 +375,7 @@ function ControlsOverlay({
   title: string;
   quality: string;
   canQuality: boolean;
+  fullscreen: boolean;
   isPlaying: boolean;
   position: number;
   duration: number;
@@ -362,6 +384,7 @@ function ControlsOverlay({
   top: number;
   onBack: () => void;
   onQuality: () => void;
+  onFullscreen: () => void;
   onSkip: (seconds: number) => void;
   onToggle: () => void;
   onSeek: (fraction: number) => void;
@@ -374,9 +397,11 @@ function ControlsOverlay({
         title={title}
         quality={quality}
         canQuality={canQuality}
+        fullscreen={fullscreen}
         top={top}
         onBack={onBack}
         onQuality={onQuality}
+        onFullscreen={onFullscreen}
       />
       <TransportRow isPlaying={isPlaying} onSkip={onSkip} onToggle={onToggle} />
       {flash && (
@@ -458,6 +483,7 @@ function VideoStage({
   title,
   quality,
   canQuality,
+  fullscreen,
   isPlaying,
   position,
   duration,
@@ -468,6 +494,7 @@ function VideoStage({
   onOpen,
   onBack,
   onQuality,
+  onFullscreen,
   onSkip,
   onToggle,
   onSeek,
@@ -481,6 +508,7 @@ function VideoStage({
   title: string;
   quality: string;
   canQuality: boolean;
+  fullscreen: boolean;
   isPlaying: boolean;
   position: number;
   duration: number;
@@ -491,6 +519,7 @@ function VideoStage({
   onOpen: () => void;
   onBack: () => void;
   onQuality: () => void;
+  onFullscreen: () => void;
   onSkip: (seconds: number) => void;
   onToggle: () => void;
   onSeek: (fraction: number) => void;
@@ -513,6 +542,7 @@ function VideoStage({
           title={title}
           quality={quality}
           canQuality={canQuality}
+          fullscreen={fullscreen}
           isPlaying={isPlaying}
           position={position}
           duration={duration}
@@ -521,6 +551,7 @@ function VideoStage({
           top={top}
           onBack={onBack}
           onQuality={onQuality}
+          onFullscreen={onFullscreen}
           onSkip={onSkip}
           onToggle={onToggle}
           onSeek={onSeek}
@@ -560,9 +591,19 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAdvance = useRef(Date.now());
   const live = useRef({ pos: 0, buf: 0, playing: false });
+  const { fullscreen, enter, exit } = useFullscreenLock();
+
+  const handleClose = useCallback(() => {
+    if (fullscreen) void exit();
+    onClose();
+  }, [fullscreen, exit, onClose]);
 
   useBackHandler(() => {
     if (!visible) return false;
+    if (fullscreen) {
+      void exit();
+      return true;
+    }
     onClose();
     return true;
   }, 20);
@@ -573,14 +614,24 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
   }, [visible, item, open]);
 
   useEffect(() => {
-    if (!visible) close();
-  }, [visible, close]);
+    if (!visible) {
+      close();
+      if (fullscreen) void exit();
+    }
+  }, [visible, close, fullscreen, exit]);
 
   const poke = useCallback(() => {
     setControls(true);
     if (hideTimer.current) clearTimeout(hideTimer.current);
     hideTimer.current = setTimeout(() => setControls(false), 3000);
   }, []);
+
+  const brightGesture = useBrightnessSwipe((level) => {
+    setFlash(`${Math.round(level * 100)}%`);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(null), 800);
+    poke();
+  });
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- re-arm autohide when playback resumes
@@ -612,6 +663,12 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
     tapImpact();
     log('Player', `download tap ${current.formatId}`);
     void startDownload(current);
+  };
+
+  const toggleFullscreen = () => {
+    tapSelection();
+    poke();
+    void (fullscreen ? exit() : enter());
   };
 
   const duration = player.duration || info?.duration || 0;
@@ -651,33 +708,36 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
       ]}
     >
       <View style={landscape ? tw`flex-1` : [tw`flex-1`, { paddingTop: insets.top }]}>
-        <View style={{ height: videoH }}>
-          <VideoStage
-            player={player}
-            phase={phase}
-            poster={item?.poster}
-            fault={fault}
-            title={info?.title ?? item?.title ?? ''}
-            quality={info?.formats.find((format) => format.formatId === currentId)?.quality ?? ''}
-            canQuality={(info?.formats.length ?? 0) > 1}
-            isPlaying={isPlaying}
-            position={position}
-            duration={duration}
-            buffered={buffered}
-            flash={flash}
-            controls={controls}
-            top={landscape ? insets.top : 0}
-            onOpen={() => {
-              if (item) void open(item.kind, item.id);
-            }}
-            onBack={() => {
-              tapSelection();
-              onClose();
-            }}
-            onQuality={() => {
-              tapSelection();
-              setQualityOpen(true);
-            }}
+        <GestureDetector gesture={brightGesture}>
+          <View style={{ height: videoH }}>
+            <VideoStage
+              player={player}
+              phase={phase}
+              poster={item?.poster}
+              fault={fault}
+              title={info?.title ?? item?.title ?? ''}
+              quality={info?.formats.find((format) => format.formatId === currentId)?.quality ?? ''}
+              canQuality={(info?.formats.length ?? 0) > 1}
+              fullscreen={fullscreen}
+              isPlaying={isPlaying}
+              position={position}
+              duration={duration}
+              buffered={buffered}
+              flash={flash}
+              controls={controls}
+              top={landscape ? insets.top : 0}
+              onOpen={() => {
+                if (item) void open(item.kind, item.id);
+              }}
+              onBack={() => {
+                tapSelection();
+                handleClose();
+              }}
+              onQuality={() => {
+                tapSelection();
+                setQualityOpen(true);
+              }}
+              onFullscreen={toggleFullscreen}
             onSkip={skip}
             onToggle={toggle}
             onSeek={(fraction) => {
@@ -688,7 +748,8 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
             onShow={poke}
           />
           <StallSpinner show={stalled && phase === 'ready'} />
-        </View>
+          </View>
+        </GestureDetector>
 
         {!landscape && (
           <PortraitPanel
