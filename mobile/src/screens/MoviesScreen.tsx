@@ -20,9 +20,10 @@ import { Search, X, Star, Play, ChevronRight } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { useBackHandler } from '../lib/back';
 import ufo from '../../assets/UFO.json';
-import { PlatformLogo } from '../components/logos';
+import { PhantomIcon } from '../components/icons';
 import TrendingCarousel from '../components/TrendingCarousel';
 import MovieDetailScreen from './MovieDetailScreen';
+import MoviePlayerScreen from './MoviePlayerScreen';
 import {
   searchTitles,
   listRail,
@@ -122,6 +123,7 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<LunaItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const [railKey, setRailKey] = useState<string | null>(null);
   const [exploreItems, setExploreItems] = useState<LunaItem[]>([]);
   const [explorePage, setExplorePage] = useState(0);
@@ -292,6 +294,10 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
     onFullScreen?.(false);
   }, [onFullScreen]);
 
+  const closePlayer = useCallback(() => {
+    setPlaying(false);
+  }, []);
+
   useBackHandler(() => {
     if (!visible || detailOpen || !railKey) return false;
     setRailKey(null);
@@ -324,13 +330,13 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
         <View style={tw`flex-row items-center justify-between`}>
           <View>
             <Text style={tw`font-mono text-[11px] tracking-widest text-cyan-400`}>
-              WATCHLUNA
+              PHANTOM
             </Text>
             <Text style={tw`font-sans-bold text-[30px] tracking-tight text-white`}>
               {inSearch ? 'Results' : 'Movies'}
             </Text>
           </View>
-          <PlatformLogo name="watchluna" size={30} />
+          <PhantomIcon size={30} />
         </View>
         <View style={tw`relative mt-3 justify-center`}>
           <TextInput
@@ -530,7 +536,13 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
         </ScrollView>
       )}
 
-      <MovieDetailScreen visible={detailOpen} item={selected} onClose={closeDetail} />
+      <MovieDetailScreen
+        visible={detailOpen}
+        item={selected}
+        onClose={closeDetail}
+        onPlay={() => setPlaying(true)}
+      />
+      <MoviePlayerScreen visible={playing} item={selected} onClose={closePlayer} />
     </View>
   );
 }

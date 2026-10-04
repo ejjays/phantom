@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Download, Check, Star, ArrowLeft, RotateCcw } from 'lucide-react-native';
+import { Download, Check, Star, ArrowLeft, RotateCcw, Play } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { useBackHandler } from '../lib/back';
 import { resolve } from '../extractors';
@@ -17,6 +17,7 @@ type Props = {
   visible: boolean;
   item: LunaItem | null;
   onClose: () => void;
+  onPlay: () => void;
 };
 
 function Meta({ label, value }: { label: string; value: string }) {
@@ -218,7 +219,7 @@ function DownloadSection({
   );
 }
 
-export default function MovieDetailScreen({ visible, item, onClose }: Props) {
+export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Props) {
   const insets = useSafeAreaInsets();
   const [details, setDetails] = useState<LunaTitle | null>(null);
   const [video, setVideo] = useState<VideoInfo | null>(null);
@@ -386,6 +387,24 @@ export default function MovieDetailScreen({ visible, item, onClose }: Props) {
               dlError={dlError}
               onDownload={onDownload}
             />
+            <Pressable
+              onPress={() => {
+                tapImpact();
+                onPlay();
+              }}
+              disabled={!best}
+              testID="movie-play-btn"
+              accessibilityLabel="Play this title"
+              style={({ pressed }) => [
+                tw`mt-3 h-16 flex-row items-center gap-3 overflow-hidden rounded-2xl bg-white px-5 ${pressed && best ? 'opacity-85' : ''} ${!best ? 'opacity-50' : ''}`,
+              ]}
+            >
+              <Play size={22} color="#083344" strokeWidth={2.5} />
+              <View style={tw`flex-1`}>
+                <Text style={tw`font-sans-bold text-[17px] text-slate-950`}>Play</Text>
+                <Text style={tw`font-mono text-[12px] text-slate-700`}>Stream instantly, no download</Text>
+              </View>
+            </Pressable>
           </View>
         )}
       </ScrollView>

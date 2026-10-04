@@ -21,6 +21,15 @@ export function formatLabel(format: Format): string {
   return format.quality || format.resolution || format.formatId;
 }
 
+export function formatClock(total: number): string {
+  const sec = Math.max(0, Math.floor(total));
+  const hours = Math.floor(sec / 3600);
+  const mins = Math.floor((sec % 3600) / 60);
+  const rest = sec % 60;
+  const tail = `${String(mins).padStart(hours > 0 ? 2 : 1, '0')}:${String(rest).padStart(2, '0')}`;
+  return hours > 0 ? `${hours}:${tail}` : tail;
+}
+
 export type BadgeInfo = { label: string; tone: 'cyan' | 'amber' };
 
 export function qualityText(format: Format): string {

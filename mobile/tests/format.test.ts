@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   formatSize,
   formatLabel,
+  formatClock,
   dlLabel,
   prettyName,
   refererFor,
@@ -505,5 +506,19 @@ describe('buildAudioOptions', () => {
       ])
     );
     expect(opts).toHaveLength(0);
+  });
+});
+
+describe('formatClock', () => {
+  it.each([
+    [0, '0:00'],
+    [5, '0:05'],
+    [65, '1:05'],
+    [600, '10:00'],
+    [3661, '1:01:01'],
+    [7380, '2:03:00'],
+    [-3, '0:00'],
+  ])('formats %s as %s', (total, expected) => {
+    expect(formatClock(total)).toBe(expected);
   });
 });
