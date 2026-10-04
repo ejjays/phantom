@@ -41,11 +41,22 @@ async function loadTitle(
   }
   let full: VideoInfo | null = null;
   let sourceErr = 'empty resolve';
-  try {
-    const resolved = await resolve(`https://watchluna.gd/${kind}/${id}`, undefined, { fresh: true });
-    if (resolved && !resolved.isPartial) full = resolved;
-  } catch (err) {
-    sourceErr = err instanceof Error ? err.message : String(err);
+  for (let round = 1; round <= 3 && !full; round++) {
+    try {
+      const resolved = await resolve(`https://watchluna.gd/${kind}/${id}`, undefined, { fresh: true });
+      if (resolved && !resolved.isPartial && resolved.formats.length > 0) {
+        full = resolved;
+      } else if (round < 3) {
+        log('Movies', `detail ${kind}/${id} round ${round} dry, retrying`);
+        await new Promise((done) => setTimeout(done, 1200));
+      }
+    } catch (err) {
+      sourceErr = err instanceof Error ? err.message : String(err);
+      if (round < 3) {
+        log('Movies', `detail ${kind}/${id} round ${round} failed, retrying`);
+        await new Promise((done) => setTimeout(done, 1200));
+      }
+    }
   }
   return [found, full, sourceErr];
 }
