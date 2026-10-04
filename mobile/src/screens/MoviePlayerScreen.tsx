@@ -12,7 +12,6 @@ import {
   Pause,
   Settings,
   RotateCcw,
-  RotateCw,
   Check,
   Download,
   Maximize,
@@ -166,25 +165,15 @@ function PlayerTopBar({
   );
 }
 
-function TransportRow({
+function CenterButton({
   isPlaying,
-  onSkip,
   onToggle,
 }: {
   isPlaying: boolean;
-  onSkip: (seconds: number) => void;
   onToggle: () => void;
 }) {
   return (
-    <View style={tw`absolute inset-0 flex-row items-center justify-between px-8`} pointerEvents="box-none">
-      <Pressable
-        onPress={() => onSkip(-10)}
-        style={tw`h-16 w-16 items-center justify-center`}
-        accessibilityLabel="Back 10 seconds"
-      >
-        <RotateCcw size={34} color="#ffffff" />
-        <Text style={tw`-mt-7 font-mono text-[10px] text-white`}>10</Text>
-      </Pressable>
+    <View style={tw`absolute inset-0 items-center justify-center`} pointerEvents="box-none">
       <Pressable
         onPress={onToggle}
         style={tw`h-16 w-16 items-center justify-center rounded-full bg-white`}
@@ -195,14 +184,6 @@ function TransportRow({
         ) : (
           <Play size={30} color="#000000" />
         )}
-      </Pressable>
-      <Pressable
-        onPress={() => onSkip(10)}
-        style={tw`h-16 w-16 items-center justify-center`}
-        accessibilityLabel="Forward 10 seconds"
-      >
-        <RotateCw size={34} color="#ffffff" />
-        <Text style={tw`-mt-7 font-mono text-[10px] text-white`}>10</Text>
       </Pressable>
     </View>
   );
@@ -362,15 +343,12 @@ function ControlsOverlay({
   position,
   duration,
   buffered,
-  flash,
   top,
   onBack,
   onQuality,
   onFullscreen,
-  onSkip,
   onToggle,
   onSeek,
-  onHide,
 }: {
   title: string;
   quality: string;
@@ -380,19 +358,20 @@ function ControlsOverlay({
   position: number;
   duration: number;
   buffered: number;
-  flash: string | null;
   top: number;
   onBack: () => void;
   onQuality: () => void;
   onFullscreen: () => void;
-  onSkip: (seconds: number) => void;
   onToggle: () => void;
   onSeek: (fraction: number) => void;
-  onHide: () => void;
 }) {
   return (
-    <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(150)} style={tw`absolute inset-0`}>
-      <Pressable style={tw`absolute inset-0`} onPress={onHide} />
+    <Animated.View
+      entering={FadeIn.duration(150)}
+      exiting={FadeOut.duration(150)}
+      style={tw`absolute inset-0`}
+      pointerEvents="box-none"
+    >
       <PlayerTopBar
         title={title}
         quality={quality}
@@ -403,14 +382,7 @@ function ControlsOverlay({
         onQuality={onQuality}
         onFullscreen={onFullscreen}
       />
-      <TransportRow isPlaying={isPlaying} onSkip={onSkip} onToggle={onToggle} />
-      {flash && (
-        <View style={tw`absolute inset-x-0 top-1/3 items-center`}>
-          <Text style={tw`rounded-full bg-black/70 px-3 py-1.5 font-sans-bold text-[16px] text-white`}>
-            {flash}
-          </Text>
-        </View>
-      )}
+      <CenterButton isPlaying={isPlaying} onToggle={onToggle} />
       <View style={tw`absolute inset-x-0 bottom-0`}>
         <LinearGradient
           colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.65)']}
@@ -475,6 +447,10 @@ function StageState({
   return null;
 }
 
+type TapSide = 'left' | 'center' | 'right';
+
+const TAP_SIDES: TapSide[] = ['left', 'center', 'right'];
+
 function VideoStage({
   player,
   phase,
@@ -495,11 +471,9 @@ function VideoStage({
   onBack,
   onQuality,
   onFullscreen,
-  onSkip,
   onToggle,
   onSeek,
-  onHide,
-  onShow,
+  onZoneTap,
 }: {
   player: VideoPlayer;
   phase: string;
@@ -520,11 +494,9 @@ function VideoStage({
   onBack: () => void;
   onQuality: () => void;
   onFullscreen: () => void;
-  onSkip: (seconds: number) => void;
   onToggle: () => void;
   onSeek: (fraction: number) => void;
-  onHide: () => void;
-  onShow: () => void;
+  onZoneTap: (side: TapSide) => void;
 }) {
   return (
     <>
@@ -537,6 +509,18 @@ function VideoStage({
         fullscreenOptions={{ enable: false }}
       />
       <StageState phase={phase} poster={poster} fault={fault} onRetry={onOpen} />
+      {phase !== 'loading' && (
+        <View style={tw`absolute inset-0 flex-row`}>
+          {TAP_SIDES.map((side) => (
+            <Pressable
+              key={side}
+              style={tw`flex-1`}
+              onPress={() => onZoneTap(side)}
+              accessibilityLabel={`${side} tap zone`}
+            />
+          ))}
+        </View>
+      )}
       {controls && phase !== 'loading' && (
         <ControlsOverlay
           title={title}
@@ -547,19 +531,20 @@ function VideoStage({
           position={position}
           duration={duration}
           buffered={buffered}
-          flash={flash}
           top={top}
           onBack={onBack}
           onQuality={onQuality}
           onFullscreen={onFullscreen}
-          onSkip={onSkip}
           onToggle={onToggle}
           onSeek={onSeek}
-          onHide={onHide}
         />
       )}
-      {!controls && phase === 'ready' && (
-        <Pressable style={tw`absolute inset-0`} onPress={onShow} accessibilityLabel="Show controls" />
+      {flash && phase === 'ready' && (
+        <View style={tw`absolute inset-x-0 top-1/3 items-center`} pointerEvents="none">
+          <Text style={tw`rounded-full bg-black/70 px-3 py-1.5 font-sans-bold text-[16px] text-white`}>
+            {flash}
+          </Text>
+        </View>
       )}
     </>
   );
@@ -641,13 +626,32 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
     };
   }, [visible, isPlaying, poke]);
 
-  const skip = (seconds: number) => {
+  const lastTap = useRef({ at: 0, side: '' as TapSide | '' });
+  const tapId = useRef(0);
+  const acc = useRef({ side: '' as TapSide | '', total: 0, at: 0 });
+  const accTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const accSeek = (side: 'left' | 'right') => {
+    const dir = side === 'left' ? -10 : 10;
+    const now = Date.now();
+    const total =
+      acc.current.side === side && now - acc.current.at < 1000 ? acc.current.total + 10 : 10;
+    acc.current = { side, total, at: now };
+    if (accTimer.current) clearTimeout(accTimer.current);
+    accTimer.current = setTimeout(() => {
+      acc.current = { side: '', total: 0, at: 0 };
+    }, 1000);
     tapSelection();
-    player.seekBy(seconds);
-    setFlash(seconds > 0 ? `+${seconds}s` : `${seconds}s`);
+    player.seekBy(dir);
+    setFlash(`${dir > 0 ? '+' : '-'}${total}s`);
     if (flashTimer.current) clearTimeout(flashTimer.current);
-    flashTimer.current = setTimeout(() => setFlash(null), 700);
+    flashTimer.current = setTimeout(() => setFlash(null), 800);
     poke();
+  };
+
+  const singleTap = () => {
+    if (controls) setControls(false);
+    else poke();
   };
 
   const toggle = () => {
@@ -655,6 +659,28 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
     if (isPlaying) player.pause();
     else player.play();
     poke();
+  };
+
+  const handleTap = (side: TapSide) => {
+    const now = Date.now();
+    const prev = lastTap.current;
+    if (side === 'center') {
+      lastTap.current = { at: now, side };
+      if (prev.side === 'center' && now - prev.at < 320) toggle();
+      else singleTap();
+      return;
+    }
+    if (prev.side === side && now - prev.at < 320) {
+      tapId.current += 1;
+      lastTap.current = { at: now, side };
+      accSeek(side);
+      return;
+    }
+    const id = ++tapId.current;
+    lastTap.current = { at: now, side };
+    setTimeout(() => {
+      if (tapId.current === id) singleTap();
+    }, 330);
   };
 
   const downloadCurrent = () => {
@@ -738,14 +764,12 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
                 setQualityOpen(true);
               }}
               onFullscreen={toggleFullscreen}
-            onSkip={skip}
             onToggle={toggle}
             onSeek={(fraction) => {
               player.currentTime = fraction * duration;
               poke();
             }}
-            onHide={() => setControls(false)}
-            onShow={poke}
+            onZoneTap={handleTap}
           />
           <StallSpinner show={stalled && phase === 'ready'} />
           </View>
