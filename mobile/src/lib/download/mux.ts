@@ -210,7 +210,21 @@ export function hlsDirectToMp4(
     fsPath(out.uri)
   );
   const started = Date.now();
+  let lastTick = Date.now();
+  let nextDecile = 10;
+  let stallNoted = false;
   return new Promise((resolve) => {
+    const watcher = setInterval(() => {
+      const quietMs = Date.now() - lastTick;
+      if (quietMs > 15000 && !stallNoted) {
+        stallNoted = true;
+        log('mux', '[hls-direct] no progress for 15s (slow segment, not dead)');
+      }
+    }, 5000);
+    const finish = (ok: boolean): void => {
+      clearInterval(watcher);
+      resolve(ok);
+    };
     void FFmpegKit.executeWithArgumentsAsync(
       args,
       // eslint-disable-next-line @typescript-eslint/no-misused-promises -- ffmpeg-kit ignores callback promise
@@ -221,7 +235,7 @@ export function hlsDirectToMp4(
           const mb = (out.size ?? 0) / 1e6;
           const mbps = secs > 0 ? ((mb * 8) / secs).toFixed(1) : '0';
           log('mux', `[hls-direct] ${mb.toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`);
-          resolve(true);
+          finish(true);
           return;
         }
         const output = await session.getOutput();
@@ -229,13 +243,20 @@ export function hlsDirectToMp4(
           'mux',
           `[hls-direct] ffmpeg failed (${code}): ${String(output).slice(-600)}`
         );
-        resolve(false);
+        finish(false);
       },
       undefined,
       (stats: { getTime: () => number }) => {
         if (durationSec <= 0) return;
         const pct = Math.round((stats.getTime() / 1000 / durationSec) * 100);
         if (pct > 0) onProgress(Math.min(99, pct));
+        lastTick = Date.now();
+        stallNoted = false;
+        if (pct >= nextDecile) {
+          const secs = (Date.now() - started) / 1000;
+          log('mux', `[hls-direct] ${Math.min(99, pct)}% (${secs.toFixed(0)}s elapsed)`);
+          nextDecile += 10;
+        }
       }
     );
   });
