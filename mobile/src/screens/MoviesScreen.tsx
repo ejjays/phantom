@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import LottieView from 'lottie-react-native';
-import { X, Star, Play, ChevronRight } from 'lucide-react-native';
+import { X, Play, ChevronRight } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { useBackHandler } from '../lib/back';
 import ufo from '../../assets/UFO.json';
@@ -78,6 +78,10 @@ function PosterCard({
   testID?: string;
   onOpen: (item: LunaItem) => void;
 }) {
+  const radius = Math.round(width * 0.24);
+  const playSize = Math.max(14, Math.round(width * 0.148));
+  const badgePad = Math.max(5, Math.round(width * 0.05));
+  const titleSize = width >= 150 ? 16 : 12;
   return (
     <Pressable
       onPress={() => {
@@ -88,7 +92,7 @@ function PosterCard({
       accessibilityLabel={`${item.title}, ${item.year ?? ''}`}
       style={({ pressed }) => [{ width, opacity: pressed ? 0.75 : 1 }]}
     >
-      <View style={tw`overflow-hidden rounded-2xl border border-white/10 bg-white/5`}>
+      <View style={[tw`overflow-hidden bg-white/5`, { borderRadius: radius }]}>
         {item.poster ? (
           <Image
             source={{ uri: item.poster }}
@@ -98,22 +102,31 @@ function PosterCard({
           />
         ) : (
           <View style={[tw`items-center justify-center bg-white/5`, { width, height }]}>
-            <Play size={22} color="#64748b" />
+            <Play size={playSize} color="#64748b" />
           </View>
         )}
-        {typeof item.rating === 'number' && (
-          <View style={tw`absolute left-1.5 top-1.5 flex-row items-center gap-1 rounded-full bg-black/70 px-1.5 py-0.5`}>
-            <Star size={10} color="#facc15" />
-            <Text style={tw`font-mono text-[10px] text-white`}>{item.rating.toFixed(1)}</Text>
+        {item.poster ? (
+          <View
+            style={[
+              tw`absolute items-center justify-center bg-[#1E1E1E]`,
+              {
+                right: Math.round(width * 0.12),
+                bottom: Math.round(height * 0.08),
+                padding: badgePad,
+                borderRadius: 999,
+              },
+            ]}
+          >
+            <Play size={playSize} color="#FFFFFF" />
           </View>
-        )}
+        ) : null}
       </View>
-      <Text style={tw`mt-1.5 font-mono-semibold text-[11px] text-slate-100`} numberOfLines={1}>
+      <Text
+        style={[tw`mt-1.5 font-sans-medium uppercase text-slate-100`, { fontSize: titleSize }]}
+        numberOfLines={1}
+      >
         {item.title}
       </Text>
-      {item.year && (
-        <Text style={tw`font-mono text-[10px] text-slate-500`}>{item.year}</Text>
-      )}
     </Pressable>
   );
 }
@@ -501,7 +514,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
                 contentContainerStyle={tw`gap-3 px-5`}
                 keyExtractor={(item) => `${item.kind}-${item.id}`}
                 renderItem={({ item, index }) => (
-                  <PosterCard item={item} width={112} height={168} testID={`movie-recent-${index}`} onOpen={openDetail} />
+                  <PosterCard item={item} width={120} height={160} testID={`movie-recent-${index}`} onOpen={openDetail} />
                 )}
               />
             </View>
@@ -587,7 +600,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
           )}
           {rails.map((rail) =>
             rail.items.length > 0 ? (
-              <View key={rail.key} style={tw`mt-5`}>
+              <View key={rail.key} style={tw`mt-7`}>
                 <Pressable
                   onPress={() => {
                     tapSelection();
@@ -597,10 +610,13 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
                   accessibilityLabel={`See all ${rail.title}`}
                   style={tw`flex-row items-center justify-between pr-4`}
                 >
-                  <Text style={tw`px-4 pb-2 font-sans-bold text-[16px] text-slate-200`}>
+                  <Text style={tw`px-4 pb-3 font-sans-bold text-[16px] text-slate-200`}>
                     {rail.title}
                   </Text>
-                  <Text style={tw`pb-2 font-mono text-[12px] text-cyan-400`}>See all ›</Text>
+                  <View style={tw`flex-row items-center gap-0.5 pb-3`}>
+                    <Text style={tw`font-sans-semibold text-[13px] text-cyan-400`}>See all</Text>
+                    <ChevronRight size={15} color="#22d3ee" />
+                  </View>
                 </Pressable>
                 <FlatList
                   data={rail.items}
@@ -611,7 +627,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
                   onEndReached={() => void loadMoreRail(rail.key)}
                   onEndReachedThreshold={0.6}
                   renderItem={({ item, index }) => (
-                    <PosterCard item={item} width={112} height={168} testID={`movie-rail-${rail.key}-${index}`} onOpen={openDetail} />
+                    <PosterCard item={item} width={162} height={216} testID={`movie-rail-${rail.key}-${index}`} onOpen={openDetail} />
                   )}
                 />
               </View>

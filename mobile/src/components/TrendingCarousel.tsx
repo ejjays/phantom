@@ -8,6 +8,12 @@ import {
   type NativeSyntheticEvent,
   type NativeScrollEvent,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  interpolateColor,
+  type SharedValue,
+} from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Star, Play } from 'lucide-react-native';
@@ -15,7 +21,7 @@ import tw from '../lib/tw';
 import { tapSelection } from '../lib/haptics';
 import type { LunaItem } from '../extractors/watchluna/browse';
 
-const ACCENT = '#EB2F3D';
+const ACCENT = '#22d3ee';
 
 function MetaLine({ item }: { item: LunaItem }) {
   const rating = item.rating;
@@ -125,25 +131,32 @@ function TrendingSlide({
 
 function TrendingDot({
   index,
-  active,
+  total,
+  progress,
   onPress,
 }: {
   index: number;
-  active: boolean;
+  total: number;
+  progress: SharedValue<number>;
   onPress: (index: number) => void;
 }) {
+  const style = useAnimatedStyle(() => {
+    const pos = ((progress.value % total) + total) % total;
+    const raw = Math.abs(pos - index);
+    const dist = Math.min(raw, total - raw);
+    const t = 1 - Math.min(dist, 1);
+    return {
+      width: 8 + t * 14,
+      backgroundColor: interpolateColor(
+        t,
+        [0, 1],
+        ['rgba(255,255,255,0.2)', ACCENT]
+      ),
+    };
+  });
   return (
     <Pressable onPress={() => onPress(index)} hitSlop={12}>
-      <View
-        style={[
-          tw`rounded-full`,
-          {
-            height: 4,
-            width: active ? 22 : 8,
-            backgroundColor: active ? ACCENT : 'rgba(255,255,255,0.2)',
-          },
-        ]}
-      />
+      <Animated.View style={[{ height: 4, borderRadius: 2 }, style]} />
     </Pressable>
   );
 }
@@ -163,18 +176,16 @@ export default function TrendingCarousel({
   const sidePad = (listW - pageW) / 2;
   const bannerH = Math.round(((pageW - 32) * 310) / 353);
   const listRef = useRef<FlatList<LunaItem>>(null);
+  const progress = useSharedValue(items.length > 1 ? items.length : 0);
   const [raw, setRaw] = useState(() => (items.length > 1 ? items.length : 0));
   const rawRef = useRef(raw);
   rawRef.current = raw;
-  const [dotActive, setDotActive] = useState(0);
-  const dotRef = useRef(0);
 
   const total = items.length;
   const trio = useMemo(
     () => (total > 1 ? [...items, ...items, ...items] : items),
     [items, total]
   );
-  const dot = total > 0 ? ((dotActive % total) + total) % total : 0;
 
   useEffect(() => {
     if (total < 2) return undefined;
@@ -206,13 +217,7 @@ export default function TrendingCarousel({
   };
 
   const onLiveScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (total < 2) return;
-    const value = Math.round(event.nativeEvent.contentOffset.x / pageW);
-    const next = ((value % total) + total) % total;
-    if (next !== dotRef.current) {
-      dotRef.current = next;
-      setDotActive(next);
-    }
+    progress.value = event.nativeEvent.contentOffset.x / pageW;
   };
 
   const onDotPress = useCallback(
@@ -268,7 +273,8 @@ export default function TrendingCarousel({
             <TrendingDot
               key={`${item.kind}-${item.id}`}
               index={index}
-              active={index === dot}
+              total={total}
+              progress={progress}
               onPress={onDotPress}
             />
           ))}
