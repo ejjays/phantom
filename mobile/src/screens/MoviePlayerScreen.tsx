@@ -534,6 +534,17 @@ function VideoStage({
   );
 }
 
+function StallSpinner({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <View style={tw`absolute inset-0 items-center justify-center`} pointerEvents="none">
+      <View style={tw`rounded-full bg-black/60 p-4`}>
+        <ActivityIndicator size="large" color="#ffffff" />
+      </View>
+    </View>
+  );
+}
+
 export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -544,8 +555,11 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
   const [controls, setControls] = useState(true);
   const [qualityOpen, setQualityOpen] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const [stalled, setStalled] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAdvance = useRef(Date.now());
+  const live = useRef({ pos: 0, buf: 0, playing: false });
 
   useBackHandler(() => {
     if (!visible) return false;
@@ -602,6 +616,28 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
 
   const duration = player.duration || info?.duration || 0;
   const buffered = player.bufferedPosition || 0;
+  live.current = { pos: position, buf: buffered, playing: isPlaying };
+
+  useEffect(() => {
+    lastAdvance.current = Date.now();
+  }, [position]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setInterval(() => {
+      const snap = live.current;
+      const hungry = snap.buf - snap.pos < 3;
+      const stuck = snap.playing && Date.now() - lastAdvance.current > 1500 && hungry;
+      setStalled((prev) => {
+        if (prev !== stuck) {
+          if (stuck) log('Player', `stall at ${Math.round(snap.pos)}s (buffered ${Math.round(snap.buf)}s)`);
+          else log('Player', `stall cleared at ${Math.round(snap.pos)}s`);
+        }
+        return stuck;
+      });
+    }, 500);
+    return () => clearInterval(timer);
+  }, [visible]);
   const videoH = landscape ? height : (width * 9) / 16;
   const dlState = currentId ? downloads[currentId] : undefined;
   const downloading =
@@ -651,6 +687,7 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
             onHide={() => setControls(false)}
             onShow={poke}
           />
+          <StallSpinner show={stalled && phase === 'ready'} />
         </View>
 
         {!landscape && (
