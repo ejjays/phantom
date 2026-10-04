@@ -124,6 +124,7 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
   const [selected, setSelected] = useState<LunaItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [playerItem, setPlayerItem] = useState<LunaItem | null>(null);
   const [railKey, setRailKey] = useState<string | null>(null);
   const [exploreItems, setExploreItems] = useState<LunaItem[]>([]);
   const [explorePage, setExplorePage] = useState(0);
@@ -540,9 +541,18 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
         visible={detailOpen}
         item={selected}
         onClose={closeDetail}
-        onPlay={() => setPlaying(true)}
+        onPlay={() => {
+          setPlayerItem(selected);
+          setPlaying(true);
+        }}
       />
-      <MoviePlayerScreen visible={playing} item={selected} onClose={closePlayer} />
+      <MoviePlayerScreen
+        visible={playing}
+        item={playerItem}
+        upNext={trending}
+        onSelect={setPlayerItem}
+        onClose={closePlayer}
+      />
     </View>
   );
 }

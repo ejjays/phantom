@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Modal, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, Modal, ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { VideoView } from 'expo-video';
+import { VideoView, type VideoPlayer } from 'expo-video';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import {
@@ -11,19 +12,25 @@ import {
   Pause,
   Settings,
   RotateCcw,
+  RotateCw,
   Check,
+  Download,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { useBackHandler } from '../lib/back';
 import { useMoviePlayer } from '../hooks/useMoviePlayer';
-import { formatLabel, formatClock } from '../lib/format';
+import { useDownload } from '../hooks/useDownload';
+import { formatLabel, formatClock, formatSize } from '../lib/format';
 import { tapImpact, tapSelection } from '../lib/haptics';
-import type { Format } from '@phantom/extractors';
+import { log } from '../lib/log';
+import type { Format, VideoInfo } from '@phantom/extractors';
 import type { LunaItem } from '../extractors/watchluna/browse';
 
 type Props = {
   visible: boolean;
   item: LunaItem | null;
+  upNext: LunaItem[];
+  onSelect: (item: LunaItem) => void;
   onClose: () => void;
 };
 
@@ -88,6 +95,100 @@ function SeekBar({
   );
 }
 
+function PlayerTopBar({
+  title,
+  quality,
+  canQuality,
+  onBack,
+  onQuality,
+  top,
+}: {
+  title: string;
+  quality: string;
+  canQuality: boolean;
+  onBack: () => void;
+  onQuality: () => void;
+  top: number;
+}) {
+  return (
+    <View>
+      <LinearGradient
+        colors={['rgba(0,0,0,0.65)', 'rgba(0,0,0,0)']}
+        style={[tw`absolute inset-x-0 top-0 h-24`, { paddingTop: top }]}
+        pointerEvents="none"
+      />
+      <View style={[tw`flex-row items-center gap-3 px-4`, { paddingTop: top + 8 }]}>
+        <Pressable
+          onPress={onBack}
+          style={tw`rounded-full bg-black/60 p-2.5`}
+          accessibilityLabel="Close player"
+        >
+          <ArrowLeft size={22} color="#ffffff" />
+        </Pressable>
+        <View style={tw`flex-1`}>
+          <Text style={tw`font-sans-bold text-[15px] text-white`} numberOfLines={1}>
+            {title}
+          </Text>
+          {quality !== '' && (
+            <Text style={tw`font-mono text-[11px] text-slate-300`}>{quality}</Text>
+          )}
+        </View>
+        {canQuality && (
+          <Pressable
+            onPress={onQuality}
+            style={tw`rounded-full bg-black/60 p-2.5`}
+            accessibilityLabel="Playback quality"
+          >
+            <Settings size={20} color="#ffffff" />
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function TransportRow({
+  isPlaying,
+  onSkip,
+  onToggle,
+}: {
+  isPlaying: boolean;
+  onSkip: (seconds: number) => void;
+  onToggle: () => void;
+}) {
+  return (
+    <View style={tw`absolute inset-0 flex-row items-center justify-between px-8`} pointerEvents="box-none">
+      <Pressable
+        onPress={() => onSkip(-10)}
+        style={tw`h-16 w-16 items-center justify-center`}
+        accessibilityLabel="Back 10 seconds"
+      >
+        <RotateCcw size={34} color="#ffffff" />
+        <Text style={tw`-mt-7 font-mono text-[10px] text-white`}>10</Text>
+      </Pressable>
+      <Pressable
+        onPress={onToggle}
+        style={tw`h-16 w-16 items-center justify-center rounded-full bg-white`}
+        accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+      >
+        {isPlaying ? (
+          <Pause size={30} color="#000000" />
+        ) : (
+          <Play size={30} color="#000000" />
+        )}
+      </Pressable>
+      <Pressable
+        onPress={() => onSkip(10)}
+        style={tw`h-16 w-16 items-center justify-center`}
+        accessibilityLabel="Forward 10 seconds"
+      >
+        <RotateCw size={34} color="#ffffff" />
+        <Text style={tw`-mt-7 font-mono text-[10px] text-white`}>10</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function QualityMenu({
   open,
   formats,
@@ -131,97 +232,315 @@ function QualityMenu({
   );
 }
 
-function PlayerTopBar({
+function PortraitPanel({
+  info,
+  item,
+  currentId,
+  upNext,
+  onQuality,
+  onDownload,
+  onSelect,
+  downloading,
+}: {
+  info: VideoInfo | null;
+  item: LunaItem | null;
+  currentId: string | null;
+  upNext: LunaItem[];
+  onQuality: () => void;
+  onDownload: () => void;
+  onSelect: (entry: LunaItem) => void;
+  downloading: boolean;
+}) {
+  const current = info?.formats.find((format) => format.formatId === currentId);
+  const size = current?.filesize ? formatSize(current.filesize) : '';
+  return (
+    <ScrollView style={tw`flex-1`} contentContainerStyle={tw`gap-4 px-4 py-4`}>
+      <View>
+        <Text style={tw`font-sans-bold text-[20px] leading-7 text-white`} numberOfLines={2}>
+          {info?.title ?? item?.title ?? ''}
+        </Text>
+        <Text style={tw`mt-1 font-mono text-[12px] text-slate-400`}>
+          {[item?.year, current ? formatLabel(current) : '', size].filter(Boolean).join(' • ')}
+        </Text>
+      </View>
+      <View style={tw`flex-row gap-3`}>
+        <Pressable
+          onPress={onDownload}
+          disabled={!current || downloading}
+          testID="movie-player-download"
+          accessibilityLabel="Download this title"
+          style={({ pressed }) => [
+            tw`h-12 flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-cyan-400 ${pressed ? 'opacity-85' : ''} ${!current ? 'opacity-50' : ''}`,
+          ]}
+        >
+          <Download size={20} color="#083344" strokeWidth={2.5} />
+          <Text style={tw`font-sans-bold text-[15px] text-slate-950`}>
+            {downloading ? 'Saving…' : 'Download'}
+          </Text>
+        </Pressable>
+        {(info?.formats.length ?? 0) > 1 && (
+          <Pressable
+            onPress={onQuality}
+            style={tw`h-12 flex-row items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-4`}
+            accessibilityLabel="Playback quality"
+          >
+            <Settings size={18} color="#e2e8f0" />
+            <Text style={tw`font-sans-bold text-[15px] text-slate-200`}>
+              {current ? formatLabel(current) : 'Quality'}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+      {upNext.length > 0 && (
+        <View>
+          <Text style={tw`mb-2 font-sans-bold text-[16px] text-slate-200`}>Up next</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={tw`gap-3`}>
+            {upNext.map((entry, index) => (
+              <Pressable
+                key={`${entry.kind}-${entry.id}`}
+                testID={`movie-upnext-${index}`}
+                onPress={() => {
+                  tapSelection();
+                  onSelect(entry);
+                }}
+                style={{ width: 112 }}
+              >
+                <View style={tw`overflow-hidden rounded-2xl border border-white/10 bg-white/5`}>
+                  {entry.poster ? (
+                    <Image
+                      source={{ uri: entry.poster }}
+                      style={{ width: '100%', height: 168 }}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
+                  ) : (
+                    <View style={tw`h-full w-full items-center justify-center bg-white/5`}>
+                      <Play size={22} color="#64748b" />
+                    </View>
+                  )}
+                </View>
+                <Text style={tw`mt-1.5 font-mono-semibold text-[11px] text-slate-100`} numberOfLines={1}>
+                  {entry.title}
+                </Text>
+                {entry.year && (
+                  <Text style={tw`font-mono text-[10px] text-slate-500`}>{entry.year}</Text>
+                )}
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function ControlsOverlay({
   title,
   quality,
   canQuality,
+  isPlaying,
+  position,
+  duration,
+  buffered,
+  flash,
+  top,
   onBack,
   onQuality,
-  top,
+  onSkip,
+  onToggle,
+  onSeek,
+  onHide,
 }: {
   title: string;
   quality: string;
   canQuality: boolean;
+  isPlaying: boolean;
+  position: number;
+  duration: number;
+  buffered: number;
+  flash: string | null;
+  top: number;
   onBack: () => void;
   onQuality: () => void;
-  top: number;
-}) {
-  return (
-    <View style={[tw`absolute inset-x-0 top-0 flex-row items-center gap-3 px-4`, { paddingTop: top + 8 }]}>
-      <Pressable
-        onPress={onBack}
-        style={tw`rounded-full bg-black/60 p-2.5`}
-        accessibilityLabel="Close player"
-      >
-        <ArrowLeft size={22} color="#ffffff" />
-      </Pressable>
-      <View style={tw`flex-1`}>
-        <Text style={tw`font-sans-bold text-[15px] text-white`} numberOfLines={1}>
-          {title}
-        </Text>
-        {quality !== '' && (
-          <Text style={tw`font-mono text-[11px] text-slate-300`}>{quality}</Text>
-        )}
-      </View>
-      {canQuality && (
-        <Pressable
-          onPress={onQuality}
-          style={tw`rounded-full bg-black/60 p-2.5`}
-          accessibilityLabel="Playback quality"
-        >
-          <Settings size={20} color="#ffffff" />
-        </Pressable>
-      )}
-    </View>
-  );
-}
-
-function TransportRow({
-  isPlaying,
-  onSkip,
-  onToggle,
-}: {
-  isPlaying: boolean;
   onSkip: (seconds: number) => void;
   onToggle: () => void;
+  onSeek: (fraction: number) => void;
+  onHide: () => void;
 }) {
   return (
-    <View style={tw`absolute inset-0 flex-row items-center justify-between px-6`} pointerEvents="box-none">
-      <Pressable
-        onPress={() => onSkip(-10)}
-        style={tw`h-24 w-24 items-center justify-center rounded-full`}
-        accessibilityLabel="Back 10 seconds"
-      >
-        <Text style={tw`font-sans-bold text-[15px] text-white/90`}>−10</Text>
-      </Pressable>
-      <Pressable
-        onPress={onToggle}
-        style={tw`h-16 w-16 items-center justify-center rounded-full bg-black/60`}
-        accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-      >
-        {isPlaying ? (
-          <Pause size={30} color="#ffffff" />
-        ) : (
-          <Play size={30} color="#ffffff" />
-        )}
-      </Pressable>
-      <Pressable
-        onPress={() => onSkip(10)}
-        style={tw`h-24 w-24 items-center justify-center rounded-full`}
-        accessibilityLabel="Forward 10 seconds"
-      >
-        <Text style={tw`font-sans-bold text-[15px] text-white/90`}>+10</Text>
-      </Pressable>
-    </View>
+    <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(150)} style={tw`absolute inset-0`}>
+      <Pressable style={tw`absolute inset-0`} onPress={onHide} />
+      <PlayerTopBar
+        title={title}
+        quality={quality}
+        canQuality={canQuality}
+        top={top}
+        onBack={onBack}
+        onQuality={onQuality}
+      />
+      <TransportRow isPlaying={isPlaying} onSkip={onSkip} onToggle={onToggle} />
+      {flash && (
+        <View style={tw`absolute inset-x-0 top-1/3 items-center`}>
+          <Text style={tw`rounded-full bg-black/70 px-3 py-1.5 font-sans-bold text-[16px] text-white`}>
+            {flash}
+          </Text>
+        </View>
+      )}
+      <View style={tw`absolute inset-x-0 bottom-0`}>
+        <LinearGradient
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.65)']}
+          style={tw`absolute inset-x-0 bottom-0 h-20`}
+          pointerEvents="none"
+        />
+        <View style={tw`px-4 pb-2`}>
+          <Text style={tw`mb-1 font-mono text-[11px] text-slate-200`}>
+            {formatClock(position)} / {formatClock(duration)}
+          </Text>
+          <SeekBar
+            position={position}
+            duration={duration}
+            buffered={buffered}
+            onSeek={onSeek}
+          />
+        </View>
+      </View>
+    </Animated.View>
   );
 }
 
-export default function MoviePlayerScreen({ visible, item, onClose }: Props) {
+function StageState({
+  phase,
+  poster,
+  fault,
+  onRetry,
+}: {
+  phase: string;
+  poster: string | undefined;
+  fault: string | null;
+  onRetry: () => void;
+}) {
+  if (phase === 'loading') {
+    return (
+      <View style={tw`absolute inset-0 items-center justify-center bg-black/60`}>
+        {poster && (
+          <Image source={{ uri: poster }} style={tw`absolute inset-0 opacity-30`} contentFit="cover" />
+        )}
+        <ActivityIndicator size="large" color="#22d3ee" />
+        <Text style={tw`mt-3 font-mono text-[12px] text-slate-300`}>Loading stream…</Text>
+      </View>
+    );
+  }
+  if (phase === 'error') {
+    return (
+      <View style={tw`absolute inset-0 items-center justify-center bg-black/80 px-8`}>
+        <Text style={tw`text-center font-sans-bold text-[17px] text-white`}>Could not play this</Text>
+        <Text style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}>
+          {fault ?? 'Unknown player error'}
+        </Text>
+        <Pressable
+          onPress={onRetry}
+          style={tw`mt-4 flex-row items-center gap-2 rounded-2xl bg-cyan-400 px-5 py-3`}
+        >
+          <RotateCcw size={18} color="#083344" />
+          <Text style={tw`font-sans-bold text-[15px] text-slate-950`}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  }
+  return null;
+}
+
+function VideoStage({
+  player,
+  phase,
+  poster,
+  fault,
+  title,
+  quality,
+  canQuality,
+  isPlaying,
+  position,
+  duration,
+  buffered,
+  flash,
+  controls,
+  top,
+  onOpen,
+  onBack,
+  onQuality,
+  onSkip,
+  onToggle,
+  onSeek,
+  onHide,
+  onShow,
+}: {
+  player: VideoPlayer;
+  phase: string;
+  poster: string | undefined;
+  fault: string | null;
+  title: string;
+  quality: string;
+  canQuality: boolean;
+  isPlaying: boolean;
+  position: number;
+  duration: number;
+  buffered: number;
+  flash: string | null;
+  controls: boolean;
+  top: number;
+  onOpen: () => void;
+  onBack: () => void;
+  onQuality: () => void;
+  onSkip: (seconds: number) => void;
+  onToggle: () => void;
+  onSeek: (fraction: number) => void;
+  onHide: () => void;
+  onShow: () => void;
+}) {
+  return (
+    <>
+      <VideoView
+        player={player}
+        style={tw`h-full w-full`}
+        contentFit="contain"
+        nativeControls={false}
+        allowsPictureInPicture={false}
+        fullscreenOptions={{ enable: false }}
+      />
+      <StageState phase={phase} poster={poster} fault={fault} onRetry={onOpen} />
+      {controls && phase !== 'loading' && (
+        <ControlsOverlay
+          title={title}
+          quality={quality}
+          canQuality={canQuality}
+          isPlaying={isPlaying}
+          position={position}
+          duration={duration}
+          buffered={buffered}
+          flash={flash}
+          top={top}
+          onBack={onBack}
+          onQuality={onQuality}
+          onSkip={onSkip}
+          onToggle={onToggle}
+          onSeek={onSeek}
+          onHide={onHide}
+        />
+      )}
+      {!controls && phase === 'ready' && (
+        <Pressable style={tw`absolute inset-0`} onPress={onShow} accessibilityLabel="Show controls" />
+      )}
+    </>
+  );
+}
+
+export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
   const { player, phase, info, currentId, fault, isPlaying, position, open, close, switchQuality } =
     useMoviePlayer();
+  const { downloads, startDownload } = useDownload(info);
   const [controls, setControls] = useState(true);
   const [qualityOpen, setQualityOpen] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
@@ -273,8 +592,20 @@ export default function MoviePlayerScreen({ visible, item, onClose }: Props) {
     poke();
   };
 
+  const downloadCurrent = () => {
+    const current = info?.formats.find((format) => format.formatId === currentId) ?? info?.formats[0];
+    if (!current) return;
+    tapImpact();
+    log('Player', `download tap ${current.formatId}`);
+    void startDownload(current);
+  };
+
   const duration = player.duration || info?.duration || 0;
   const buffered = player.bufferedPosition || 0;
+  const videoH = landscape ? height : (width * 9) / 16;
+  const dlState = currentId ? downloads[currentId] : undefined;
+  const downloading =
+    dlState?.status === 'downloading' || dlState?.status === 'muxing' || dlState?.status === 'saving';
 
   return (
     <View
@@ -283,66 +614,26 @@ export default function MoviePlayerScreen({ visible, item, onClose }: Props) {
         { opacity: visible ? 1 : 0, pointerEvents: visible ? 'auto' : 'none' },
       ]}
     >
-      {landscape ? (
-        <View style={tw`flex-1`}>
-          <VideoView
+      <View style={landscape ? tw`flex-1` : [tw`flex-1`, { paddingTop: insets.top }]}>
+        <View style={{ height: videoH }}>
+          <VideoStage
             player={player}
-            style={tw`flex-1`}
-            contentFit="contain"
-            nativeControls={false}
-            allowsPictureInPicture={false}
-            fullscreenOptions={{ enable: false }}
-          />
-        </View>
-      ) : (
-        <View style={{ paddingTop: insets.top }}>
-          <VideoView
-            player={player}
-            style={{ width, height: (width * 9) / 16 }}
-            contentFit="contain"
-            nativeControls={false}
-            allowsPictureInPicture={false}
-            fullscreenOptions={{ enable: false }}
-          />
-        </View>
-      )}
-
-      {phase === 'loading' && (
-        <View style={tw`absolute inset-0 items-center justify-center bg-black/60`}>
-          {item?.poster && (
-            <Image source={{ uri: item.poster }} style={tw`absolute inset-0 opacity-30`} contentFit="cover" />
-          )}
-          <ActivityIndicator size="large" color="#22d3ee" />
-          <Text style={tw`mt-3 font-mono text-[12px] text-slate-300`}>Loading stream…</Text>
-        </View>
-      )}
-
-      {phase === 'error' && (
-        <View style={tw`absolute inset-0 items-center justify-center bg-black/80 px-8`}>
-          <Text style={tw`text-center font-sans-bold text-[17px] text-white`}>Could not play this</Text>
-          <Text style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}>
-            {fault ?? 'Unknown player error'}
-          </Text>
-          <Pressable
-            onPress={() => {
-              if (item) void open(item.kind, item.id);
-            }}
-            style={tw`mt-4 flex-row items-center gap-2 rounded-2xl bg-cyan-400 px-5 py-3`}
-          >
-            <RotateCcw size={18} color="#083344" />
-            <Text style={tw`font-sans-bold text-[15px] text-slate-950`}>Retry</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {controls && phase !== 'loading' && (
-        <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(150)} style={tw`absolute inset-0`}>
-          <Pressable style={tw`absolute inset-0`} onPress={() => setControls(false)} />
-          <PlayerTopBar
+            phase={phase}
+            poster={item?.poster}
+            fault={fault}
             title={info?.title ?? item?.title ?? ''}
             quality={info?.formats.find((format) => format.formatId === currentId)?.quality ?? ''}
             canQuality={(info?.formats.length ?? 0) > 1}
-            top={insets.top}
+            isPlaying={isPlaying}
+            position={position}
+            duration={duration}
+            buffered={buffered}
+            flash={flash}
+            controls={controls}
+            top={landscape ? insets.top : 0}
+            onOpen={() => {
+              if (item) void open(item.kind, item.id);
+            }}
             onBack={() => {
               tapSelection();
               onClose();
@@ -351,37 +642,33 @@ export default function MoviePlayerScreen({ visible, item, onClose }: Props) {
               tapSelection();
               setQualityOpen(true);
             }}
+            onSkip={skip}
+            onToggle={toggle}
+            onSeek={(fraction) => {
+              player.currentTime = fraction * duration;
+              poke();
+            }}
+            onHide={() => setControls(false)}
+            onShow={poke}
           />
+        </View>
 
-          <TransportRow isPlaying={isPlaying} onSkip={skip} onToggle={toggle} />
-          {flash && (
-            <View style={tw`absolute inset-x-0 top-1/3 items-center`}>
-              <Text style={tw`rounded-full bg-black/70 px-3 py-1.5 font-sans-bold text-[16px] text-white`}>
-                {flash}
-              </Text>
-            </View>
-          )}
-
-          <View style={[tw`absolute inset-x-0 bottom-0 px-4`, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
-            <Text style={tw`mb-1 font-mono text-[11px] text-slate-200`}>
-              {formatClock(position)} / {formatClock(duration)}
-            </Text>
-            <SeekBar
-              position={position}
-              duration={duration}
-              buffered={buffered}
-              onSeek={(fraction) => {
-                player.currentTime = fraction * duration;
-                poke();
-              }}
-            />
-          </View>
-        </Animated.View>
-      )}
-
-      {!controls && phase === 'ready' && (
-        <Pressable style={tw`absolute inset-0`} onPress={poke} accessibilityLabel="Show controls" />
-      )}
+        {!landscape && (
+          <PortraitPanel
+            info={info}
+            item={item}
+            currentId={currentId}
+            upNext={upNext.filter((entry) => !item || entry.id !== item.id || entry.kind !== item.kind)}
+            onQuality={() => {
+              tapSelection();
+              setQualityOpen(true);
+            }}
+            onDownload={downloadCurrent}
+            onSelect={onSelect}
+            downloading={downloading}
+          />
+        )}
+      </View>
 
       <QualityMenu
         open={qualityOpen}
