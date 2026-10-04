@@ -455,7 +455,10 @@ const TAP_SIDES: TapSide[] = ['left', 'center', 'right'];
 function SeekMark({ mark }: { mark: { side: 'left' | 'right'; total: number } | null }) {
   if (!mark) return null;
   return (
-    <View style={tw`absolute inset-x-0 top-1/3 items-center`} pointerEvents="none">
+    <View
+      style={[tw`absolute inset-y-0 items-center justify-center`, mark.side === 'left' ? { left: 28 } : { right: 28 }]}
+      pointerEvents="none"
+    >
       <View style={tw`flex-row items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5`}>
         {mark.side === 'left' ? (
           <RotateCcw size={16} color="#ffffff" />
