@@ -708,9 +708,13 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
     }, 330);
   };
 
+  const dlState = currentId ? downloads[currentId] : undefined;
+  const downloading =
+    dlState?.status === 'downloading' || dlState?.status === 'muxing' || dlState?.status === 'saving';
+
   const downloadCurrent = () => {
     const current = info?.formats.find((format) => format.formatId === currentId) ?? info?.formats[0];
-    if (!current) return;
+    if (!current || downloading) return;
     tapImpact();
     log('Player', `download tap ${current.formatId}`);
     void startDownload(current);
@@ -747,9 +751,6 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
     return () => clearInterval(timer);
   }, [visible]);
   const videoH = landscape ? height : (width * 9) / 16;
-  const dlState = currentId ? downloads[currentId] : undefined;
-  const downloading =
-    dlState?.status === 'downloading' || dlState?.status === 'muxing' || dlState?.status === 'saving';
 
   return (
     <View

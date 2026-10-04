@@ -22,9 +22,11 @@ function fsPath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//u, ''));
 }
 
-// hls concurrency: large 8, muxed 16
-const HLS_CONCURRENCY = 8;
-const MUXED_HLS_CONCURRENCY = 16;
+// hls concurrency: fetch().arrayBuffer() parks each segment on the java
+// heap (okhttp buffers whole responses), so keep in-flight low — 16-way
+// bursts of 720p chunks oom 512mb heaps alongside webviews
+const HLS_CONCURRENCY = 4;
+const MUXED_HLS_CONCURRENCY = 4;
 
 export async function muxVideoAudio(
   video: File,
