@@ -15,10 +15,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import Animated from 'react-native-reanimated';
 import LottieView from 'lottie-react-native';
 import { X, Play, ChevronRight } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { useBackHandler } from '../lib/back';
+import { usePressScale } from '../hooks/usePressScale';
 import ufo from '../../assets/UFO.json';
 import {
   MoviesSearchCircleIcon,
@@ -82,16 +84,20 @@ function PosterCard({
   const playSize = Math.max(14, Math.round(width * 0.148));
   const badgePad = Math.max(5, Math.round(width * 0.05));
   const titleSize = width >= 150 ? 16 : 12;
+  const { pressScaleStyle, onPressIn, onPressOut } = usePressScale();
   return (
     <Pressable
       onPress={() => {
         tapSelection();
         onOpen(item);
       }}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       testID={testID}
       accessibilityLabel={`${item.title}, ${item.year ?? ''}`}
-      style={({ pressed }) => [{ width, opacity: pressed ? 0.75 : 1 }]}
+      style={{ width }}
     >
+      <Animated.View style={pressScaleStyle}>
       <View style={[tw`overflow-hidden bg-white/5`, { borderRadius: radius }]}>
         {item.poster ? (
           <Image
@@ -127,6 +133,7 @@ function PosterCard({
       >
         {item.title}
       </Text>
+      </Animated.View>
     </Pressable>
   );
 }
@@ -396,7 +403,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
         { opacity: visible ? 1 : 0, pointerEvents: visible ? 'auto' : 'none' },
       ]}
     >
-      <View style={[tw`bg-[#121011] px-5`, { paddingTop: insets.top + 8 }]}>
+      <View style={[tw`bg-[#121011] px-5`, { paddingTop: insets.top + 8, zIndex: 10, elevation: 10 }]}>
         {searchOpen ? (
           <View style={tw`flex-row items-center gap-2 py-2`}>
             <Pressable
@@ -579,7 +586,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
               onRefresh={() => void loadBrowse()}
               tintColor="#22d3ee"
               colors={['#22d3ee']}
-              progressBackgroundColor="#17324c"
+              progressBackgroundColor="#1E1E1E"
             />
           }
         >

@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Star, Play } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { tapSelection } from '../lib/haptics';
+import { usePressScale } from '../hooks/usePressScale';
 import type { LunaItem } from '../extractors/watchluna/browse';
 
 const ACCENT = '#22d3ee';
@@ -56,6 +57,9 @@ function TrendingSlide({
   onOpen: (item: LunaItem) => void;
   onPlay: (item: LunaItem) => void;
 }) {
+  const bannerPress = usePressScale();
+  const chipPress = usePressScale();
+  const detailsPress = usePressScale();
   return (
     <View style={{ width: pageW, paddingHorizontal: 16 }}>
       <View style={tw`overflow-hidden rounded-[48px] bg-[#1E1E1E]`}>
@@ -64,9 +68,12 @@ function TrendingSlide({
             tapSelection();
             onOpen(item);
           }}
+          onPressIn={bannerPress.onPressIn}
+          onPressOut={bannerPress.onPressOut}
           testID={`movie-trending-${index}`}
           accessibilityLabel={`Trending: ${item.title}`}
         >
+          <Animated.View style={bannerPress.pressScaleStyle}>
             {item.poster ? (
               <Image
                 source={{ uri: item.poster }}
@@ -75,28 +82,33 @@ function TrendingSlide({
                 cachePolicy="memory-disk"
               />
             ) : (
-            <View
-              style={[
-                tw`items-center justify-center bg-[#1E1E1E] px-8`,
-                { width: pageW - 32, height: bannerH },
-              ]}
-            >
-              <Text style={tw`text-center font-sans-semibold text-[18px] text-white`} numberOfLines={2}>
-                {item.title}
-              </Text>
-            </View>
-          )}
+              <View
+                style={[
+                  tw`items-center justify-center bg-[#1E1E1E] px-8`,
+                  { width: pageW - 32, height: bannerH },
+                ]}
+              >
+                <Text style={tw`text-center font-sans-semibold text-[18px] text-white`} numberOfLines={2}>
+                  {item.title}
+                </Text>
+              </View>
+            )}
+          </Animated.View>
         </Pressable>
         <Pressable
           onPress={() => {
             tapSelection();
             onPlay(item);
           }}
+          onPressIn={chipPress.onPressIn}
+          onPressOut={chipPress.onPressOut}
           accessibilityLabel={`Watch now: ${item.title}`}
           style={tw`absolute bottom-4 right-4 flex-row items-center gap-1.5 rounded-full bg-[#1E1E1E] py-2 pl-3 pr-3.5`}
         >
-          <Text style={tw`font-sans-medium text-[12px] text-white`}>Watch Now</Text>
-          <Play size={14} color="#FFFFFF" />
+          <Animated.View style={[tw`flex-row items-center gap-1.5`, chipPress.pressScaleStyle]}>
+            <Text style={tw`font-sans-medium text-[12px] text-white`}>Watch Now</Text>
+            <Play size={14} color="#FFFFFF" />
+          </Animated.View>
         </Pressable>
       </View>
       <View style={tw`mx-3 -mt-16 rounded-[32px] bg-[#1E1E1E]`}>
@@ -107,22 +119,26 @@ function TrendingSlide({
             </Text>
             <MetaLine item={item} />
           </View>
-          <Pressable
-            onPress={() => {
-              tapSelection();
-              onOpen(item);
-            }}
-            accessibilityLabel={`Details: ${item.title}`}
-          >
-            <LinearGradient
-              colors={['#333333', '#767676', '#363535']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={tw`rounded-full px-5 py-2.5`}
+            <Pressable
+              onPress={() => {
+                tapSelection();
+                onOpen(item);
+              }}
+              onPressIn={detailsPress.onPressIn}
+              onPressOut={detailsPress.onPressOut}
+              accessibilityLabel={`Details: ${item.title}`}
             >
-              <Text style={tw`font-sans-medium text-[14px] text-white`}>Details</Text>
-            </LinearGradient>
-          </Pressable>
+              <Animated.View style={detailsPress.pressScaleStyle}>
+                <LinearGradient
+                  colors={['#333333', '#767676', '#363535']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={tw`rounded-full px-5 py-2.5`}
+                >
+                  <Text style={tw`font-sans-medium text-[14px] text-white`}>Details</Text>
+                </LinearGradient>
+              </Animated.View>
+            </Pressable>
         </View>
       </View>
     </View>
