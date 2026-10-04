@@ -9,6 +9,7 @@ import {
   transcodeToMp3,
   demuxToM4a,
   hlsToMp4,
+  hlsDirectToMp4,
   parallelHlsToMp4,
   parallelHlsMuxedToMp4,
   tagAudio,
@@ -313,9 +314,11 @@ async function fetchMedia({
     const hStart = Date.now();
     const onHls = (pct: number): void =>
       onState({ status: 'downloading', progress: Math.min(98, pct) });
-    // separate video+audio hls -> parallel fetch; else ffmpeg
+    // separate video+audio hls -> parallel fetch; else ffmpeg-direct first:
+    // js segment fetching storms devtools inspection into oom, and native
+    // ffmpeg http is invisible to it. parallel stays as fallback.
     // signed hls urls expire mid-queue — one fresh-resolve retry before failing
-    let path = 'ffmpeg';
+    let path = 'direct';
     const runHls = async (playlistUrl: string): Promise<boolean> => {
       if (format.hlsAudioUrl) {
         const okSplit = await parallelHlsToMp4(
@@ -339,6 +342,15 @@ async function fetchMedia({
           format.hlsKeepAlive
         );
       }
+      const okDirect = await hlsDirectToMp4(
+        playlistUrl,
+        outFile,
+        durationSec,
+        headers,
+        onHls,
+        format.hlsKeepAlive
+      );
+      if (okDirect) return true;
       const okMuxed = await parallelHlsMuxedToMp4(
         playlistUrl,
         outFile,

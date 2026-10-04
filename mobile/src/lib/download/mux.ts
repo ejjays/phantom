@@ -142,8 +142,7 @@ export async function tagAudio(
 
 const HLS_UA = DESKTOP_UA;
 
-export function hlsToMp4(
-  url: string,
+export function hlsToMp4(  url: string,
   out: File,
   durationSec: number,
   onProgress: (pct: number) => void,
@@ -170,6 +169,60 @@ export function hlsToMp4(
         logWarn(
           'mux',
           `[hls] ffmpeg failed (${code}): ${String(output).slice(-600)}`
+        );
+        resolve(false);
+      },
+      undefined,
+      (stats: { getTime: () => number }) => {
+        if (durationSec <= 0) return;
+        const pct = Math.round((stats.getTime() / 1000 / durationSec) * 100);
+        if (pct > 0) onProgress(Math.min(99, pct));
+      }
+    );
+  });
+}
+
+// ffmpeg pulls the playlist itself over its own http stack: no js heap,
+// no per-segment bridge traffic, invisible to devtools inspection.
+// -headers rides on every segment request, same as the extractor headers.
+export function hlsDirectToMp4(
+  url: string,
+  out: File,
+  durationSec: number,
+  headers: Record<string, string>,
+  onProgress: (pct: number) => void,
+  keepAlive?: boolean
+): Promise<boolean> {
+  const block = Object.entries(headers)
+    .filter(([key]) => key.toLowerCase() !== 'user-agent' && key.toLowerCase() !== 'content-type')
+    .map(([key, value]) => `${key}: ${value}\r\n`)
+    .join('');
+  const ua = headers['User-Agent'] ?? headers['user-agent'];
+  const persistent = keepAlive ? '1' : '0';
+  const args = ['-hide_banner', '-loglevel', 'error', '-y', '-http_persistent', persistent];
+  if (block) args.push('-headers', block);
+  if (ua) args.push('-user_agent', ua);
+  args.push(
+    '-i', url,
+    '-c', 'copy',
+    '-bsf:a', 'aac_adtstoasc',
+    '-movflags', '+faststart',
+    fsPath(out.uri)
+  );
+  return new Promise((resolve) => {
+    void FFmpegKit.executeWithArgumentsAsync(
+      args,
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises -- ffmpeg-kit ignores callback promise
+      async (session) => {
+        const code = await session.getReturnCode();
+        if (ReturnCode.isSuccess(code)) {
+          resolve(true);
+          return;
+        }
+        const output = await session.getOutput();
+        logWarn(
+          'mux',
+          `[hls-direct] ffmpeg failed (${code}): ${String(output).slice(-600)}`
         );
         resolve(false);
       },
