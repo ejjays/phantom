@@ -17,6 +17,7 @@ import { usePressScale } from '../hooks/usePressScale';
 import { Play3Icon, Play3FilledIcon } from '../components/icons';
 import { resolve } from '../extractors';
 import { getTitleDetails, type LunaItem, type LunaTitle } from '../extractors/watchluna/browse';
+import { fetchCredits } from '../extractors/watchluna/tmdb';
 import { useDownload } from '../hooks/useDownload';
 import { formatLabel, type DownloadState } from '../lib/format';
 import { tapImpact, tapSelection } from '../lib/haptics';
@@ -158,6 +159,11 @@ function Skeleton({
       style={[{ width, height, borderRadius: radius }, tw`bg-white/10`, style]}
     />
   );
+}
+
+function initialsOf(name: string): string {
+  const bits = name.trim().split(/\s+/u).slice(0, 2);
+  return bits.map((bit) => bit.charAt(0).toUpperCase()).join('');
 }
 
 function DetailSkeletons() {
@@ -404,9 +410,31 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
     };
     void (async () => {
       try {
-        found = await getTitleDetails(kind, id);
+        const [metaResult, creditsResult] = await Promise.allSettled([
+          getTitleDetails(kind, id),
+          fetchCredits(kind, id),
+        ]);
         if (cancelled) return;
-        if (found) setDetails(found);
+        if (metaResult.status === 'fulfilled' && metaResult.value) {
+          found = metaResult.value;
+          if (creditsResult.status === 'fulfilled' && creditsResult.value) {
+            const credits = creditsResult.value;
+            const photos: Record<string, string> = {};
+            for (const person of credits.cast) {
+              if (person.photo) photos[person.name] = person.photo;
+            }
+            found = {
+              ...found,
+              castPhotos: photos,
+              director: credits.director?.name ?? found.director,
+              directorPhoto: credits.director?.photo,
+            };
+            log('Movies', `detail ${kind}/${id} credits cast=${credits.cast.length}`);
+          }
+          setDetails(found);
+        } else {
+          logError('Movies', `detail ${kind}/${id} meta failed`);
+        }
       } catch (err) {
         logError('Movies', `detail ${kind}/${id} meta failed: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
@@ -586,16 +614,62 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
                 {details.director && (
                   <View style={tw`mt-5`}>
                     <Text style={tw`font-sans-semibold text-[16px] text-white`}>Director</Text>
-                    <Text style={tw`mt-1.5 font-sans text-[14px] text-slate-300`}>{details.director}</Text>
+                    <View style={tw`mt-2 flex-row items-center gap-2.5`}>
+                      {details.directorPhoto ? (
+                        <Image
+                          source={{ uri: details.directorPhoto }}
+                          style={tw`h-11 w-11 rounded-full`}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                        />
+                      ) : (
+                        <View style={tw`h-11 w-11 items-center justify-center rounded-full bg-white/10`}>
+                          <Text style={tw`font-sans-semibold text-[14px] text-slate-200`}>
+                            {initialsOf(details.director)}
+                          </Text>
+                        </View>
+                      )}
+                      <Text style={tw`font-sans text-[14px] text-slate-300`}>{details.director}</Text>
+                    </View>
                   </View>
                 )}
 
                 {details.cast.length > 0 && (
                   <View style={tw`mt-5`}>
                     <Text style={tw`font-sans-semibold text-[16px] text-white`}>Cast</Text>
-                    <Text style={tw`mt-1.5 font-sans text-[14px] leading-6 text-slate-300`}>
-                      {details.cast.slice(0, 6).join(', ')}
-                    </Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={tw`gap-3 pr-5 pt-2`}
+                    >
+                      {details.cast.slice(0, 8).map((name) => {
+                        const photo = details.castPhotos?.[name];
+                        return (
+                          <View key={name} style={tw`w-[68px] items-center`}>
+                            {photo ? (
+                              <Image
+                                source={{ uri: photo }}
+                                style={tw`h-14 w-14 rounded-full`}
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
+                              />
+                            ) : (
+                              <View style={tw`h-14 w-14 items-center justify-center rounded-full bg-white/10`}>
+                                <Text style={tw`font-sans-semibold text-[16px] text-slate-200`}>
+                                  {initialsOf(name)}
+                                </Text>
+                              </View>
+                            )}
+                            <Text
+                              style={tw`mt-1.5 text-center font-sans-medium text-[10px] text-slate-300`}
+                              numberOfLines={2}
+                            >
+                              {name}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </ScrollView>
                   </View>
                 )}
               </>

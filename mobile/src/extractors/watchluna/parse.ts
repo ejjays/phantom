@@ -130,6 +130,8 @@ export type LunaDetails = {
   contentRating?: string;
   director?: string;
   cast: string[];
+  castPhotos?: Record<string, string>;
+  directorPhoto?: string;
 };
 
 function personName(value: unknown): string | undefined {
