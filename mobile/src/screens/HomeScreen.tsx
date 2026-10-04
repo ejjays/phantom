@@ -126,6 +126,7 @@ type Props = {
   muted: boolean;
   invalidLink: boolean;
   successSignal: number;
+  onOpenMovies: () => void;
 };
 
 export default function HomeScreen({
@@ -148,6 +149,7 @@ export default function HomeScreen({
   muted,
   invalidLink,
   successSignal,
+  onOpenMovies,
 }: Props) {
   const linkInputRef = useRef<TextInput>(null);
   useBlurOnKeyboardHide(linkInputRef);
@@ -436,23 +438,31 @@ export default function HomeScreen({
 
   return (
     <View style={tw`flex-1`}>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          moonStyle,
-          {
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            width: 72,
-            height: 72,
-            borderRadius: 36,
-            backgroundColor: '#f9f9fb',
-            boxShadow:
-              '0px 0px 50px 0px rgba(193, 119, 241, 0.85), 0px 0px 50px 0px rgba(135, 42, 211, 0.85), inset 0px 0px 26px -10px #9b40fc',
-          },
+      <Pressable
+        onPress={onOpenMovies}
+        accessibilityRole="button"
+        accessibilityLabel="Browse movies"
+        accessibilityHint="Opens movies fullscreen"
+        hitSlop={12}
+        style={({ pressed }) => [
+          { position: 'absolute', top: 8, left: 8, width: 72, height: 72, zIndex: 10, opacity: pressed ? 0.8 : 1 },
         ]}
-      />
+      >
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            moonStyle,
+            {
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: '#f9f9fb',
+              boxShadow:
+                '0px 0px 50px 0px rgba(193, 119, 241, 0.85), 0px 0px 50px 0px rgba(135, 42, 211, 0.85), inset 0px 0px 26px -10px #9b40fc',
+            },
+          ]}
+        />
+      </Pressable>
       <ScrollView
         style={tw`flex-1`}
         contentContainerStyle={tw`grow px-6 pb-16`}

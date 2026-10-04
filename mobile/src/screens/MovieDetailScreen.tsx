@@ -346,7 +346,7 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
   return (
     <View
       style={[
-        tw`absolute inset-0 bg-background`,
+        tw`absolute inset-0 bg-[#121011]`,
         { opacity: visible ? 1 : 0, pointerEvents: visible ? 'auto' : 'none' },
       ]}
     >

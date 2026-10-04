@@ -28,18 +28,16 @@ import tw from '../lib/tw';
 import { useInflight } from '../lib/inflight';
 import {
   HomeIcon,
-  MoviesIcon,
   SettingsIcon,
   UpdatesIcon,
   DownloadsIcon,
   type IconProps,
 } from './icons';
 
-export type Tab = 'home' | 'movies' | 'downloads' | 'updates' | 'settings';
+export type Tab = 'home' | 'downloads' | 'updates' | 'settings';
 
 const TABS: { id: Tab; label: string; Icon: ComponentType<IconProps> }[] = [
   { id: 'home', label: 'Home', Icon: HomeIcon },
-  { id: 'movies', label: 'Movies', Icon: MoviesIcon },
   { id: 'downloads', label: 'History', Icon: DownloadsIcon },
   { id: 'updates', label: 'Updates', Icon: UpdatesIcon },
   { id: 'settings', label: 'Settings', Icon: SettingsIcon },

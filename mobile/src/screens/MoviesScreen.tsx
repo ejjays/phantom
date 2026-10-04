@@ -16,11 +16,15 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import LottieView from 'lottie-react-native';
-import { Search, X, Star, Play, ChevronRight } from 'lucide-react-native';
+import { X, Star, Play, ChevronRight } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { useBackHandler } from '../lib/back';
 import ufo from '../../assets/UFO.json';
-import { PhantomIcon } from '../components/icons';
+import {
+  MoviesSearchCircleIcon,
+  MoviesBackCircleIcon,
+  MoviesFilterIcon,
+} from '../components/icons';
 import TrendingCarousel from '../components/TrendingCarousel';
 import MovieDetailScreen from './MovieDetailScreen';
 import MoviePlayerScreen from './MoviePlayerScreen';
@@ -28,6 +32,7 @@ import {
   searchTitles,
   listRail,
   listTrending,
+  getTitleDetails,
   type LunaItem,
 } from '../extractors/watchluna/browse';
 import { tapSelection } from '../lib/haptics';
@@ -36,6 +41,7 @@ import { log, error as logError } from '../lib/log';
 type Props = {
   visible: boolean;
   onFullScreen?: (open: boolean) => void;
+  onClose: () => void;
 };
 
 type Rail = {
@@ -112,7 +118,7 @@ function PosterCard({
   );
 }
 
-function MoviesScreenInner({ visible, onFullScreen }: Props) {
+function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [query, setQuery] = useState('');
@@ -130,10 +136,44 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
   const [explorePage, setExplorePage] = useState(0);
   const [exploreTotal, setExploreTotal] = useState(1);
   const [exploreMore, setExploreMore] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [recents, setRecents] = useState<LunaItem[]>([]);
+  const searchRef = useRef<TextInput>(null);
   const booted = useRef(false);
   const seq = useRef(0);
   const busyRails = useRef<Record<string, boolean>>({});
   const busyExplore = useRef(false);
+
+  const enrichTrending = useCallback(async (seed: LunaItem[]) => {
+    const started = Date.now();
+    const settled = await Promise.allSettled(
+      seed.slice(0, 10).map((item) => getTitleDetails(item.kind, item.id))
+    );
+    const known = new Map<string, { rating?: number; year?: string }>();
+    settled.forEach((result, index) => {
+      if (result.status !== 'fulfilled' || !result.value) return;
+      const found = result.value;
+      if (found.rating !== undefined || found.year !== undefined) {
+        known.set(`${seed[index].kind}-${seed[index].id}`, {
+          rating: found.rating,
+          year: found.year,
+        });
+      }
+    });
+    if (known.size === 0) return;
+    setTrending((prev) =>
+      prev.map((item) => {
+        const meta = known.get(`${item.kind}-${item.id}`);
+        if (!meta) return item;
+        return {
+          ...item,
+          rating: meta.rating ?? item.rating,
+          year: meta.year ?? item.year,
+        };
+      })
+    );
+    log('Movies', `trending enriched ${known.size} ms=${Date.now() - started}`);
+  }, []);
 
   const loadBrowse = useCallback(async () => {
     const started = Date.now();
@@ -170,16 +210,23 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
         'Movies',
         `browse done trending=${foundTrending?.length ?? 0} rails=${summary} ms=${Date.now() - started}`
       );
+      if (foundTrending && foundTrending.length > 0) void enrichTrending(foundTrending);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enrichTrending]);
 
   useEffect(() => {
     if (!visible || booted.current) return;
     booted.current = true;
     void loadBrowse();
   }, [visible, loadBrowse]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const timer = setTimeout(() => searchRef.current?.focus(), 100);
+    return () => clearTimeout(timer);
+  }, [searchOpen]);
 
   const loadMoreRail = useCallback(
     async (key: string) => {
@@ -284,6 +331,9 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
     (item: LunaItem) => {
       setSelected(item);
       setDetailOpen(true);
+      setRecents((prev) =>
+        [item, ...prev.filter((entry) => !(entry.kind === item.kind && entry.id === item.id))].slice(0, 6)
+      );
       onFullScreen?.(true);
     },
     [onFullScreen]
@@ -299,12 +349,6 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
     setPlaying(false);
   }, []);
 
-  useBackHandler(() => {
-    if (!visible || detailOpen || !railKey) return false;
-    setRailKey(null);
-    return true;
-  }, 5);
-
   const onQuery = (text: string) => {
     setQuery(text);
     if (text.trim().length < 2) {
@@ -316,6 +360,18 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
     }
   };
 
+  useBackHandler(() => {
+    if (!visible || detailOpen) return false;
+    if (searchOpen) {
+      setSearchOpen(false);
+      onQuery('');
+      return true;
+    }
+    if (!railKey) return false;
+    setRailKey(null);
+    return true;
+  }, 5);
+
   const inSearch = query.trim().length >= 2;
   const gridW = (width - 32 - 24) / 3;
   const openRail = !inSearch ? (rails.find((entry) => entry.key === railKey) ?? null) : null;
@@ -323,57 +379,82 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
   return (
     <View
       style={[
-        tw`absolute inset-0 bg-background`,
+        tw`absolute inset-0 bg-[#121011]`,
         { opacity: visible ? 1 : 0, pointerEvents: visible ? 'auto' : 'none' },
       ]}
     >
-      <View style={[tw`px-4 pb-2`, { paddingTop: insets.top + 12 }]}>
-        <View style={tw`flex-row items-center justify-between`}>
-          <View>
-            <Text style={tw`font-mono text-[11px] tracking-widest text-cyan-400`}>
-              PHANTOM
-            </Text>
-            <Text style={tw`font-sans-bold text-[30px] tracking-tight text-white`}>
-              {inSearch ? 'Results' : 'Movies'}
-            </Text>
-          </View>
-          <PhantomIcon size={30} />
-        </View>
-        <View style={tw`relative mt-3 justify-center`}>
-          <TextInput
-            testID="movies-search"
-            style={[
-              tw`rounded-2xl border-2 border-primary bg-black/30 pl-12 pr-10 font-mono text-[15px] text-white`,
-              { height: 52, textAlignVertical: 'center' },
-            ]}
-            placeholder="Search movies and shows…"
-            placeholderTextColor="#5b6472"
-            value={query}
-            onChangeText={onQuery}
-            returnKeyType="search"
-            autoCorrect={false}
-            accessibilityLabel="Search movies and shows"
-          />
-          <View style={tw`absolute left-4`}>
-            <Search size={20} color="#5b6472" />
-          </View>
-          {query.length > 0 && (
+      <View style={[tw`bg-[#121011] px-5`, { paddingTop: insets.top + 8 }]}>
+        {searchOpen ? (
+          <View style={tw`flex-row items-center gap-2 py-2`}>
             <Pressable
               onPress={() => {
                 tapSelection();
+                setSearchOpen(false);
                 onQuery('');
                 Keyboard.dismiss();
               }}
-              style={tw`absolute right-3 rounded-full p-1`}
-              accessibilityLabel="Clear search"
+              testID="movies-search-back"
+              accessibilityRole="button"
+              accessibilityLabel="Back to browse"
+              hitSlop={8}
             >
-              <X size={18} color="#94a3b8" />
+              <MoviesBackCircleIcon size={44} />
             </Pressable>
-          )}
-        </View>
+            <View style={tw`h-11 flex-1 flex-row items-center gap-2 rounded-full bg-[#1E1E1E] pl-4 pr-3`}>
+              <TextInput
+                ref={searchRef}
+                testID="movies-search"
+                style={[tw`flex-1 font-sans text-[12px] text-white`, { textAlignVertical: 'center', paddingVertical: 0 }]}
+                placeholder="Search any movies name here"
+                placeholderTextColor="#939392"
+                cursorColor="#EB2F3D"
+                selectionColor="#EB2F3D"
+                value={query}
+                onChangeText={onQuery}
+                returnKeyType="search"
+                autoCorrect={false}
+                accessibilityLabel="Search movies and shows"
+              />
+              <MoviesFilterIcon size={18} />
+            </View>
+          </View>
+        ) : (
+          <View style={tw`flex-row items-center justify-between py-2`}>
+            <Text style={tw`font-sans-semibold text-[24px] text-white`}>Watch</Text>
+            <View style={tw`flex-row gap-3`}>
+              <Pressable
+                onPress={() => {
+                  tapSelection();
+                  setSearchOpen(true);
+                }}
+                testID="movies-search-open"
+                accessibilityRole="button"
+                accessibilityLabel="Search movies"
+                hitSlop={8}
+              >
+                <MoviesSearchCircleIcon size={44} />
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  tapSelection();
+                  Keyboard.dismiss();
+                  onClose();
+                }}
+                testID="movies-close"
+                accessibilityRole="button"
+                accessibilityLabel="Close movies"
+                hitSlop={8}
+                style={tw`h-11 w-11 items-center justify-center rounded-full bg-[#1E1E1E]`}
+              >
+                <X size={20} color="#FFFFFF" />
+              </Pressable>
+            </View>
+          </View>
+        )}
       </View>
 
-      {inSearch ? (
+      {searchOpen ? (
+        inSearch ? (
         <FlatList
           data={results}
           numColumns={3}
@@ -407,6 +488,32 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
             )
           }
         />
+        ) : (
+          recents.length > 0 ? (
+            <View style={tw`pt-2`}>
+              <Text style={tw`px-5 pb-2 font-sans-semibold text-[16px] text-white`}>
+                Recent search
+              </Text>
+              <FlatList
+                data={recents}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={tw`gap-3 px-5`}
+                keyExtractor={(item) => `${item.kind}-${item.id}`}
+                renderItem={({ item, index }) => (
+                  <PosterCard item={item} width={112} height={168} testID={`movie-recent-${index}`} onOpen={openDetail} />
+                )}
+              />
+            </View>
+          ) : (
+            <View style={tw`items-center px-8 pt-10`}>
+              <Text style={tw`font-sans-semibold text-[16px] text-white`}>Recent search</Text>
+              <Text style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}>
+                Search any movies name here
+              </Text>
+            </View>
+          )
+        )
       ) : openRail ? (
         <FlatList
           data={openRail.items}
@@ -468,7 +575,14 @@ function MoviesScreenInner({ visible, onFullScreen }: Props) {
               <Text style={tw`px-4 pb-2 font-sans-bold text-[16px] text-slate-200`}>
                 Trending this week
               </Text>
-              <TrendingCarousel items={trending} onOpen={openDetail} />
+              <TrendingCarousel
+                items={trending}
+                onOpen={openDetail}
+                onPlay={(item) => {
+                  setPlayerItem(item);
+                  setPlaying(true);
+                }}
+              />
             </View>
           )}
           {rails.map((rail) =>

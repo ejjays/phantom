@@ -98,9 +98,9 @@ function AppRoot() {
     'Rubik-Bold': RubikBold,
   });
   const [tab, setTab] = useState<Tab>('home');
+  const [moviesOpen, setMoviesOpen] = useState(false);
   const [visited, setVisited] = useState({
     downloads: false,
-    movies: false,
     settings: false,
     updates: false,
   });
@@ -212,7 +212,7 @@ function AppRoot() {
   useEffect(
     () =>
       scheduleIdle(() =>
-        setVisited({ downloads: true, movies: true, settings: true, updates: true })
+        setVisited({ downloads: true, settings: true, updates: true })
       ),
     []
   );
@@ -307,12 +307,17 @@ function AppRoot() {
       else tabHistory.current = [...tabHistory.current, tab];
     }
     setTab(next);
-    if (next === 'downloads' || next === 'movies' || next === 'settings' || next === 'updates') {
+    if (next === 'downloads' || next === 'settings' || next === 'updates') {
       setVisited((seen) => (seen[next] ? seen : { ...seen, [next]: true }));
     }
   };
-  // back: walk tab stack → home, home owns exit
+  // back: movies overlay → tab stack → home, home owns exit
   useBackHandler(() => {
+    if (moviesOpen) {
+      setMoviesOpen(false);
+      setNavHidden(false);
+      return true;
+    }
     if (tabHistory.current.length > 0) {
       const prev = tabHistory.current[tabHistory.current.length - 1];
       tabHistory.current = tabHistory.current.slice(0, -1);
@@ -381,10 +386,14 @@ function AppRoot() {
                   firstVisit={firstVisit}
                   bubbleTrigger={bubbleTrigger}
                   pickerOpen={!!info}
-                  active={tab === 'home'}
+                  active={tab === 'home' && !moviesOpen}
                   muted={notifPriming.visible}
                   invalidLink={invalidLink}
                   successSignal={successSignal}
+                  onOpenMovies={() => {
+                    tapImpact();
+                    setMoviesOpen(true);
+                  }}
                 />
               </View>
               {visited.settings && (
@@ -393,8 +402,21 @@ function AppRoot() {
                   onFullScreen={setNavHidden}
                 />
               )}
-              {visited.movies && (
-                <MoviesScreen visible={tab === 'movies'} onFullScreen={setNavHidden} />
+              {moviesOpen && (
+                <Animated.View
+                  entering={FadeIn.duration(220)}
+                  exiting={FadeOut.duration(180)}
+                  style={[tw`absolute inset-0 bg-background`, { zIndex: 50, elevation: 50 }]}
+                >
+                  <MoviesScreen
+                    visible={moviesOpen}
+                    onFullScreen={setNavHidden}
+                    onClose={() => {
+                      setMoviesOpen(false);
+                      setNavHidden(false);
+                    }}
+                  />
+                </Animated.View>
               )}
               {visited.downloads && (
                 <DownloadsScreen visible={tab === 'downloads'} />
@@ -410,7 +432,7 @@ function AppRoot() {
               <BottomNav
                 tab={tab}
                 onChange={goTab}
-                hidden={navHidden || playlistOpen}
+                hidden={navHidden || playlistOpen || moviesOpen}
               />
               {playlistOpen && playlistInfo ? (
                 <PlaylistPanel
