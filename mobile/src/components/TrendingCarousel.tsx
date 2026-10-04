@@ -61,14 +61,14 @@ function TrendingSlide({
           testID={`movie-trending-${index}`}
           accessibilityLabel={`Trending: ${item.title}`}
         >
-          {item.poster ? (
-            <Image
-              source={{ uri: item.poster }}
-              style={{ width: pageW - 32, height: bannerH }}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-          ) : (
+            {item.poster ? (
+              <Image
+                source={{ uri: item.poster }}
+                style={{ width: pageW - 32, height: bannerH }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
+            ) : (
             <View
               style={[
                 tw`items-center justify-center bg-[#1E1E1E] px-8`,
@@ -161,7 +161,7 @@ export default function TrendingCarousel({
   const listW = windowWidth;
   const pageW = Math.min(windowWidth - 64, 560);
   const sidePad = (listW - pageW) / 2;
-  const bannerH = Math.round(((pageW - 32) * 279) / 353);
+  const bannerH = Math.round(((pageW - 32) * 310) / 353);
   const listRef = useRef<FlatList<LunaItem>>(null);
   const [raw, setRaw] = useState(() => (items.length > 1 ? items.length : 0));
   const rawRef = useRef(raw);
