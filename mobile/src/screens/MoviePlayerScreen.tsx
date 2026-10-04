@@ -12,6 +12,7 @@ import {
   Pause,
   Settings,
   RotateCcw,
+  RotateCw,
   Check,
   Download,
   Maximize,
@@ -451,6 +452,27 @@ type TapSide = 'left' | 'center' | 'right';
 
 const TAP_SIDES: TapSide[] = ['left', 'center', 'right'];
 
+function SeekMark({ mark }: { mark: { side: 'left' | 'right'; total: number } | null }) {
+  if (!mark) return null;
+  return (
+    <View
+      style={[tw`absolute inset-y-0 items-center justify-center`, mark.side === 'left' ? { left: 28 } : { right: 28 }]}
+      pointerEvents="none"
+    >
+      <View style={tw`h-20 w-20 items-center justify-center rounded-full bg-black/60`}>
+        {mark.side === 'left' ? (
+          <RotateCcw size={30} color="#ffffff" />
+        ) : (
+          <RotateCw size={30} color="#ffffff" />
+        )}
+        <Text style={tw`mt-0.5 font-mono-semibold text-[13px] text-white`}>
+          {mark.side === 'left' ? `-${mark.total}s` : `+${mark.total}s`}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 function VideoStage({
   player,
   phase,
@@ -465,6 +487,7 @@ function VideoStage({
   duration,
   buffered,
   flash,
+  seekMark,
   controls,
   top,
   onOpen,
@@ -488,6 +511,7 @@ function VideoStage({
   duration: number;
   buffered: number;
   flash: string | null;
+  seekMark: { side: 'left' | 'right'; total: number } | null;
   controls: boolean;
   top: number;
   onOpen: () => void;
@@ -546,6 +570,7 @@ function VideoStage({
           </Text>
         </View>
       )}
+      <SeekMark mark={seekMark} />
     </>
   );
 }
@@ -571,6 +596,7 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
   const [controls, setControls] = useState(true);
   const [qualityOpen, setQualityOpen] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const [seekMark, setSeekMark] = useState<{ side: 'left' | 'right'; total: number } | null>(null);
   const [stalled, setStalled] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -640,12 +666,11 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
     if (accTimer.current) clearTimeout(accTimer.current);
     accTimer.current = setTimeout(() => {
       acc.current = { side: '', total: 0, at: 0 };
+      setSeekMark(null);
     }, 1000);
     tapSelection();
     player.seekBy(dir);
-    setFlash(`${dir > 0 ? '+' : '-'}${total}s`);
-    if (flashTimer.current) clearTimeout(flashTimer.current);
-    flashTimer.current = setTimeout(() => setFlash(null), 800);
+    setSeekMark({ side, total });
     poke();
   };
 
@@ -750,6 +775,7 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
               duration={duration}
               buffered={buffered}
               flash={flash}
+              seekMark={seekMark}
               controls={controls}
               top={landscape ? insets.top : 0}
               onOpen={() => {
