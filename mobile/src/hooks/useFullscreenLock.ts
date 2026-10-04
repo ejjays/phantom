@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import * as NavigationBar from 'expo-navigation-bar';
+import { setStatusBarHidden } from 'expo-status-bar';
 import { log, error as logError } from '../lib/log';
+
+async function setImmersive(hidden: boolean): Promise<void> {
+  setStatusBarHidden(hidden, 'fade');
+  await NavigationBar.setVisibilityAsync(hidden ? 'hidden' : 'visible');
+}
 
 export function useFullscreenLock() {
   const [fullscreen, setFullscreen] = useState(false);
@@ -8,6 +15,7 @@ export function useFullscreenLock() {
   const enter = useCallback(async () => {
     try {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+      await setImmersive(true);
       setFullscreen(true);
       log('Player', 'fullscreen on');
     } catch (err) {
@@ -21,6 +29,7 @@ export function useFullscreenLock() {
   const exit = useCallback(async () => {
     try {
       await ScreenOrientation.unlockAsync();
+      await setImmersive(false);
     } catch (err) {
       logError(
         'Player',
@@ -35,6 +44,7 @@ export function useFullscreenLock() {
   useEffect(
     () => () => {
       void ScreenOrientation.unlockAsync().catch(() => undefined);
+      void setImmersive(false).catch(() => undefined);
     },
     []
   );
