@@ -51,7 +51,7 @@ import { useClipboardPaste } from './src/hooks/useClipboardPaste';
 import { useNotificationPriming } from './src/hooks/useNotificationPriming';
 import { tapImpact, loadHaptics } from './src/lib/haptics';
 import { log, error as logError } from './src/lib/log';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import IBMPlexMonoRegular from './assets/fonts/IBMPlexMono-Regular.ttf';
@@ -404,9 +404,9 @@ function AppRoot() {
               )}
               {moviesOpen && (
                 <Animated.View
-                  entering={FadeIn.duration(220)}
+                  entering={FadeInDown.duration(280)}
                   exiting={FadeOut.duration(180)}
-                  style={[tw`absolute inset-0 bg-background`, { zIndex: 50, elevation: 50 }]}
+                  style={[tw`absolute inset-0 bg-[#121011]`, { zIndex: 50, elevation: 50 }]}
                 >
                   <MoviesScreen
                     visible={moviesOpen}

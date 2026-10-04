@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import Animated from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import LottieView from 'lottie-react-native';
 import { X, ChevronRight } from 'lucide-react-native';
 import tw from '../lib/tw';
@@ -408,7 +408,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
     >
       {!detailOpen && !playing && (
       <View style={[tw`bg-[#121011] px-5`, { paddingTop: insets.top + 8, zIndex: 10, elevation: 10 }]}>
-        {searchOpen ? (
+      {searchOpen ? (
           <View style={tw`flex-row items-center gap-2 py-2`}>
             <Pressable
               onPress={() => {
@@ -424,7 +424,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
             >
               <MoviesBackCircleIcon size={44} />
             </Pressable>
-            <View style={tw`h-11 flex-1 flex-row items-center gap-2 rounded-full bg-[#1E1E1E] pl-4 pr-3`}>
+            <View style={tw`h-12 flex-1 flex-row items-center gap-2 rounded-full bg-[#1E1E1E] pl-4 pr-3`}>
               <TextInput
                 ref={searchRef}
                 testID="movies-search"
@@ -481,6 +481,11 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
       </View>
       )}
 
+      <Animated.View
+        key={searchOpen ? 'search' : (openRail?.key ?? 'browse')}
+        entering={FadeIn.duration(280)}
+        style={tw`flex-1`}
+      >
       {searchOpen ? (
         inSearch ? (
         <FlatList
@@ -681,8 +686,10 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
           )}
         </ScrollView>
       )}
+      </Animated.View>
 
       <MovieDetailScreen
+        key={selected ? `${selected.kind}-${selected.id}` : 'none'}
         visible={detailOpen}
         item={selected}
         onClose={closeDetail}
