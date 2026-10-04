@@ -142,52 +142,78 @@ function DlIcon({ phase }: { phase: DlPhase }) {
   return <Download size={22} color="#083344" strokeWidth={2.5} />;
 }
 
+function SectionIcon({
+  phase,
+  checking,
+  canRecheck,
+}: {
+  phase: DlPhase;
+  checking: boolean;
+  canRecheck: boolean;
+}) {
+  if (checking && canRecheck) return <ActivityIndicator size="small" color="#083344" />;
+  if (canRecheck) return <RotateCcw size={22} color="#083344" strokeWidth={2.5} />;
+  return <DlIcon phase={phase} />;
+}
+
+function sectionTitle(
+  phase: DlPhase,
+  progress: number,
+  noSources: boolean,
+  checking: boolean
+): string {
+  if (phase === 'saved') return 'Saved to History';
+  if (phase === 'errored') return 'Tap to retry';
+  if (phase === 'busy') return `${progress}%`;
+  if (phase === 'ready') return 'Download';
+  if (checking) return 'Checking…';
+  if (noSources) return 'Check again';
+  return 'Finding best quality…';
+}
+
+function sectionHint(phase: DlPhase, hint: string): string {
+  if (phase === 'saved') return 'Find it in the History tab';
+  if (phase === 'busy') return 'Downloading…';
+  if (phase === 'ready') return hint;
+  return '';
+}
+
 function DownloadSection({
   best,
   status,
   noSources,
+  checking,
   dlError,
   onDownload,
+  onRecheck,
 }: {
   best: Format | undefined;
   status: DownloadState | undefined;
   noSources: boolean;
+  checking: boolean;
   dlError: string | null;
   onDownload: () => void;
+  onRecheck: () => void;
 }) {
   const phase = dlPhase(status, Boolean(best), dlError);
   const size = best?.filesize ? formatSize(best.filesize) : '';
   const sub = best ? [formatLabel(best), size].filter(Boolean).join(' • ') : '';
   const shell =
     phase === 'saved' ? 'bg-emerald-400' : phase === 'errored' ? 'bg-amber-400' : 'bg-cyan-400';
-  const title =
-    phase === 'saved'
-      ? 'Saved to History'
-      : phase === 'errored'
-        ? 'Tap to retry'
-        : phase === 'busy'
-          ? `${status?.progress ?? 0}%`
-          : phase === 'ready'
-            ? 'Download'
-            : noSources
-              ? 'No sources yet'
-              : 'Finding best quality…';
-  const hint =
-    phase === 'saved'
-      ? 'Find it in the History tab'
-      : phase === 'busy'
-        ? 'Downloading…'
-        : phase === 'ready'
-          ? sub
-          : '';
+  const title = sectionTitle(phase, status?.progress ?? 0, noSources, checking);
+  const hint = sectionHint(phase, sub);
   const idle = phase === 'ready' || phase === 'errored';
+  const canRecheck = noSources && !checking;
   return (
     <View style={tw`mt-4`}>
       <Pressable
-        onPress={onDownload}
-        disabled={!idle && phase !== 'busy' && phase !== 'saved'}
+        onPress={() => {
+          if (canRecheck) onRecheck();
+          else onDownload();
+        }}
+        disabled={!idle && !canRecheck && phase !== 'busy' && phase !== 'saved'}
         testID="movie-download-btn"
-        accessibilityLabel={phase === 'saved' ? 'Saved to history' : phase === 'errored' ? 'Retry download' : 'Download this title'}
+        accessibilityLabel={phase === 'saved' ? 'Saved to history' : phase === 'errored' ? 'Retry download' : canRecheck ? 'Check for sources again' : 'Download this title'}
         style={({ pressed }) => [
           tw`h-16 overflow-hidden rounded-2xl ${shell} ${pressed && idle ? 'opacity-85' : ''} ${phase === 'waiting' ? 'opacity-60' : ''}`,
         ]}
@@ -198,7 +224,7 @@ function DownloadSection({
           />
         )}
         <View style={tw`flex-1 flex-row items-center gap-3 px-5`}>
-          <DlIcon phase={phase} />
+          <SectionIcon phase={phase} checking={checking} canRecheck={canRecheck} />
           <View style={tw`flex-1`}>
             <Text style={tw`font-sans-bold text-[17px] text-slate-950`}>{title}</Text>
             {hint !== '' && (
@@ -225,6 +251,8 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
   const [video, setVideo] = useState<VideoInfo | null>(null);
   const [failed, setFailed] = useState(false);
   const [noSources, setNoSources] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [reloads, setReloads] = useState(0);
   const [dlError, setDlError] = useState<string | null>(null);
   const { downloads, startDownload } = useDownload(video);
 
@@ -248,6 +276,7 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
     void (async () => {
       const [found, full, sourceErr] = await loadTitle(item.kind, item.id);
       if (cancelled) return;
+      setChecking(false);
       if (found) setDetails(found);
       else if (full) setDetails(detailsFromVideo(item.kind, item.id, full));
       if (full) setVideo(full);
@@ -269,7 +298,15 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
     return () => {
       cancelled = true;
     };
-  }, [visible, item]);
+  }, [visible, item, reloads]);
+
+  const recheckSources = () => {
+    if (!item || checking) return;
+    tapImpact();
+    setChecking(true);
+    setReloads((count) => count + 1);
+    log('Movies', `detail ${item.kind}/${item.id} recheck`);
+  };
 
   const best = video?.formats[0];
   const status = best ? downloads[best.formatId] : undefined;
@@ -377,15 +414,17 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
               )}
               <Meta
                 label="Quality"
-                value={best ? formatLabel(best) : noSources ? 'No sources yet' : failed ? 'Unavailable' : 'Resolving…'}
+                value={best ? formatLabel(best) : noSources ? (checking ? 'Checking…' : 'No sources yet') : failed ? 'Unavailable' : 'Resolving…'}
               />
             </View>
             <DownloadSection
               best={best}
               status={status}
               noSources={noSources}
+              checking={checking}
               dlError={dlError}
               onDownload={onDownload}
+              onRecheck={recheckSources}
             />
             <Pressable
               onPress={() => {
@@ -402,7 +441,13 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
               <Play size={22} color="#083344" strokeWidth={2.5} />
               <View style={tw`flex-1`}>
                 <Text style={tw`font-sans-bold text-[17px] text-slate-950`}>Play</Text>
-                <Text style={tw`font-mono text-[12px] text-slate-700`}>Stream instantly, no download</Text>
+                <Text style={tw`font-mono text-[12px] text-slate-700`}>
+                  {noSources
+                    ? checking
+                      ? 'Checking for streams…'
+                      : 'No streams right now'
+                    : 'Stream instantly, no download'}
+                </Text>
               </View>
             </Pressable>
           </View>
