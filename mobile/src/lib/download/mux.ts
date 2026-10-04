@@ -203,6 +203,11 @@ export function hlsDirectToMp4(
   if (block) args.push('-headers', block);
   if (ua) args.push('-user_agent', ua);
   args.push(
+    // wedged segments stall the whole pull: drop + reconnect instead
+    '-rw_timeout', '20000000',
+    '-reconnect', '1',
+    '-reconnect_streamed', '1',
+    '-reconnect_delay_max', '3',
     '-i', url,
     '-c', 'copy',
     '-bsf:a', 'aac_adtstoasc',
