@@ -23,6 +23,7 @@ export function useMoviePlayer() {
   const [fault, setFault] = useState<string | null>(null);
   const target = useRef<TitleRef | null>(null);
   const retried = useRef(false);
+  const sameRetried = useRef(false);
   const queue = useRef<Format[]>([]);
 
   const player = useVideoPlayer(null, (setup) => {
@@ -50,6 +51,7 @@ export function useMoviePlayer() {
     async (kind: LunaItem['kind'], id: string) => {
       target.current = { kind, id };
       retried.current = false;
+      sameRetried.current = false;
       queue.current = [];
       setPhase('loading');
       setFault(null);
@@ -82,6 +84,7 @@ export function useMoviePlayer() {
       if (!info) return;
       const at = player.currentTime;
       setCurrentId(format.formatId);
+      sameRetried.current = false;
       queue.current = info.formats.filter((entry) => entry.formatId !== format.formatId);
       await playSource(format, info.title, info.thumbnail ?? undefined, at);
       log('Player', `quality ${format.formatId} resumed at ${Math.round(at)}s`);
@@ -94,9 +97,25 @@ export function useMoviePlayer() {
     const at = player.currentTime;
     const goal = target.current;
     const detail = statusEvent.error?.message ?? 'source died';
+    const deadLink = /response code:\s*4\d\d|http\s*4\d\d|playlist http 4\d\d|segment http 4\d\d/i.test(detail);
+    const current = info?.formats.find((format) => format.formatId === currentId) ?? null;
+    if (!deadLink && current && !sameRetried.current) {
+      sameRetried.current = true;
+      log('Player', `${goal.kind}/${goal.id} transient (${detail}) at ${Math.round(at)}s, replaying same source`);
+      void playSource(current, info?.title ?? goal.id, info?.thumbnail ?? undefined, at).catch(
+        (err: unknown) => {
+          logError(
+            'Player',
+            `replay ${current.formatId} failed: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+      );
+      return;
+    }
     const trying = queue.current[0];
     if (trying) {
       queue.current = queue.current.slice(1);
+      sameRetried.current = false;
       log('Player', `${goal.kind}/${goal.id} ${detail} at ${Math.round(at)}s, trying ${trying.formatId}`);
       setCurrentId(trying.formatId);
       void playSource(trying, info?.title ?? goal.id, info?.thumbnail ?? undefined, at).catch(
@@ -124,6 +143,7 @@ export function useMoviePlayer() {
         if (!full || candidates.length === 0) throw new Error('no sources on retry');
         const [best, ...rest] = candidates;
         queue.current = rest;
+        sameRetried.current = false;
         setInfo(full);
         setCurrentId(best.formatId);
         await playSource(best, full.title, full.thumbnail ?? undefined, at);
@@ -135,7 +155,7 @@ export function useMoviePlayer() {
         logError('Player', `retry failed: ${message}`);
       }
     })();
-  }, [statusEvent, playSource, player, info]);
+  }, [statusEvent, playSource, player, info, currentId]);
 
   const close = useCallback(() => {
     player.pause();
