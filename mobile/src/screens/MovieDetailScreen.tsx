@@ -22,9 +22,28 @@ type Props = {
 
 function Meta({ label, value }: { label: string; value: string }) {
   return (
-    <View style={tw`flex-row items-center gap-2`}>
-      <Text style={tw`w-20 font-mono text-[11px] text-slate-500`}>{label}</Text>
-      <Text style={tw`flex-1 font-mono-semibold text-[12px] text-slate-200`}>{value}</Text>
+    <View style={tw`flex-1`}>
+      <Text style={tw`font-mono text-[11px] text-slate-500`}>{label}</Text>
+      <Text style={tw`mt-0.5 font-sans-semibold text-[15px] text-slate-100`}>{value}</Text>
+    </View>
+  );
+}
+
+function DetailMeta({ details }: { details: LunaTitle }) {
+  const cells: { label: string; value: string }[] = [];
+  if (typeof details.rating === 'number') {
+    cells.push({ label: 'Rating', value: details.rating.toFixed(1) });
+  }
+  if (typeof details.durationSec === 'number') {
+    cells.push({ label: 'Runtime', value: `${Math.round(details.durationSec / 60)} min` });
+  }
+  if (details.year) cells.push({ label: 'Released', value: details.year });
+  if (cells.length === 0) return null;
+  return (
+    <View style={tw`mt-5 flex-row gap-3`}>
+      {cells.map((cell) => (
+        <Meta key={cell.label} label={cell.label} value={cell.value} />
+      ))}
     </View>
   );
 }
@@ -86,13 +105,13 @@ function TitleBlock({ details, kind }: { details: LunaTitle; kind: string }) {
       {details.image && (
         <Image
           source={{ uri: details.image }}
-          style={tw`-mt-20 h-44 w-30 rounded-2xl border-2 border-background`}
+          style={tw`h-44 w-30 rounded-[20px]`}
           contentFit="cover"
           cachePolicy="memory-disk"
         />
       )}
       <View style={tw`flex-1 pb-1`}>
-        <Text style={tw`font-sans-bold text-[22px] leading-7 text-white`} numberOfLines={3}>
+        <Text style={tw`font-sans-bold text-[20px] leading-7 text-white`} numberOfLines={3}>
           {details.title}
         </Text>
         <View style={tw`mt-1 flex-row items-center gap-2`}>
@@ -146,25 +165,27 @@ function dlPhase(
   return 'waiting';
 }
 
-function DlIcon({ phase }: { phase: DlPhase }) {
-  if (phase === 'busy') return <ActivityIndicator size="small" color="#083344" />;
-  if (phase === 'saved') return <Check size={24} color="#083344" strokeWidth={3} />;
-  if (phase === 'errored') return <RotateCcw size={22} color="#083344" strokeWidth={2.5} />;
-  return <Download size={22} color="#083344" strokeWidth={2.5} />;
+function DlIcon({ phase, fg }: { phase: DlPhase; fg: string }) {
+  if (phase === 'busy') return <ActivityIndicator size="small" color={fg} />;
+  if (phase === 'saved') return <Check size={24} color={fg} strokeWidth={3} />;
+  if (phase === 'errored') return <RotateCcw size={22} color={fg} strokeWidth={2.5} />;
+  return <Download size={22} color={fg} strokeWidth={2.5} />;
 }
 
 function SectionIcon({
   phase,
   checking,
   canRecheck,
+  fg,
 }: {
   phase: DlPhase;
   checking: boolean;
   canRecheck: boolean;
+  fg: string;
 }) {
-  if (checking && canRecheck) return <ActivityIndicator size="small" color="#083344" />;
-  if (canRecheck) return <RotateCcw size={22} color="#083344" strokeWidth={2.5} />;
-  return <DlIcon phase={phase} />;
+  if (checking && canRecheck) return <ActivityIndicator size="small" color={fg} />;
+  if (canRecheck) return <RotateCcw size={22} color={fg} strokeWidth={2.5} />;
+  return <DlIcon phase={phase} fg={fg} />;
 }
 
 function sectionTitle(
@@ -209,14 +230,15 @@ function DownloadSection({
   const phase = dlPhase(status, Boolean(best), dlError);
   const size = best?.filesize ? formatSize(best.filesize) : '';
   const sub = best ? [formatLabel(best), size].filter(Boolean).join(' • ') : '';
-  const shell =
-    phase === 'saved' ? 'bg-emerald-400' : phase === 'errored' ? 'bg-amber-400' : 'bg-cyan-400';
+  const saved = phase === 'saved';
+  const shell = saved ? 'bg-emerald-400' : 'bg-[#EB2F3D]';
+  const fg = saved ? '#083344' : '#FFFFFF';
   const title = sectionTitle(phase, status?.progress ?? 0, noSources, checking);
   const hint = sectionHint(phase, sub);
   const idle = phase === 'ready' || phase === 'errored';
   const canRecheck = noSources && !checking;
   return (
-    <View style={tw`mt-4`}>
+    <View style={tw`mt-5`}>
       <Pressable
         onPress={() => {
           if (canRecheck) onRecheck();
@@ -235,11 +257,11 @@ function DownloadSection({
           />
         )}
         <View style={tw`flex-1 flex-row items-center gap-3 px-5`}>
-          <SectionIcon phase={phase} checking={checking} canRecheck={canRecheck} />
+          <SectionIcon phase={phase} checking={checking} canRecheck={canRecheck} fg={fg} />
           <View style={tw`flex-1`}>
-            <Text style={tw`font-sans-bold text-[17px] text-slate-950`}>{title}</Text>
+            <Text style={[tw`font-sans-bold text-[17px]`, { color: fg }]}>{title}</Text>
             {hint !== '' && (
-              <Text style={tw`font-mono text-[12px] text-slate-800`}>{hint}</Text>
+              <Text style={[tw`font-mono text-[12px]`, { color: fg, opacity: 0.8 }]}>{hint}</Text>
             )}
           </View>
         </View>
@@ -352,17 +374,17 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
     >
       <ScrollView contentContainerStyle={tw`pb-10`}>
         {details?.backdrop ? (
-          <View>
+          <View style={tw`overflow-hidden rounded-b-[55px] bg-[#121011]`}>
             <Image
               source={{ uri: details.backdrop }}
-              style={tw`h-72 w-full`}
+              style={[tw`w-full`, { aspectRatio: 393 / 413 }]}
               contentFit="cover"
+              contentPosition="top"
               cachePolicy="memory-disk"
             />
-            <View style={tw`absolute inset-x-0 bottom-0 h-24 bg-black/40`} />
           </View>
         ) : (
-          <View style={[tw`w-full bg-white/5`, { height: 120 }]} />
+          <View style={[tw`w-full overflow-hidden rounded-b-[40px] bg-white/5`, { height: 120 }]} />
         )}
         <Pressable
           onPress={() => {
@@ -395,15 +417,17 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
             </Text>
           </View>
         ) : (
-          <View style={tw`px-4`}>
+          <View style={tw`mx-4 -mt-[120px] rounded-[32px] bg-[#1E1E1E] p-5`}>
             <TitleBlock details={details} kind={item?.kind ?? 'movie'} />
 
+            <DetailMeta details={details} />
+
             {details.genres.length > 0 && (
-              <View style={tw`mt-4 flex-row flex-wrap gap-1.5`}>
+              <View style={tw`mt-5 flex-row flex-wrap gap-1.5`}>
                 {details.genres.map((genre) => (
                   <Text
                     key={genre}
-                    style={tw`rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1 font-mono text-[11px] text-cyan-200`}
+                    style={tw`rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-sans-medium text-[12px] text-slate-100`}
                   >
                     {genre}
                   </Text>
@@ -412,22 +436,29 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
             )}
 
             {details.description && (
-              <Text style={tw`mt-4 font-sans text-[15px] leading-6 text-slate-200`}>
-                {details.description}
-              </Text>
+              <View style={tw`mt-5`}>
+                <Text style={tw`font-sans-semibold text-[16px] text-white`}>Story Plot</Text>
+                <Text style={tw`mt-1.5 font-sans text-[14px] leading-6 text-slate-300`}>
+                  {details.description}
+                </Text>
+              </View>
             )}
 
-            <View style={tw`mt-4 gap-2 rounded-2xl border border-white/10 bg-white/5 p-3.5`}>
-              {details.director && <Meta label="Director" value={details.director} />}
-              {details.cast.length > 0 && <Meta label="Cast" value={details.cast.slice(0, 4).join(', ')} />}
-              {typeof details.durationSec === 'number' && (
-                <Meta label="Runtime" value={`${Math.round(details.durationSec / 60)} min`} />
-              )}
-              <Meta
-                label="Quality"
-                value={best ? formatLabel(best) : noSources ? (checking ? 'Checking…' : 'No sources yet') : failed ? 'Unavailable' : 'Resolving…'}
-              />
-            </View>
+            {details.director && (
+              <View style={tw`mt-5`}>
+                <Text style={tw`font-sans-semibold text-[16px] text-white`}>Director</Text>
+                <Text style={tw`mt-1.5 font-sans text-[14px] text-slate-300`}>{details.director}</Text>
+              </View>
+            )}
+
+            {details.cast.length > 0 && (
+              <View style={tw`mt-5`}>
+                <Text style={tw`font-sans-semibold text-[16px] text-white`}>Cast</Text>
+                <Text style={tw`mt-1.5 font-sans text-[14px] leading-6 text-slate-300`}>
+                  {details.cast.slice(0, 6).join(', ')}
+                </Text>
+              </View>
+            )}
             <DownloadSection
               best={best}
               status={status}

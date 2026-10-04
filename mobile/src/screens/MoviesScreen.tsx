@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import Animated from 'react-native-reanimated';
 import LottieView from 'lottie-react-native';
-import { X, Play, ChevronRight } from 'lucide-react-native';
+import { X, ChevronRight } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { useBackHandler } from '../lib/back';
 import { usePressScale } from '../hooks/usePressScale';
@@ -26,6 +26,8 @@ import {
   MoviesSearchCircleIcon,
   MoviesBackCircleIcon,
   MoviesFilterIcon,
+  PhantomIcon,
+  Play3Icon,
 } from '../components/icons';
 import TrendingCarousel from '../components/TrendingCarousel';
 import MovieDetailScreen from './MovieDetailScreen';
@@ -81,8 +83,8 @@ function PosterCard({
   onOpen: (item: LunaItem) => void;
 }) {
   const radius = Math.round(width * 0.24);
-  const playSize = Math.max(14, Math.round(width * 0.148));
-  const badgePad = Math.max(5, Math.round(width * 0.05));
+  const playSize = Math.max(13, Math.round(width * 0.13));
+  const badgePad = Math.max(4, Math.round(width * 0.04));
   const titleSize = width >= 150 ? 16 : 12;
   const { pressScaleStyle, onPressIn, onPressOut } = usePressScale();
   return (
@@ -108,22 +110,23 @@ function PosterCard({
           />
         ) : (
           <View style={[tw`items-center justify-center bg-white/5`, { width, height }]}>
-            <Play size={playSize} color="#64748b" />
+            <Play3Icon size={playSize} color="#64748b" />
           </View>
         )}
         {item.poster ? (
           <View
             style={[
-              tw`absolute items-center justify-center bg-[#1E1E1E]`,
+              tw`absolute items-center justify-center`,
               {
                 right: Math.round(width * 0.12),
                 bottom: Math.round(height * 0.08),
                 padding: badgePad,
                 borderRadius: 999,
+                backgroundColor: 'rgba(30, 30, 30, 0.8)',
               },
             ]}
           >
-            <Play size={playSize} color="#FFFFFF" />
+            <Play3Icon size={playSize} color="#FFFFFF" />
           </View>
         ) : null}
       </View>
@@ -403,6 +406,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
         { opacity: visible ? 1 : 0, pointerEvents: visible ? 'auto' : 'none' },
       ]}
     >
+      {!detailOpen && !playing && (
       <View style={[tw`bg-[#121011] px-5`, { paddingTop: insets.top + 8, zIndex: 10, elevation: 10 }]}>
         {searchOpen ? (
           <View style={tw`flex-row items-center gap-2 py-2`}>
@@ -440,7 +444,10 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
           </View>
         ) : (
           <View style={tw`flex-row items-center justify-between py-2`}>
-            <Text style={tw`font-sans-semibold text-[24px] text-white`}>Watch</Text>
+            <View style={tw`flex-row items-center gap-2`}>
+              <PhantomIcon size={26} color="#FFFFFF" />
+              <Text style={tw`font-sans-semibold text-[24px] text-white`}>Watch</Text>
+            </View>
             <View style={tw`flex-row gap-3`}>
               <Pressable
                 onPress={() => {
@@ -472,6 +479,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
           </View>
         )}
       </View>
+      )}
 
       {searchOpen ? (
         inSearch ? (
