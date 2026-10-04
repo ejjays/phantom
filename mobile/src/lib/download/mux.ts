@@ -209,6 +209,7 @@ export function hlsDirectToMp4(
     '-movflags', '+faststart',
     fsPath(out.uri)
   );
+  const started = Date.now();
   return new Promise((resolve) => {
     void FFmpegKit.executeWithArgumentsAsync(
       args,
@@ -216,6 +217,10 @@ export function hlsDirectToMp4(
       async (session) => {
         const code = await session.getReturnCode();
         if (ReturnCode.isSuccess(code)) {
+          const secs = (Date.now() - started) / 1000;
+          const mb = (out.size ?? 0) / 1e6;
+          const mbps = secs > 0 ? ((mb * 8) / secs).toFixed(1) : '0';
+          log('mux', `[hls-direct] ${mb.toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`);
           resolve(true);
           return;
         }
