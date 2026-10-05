@@ -19,7 +19,7 @@ import { resolve } from '../extractors';
 import { type MovieItem, type MovieTitle } from '../extractors/movies/browse';
 import { fetchCredits, fetchTmdbTitle } from '../extractors/movies/tmdb';
 import { hasBlockedHosts, VIDROCK_HEADERS } from '../extractors/movies/vidrock';
-import { LUNA_BASE } from '../extractors/movies/constants';
+import { LUNA_HOSTS } from '../extractors/movies/constants';
 import { useDownload } from '../hooks/useDownload';
 import { formatLabel, type DownloadState } from '../lib/format';
 import { tapImpact, tapSelection } from '../lib/haptics';
@@ -354,33 +354,38 @@ async function tryBrowserFallback(
 ): Promise<VideoInfo | null> {
   try {
     const { resolveWatchPageViaBrowser } = await import('../extractors/movies/browserProbe');
-    const watchUrl =
-      kind === 'movie'
-        ? `${LUNA_BASE}/watch/movie/${id}`
-        : `${LUNA_BASE}/watch/tv/${id}/1/1`;
-    const viaBrowser = await resolveWatchPageViaBrowser(watchUrl);
-    if (cancelled() || !viaBrowser || viaBrowser.formats.length === 0) return null;
-    return {
-      type: 'video',
-      id,
-      title: meta?.title ?? itemTitle,
-      uploader: 'Phantom',
-      webpageUrl: watchUrl,
-      thumbnail: meta?.image ?? itemPoster,
-      duration: meta?.durationSec,
-      description: meta?.description,
-      formats: viaBrowser.formats,
-      extractorKey: 'phantom',
-      isJsInfo: true,
-      fromBrain: false,
-      isIsrcMatch: false,
-      isFullData: true,
-      isPartial: false,
-      downloadHeaders: {
-        ...VIDROCK_HEADERS,
-        ...(viaBrowser.cookies ? { Cookie: viaBrowser.cookies } : {}),
-      },
-    };
+    for (const host of LUNA_HOSTS) {
+      const watchUrl =
+        kind === 'movie'
+          ? `https://${host}/watch/movie/${id}`
+          : `https://${host}/watch/tv/${id}/1/1`;
+      const viaBrowser = await resolveWatchPageViaBrowser(watchUrl);
+      if (cancelled()) return null;
+      if (viaBrowser && viaBrowser.formats.length > 0) {
+        return {
+          type: 'video',
+          id,
+          title: meta?.title ?? itemTitle,
+          uploader: 'Phantom',
+          webpageUrl: watchUrl,
+          thumbnail: meta?.image ?? itemPoster,
+          duration: meta?.durationSec,
+          description: meta?.description,
+          formats: viaBrowser.formats,
+          extractorKey: 'phantom',
+          isJsInfo: true,
+          fromBrain: false,
+          isIsrcMatch: false,
+          isFullData: true,
+          isPartial: false,
+          downloadHeaders: {
+            ...VIDROCK_HEADERS,
+            ...(viaBrowser.cookies ? { Cookie: viaBrowser.cookies } : {}),
+          },
+        };
+      }
+    }
+    return null;
   } catch (err) {
     logError('Movies', `detail ${kind}/${id} browser failed: ${err instanceof Error ? err.message : String(err)}`);
     return null;

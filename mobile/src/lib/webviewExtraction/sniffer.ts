@@ -15,6 +15,7 @@ export interface PageScan {
   ogImage?: string;
   isDirect?: boolean;
   frames?: number;
+  frameUrls?: string[];
 }
 
 const MEDIA_RE = /\.(?:mp4|webm|m3u8|mkv|mov)(?:[?#]|$)/iu;
@@ -212,6 +213,35 @@ export const SNIFFER_JS = `(() => {
       if (!out.ogImage && link && link.href) out.ogImage = abs(link.href);
     });
     try { out.frames = document.querySelectorAll('iframe').length; } catch (e) {}
+    try {
+      const frameUrls = [];
+      const pushFrame = (u) => {
+        try {
+          const src = new URL(u, location.href).href;
+          if (src === location.href) return;
+          if (/^https?:/i.test(src) && frameUrls.indexOf(src) === -1 && frameUrls.length < 8) {
+            frameUrls.push(src);
+          }
+        } catch (e) {}
+      };
+      document.querySelectorAll('iframe').forEach((f) => {
+        if (f.src) pushFrame(f.src);
+        try {
+          const ds = f.getAttribute && (f.getAttribute('data-src') || f.getAttribute('data-url'));
+          if (ds) pushFrame(ds);
+        } catch (e) {}
+        try {
+          if (f.srcdoc) {
+            var bits = String(f.srcdoc).split(/["'<>\\s]+/);
+            for (var k = 0; k < bits.length; k++) {
+              if (/^https?:/i.test(bits[k])) pushFrame(bits[k]);
+              if (frameUrls.length >= 8) break;
+            }
+          }
+        } catch (e) {}
+      });
+      out.frameUrls = frameUrls;
+    } catch (e) {}
     post({ type: 'pageScan', data: out });
   };
   // dims for streams the page fetched off-screen (xhr/tumblr) or direct pastes:
