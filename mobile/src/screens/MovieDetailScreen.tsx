@@ -354,7 +354,8 @@ async function tryBrowserFallback(
 ): Promise<VideoInfo | null> {
   try {
     const { resolveWatchPageViaBrowser } = await import('../extractors/movies/browserProbe');
-    for (const host of LUNA_HOSTS) {
+    const order = [...LUNA_HOSTS.filter((host) => host !== 'watchluna.gd'), 'watchluna.gd'];
+    for (const host of order) {
       const watchUrl =
         kind === 'movie'
           ? `https://${host}/watch/movie/${id}`
