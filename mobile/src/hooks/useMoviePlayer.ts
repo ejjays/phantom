@@ -2,16 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useEvent } from 'expo';
 import { useVideoPlayer } from 'expo-video';
 import { resolve } from '../extractors';
-import { VIDROCK_HEADERS } from '../extractors/watchluna/vidrock';
+import { VIDROCK_HEADERS } from '../extractors/movies/vidrock';
 import type { Format, VideoInfo } from '@phantom/extractors';
-import type { LunaItem } from '../extractors/watchluna/browse';
+import type { MovieItem } from '../extractors/movies/browse';
 import { log, error as logError } from '../lib/log';
 
 export type PlayerPhase = 'idle' | 'loading' | 'ready' | 'error';
 
-type TitleRef = { kind: LunaItem['kind']; id: string };
+type TitleRef = { kind: MovieItem['kind']; id: string };
 
-async function freshInfo(kind: LunaItem['kind'], id: string): Promise<VideoInfo | null> {
+async function freshInfo(kind: MovieItem['kind'], id: string): Promise<VideoInfo | null> {
   const resolved = await resolve(`https://watchluna.gd/${kind}/${id}`, undefined, { fresh: true });
   return resolved && !resolved.isPartial && resolved.formats.length > 0 ? resolved : null;
 }
@@ -48,7 +48,7 @@ export function useMoviePlayer() {
   );
 
   const open = useCallback(
-    async (kind: LunaItem['kind'], id: string) => {
+    async (kind: MovieItem['kind'], id: string) => {
       target.current = { kind, id };
       retried.current = false;
       sameRetried.current = false;

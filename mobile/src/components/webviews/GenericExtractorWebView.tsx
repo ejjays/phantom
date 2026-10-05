@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { View } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { warn as logWarn } from '../../lib/log';
 import {
@@ -13,6 +13,7 @@ import {
 
 export default function GenericExtractorWebView() {
   const ref = useRef<WebView>(null);
+  const { width, height } = useWindowDimensions();
   const [source, setSource] = useState<
     { uri: string } | { html: string; baseUrl: string }
   >({ uri: 'about:blank' });
@@ -30,8 +31,8 @@ export default function GenericExtractorWebView() {
         position: 'absolute',
         top: -10000,
         left: 0,
-        width: 200,
-        height: 200,
+        width: Math.min(width, 600),
+        height: Math.min(height, 900),
         opacity: 0,
       }}
     >

@@ -5,7 +5,7 @@ vi.mock('../src/lib/net', () => ({
 }));
 
 import { gatedFetch } from '../src/lib/net';
-import { fetchCredits } from '../src/extractors/watchluna/tmdb';
+import { fetchCredits, fetchTmdbTitle } from '../src/extractors/movies/tmdb';
 
 const mockedFetch = vi.mocked(gatedFetch);
 
@@ -60,5 +60,64 @@ describe('fetchCredits', () => {
     await fetchCredits('movie', '3003');
     await fetchCredits('movie', '3003');
     expect(mockedFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('fetchTmdbTitle', () => {
+  it('maps movie details', async () => {
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        title: 'Ada Ascends',
+        poster_path: '/poster.jpg',
+        backdrop_path: '/backdrop.jpg',
+        release_date: '2026-04-01',
+        vote_average: 7.5,
+        vote_count: 120,
+        genres: [{ name: 'Drama' }, { name: 42 }],
+        overview: 'Rise and shine.',
+        runtime: 145,
+      }),
+    } as Response);
+    const title = await fetchTmdbTitle('movie', '4004');
+    expect(title).toMatchObject({
+      title: 'Ada Ascends',
+      image: 'https://image.tmdb.org/t/p/w500/poster.jpg',
+      backdrop: 'https://image.tmdb.org/t/p/w1280/backdrop.jpg',
+      year: '2026',
+      rating: 7.5,
+      votes: 120,
+      genres: ['Drama'],
+      description: 'Rise and shine.',
+      durationSec: 8700,
+    });
+  });
+
+  it('maps tv details with episode runtime', async () => {
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        name: 'Bo Show',
+        first_air_date: '2020-01-01',
+        vote_average: 8,
+        genres: [],
+        episode_run_time: [45],
+      }),
+    } as Response);
+    const title = await fetchTmdbTitle('tv', '5005');
+    expect(title).toMatchObject({
+      title: 'Bo Show',
+      year: '2020',
+      rating: 8,
+      durationSec: 2700,
+    });
+  });
+
+  it('returns null without a title', async () => {
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ overview: 'No name.' }),
+    } as Response);
+    await expect(fetchTmdbTitle('movie', '6006')).resolves.toBeNull();
   });
 });

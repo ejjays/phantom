@@ -91,6 +91,7 @@ const PLATFORM_LOGOS: Record<string, number> = {
   vimeo: vimeoLogo,
   dailymotion: dailymotionLogo,
   watchluna: watchlunaLogo,
+  phantom: watchlunaLogo,
 };
 
 async function ensureNotificationPermission(): Promise<boolean> {

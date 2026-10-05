@@ -11,8 +11,8 @@ import { getInfo as youtubeGetInfo } from './youtube';
 import { getInfo as instagramGetInfo } from './instagram';
 import { getInfo as spotifyGetInfo } from './spotify';
 import { getInfo as soundcloudGetInfo } from './soundcloud';
-import { getInfo as watchlunaGetInfo } from './watchluna';
-import { isLunaHost } from './watchluna/parse';
+import { getInfo as moviesGetInfo } from './movies';
+import { isMovieHost } from './movies/parse';
 import { getCachedInfo, setCachedInfo } from '../lib/cache';
 import { reportError } from '../lib/crash';
 import { log } from '../lib/log';
@@ -53,8 +53,8 @@ async function dispatch(
     return instagramGetInfo(url);
   }
 
-  if (isLunaHost(host)) {
-    return watchlunaGetInfo(url, onPartial);
+  if (isMovieHost(host)) {
+    return moviesGetInfo(url, onPartial);
   }
 
   if (

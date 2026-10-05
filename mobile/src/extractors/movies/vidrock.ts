@@ -7,7 +7,7 @@ import { gatedFetch } from '../../lib/net';
 import { DESKTOP_UA } from '../../lib/userAgents';
 import { VIDROCK_API, VIDROCK_KEY_HEX, VIDROCK_REFERER } from './constants';
 import { decryptVidrockPayload } from './aesgcm';
-import type { LunaRef } from './parse';
+import type { MovieRef } from './parse';
 
 export const VIDROCK_HEADERS: Record<string, string> = {
   'User-Agent': DESKTOP_UA,
@@ -26,13 +26,42 @@ type VidrockApi = Record<string, VidrockEntry>;
 
 export type VidrockSource = { name: string; url: string; streamType: string };
 
-export function vidrockPath(ref: LunaRef): string {
+const blockedHosts = new Set<string>();
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function looksBlocked(status: number, contentType: string, body: string): boolean {
+  if (status !== 403 && status !== 429 && status !== 503) return false;
+  if (!contentType.includes('text/html')) return false;
+  return /just a moment|attention required|cf-chl|challenge-platform|turnstile|access blocked|access denied|are you human|captcha/iu.test(
+    body.slice(0, 4000)
+  );
+}
+
+function markBlocked(url: string, status: number, contentType: string, body: string): void {
+  if (!looksBlocked(status, contentType, body)) return;
+  const host = hostOf(url);
+  if (host) blockedHosts.add(host);
+}
+
+export function hasBlockedHosts(): boolean {
+  return blockedHosts.size > 0;
+}
+
+export function vidrockPath(ref: MovieRef): string {
   return ref.kind === 'movie'
     ? `movie/${ref.tmdbId}`
     : `tv/${ref.tmdbId}/${ref.season}/${ref.episode}`;
 }
 
-export async function fetchVidrockSources(ref: LunaRef): Promise<VidrockSource[]> {
+export async function fetchVidrockSources(ref: MovieRef): Promise<VidrockSource[]> {
+  blockedHosts.clear();
   const res = await gatedFetch(`${VIDROCK_API}/${vidrockPath(ref)}`, {
     headers: VIDROCK_HEADERS,
   });
@@ -57,9 +86,19 @@ type QualityLevel = { resolution?: number; url?: string };
 async function jsonLevels(url: string): Promise<QualityLevel[] | null> {
   try {
     const res = await gatedFetch(url, { headers: VIDROCK_HEADERS });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      markBlocked(url, res.status, res.headers.get('content-type') ?? '', body);
+      return null;
+    }
     const type = res.headers.get('content-type') ?? '';
-    if (!type.includes('application/json')) return null;
+    if (!type.includes('application/json')) {
+      if (type.includes('text/html')) {
+        const body = await res.text().catch(() => '');
+        markBlocked(url, res.status, type, body);
+      }
+      return null;
+    }
     const data = (await res.json()) as QualityLevel[];
     if (!Array.isArray(data) || data.length === 0 || !data[0].url) return null;
     return [...data].sort((lhs, rhs) => (rhs.resolution ?? 0) - (lhs.resolution ?? 0));
@@ -71,15 +110,23 @@ async function jsonLevels(url: string): Promise<QualityLevel[] | null> {
 async function playlistText(url: string): Promise<string | null> {
   try {
     const res = await gatedFetch(url, { headers: VIDROCK_HEADERS });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      markBlocked(url, res.status, res.headers.get('content-type') ?? '', body);
+      return null;
+    }
     const text = await res.text();
-    return text.includes('#EXTM3U') ? text : null;
+    if (!text.includes('#EXTM3U')) {
+      markBlocked(url, res.status, res.headers.get('content-type') ?? '', text);
+      return null;
+    }
+    return text;
   } catch {
     return null;
   }
 }
 
-function mp4Format(name: string, url: string): Format {
+export function mp4Format(name: string, url: string): Format {
   return {
     formatId: `vidrock-${name.toLowerCase()}-1080p`,
     url,
@@ -97,7 +144,7 @@ function mp4Format(name: string, url: string): Format {
   };
 }
 
-function singleHls(name: string, url: string, filesize?: number): Format {
+export function singleHls(name: string, url: string, filesize?: number): Format {
   return {
     formatId: `vidrock-${name.toLowerCase()}-1080p`,
     url,

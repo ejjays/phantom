@@ -20,11 +20,11 @@ import { Star, Play } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { tapSelection } from '../lib/haptics';
 import { usePressScale } from '../hooks/usePressScale';
-import type { LunaItem } from '../extractors/watchluna/browse';
+import type { MovieItem } from '../extractors/movies/browse';
 
 const ACCENT = '#22d3ee';
 
-function MetaLine({ item }: { item: LunaItem }) {
+function MetaLine({ item }: { item: MovieItem }) {
   const rating = item.rating;
   const hasRating = typeof rating === 'number';
   const bits = [
@@ -50,12 +50,12 @@ function TrendingSlide({
   onOpen,
   onPlay,
 }: {
-  item: LunaItem;
+  item: MovieItem;
   pageW: number;
   bannerH: number;
   index: number;
-  onOpen: (item: LunaItem) => void;
-  onPlay: (item: LunaItem) => void;
+  onOpen: (item: MovieItem) => void;
+  onPlay: (item: MovieItem) => void;
 }) {
   const bannerPress = usePressScale();
   const chipPress = usePressScale();
@@ -182,16 +182,16 @@ export default function TrendingCarousel({
   onOpen,
   onPlay,
 }: {
-  items: LunaItem[];
-  onOpen: (item: LunaItem) => void;
-  onPlay: (item: LunaItem) => void;
+  items: MovieItem[];
+  onOpen: (item: MovieItem) => void;
+  onPlay: (item: MovieItem) => void;
 }) {
   const { width: windowWidth } = useWindowDimensions();
   const listW = windowWidth;
   const pageW = Math.min(windowWidth - 64, 560);
   const sidePad = (listW - pageW) / 2;
   const bannerH = Math.round(((pageW - 32) * 310) / 353);
-  const listRef = useRef<FlatList<LunaItem>>(null);
+  const listRef = useRef<FlatList<MovieItem>>(null);
   const progress = useSharedValue(items.length > 1 ? items.length : 0);
   const [raw, setRaw] = useState(() => (items.length > 1 ? items.length : 0));
   const rawRef = useRef(raw);

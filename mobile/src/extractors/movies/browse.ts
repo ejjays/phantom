@@ -1,27 +1,27 @@
 import { gatedFetch } from '../../lib/net';
 import { DESKTOP_UA } from '../../lib/userAgents';
 import { LUNA_BASE, LUNA_HOSTS } from './constants';
-import { parseLunaDetails, type LunaDetails } from './parse';
+import { parseMovieDetails, type MovieDetails } from './parse';
 
-export type LunaKind = 'movie' | 'tv';
+export type MovieKind = 'movie' | 'tv';
 
-export type LunaItem = {
+export type MovieItem = {
   id: string;
-  kind: LunaKind;
+  kind: MovieKind;
   title: string;
   year?: string;
   poster?: string;
   rating?: number;
 };
 
-export type LunaRail = {
+export type MovieRail = {
   title: string;
-  items: LunaItem[];
+  items: MovieItem[];
   page: number;
   totalPages: number;
 };
 
-export type LunaTitle = LunaDetails & { id: string; kind: LunaKind };
+export type MovieTitle = MovieDetails & { id: string; kind: MovieKind };
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p';
 const HEADERS = { 'User-Agent': DESKTOP_UA };
@@ -31,7 +31,7 @@ function origins(): string[] {
   return [...new Set(bases)];
 }
 
-async function fetchLuna(path: string): Promise<{ text: string; origin: string } | null> {
+async function fetchMoviePage(path: string): Promise<{ text: string; origin: string } | null> {
   for (const origin of origins()) {
     try {
       const res = await gatedFetch(`${origin}${path}`, { headers: HEADERS });
@@ -53,7 +53,7 @@ function yearOf(date: unknown): string | undefined {
   return typeof date === 'string' && date.length >= 4 ? date.slice(0, 4) : undefined;
 }
 
-export async function searchTitles(query: string): Promise<LunaItem[]> {
+export async function searchTitles(query: string): Promise<MovieItem[]> {
   const term = query.trim();
   if (term.length < 2) return [];
   let data: unknown = null;
@@ -71,7 +71,7 @@ export async function searchTitles(query: string): Promise<LunaItem[]> {
   }
   const results = (data as { results?: unknown } | null)?.results;
   if (!Array.isArray(results)) return [];
-  const out: LunaItem[] = [];
+  const out: MovieItem[] = [];
   for (const entry of results) {
     const rec = entry as Record<string, unknown>;
     const id = rec['id'];
@@ -92,11 +92,11 @@ export async function searchTitles(query: string): Promise<LunaItem[]> {
 const CARD_RE =
   /<a href="\/(movie|tv)\/(\d+)" class="card">[\s\S]*?<img src="([^"]+)"[\s\S]*?<h3[^>]*>([^<]+)<\/h3>[\s\S]*?<span class="text-zinc-500">(\d{4})<\/span>/gu;
 
-export function parseCards(html: string): LunaItem[] {
-  const out: LunaItem[] = [];
+export function parseCards(html: string): MovieItem[] {
+  const out: MovieItem[] = [];
   for (const hit of html.matchAll(CARD_RE)) {
     out.push({
-      kind: hit[1] as LunaKind,
+      kind: hit[1] as MovieKind,
       id: hit[2],
       poster: hit[3],
       title: hit[4].trim(),
@@ -116,12 +116,12 @@ export async function listRail(
   path: string,
   page = 1,
   title = 'Movies'
-): Promise<LunaRail | null> {
+): Promise<MovieRail | null> {
   const sep = path.includes('?') ? '&' : '?';
   const target = `${path}${sep}page=${page}`;
   const alt = page === 1 ? path : null;
   for (const suffix of [target, ...(alt ? [alt] : [])]) {
-    const fetched = await fetchLuna(suffix);
+    const fetched = await fetchMoviePage(suffix);
     if (!fetched) continue;
     const items = parseCards(fetched.text);
     if (items.length === 0) continue;
@@ -130,8 +130,8 @@ export async function listRail(
   return null;
 }
 
-export async function listTrending(): Promise<LunaItem[] | null> {
-  const fetched = await fetchLuna('/');
+export async function listTrending(): Promise<MovieItem[] | null> {
+  const fetched = await fetchMoviePage('/');
   if (!fetched) return null;
   const lists = [...fetched.text.matchAll(
     /<script type="application\/ld\+json">(\{"@context":"https:\/\/schema\.org","@type":"ItemList"[\s\S]*?)<\/script>/gu
@@ -141,12 +141,12 @@ export async function listTrending(): Promise<LunaItem[] | null> {
       const list = JSON.parse(hit[1]) as {
         itemListElement?: { url?: string; name?: string; image?: string }[];
       };
-      const items: LunaItem[] = [];
+      const items: MovieItem[] = [];
       for (const entry of list.itemListElement ?? []) {
         const found = entry.url?.match(/\/(movie|tv)\/(\d+)/u);
         if (!found || typeof entry.name !== 'string') continue;
         items.push({
-          kind: found[1] as LunaKind,
+          kind: found[1] as MovieKind,
           id: found[2],
           title: entry.name,
           poster: entry.image,
@@ -160,8 +160,8 @@ export async function listTrending(): Promise<LunaItem[] | null> {
   return parseCards(fetched.text).slice(0, 10);
 }
 
-export async function getTitleDetails(kind: LunaKind, id: string): Promise<LunaTitle | null> {
-  const fetched = await fetchLuna(`/${kind}/${id}`);
+export async function getTitleDetails(kind: MovieKind, id: string): Promise<MovieTitle | null> {
+  const fetched = await fetchMoviePage(`/${kind}/${id}`);
   if (!fetched) return null;
-  return { id, kind, ...parseLunaDetails(fetched.text, id) };
+  return { id, kind, ...parseMovieDetails(fetched.text, id) };
 }

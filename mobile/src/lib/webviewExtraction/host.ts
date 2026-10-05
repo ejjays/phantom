@@ -41,11 +41,28 @@ let stableCount = 0;
 let scanCounter = 0;
 let currentScanId: number | undefined;
 let lastInjectedUrl: string | undefined;
+let lastNudgeAt = 0;
+let nudgeCount = 0;
+const NUDGE_EVERY = 4_000;
+const NUDGE_MAX = 5;
+
+// players that wait for a tap never emit media: muted-play every video and
+// click the first play-looking control so scans see the stream
+const NUDGE_JS =
+  '(function(){try{var challenged=/quick check|just a moment|verifying|attention|challenge|blocked|verify you are human|are you human/i.test(document.title||"");if(challenged){var btns=document.querySelectorAll("button,a");for(var b=0;b<btns.length;b++){var t="";try{t=btns[b].innerText||""}catch(e){}if(/continue|proceed|verify|confirm|enter site|i am human|not a robot/i.test(t)){try{btns[b].click()}catch(e){}break;}}var boxes=document.querySelectorAll("input[type=\\"checkbox\\"]");for(var k=0;k<boxes.length;k++){try{boxes[k].click()}catch(e){}}return;}var vids=document.querySelectorAll("video");for(var i=0;i<vids.length;i++){try{vids[i].muted=true;var p=vids[i].play();if(p&&p.catch)p.catch(function(){})}catch(e){}}var els=document.querySelectorAll("button");for(var j=0;j<els.length;j++){var el=els[j];var s="";try{s=String(el.className||"")+" "+(el.id||"")+" "+(el.getAttribute("aria-label")||"")}catch(e){}if(/play/i.test(s)){el.click();break;}}}catch(e){}})();';
 
 const PROBE_GRACE = 1_500;
 const MAX_PROBES = 4;
 const STABLE_SETTLE = 3;
 const MIN_PATIENCE = 8_000;
+const CHALLENGE_HOLD = 25_000;
+
+const CHALLENGE_RE =
+  /quick check|just a moment|verifying|attention required|access blocked|verify you are human|checking your browser|are you human/iu;
+
+function looksChallenged(title: string): boolean {
+  return CHALLENGE_RE.test(title || '');
+}
 
 // players park a placeholder <video src> = page url until the stream loads
 function hasRealVideos(scan: PageScan): boolean {
@@ -131,6 +148,8 @@ function pump(): void {
   extraVideos = [];
   latestScan = null;
   lastInjectedUrl = undefined;
+  lastNudgeAt = 0;
+  nudgeCount = 0;
   lastEmptyKey = '';
   stableCount = 0;
   probed = [];
@@ -177,6 +196,32 @@ function scanIdOf(raw: string): number | undefined {
   } catch {
     return undefined;
   }
+}
+
+// players boot late (challenges, JS shells): keep nudging while scans stay
+// empty so a tap lands once controls exist
+function maybeNudge(): void {
+  if (nudgeCount < NUDGE_MAX && Date.now() - lastNudgeAt >= NUDGE_EVERY) {
+    lastNudgeAt = Date.now();
+    nudgeCount += 1;
+    handle?.injectJavaScript(NUDGE_JS);
+  }
+}
+
+function settleIdle(scan: PageScan): void {
+  // captured media requests count, even when every scan was empty
+  const settled = extraVideos.length > 0 ? scan : null;
+  const probe = latestScan;
+  log(
+    TAG,
+    'idle scans, settling',
+    active?.url ?? '?',
+    `| title: ${probe?.title || '(empty)'}`,
+    `| frames: ${probe?.frames ?? 0}`,
+    `| videos: ${probe?.videos.length ?? 0}`,
+    `| images: ${probe?.images.length ?? 0}`
+  );
+  finish(settled);
 }
 
 export function onGenericWebViewMessage(raw: string): void {
@@ -231,6 +276,7 @@ export function onGenericWebViewMessage(raw: string): void {
     return;
   }
   latestScan = scan;
+  maybeNudge();
   const key = scan.videos
     .map((video) => `${video.url}|${video.width ?? ''}|${video.height ?? ''}`)
     .join(',');
@@ -244,10 +290,13 @@ export function onGenericWebViewMessage(raw: string): void {
         armProbeTimer();
         return;
       }
-      // captured media requests count, even when every scan was empty
-      const settled = extraVideos.length > 0 ? scan : null;
-      log(TAG, 'idle scans, settling', active.url);
-      finish(settled);
+      // challenge walls sometimes auto-clear: hold instead of settling
+      if (looksChallenged(scan.title) && Date.now() - active.start < CHALLENGE_HOLD) {
+        log(TAG, 'challenge wall, holding', active.url);
+        stableCount = 0;
+        return;
+      }
+      settleIdle(scan);
     }
   } else {
     lastEmptyKey = key;

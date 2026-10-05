@@ -6,9 +6,9 @@ vi.mock('../src/lib/net', () => ({
 }));
 
 import { gatedFetch } from '../src/lib/net';
-import { getInfo } from '../src/extractors/watchluna';
-import { parseWatchlunaUrl } from '../src/extractors/watchluna/parse';
-import { decryptVidrockPayload } from '../src/extractors/watchluna/aesgcm';
+import { getInfo } from '../src/extractors/movies';
+import { parseMovieUrl } from '../src/extractors/movies/parse';
+import { decryptVidrockPayload } from '../src/extractors/movies/aesgcm';
 
 const mockFetch = vi.mocked(gatedFetch);
 
@@ -22,7 +22,7 @@ const NOVA_URL = 'https://cdn.ngcorp.dad/movie/dXzi-QzFxXuGNkuKPWHpYpV7zLX_w5hK2
 const ORION_URL =
   'https://roguefrequency.live/file1/ZGEzZjlmZjQxNGJmMmExNWUxYzNhZDg5Yjc2OTI3OTYxNzg5NjQyNDk0MjExMTcy/master.m3u8';
 
-const LUNA_HTML = `<!doctype html><html><head><title>Watch Your Fault: London | Online HD | Watchluna</title>
+const MOVIE_HTML = `<!doctype html><html><head><title>Watch Your Fault: London | Online HD | Watchluna</title>
 <meta property="og:image" content="https://image.tmdb.org/t/p/w500/nLxu237EJAisFCYKK48hN9Plobx.jpg">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Movie","name":"Your Fault: London","description":"Nick and Noah","image":"https://image.tmdb.org/t/p/w500/nLxu237EJAisFCYKK48hN9Plobx.jpg","duration":"PT123M"}</script>
 </head><body></body></html>`;
@@ -71,7 +71,7 @@ function playlistRes(body: string): Response {
   } as unknown as Response;
 }
 
-describe('parseWatchlunaUrl', () => {
+describe('parseMovieUrl', () => {
   it.each([
     ['https://watchluna.gd/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
     ['https://watchluna.gd/watch/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
@@ -85,19 +85,19 @@ describe('parseWatchlunaUrl', () => {
       { kind: 'movie', tmdbId: '1477317' },
     ],
   ])('parses movie %s', (url, expected) => {
-    expect(parseWatchlunaUrl(url)).toEqual(expected);
+    expect(parseMovieUrl(url)).toEqual(expected);
   });
 
   it.each([
     ['https://watchluna.gd/tv/1399/1/2', { kind: 'tv', tmdbId: '1399', season: '1', episode: '2' }],
     ['https://watchluna.gd/watch/tv/1399/1/2', { kind: 'tv', tmdbId: '1399', season: '1', episode: '2' }],
   ])('parses tv %s', (url, expected) => {
-    expect(parseWatchlunaUrl(url)).toEqual(expected);
+    expect(parseMovieUrl(url)).toEqual(expected);
   });
 
   it('returns null for non-luna hosts', () => {
-    expect(parseWatchlunaUrl('https://example.com/movie/1477317')).toBeNull();
-    expect(parseWatchlunaUrl('not a url')).toBeNull();
+    expect(parseMovieUrl('https://example.com/movie/1477317')).toBeNull();
+    expect(parseMovieUrl('not a url')).toBeNull();
   });
 });
 
@@ -130,15 +130,31 @@ function headRes(contentType: string, length: number): Response {
   } as unknown as Response;
 }
 
-describe('watchluna getInfo', () => {
+describe('movies getInfo', () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    process.env.EXPO_PUBLIC_TMDB_API_KEY = 'test-key';
   });
 
   function mockHappy(): void {
     mockFetch.mockImplementation((reqUrl: unknown, init?: RequestInit) => {
       const target = String(reqUrl);
-      if (target.includes('watchluna.gd/movie/')) return Promise.resolve(textRes(LUNA_HTML));
+      if (target.includes('api.themoviedb.org/3/movie/')) {
+        return Promise.resolve(
+          jsonRes({
+            title: 'Your Fault: London',
+            poster_path: '/nLxu237EJAisFCYKK48hN9Plobx.jpg',
+            backdrop_path: '/backdrop.jpg',
+            release_date: '2024-01-01',
+            vote_average: 7,
+            vote_count: 100,
+            genres: [{ name: 'Drama' }],
+            overview: 'Nick and Noah',
+            runtime: 123,
+          })
+        );
+      }
+      if (target.includes('watchluna.gd/movie/')) return Promise.resolve(textRes(MOVIE_HTML));
       if (target.includes('vidrock.net/api/movie/')) {
         return Promise.resolve(
           jsonRes({
@@ -162,7 +178,7 @@ describe('watchluna getInfo', () => {
     mockHappy();
     const info = await getInfo('https://watchluna.gd/watch/movie/1477317');
     expect(info?.title).toBe('Your Fault: London');
-    expect(info?.extractorKey).toBe('watchluna');
+    expect(info?.extractorKey).toBe('phantom');
     expect(info?.thumbnail).toContain('image.tmdb.org');
     expect(info?.duration).toBe(7380);
     const ids = (info?.formats ?? []).map((f) => f.formatId);
@@ -184,7 +200,7 @@ describe('watchluna getInfo', () => {
     mockHappy();
     mockFetch.mockImplementation((reqUrl: unknown, init?: RequestInit) => {
       const target = String(reqUrl);
-      if (target.includes('watchluna.gd/movie/')) return Promise.resolve(textRes(LUNA_HTML));
+      if (target.includes('watchluna.gd/movie/')) return Promise.resolve(textRes(MOVIE_HTML));
       if (target.includes('vidrock.net/api/movie/')) {
         return Promise.resolve(
           jsonRes({
@@ -227,7 +243,7 @@ describe('watchluna getInfo', () => {
   it('throws a typed error when vidrock has no sources', async () => {
     mockFetch.mockImplementation((reqUrl: unknown) => {
       const target = String(reqUrl);
-      if (target.includes('watchluna.gd/movie/')) return Promise.resolve(textRes(LUNA_HTML));
+      if (target.includes('watchluna.gd/movie/')) return Promise.resolve(textRes(MOVIE_HTML));
       if (target.includes('vidrock.net/api/')) {
         return Promise.resolve(jsonRes({ Atlas: { url: null, type: null } }));
       }
@@ -244,9 +260,9 @@ describe('watchluna getInfo', () => {
   });
 
   it('decodes entities in titles exactly once', async () => {
-    const { parseLunaMeta } = await import('../src/extractors/watchluna/parse');
-    expect(parseLunaMeta('<title>A &amp; B | Watchluna</title>', '1').title).toBe('A & B');
-    expect(parseLunaMeta('<title>A &amp;lt; B | Watchluna</title>', '1').title).toBe('A &lt; B');
+    const { parseMovieMeta } = await import('../src/extractors/movies/parse');
+    expect(parseMovieMeta('<title>A &amp; B | Watchluna</title>', '1').title).toBe('A & B');
+    expect(parseMovieMeta('<title>A &amp;lt; B | Watchluna</title>', '1').title).toBe('A &lt; B');
   });
 
   it('returns null for non-luna urls', async () => {

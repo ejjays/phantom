@@ -28,13 +28,13 @@ import { formatLabel, formatClock, formatSize } from '../lib/format';
 import { tapImpact, tapSelection } from '../lib/haptics';
 import { log } from '../lib/log';
 import type { Format, VideoInfo } from '@phantom/extractors';
-import type { LunaItem } from '../extractors/watchluna/browse';
+import type { MovieItem } from '../extractors/movies/browse';
 
 type Props = {
   visible: boolean;
-  item: LunaItem | null;
-  upNext: LunaItem[];
-  onSelect: (item: LunaItem) => void;
+  item: MovieItem | null;
+  upNext: MovieItem[];
+  onSelect: (item: MovieItem) => void;
   onClose: () => void;
 };
 
@@ -244,12 +244,12 @@ function PortraitPanel({
   downloading,
 }: {
   info: VideoInfo | null;
-  item: LunaItem | null;
+  item: MovieItem | null;
   currentId: string | null;
-  upNext: LunaItem[];
+  upNext: MovieItem[];
   onQuality: () => void;
   onDownload: () => void;
-  onSelect: (entry: LunaItem) => void;
+  onSelect: (entry: MovieItem) => void;
   downloading: boolean;
 }) {
   const current = info?.formats.find((format) => format.formatId === currentId);

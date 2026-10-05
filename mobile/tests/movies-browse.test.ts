@@ -6,14 +6,14 @@ vi.mock('../src/lib/net', () => ({
 }));
 
 import { gatedFetch } from '../src/lib/net';
-import { vidrockToFormats } from '../src/extractors/watchluna/vidrock';
+import { vidrockToFormats } from '../src/extractors/movies/vidrock';
 import {
   searchTitles,
   parseCards,
   listRail,
   listTrending,
   getTitleDetails,
-} from '../src/extractors/watchluna/browse';
+} from '../src/extractors/movies/browse';
 
 const mockFetch = vi.mocked(gatedFetch);
 

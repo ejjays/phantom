@@ -16,8 +16,10 @@ import { useBackHandler } from '../lib/back';
 import { usePressScale } from '../hooks/usePressScale';
 import { Play3Icon, Play3FilledIcon } from '../components/icons';
 import { resolve } from '../extractors';
-import { getTitleDetails, type LunaItem, type LunaTitle } from '../extractors/watchluna/browse';
-import { fetchCredits } from '../extractors/watchluna/tmdb';
+import { type MovieItem, type MovieTitle } from '../extractors/movies/browse';
+import { fetchCredits, fetchTmdbTitle } from '../extractors/movies/tmdb';
+import { hasBlockedHosts, VIDROCK_HEADERS } from '../extractors/movies/vidrock';
+import { LUNA_BASE } from '../extractors/movies/constants';
 import { useDownload } from '../hooks/useDownload';
 import { formatLabel, type DownloadState } from '../lib/format';
 import { tapImpact, tapSelection } from '../lib/haptics';
@@ -28,7 +30,7 @@ const AnimatedImage = Animated.createAnimatedComponent(Image);
 
 type Props = {
   visible: boolean;
-  item: LunaItem | null;
+  item: MovieItem | null;
   onClose: () => void;
   onPlay: () => void;
 };
@@ -42,7 +44,7 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DetailMeta({ details }: { details: LunaTitle }) {
+function DetailMeta({ details }: { details: MovieTitle }) {
   const cells: { label: string; value: string }[] = [];
   if (typeof details.rating === 'number') {
     cells.push({ label: 'Rating', value: details.rating.toFixed(1) });
@@ -61,7 +63,7 @@ function DetailMeta({ details }: { details: LunaTitle }) {
   );
 }
 
-function detailsFromVideo(kind: LunaItem['kind'], id: string, full: VideoInfo): LunaTitle {
+function detailsFromVideo(kind: MovieItem['kind'], id: string, full: VideoInfo): MovieTitle {
   return {
     id,
     kind,
@@ -85,8 +87,8 @@ function TitleBlock({
   item,
   kind,
 }: {
-  details: LunaTitle | null;
-  item: LunaItem | null;
+  details: MovieTitle | null;
+  item: MovieItem | null;
   kind: string;
 }) {
   const title = details?.title ?? item?.title ?? '';
@@ -342,9 +344,81 @@ function WatchBar({
   );
 }
 
+async function tryBrowserFallback(
+  kind: MovieItem['kind'],
+  id: string,
+  itemTitle: string,
+  itemPoster: string | undefined,
+  meta: MovieTitle | null,
+  cancelled: () => boolean
+): Promise<VideoInfo | null> {
+  try {
+    const { resolveWatchPageViaBrowser } = await import('../extractors/movies/browserProbe');
+    const watchUrl =
+      kind === 'movie'
+        ? `${LUNA_BASE}/watch/movie/${id}`
+        : `${LUNA_BASE}/watch/tv/${id}/1/1`;
+    const viaBrowser = await resolveWatchPageViaBrowser(watchUrl);
+    if (cancelled() || !viaBrowser || viaBrowser.formats.length === 0) return null;
+    return {
+      type: 'video',
+      id,
+      title: meta?.title ?? itemTitle,
+      uploader: 'Phantom',
+      webpageUrl: watchUrl,
+      thumbnail: meta?.image ?? itemPoster,
+      duration: meta?.durationSec,
+      description: meta?.description,
+      formats: viaBrowser.formats,
+      extractorKey: 'phantom',
+      isJsInfo: true,
+      fromBrain: false,
+      isIsrcMatch: false,
+      isFullData: true,
+      isPartial: false,
+      downloadHeaders: {
+        ...VIDROCK_HEADERS,
+        ...(viaBrowser.cookies ? { Cookie: viaBrowser.cookies } : {}),
+      },
+    };
+  } catch (err) {
+    logError('Movies', `detail ${kind}/${id} browser failed: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
+}
+
+function DetailHero({ backdrop, poster }: { backdrop?: string; poster?: string }) {
+  if (!backdrop && !poster) {
+    return <View style={[tw`w-full overflow-hidden rounded-b-[40px] bg-white/5`, { height: 120 }]} />;
+  }
+  return (
+    <View style={tw`overflow-hidden rounded-b-[55px] bg-[#121011]`}>
+      {poster && (
+        <Image
+          source={{ uri: poster }}
+          style={[tw`w-full`, { aspectRatio: 393 / 413 }]}
+          contentFit="cover"
+          contentPosition="top"
+          cachePolicy="memory-disk"
+        />
+      )}
+      {backdrop && backdrop !== poster && (
+        <AnimatedImage
+          entering={FadeIn.duration(400)}
+          source={{ uri: backdrop }}
+          style={[tw`absolute inset-0 w-full`, { aspectRatio: 393 / 413 }]}
+          contentFit="cover"
+          contentPosition="top"
+          cachePolicy="memory-disk"
+        />
+      )}
+    </View>
+  );
+}
+
 export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Props) {
   const insets = useSafeAreaInsets();
-  const [details, setDetails] = useState<LunaTitle | null>(null);
+  const [details, setDetails] = useState<MovieTitle | null>(null);
   const [video, setVideo] = useState<VideoInfo | null>(null);
   const [failed, setFailed] = useState(false);
   const [noSources, setNoSources] = useState(false);
@@ -384,7 +458,7 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
     setNoSources(false);
     setDlError(null);
     const target = `https://watchluna.gd/${kind}/${id}`;
-    let found: LunaTitle | null = null;
+    let found: MovieTitle | null = null;
     let full: VideoInfo | null = null;
     let sourceErr = 'empty resolve';
     let metaSettled = false;
@@ -410,27 +484,42 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
     };
     void (async () => {
       try {
-        const [metaResult, creditsResult] = await Promise.allSettled([
-          getTitleDetails(kind, id),
+        const [titleResult, creditsResult] = await Promise.allSettled([
+          fetchTmdbTitle(kind, id),
           fetchCredits(kind, id),
         ]);
         if (cancelled) return;
-        if (metaResult.status === 'fulfilled' && metaResult.value) {
-          found = metaResult.value;
-          if (creditsResult.status === 'fulfilled' && creditsResult.value) {
-            const credits = creditsResult.value;
-            const photos: Record<string, string> = {};
+        if (titleResult.status === 'fulfilled' && titleResult.value) {
+          const tmdb = titleResult.value;
+          const credits =
+            creditsResult.status === 'fulfilled' ? creditsResult.value : null;
+          const photos: Record<string, string> = {};
+          const names: string[] = [];
+          if (credits) {
             for (const person of credits.cast) {
+              names.push(person.name);
               if (person.photo) photos[person.name] = person.photo;
             }
-            found = {
-              ...found,
-              castPhotos: photos,
-              director: credits.director?.name ?? found.director,
-              directorPhoto: credits.director?.photo,
-            };
             log('Movies', `detail ${kind}/${id} credits cast=${credits.cast.length}`);
           }
+          found = {
+            id,
+            kind,
+            title: tmdb.title,
+            image: tmdb.image,
+            backdrop: tmdb.backdrop,
+            durationSec: tmdb.durationSec,
+            description: tmdb.description,
+            year: tmdb.year,
+            rating: tmdb.rating,
+            votes: tmdb.votes,
+            genres: tmdb.genres,
+            contentRating: undefined,
+            director: credits?.director?.name,
+            directorPhoto: credits?.director?.photo,
+            cast: names,
+            castPhotos: photos,
+          };
           setDetails(found);
         } else {
           logError('Movies', `detail ${kind}/${id} meta failed`);
@@ -482,6 +571,15 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
           setNoSources(false);
         }
       }
+      if (!cancelled && !full && hasBlockedHosts()) {
+        full = await tryBrowserFallback(kind, id, item.title, item.poster, found, () => cancelled);
+        if (cancelled) return;
+        if (full) {
+          setVideo(full);
+          setNoSources(false);
+          log('Movies', `detail ${kind}/${id} browser formats=${full.formats.length}`);
+        }
+      }
       videoSettled = true;
       if (!cancelled) maybeFinish();
     })();
@@ -531,31 +629,7 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
     >
       <Animated.View style={[{ flex: 1 }, enterStyle]}>
       <ScrollView contentContainerStyle={tw`pb-40`}>
-        {(details?.backdrop ?? item?.poster) ? (
-          <View style={tw`overflow-hidden rounded-b-[55px] bg-[#121011]`}>
-            {item?.poster && (
-              <Image
-                source={{ uri: item.poster }}
-                style={[tw`w-full`, { aspectRatio: 393 / 413 }]}
-                contentFit="cover"
-                contentPosition="top"
-                cachePolicy="memory-disk"
-              />
-            )}
-            {details?.backdrop && details.backdrop !== item?.poster && (
-              <AnimatedImage
-                entering={FadeIn.duration(400)}
-                source={{ uri: details.backdrop }}
-                style={[tw`absolute inset-0 w-full`, { aspectRatio: 393 / 413 }]}
-                contentFit="cover"
-                contentPosition="top"
-                cachePolicy="memory-disk"
-              />
-            )}
-          </View>
-        ) : (
-          <View style={[tw`w-full overflow-hidden rounded-b-[40px] bg-white/5`, { height: 120 }]} />
-        )}
+        <DetailHero backdrop={details?.backdrop} poster={item?.poster} />
         <Pressable
           onPress={() => {
             tapSelection();
@@ -578,7 +652,7 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
           <View style={tw`items-center px-6 py-10`}>
             <Text style={tw`font-mono-semibold text-[15px] text-slate-100`}>Title unavailable</Text>
             <Text style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}>
-              Watchluna did not return this one — go back and try another.
+              Phantom could not load this one — go back and try another.
             </Text>
           </View>
         ) : (
@@ -680,7 +754,7 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
         )}
       </ScrollView>
       </Animated.View>
-      {!failed && (
+      {!failed && visible && item && (
         <WatchBar
           best={best}
           status={status}

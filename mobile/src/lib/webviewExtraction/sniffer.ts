@@ -14,6 +14,7 @@ export interface PageScan {
   cookies?: string;
   ogImage?: string;
   isDirect?: boolean;
+  frames?: number;
 }
 
 const MEDIA_RE = /\.(?:mp4|webm|m3u8|mkv|mov)(?:[?#]|$)/iu;
@@ -141,7 +142,7 @@ export const SNIFFER_JS = `(() => {
   const wide = (u) => /${MEDIA_WIDE_RE.source}/i.test(u || '');
   const junk = (u) => /${MEDIA_JUNK_RE.source}/i.test(u || '');
   const collect = () => {
-    const out = { url: location.href, title: document.title, videos: [], images: [], cookies: document.cookie };
+    const out = { url: location.href, title: document.title, videos: [], images: [], cookies: document.cookie, frames: 0 };
     // same-origin iframe players (ok.ru/videoembed) are invisible from here
     const wins = [window];
     for (let i = 0; i < window.frames.length; i++) {
@@ -210,6 +211,7 @@ export const SNIFFER_JS = `(() => {
       const link = doc.querySelector('link[rel="image_src"]');
       if (!out.ogImage && link && link.href) out.ogImage = abs(link.href);
     });
+    try { out.frames = document.querySelectorAll('iframe').length; } catch (e) {}
     post({ type: 'pageScan', data: out });
   };
   // dims for streams the page fetched off-screen (xhr/tumblr) or direct pastes:

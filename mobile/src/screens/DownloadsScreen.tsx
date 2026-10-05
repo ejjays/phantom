@@ -82,6 +82,7 @@ const LOGO_FOR: Partial<Record<string, PlatformName>> = {
   tiktok: 'tiktok',
   vimeo: 'vimeo',
   watchluna: 'watchluna',
+  phantom: 'watchluna',
   x: 'x',
   youtube: 'youtube',
 };

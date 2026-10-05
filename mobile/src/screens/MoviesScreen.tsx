@@ -36,9 +36,9 @@ import {
   searchTitles,
   listRail,
   listTrending,
-  getTitleDetails,
-  type LunaItem,
-} from '../extractors/watchluna/browse';
+  type MovieItem,
+} from '../extractors/movies/browse';
+import { fetchTmdbTitle } from '../extractors/movies/tmdb';
 import { tapSelection } from '../lib/haptics';
 import { log, error as logError } from '../lib/log';
 
@@ -52,7 +52,7 @@ type Rail = {
   key: string;
   title: string;
   path: string;
-  items: LunaItem[];
+  items: MovieItem[];
   page: number;
   totalPages: number;
   loadingMore: boolean;
@@ -76,11 +76,11 @@ function PosterCard({
   testID,
   onOpen,
 }: {
-  item: LunaItem;
+  item: MovieItem;
   width: number;
   height: number;
   testID?: string;
-  onOpen: (item: LunaItem) => void;
+  onOpen: (item: MovieItem) => void;
 }) {
   const radius = Math.round(width * 0.24);
   const playSize = Math.max(13, Math.round(width * 0.13));
@@ -145,32 +145,32 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<LunaItem[]>([]);
+  const [results, setResults] = useState<MovieItem[]>([]);
   const [searching, setSearching] = useState(false);
-  const [trending, setTrending] = useState<LunaItem[]>([]);
+  const [trending, setTrending] = useState<MovieItem[]>([]);
   const [rails, setRails] = useState<Rail[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<LunaItem | null>(null);
+  const [selected, setSelected] = useState<MovieItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const [playerItem, setPlayerItem] = useState<LunaItem | null>(null);
+  const [playerItem, setPlayerItem] = useState<MovieItem | null>(null);
   const [railKey, setRailKey] = useState<string | null>(null);
-  const [exploreItems, setExploreItems] = useState<LunaItem[]>([]);
+  const [exploreItems, setExploreItems] = useState<MovieItem[]>([]);
   const [explorePage, setExplorePage] = useState(0);
   const [exploreTotal, setExploreTotal] = useState(1);
   const [exploreMore, setExploreMore] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [recents, setRecents] = useState<LunaItem[]>([]);
+  const [recents, setRecents] = useState<MovieItem[]>([]);
   const searchRef = useRef<TextInput>(null);
   const booted = useRef(false);
   const seq = useRef(0);
   const busyRails = useRef<Record<string, boolean>>({});
   const busyExplore = useRef(false);
 
-  const enrichTrending = useCallback(async (seed: LunaItem[]) => {
+  const enrichTrending = useCallback(async (seed: MovieItem[]) => {
     const started = Date.now();
     const settled = await Promise.allSettled(
-      seed.slice(0, 10).map((item) => getTitleDetails(item.kind, item.id))
+      seed.slice(0, 10).map((item) => fetchTmdbTitle(item.kind, item.id))
     );
     const known = new Map<string, { rating?: number; year?: string }>();
     settled.forEach((result, index) => {
@@ -351,7 +351,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
   }, [query]);
 
   const openDetail = useCallback(
-    (item: LunaItem) => {
+    (item: MovieItem) => {
       setSelected(item);
       setDetailOpen(true);
       setRecents((prev) =>
@@ -363,6 +363,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
   );
 
   const closeDetail = useCallback(() => {
+    log('Movies', 'detail close');
     setDetailOpen(false);
     setSelected(null);
     onFullScreen?.(false);

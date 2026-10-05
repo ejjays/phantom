@@ -1,10 +1,10 @@
 import { LUNA_HOSTS } from './constants';
 
-export type LunaRef =
+export type MovieRef =
   | { kind: 'movie'; tmdbId: string }
   | { kind: 'tv'; tmdbId: string; season: string; episode: string };
 
-export function isLunaHost(host: string): boolean {
+export function isMovieHost(host: string): boolean {
   const bare = host.toLowerCase().replace(/^www\./u, '');
   return LUNA_HOSTS.some((d) => bare === d || bare.endsWith(`.${d}`));
 }
@@ -13,14 +13,14 @@ function digits(value: string | undefined): string | null {
   return value && /^\d+$/u.test(value) ? value : null;
 }
 
-export function parseWatchlunaUrl(url: string): LunaRef | null {
+export function parseMovieUrl(url: string): MovieRef | null {
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
     return null;
   }
-  if (!isLunaHost(parsed.hostname)) return null;
+  if (!isMovieHost(parsed.hostname)) return null;
   const parts = parsed.pathname.split('/').filter(Boolean);
 
   if (parts.length >= 2 && (parts[0] === 'movie' || parts[0] === 'watch')) {
@@ -57,7 +57,7 @@ export function parseWatchlunaUrl(url: string): LunaRef | null {
   return null;
 }
 
-export type LunaMeta = {
+export type MovieMeta = {
   title: string;
   image?: string;
   durationSec?: number;
@@ -117,7 +117,7 @@ function movieNode(html: string): Record<string, unknown> | null {
   return null;
 }
 
-export type LunaDetails = {
+export type MovieDetails = {
   title: string;
   image?: string;
   backdrop?: string;
@@ -140,8 +140,8 @@ function personName(value: unknown): string | undefined {
   return typeof rec?.['name'] === 'string' ? decodeEntities(rec['name']) : undefined;
 }
 
-export function parseLunaDetails(html: string, fallbackId: string): LunaDetails {
-  const meta = parseLunaMeta(html, fallbackId);
+export function parseMovieDetails(html: string, fallbackId: string): MovieDetails {
+  const meta = parseMovieMeta(html, fallbackId);
   const node = movieNode(html);
   const date = typeof node?.['datePublished'] === 'string' ? node['datePublished'] : undefined;
   const agg = node?.['aggregateRating'] as Record<string, unknown> | undefined;
@@ -167,8 +167,8 @@ export function parseLunaDetails(html: string, fallbackId: string): LunaDetails 
   };
 }
 
-function ldMovie(html: string): Partial<LunaMeta> {
-  const out: Partial<LunaMeta> = {};
+function ldMovie(html: string): Partial<MovieMeta> {
+  const out: Partial<MovieMeta> = {};
   const node = movieNode(html);
   if (!node) return out;
   if (typeof node['name'] === 'string') out.title = decodeEntities(node['name']);
@@ -184,7 +184,7 @@ function ldMovie(html: string): Partial<LunaMeta> {
   return out;
 }
 
-export function parseLunaMeta(html: string, fallbackId: string): LunaMeta {
+export function parseMovieMeta(html: string, fallbackId: string): MovieMeta {
   const ld = ldMovie(html);
   const ogTitle = metaContent(html, 'og:title');
   const titleRaw = html.match(/<title>([^<]+)<\/title>/iu)?.[1];
@@ -192,7 +192,7 @@ export function parseLunaMeta(html: string, fallbackId: string): LunaMeta {
     ld.title ??
     (ogTitle ? ogTitle.split('|')[0].trim() : undefined) ??
     (titleRaw ? decodeEntities(titleRaw).split('|')[0].trim() : undefined) ??
-    `Watchluna ${fallbackId}`;
+    `Phantom ${fallbackId}`;
   const image = ld.image ?? metaContent(html, 'og:image');
   return { title, image, durationSec: ld.durationSec, description: ld.description };
 }
