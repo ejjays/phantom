@@ -5,6 +5,8 @@ import { log, error as logError } from '../../lib/log';
 
 const BROWSER_TIMEOUT = 40_000;
 const EMBED_TIMEOUT = 25_000;
+const ADS_RE =
+  /dtsedge|dtscout|histats|tynt|cf-insig|beacon|interstitial|googlesyndication|doubleclick|tag.crwdcntrl|gambling|bonus|ad-|ad\.|ads\?|pixel/iu;
 const EMBED_SKIP_RE =
   /recaptcha|googlesyndication|doubleclick|googletagmanager|facebook\.com|stripe|paypal|cookiebot|consent/iu;
 
@@ -21,13 +23,33 @@ function isHls(video: PageScan['videos'][number]): boolean {
 
 export async function resolveWatchPageViaBrowser(
   pageUrl: string,
-  scan: ScanFetcher = defaultScan
+  scan: ScanFetcher = defaultScan,
+  depth = 0
 ): Promise<{ formats: Format[]; cookies?: string } | null> {
+  if (depth > 3) return null;
   const started = Date.now();
   const first = await timedScan(scan, pageUrl, BROWSER_TIMEOUT);
   const direct = formatsOf(first);
   if (direct) return direct;
-  const embeds = (first?.frameUrls ?? []).filter((url) => !EMBED_SKIP_RE.test(url));
+  const embedCandidates = new Set<string>();
+  for (const candidate of first?.frameUrls ?? []) {
+    if (!EMBED_SKIP_RE.test(candidate)) embedCandidates.add(candidate);
+  }
+  for (const snip of first?.frameMeta?.snippets ?? []) {
+    const srcMatch = /src=["']([^"']+)["']/iu.exec(snip);
+    if (srcMatch && !EMBED_SKIP_RE.test(srcMatch[1])) embedCandidates.add(srcMatch[1]);
+    const hrefMatch = /href=["']([^"']+)["']/iu.exec(snip);
+    if (hrefMatch && !EMBED_SKIP_RE.test(hrefMatch[1])) embedCandidates.add(hrefMatch[1]);
+    const apiMatch = /data-api=["']([^"']+)["']/iu.exec(snip);
+    if (apiMatch && !EMBED_SKIP_RE.test(apiMatch[1])) {
+      try {
+        embedCandidates.add(new URL(apiMatch[1], first?.url ?? pageUrl).toString());
+      } catch {
+        embedCandidates.add(apiMatch[1]);
+      }
+    }
+  }
+  const embeds = [...embedCandidates];
   log('Movies', 'browser frames', `${first?.frames ?? 0}`, 'urls', `${embeds.length}`);
   if (embeds.length > 0) {
     log(
@@ -46,8 +68,7 @@ export async function resolveWatchPageViaBrowser(
     );
   }
   for (const embed of embeds.slice(0, 2)) {
-    const inner = await timedScan(scan, embed, EMBED_TIMEOUT);
-    const mapped = formatsOf(inner);
+    const mapped = await resolveWatchPageViaBrowser(embed, scan, depth + 1);
     if (mapped) {
       log('Movies', `browser stream resolved ${mapped.formats.length} ms=${Date.now() - started}`);
       return mapped;
@@ -72,6 +93,15 @@ async function timedScan(
   }
 }
 
+function formatOfUrl(rawUrl: string): boolean {
+  try {
+    const path = new URL(rawUrl).pathname.toLowerCase();
+    return /[.](?:mp4|webm|m3u8|mkv|mov|ts)$/u.test(path) || /[.]m3u8/u.test(rawUrl);
+  } catch {
+    return /\.(?:mp4|webm|m3u8|mkv|mov|ts)(?:[?#]|$)/iu.test(rawUrl);
+  }
+}
+
 function formatsOf(scan: PageScan | null): { formats: Format[]; cookies?: string } | null {
   if (!scan || scan.videos.length === 0) return null;
   const seen = new Set<string>();
@@ -79,6 +109,8 @@ function formatsOf(scan: PageScan | null): { formats: Format[]; cookies?: string
   const mp4: Format[] = [];
   for (const video of scan.videos) {
     if (!video.url || video.url === scan.url || seen.has(video.url)) continue;
+    if (!formatOfUrl(video.url)) continue;
+    if (ADS_RE.test(video.url)) continue;
     seen.add(video.url);
     if (isHls(video)) hls.push(singleHls('browser', video.url));
     else mp4.push(mp4Format('browser', video.url));

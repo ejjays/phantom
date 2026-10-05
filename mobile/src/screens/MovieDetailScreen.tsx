@@ -296,7 +296,7 @@ function WatchBar({
           >
             <Animated.View style={[tw`flex-row items-center gap-2`, watchPress.pressScaleStyle]}>
               <View style={tw`h-5 w-5 items-center justify-center`}>
-              {!best && <ActivityIndicator size="small" color="#FFFFFF" />}
+              {!best && checking && <ActivityIndicator size="small" color="#FFFFFF" />}
               {best && (
                 <Animated.View style={playStyle}>
                   <Play3FilledIcon size={20} color="#FFFFFF" />
@@ -431,7 +431,6 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
   const [checking, setChecking] = useState(false);
   const [reloads, setReloads] = useState(0);
   const [dlError, setDlError] = useState<string | null>(null);
-  const enter = useSharedValue(0);
   const { downloads, startDownload } = useDownload(video);
 
   useBackHandler(() => {
@@ -439,17 +438,6 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
     onClose();
     return true;
   }, 10);
-
-  useEffect(() => {
-    if (!visible || !item) return;
-    enter.value = 0;
-    enter.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) });
-  }, [visible, item, enter]);
-
-  const enterStyle = useAnimatedStyle(() => ({
-    opacity: enter.value,
-    transform: [{ translateY: (1 - enter.value) * 24 }],
-  }));
 
   useEffect(() => {
     if (!visible || !item) return;
@@ -463,6 +451,7 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
     setFailed(false);
     setNoSources(false);
     setDlError(null);
+    setChecking(true);
     const target = `https://watchluna.gd/${kind}/${id}`;
     let found: MovieTitle | null = null;
     let full: VideoInfo | null = null;
@@ -633,7 +622,6 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
         { opacity: visible ? 1 : 0, pointerEvents: visible ? 'auto' : 'none' },
       ]}
     >
-      <Animated.View style={[{ flex: 1 }, enterStyle]}>
       <ScrollView contentContainerStyle={tw`pb-40`}>
         <DetailHero backdrop={details?.backdrop} poster={item?.poster} />
         <Pressable
@@ -759,7 +747,6 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
           </View>
         )}
       </ScrollView>
-      </Animated.View>
       {!failed && visible && item && (
         <WatchBar
           best={best}

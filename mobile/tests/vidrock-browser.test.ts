@@ -57,4 +57,30 @@ describe('resolveWatchPageViaBrowser', () => {
     const found = await resolveWatchPageViaBrowser('https://watchluna.gd/watch/movie/1', () => Promise.resolve(null));
     expect(found).toBeNull();
   });
+
+  it('follows player embeds when the page scan is empty', async () => {
+    const pageUrl = 'https://watchluna.gd/watch/movie/1';
+    const embedUrl = 'https://embed.example/play/1';
+    const calls: string[] = [];
+    const found = await resolveWatchPageViaBrowser(pageUrl, (url) => {
+      calls.push(url);
+      if (url === embedUrl) {
+        return Promise.resolve({
+          url: embedUrl,
+          title: 'Embed',
+          videos: [{ url: 'https://cdn.example/stream.m3u8' }],
+          images: [],
+        });
+      }
+      return Promise.resolve({
+        url: pageUrl,
+        title: 'Watch page',
+        videos: [],
+        images: [],
+        frameUrls: ['https://www.google.com/recaptcha/api.js', embedUrl],
+      });
+    });
+    expect(calls).toEqual([pageUrl, embedUrl]);
+    expect(found?.formats.map((format) => format.url)).toEqual(['https://cdn.example/stream.m3u8']);
+  });
 });

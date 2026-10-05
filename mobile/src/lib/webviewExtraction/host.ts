@@ -209,19 +209,18 @@ function maybeNudge(): void {
 }
 
 function settleIdle(scan: PageScan): void {
-  // captured media requests count, even when every scan was empty
-  const settled = extraVideos.length > 0 ? scan : null;
-  const probe = latestScan;
+  // even 0-video scans may carry frameMeta for embed harvesting
   log(
     TAG,
     'idle scans, settling',
     active?.url ?? '?',
-    `| title: ${probe?.title || '(empty)'}`,
-    `| frames: ${probe?.frames ?? 0}`,
-    `| videos: ${probe?.videos.length ?? 0}`,
-    `| images: ${probe?.images.length ?? 0}`
+    `| title: ${scan.title || '(empty)'}`,
+    `| frames: ${scan.frames ?? 0}`,
+    `| videos: ${scan.videos.length ?? 0}`,
+    `| images: ${scan.images.length ?? 0}`,
+    `| frameMeta: ${JSON.stringify(scan.frameMeta ?? null)}`
   );
-  finish(settled);
+  finish(scan);
 }
 
 export function onGenericWebViewMessage(raw: string): void {

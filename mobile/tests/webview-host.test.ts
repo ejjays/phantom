@@ -170,7 +170,7 @@ it('injects the sniffer once per page url', () => {
     onGenericWebViewMessage(empty);
     vi.advanceTimersByTime(8_000);
     onGenericWebViewMessage(empty);
-    await expect(promise).resolves.toBeNull();
+    await expect(promise).resolves.toMatchObject({ url: 'https://a.com', videos: [] });
   });
 
   it('holds empty scans until the patience floor even when idle', async () => {
@@ -195,7 +195,7 @@ it('injects the sniffer once per page url', () => {
 
     vi.advanceTimersByTime(2_000);
     onGenericWebViewMessage(empty);
-    await expect(promise).resolves.toBeNull();
+    await expect(promise).resolves.toMatchObject({ url: 'https://a.com', videos: [] });
   });
 
   it('ignores stale scans from a previous injection', async () => {

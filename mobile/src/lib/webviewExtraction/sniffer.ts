@@ -16,6 +16,7 @@ export interface PageScan {
   isDirect?: boolean;
   frames?: number;
   frameUrls?: string[];
+  frameMeta?: { total: number; withSrc: number; srcdocLen: number; snippets: string[] };
 }
 
 const MEDIA_RE = /\.(?:mp4|webm|m3u8|mkv|mov)(?:[?#]|$)/iu;
@@ -143,7 +144,7 @@ export const SNIFFER_JS = `(() => {
   const wide = (u) => /${MEDIA_WIDE_RE.source}/i.test(u || '');
   const junk = (u) => /${MEDIA_JUNK_RE.source}/i.test(u || '');
   const collect = () => {
-    const out = { url: location.href, title: document.title, videos: [], images: [], cookies: document.cookie, frames: 0 };
+    const out = { url: location.href, title: document.title, videos: [], images: [], cookies: document.cookie, frames: 0, frameMeta: { total: 0, withSrc: 0, srcdocLen: 0, snippets: [] } };
     // same-origin iframe players (ok.ru/videoembed) are invisible from here
     const wins = [window];
     for (let i = 0; i < window.frames.length; i++) {
@@ -213,6 +214,17 @@ export const SNIFFER_JS = `(() => {
       if (!out.ogImage && link && link.href) out.ogImage = abs(link.href);
     });
     try { out.frames = document.querySelectorAll('iframe').length; } catch (e) {}
+    try { out.frameMeta = { total: document.querySelectorAll('iframe').length, withSrc: 0, srcdocLen: 0, snippets: [] };
+      var frames_ = document.querySelectorAll('iframe');
+      for (var f_i=0; f_i<frames_.length && f_i<6; f_i++) {
+        try {
+          var f0 = frames_[f_i];
+          if (f0.src) out.frameMeta.withSrc += 1;
+          if (f0.srcdoc) out.frameMeta.srcdocLen += String(f0.srcdoc).length;
+          out.frameMeta.snippets.push(String(f0.outerHTML).slice(0,160).replace(/\\s+/g,' '));
+        } catch(e){}
+      }
+    } catch(e){}
     try {
       const frameUrls = [];
       const pushFrame = (u) => {

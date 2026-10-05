@@ -103,10 +103,8 @@ function PlayerTopBar({
   title,
   quality,
   canQuality,
-  fullscreen,
   onBack,
   onQuality,
-  onFullscreen,
   top,
 }: {
   title: string;
@@ -150,17 +148,6 @@ function PlayerTopBar({
             <Settings size={20} color="#ffffff" />
           </Pressable>
         )}
-        <Pressable
-          onPress={onFullscreen}
-          style={tw`rounded-full bg-black/60 p-2.5`}
-          accessibilityLabel={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-        >
-          {fullscreen ? (
-            <Minimize size={20} color="#ffffff" />
-          ) : (
-            <Maximize size={20} color="#ffffff" />
-          )}
-        </Pressable>
       </View>
     </View>
   );
@@ -391,9 +378,22 @@ function ControlsOverlay({
           pointerEvents="none"
         />
         <View style={tw`px-4 pb-2`}>
-          <Text style={tw`mb-1 font-mono text-[11px] text-slate-200`}>
-            {formatClock(position)} / {formatClock(duration)}
-          </Text>
+          <View style={tw`mb-1 flex-row items-center justify-between`}>
+            <Text style={tw`font-mono text-[11px] text-slate-200`}>
+              {formatClock(position)} / {formatClock(duration)}
+            </Text>
+            <Pressable
+              onPress={onFullscreen}
+              style={tw`rounded-full bg-black/60 p-2.5`}
+              accessibilityLabel={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            >
+              {fullscreen ? (
+                <Minimize size={20} color="#ffffff" />
+              ) : (
+                <Maximize size={20} color="#ffffff" />
+              )}
+            </Pressable>
+          </View>
           <SeekBar
             position={position}
             duration={duration}
