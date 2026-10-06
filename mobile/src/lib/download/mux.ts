@@ -2,6 +2,7 @@ import { File, Paths } from 'expo-file-system';
 import {
   FFmpegKit,
   FFmpegKitConfig,
+  FFprobeKit,
   Level,
   ReturnCode,
 } from '@nikhil-cephei/ffmpeg-kit-react-native';
@@ -36,7 +37,7 @@ export async function muxVideoAudio(
   const faststart = out.name.toLowerCase().endsWith('.mp4')
     ? ' -movflags +faststart'
     : '';
-  const cmd = `-hide_banner -loglevel error -y -i "${fsPath(video.uri)}" -i "${fsPath(audio.uri)}" -c copy${faststart} "${fsPath(out.uri)}"`;
+  const cmd = `-hide_banner -loglevel error -y -i "${fsPath(video.uri)}" -i "${fsPath(audio.uri)}" -c copy -avoid_negative_ts make_zero${faststart} "${fsPath(out.uri)}"`;
 
   const session = await FFmpegKit.execute(cmd);
   const code = await session.getReturnCode();
@@ -60,6 +61,48 @@ export async function demuxToM4a(src: File, out: File): Promise<boolean> {
   logWarn(
     'mux',
     `[demux] ffmpeg failed (${code}): ${String(output).slice(-600)}`
+  );
+  return false;
+}
+
+// header-only read of the finished file: codec, edit lists and timestamp
+// truth for system-thumbnail failures. no decode, reads header only.
+export async function probeFile(src: File): Promise<void> {
+  try {
+    const session = await FFprobeKit.getMediaInformation(fsPath(src.uri));
+    const info = session.getMediaInformation();
+    if (!info) {
+      log('mux', `[probe] ${src.name}: no info`);
+      return;
+    }
+    const streams = (info.getStreams() ?? []).map(
+      (stream) =>
+        `${stream.getType()}:${stream.getCodec()} ${stream.getWidth()}x${stream.getHeight()} ${stream.getFormat()}`
+    );
+    log(
+      'mux',
+      `[probe] ${src.name}: fmt=${info.getFormat()} dur=${info.getDuration()} streams=[${streams.join(' | ')}]`
+    );
+  } catch {
+    /* diagnostics optional */
+  }
+}
+
+// embed the poster as the file's cover art so gallery/file-manager lists
+// show artwork instead of a video frame (movies often fade in from black).
+// never throws the download: caller keeps the original when this fails.
+export async function attachCover(
+  video: File,
+  cover: File,
+  out: File
+): Promise<boolean> {
+  const cmd = `-hide_banner -loglevel error -y -i "${fsPath(video.uri)}" -i "${fsPath(cover.uri)}" -map 0 -map 1 -c copy -c:v:1 mjpeg -disposition:v:1 attached_pic "${fsPath(out.uri)}"`;
+  const session = await FFmpegKit.execute(cmd);
+  if (ReturnCode.isSuccess(await session.getReturnCode())) return true;
+  const output = await session.getOutput();
+  logWarn(
+    'mux',
+    `[cover] ffmpeg failed (${await session.getReturnCode()}): ${String(output).slice(-400)}`
   );
   return false;
 }
@@ -142,7 +185,8 @@ export async function tagAudio(
 
 const HLS_UA = DESKTOP_UA;
 
-export function hlsToMp4(  url: string,
+export function hlsToMp4(
+  url: string,
   out: File,
   durationSec: number,
   onProgress: (pct: number) => void,
@@ -154,7 +198,7 @@ export function hlsToMp4(  url: string,
     ? `-i "${url}" -i "${audioUrl}" -map 0:v:0 -map 1:a:0`
     : `-i "${url}"`;
   const persistent = keepAlive ? '1' : '0';
-  const cmd = `-hide_banner -loglevel error -y -http_persistent ${persistent} -user_agent "${HLS_UA}" ${inputs} -c copy -bsf:a aac_adtstoasc -movflags +faststart "${fsPath(out.uri)}"`;
+  const cmd = `-hide_banner -loglevel error -y -http_persistent ${persistent} -user_agent "${HLS_UA}" ${inputs} -c copy -bsf:a aac_adtstoasc -avoid_negative_ts make_zero -movflags +faststart "${fsPath(out.uri)}"`;
   return new Promise((resolve) => {
     void FFmpegKit.executeAsync(
       cmd,
@@ -194,24 +238,45 @@ export function hlsDirectToMp4(
   keepAlive?: boolean
 ): Promise<boolean> {
   const block = Object.entries(headers)
-    .filter(([key]) => key.toLowerCase() !== 'user-agent' && key.toLowerCase() !== 'content-type')
+    .filter(
+      ([key]) =>
+        key.toLowerCase() !== 'user-agent' &&
+        key.toLowerCase() !== 'content-type'
+    )
     .map(([key, value]) => `${key}: ${value}\r\n`)
     .join('');
   const ua = headers['User-Agent'] ?? headers['user-agent'];
   const persistent = keepAlive ? '1' : '0';
-  const args = ['-hide_banner', '-loglevel', 'error', '-y', '-http_persistent', persistent];
+  const args = [
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-y',
+    '-http_persistent',
+    persistent,
+  ];
   if (block) args.push('-headers', block);
   if (ua) args.push('-user_agent', ua);
   args.push(
     // wedged segments stall the whole pull: drop + reconnect instead
-    '-rw_timeout', '20000000',
-    '-reconnect', '1',
-    '-reconnect_streamed', '1',
-    '-reconnect_delay_max', '3',
-    '-i', url,
-    '-c', 'copy',
-    '-bsf:a', 'aac_adtstoasc',
-    '-movflags', '+faststart',
+    '-rw_timeout',
+    '20000000',
+    '-reconnect',
+    '1',
+    '-reconnect_streamed',
+    '1',
+    '-reconnect_delay_max',
+    '3',
+    '-i',
+    url,
+    '-c',
+    'copy',
+    '-bsf:a',
+    'aac_adtstoasc',
+    '-avoid_negative_ts',
+    'make_zero',
+    '-movflags',
+    '+faststart',
     fsPath(out.uri)
   );
   const started = Date.now();
@@ -239,7 +304,10 @@ export function hlsDirectToMp4(
           const secs = (Date.now() - started) / 1000;
           const mb = (out.size ?? 0) / 1e6;
           const mbps = secs > 0 ? ((mb * 8) / secs).toFixed(1) : '0';
-          log('mux', `[hls-direct] ${mb.toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`);
+          log(
+            'mux',
+            `[hls-direct] ${mb.toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
+          );
           finish(true);
           return;
         }
@@ -259,7 +327,10 @@ export function hlsDirectToMp4(
         stallNoted = false;
         if (pct >= nextDecile) {
           const secs = (Date.now() - started) / 1000;
-          log('mux', `[hls-direct] ${Math.min(99, pct)}% (${secs.toFixed(0)}s elapsed)`);
+          log(
+            'mux',
+            `[hls-direct] ${Math.min(99, pct)}% (${secs.toFixed(0)}s elapsed)`
+          );
           nextDecile += 10;
         }
       }
@@ -316,7 +387,7 @@ export async function parallelHlsToMp4(
 }
 
 export async function remuxToMp4(src: File, out: File): Promise<boolean> {
-  const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -c copy -movflags +faststart "${fsPath(out.uri)}"`;
+  const cmd = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}" -c copy -avoid_negative_ts make_zero -movflags +faststart "${fsPath(out.uri)}"`;
   const session = await FFmpegKit.execute(cmd);
   const code = await session.getReturnCode();
   if (ReturnCode.isSuccess(code)) return true;

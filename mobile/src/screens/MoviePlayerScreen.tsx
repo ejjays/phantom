@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Modal, ScrollView, Animated as RNAnimated, useWindowDimensions } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  Animated as RNAnimated,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { VideoView, type VideoPlayer } from 'expo-video';
@@ -24,6 +33,7 @@ import { useBackHandler } from '../lib/back';
 import { useMoviePlayer } from '../hooks/useMoviePlayer';
 import { useFullscreenLock } from '../hooks/useFullscreenLock';
 import { useBrightnessSwipe } from '../hooks/useBrightnessSwipe';
+import { useSeekPreview, type SeekMedia } from '../hooks/useSeekPreview';
 import { useDownload } from '../hooks/useDownload';
 import { formatLabel, formatClock, formatSize } from '../lib/format';
 import { tapImpact, tapSelection } from '../lib/haptics';
@@ -41,21 +51,30 @@ type Props = {
 };
 
 function SeekBar({
+  player,
+  cacheKey,
   position,
   duration,
   buffered,
   onSeek,
+  onInteract,
+  media,
 }: {
+  player: VideoPlayer | null;
+  cacheKey: string;
+  media: SeekMedia;
   position: number;
   duration: number;
   buffered: number;
   onSeek: (fraction: number) => void;
+  onInteract: () => void;
 }) {
   const [scrub, setScrub] = useState<number | null>(null);
   const scrubVal = useRef<number | null>(null);
   const trackW = useRef(0);
   const shown = scrub ?? (duration > 0 ? position / duration : 0);
   const bufferedFrac = duration > 0 ? Math.min(1, buffered / duration) : 0;
+  const { thumb, request, clear } = useSeekPreview(player, cacheKey, media);
 
   const pan = Gesture.Pan()
     .runOnJS(true)
@@ -64,10 +83,14 @@ function SeekBar({
       const frac = Math.max(0, Math.min(1, event.x / trackW.current));
       scrubVal.current = frac;
       setScrub(frac);
+      onInteract();
+      if (duration > 0) request(frac * duration);
     })
     .onEnd(() => {
       const active = scrubVal.current;
       scrubVal.current = null;
+      clear();
+      onInteract();
       if (active !== null) onSeek(active);
     });
 
@@ -79,9 +102,18 @@ function SeekBar({
   return (
     <View>
       {scrub !== null && duration > 0 && (
-        <Text style={tw`mb-1 text-center font-mono text-[12px] text-white`}>
-          {formatClock(scrub * duration)}
-        </Text>
+        <View style={tw`items-center`}>
+          {thumb && (
+            <Image
+              source={thumb}
+              style={tw`h-24 w-40 rounded-xl border border-white/20`}
+              contentFit="cover"
+            />
+          )}
+          <Text style={tw`mt-1 text-center font-mono text-[12px] text-white`}>
+            {formatClock(scrub * duration)}
+          </Text>
+        </View>
       )}
       <GestureDetector gesture={pan}>
         <View
@@ -92,8 +124,18 @@ function SeekBar({
           style={tw`h-6 justify-center`}
         >
           <View style={tw`h-1 overflow-hidden rounded-full bg-white/25`}>
-            <View style={[tw`absolute inset-y-0 left-0 bg-white/40`, { width: `${bufferedFrac * 100}%` }]} />
-            <View style={[tw`absolute inset-y-0 left-0 bg-cyan-400`, { width: `${shown * 100}%` }]} />
+            <View
+              style={[
+                tw`absolute inset-y-0 left-0 bg-white/40`,
+                { width: `${bufferedFrac * 100}%` },
+              ]}
+            />
+            <View
+              style={[
+                tw`absolute inset-y-0 left-0 bg-cyan-400`,
+                { width: `${shown * 100}%` },
+              ]}
+            />
           </View>
           <View
             style={[
@@ -131,7 +173,9 @@ function PlayerTopBar({
         style={[tw`absolute inset-x-0 top-0 h-24`, { paddingTop: top }]}
         pointerEvents="none"
       />
-      <View style={[tw`flex-row items-center gap-3 px-4`, { paddingTop: top + 8 }]}>
+      <View
+        style={[tw`flex-row items-center gap-3 px-4`, { paddingTop: top + 8 }]}
+      >
         <Pressable
           onPress={onBack}
           style={tw`rounded-full bg-black/60 p-2.5`}
@@ -140,11 +184,16 @@ function PlayerTopBar({
           <ArrowLeft size={22} color="#ffffff" />
         </Pressable>
         <View style={tw`flex-1`}>
-          <Text style={tw`font-sans-bold text-[15px] text-white`} numberOfLines={1}>
+          <Text
+            style={tw`font-sans-bold text-[15px] text-white`}
+            numberOfLines={1}
+          >
             {title}
           </Text>
           {quality !== '' && (
-            <Text style={tw`font-mono text-[11px] text-slate-300`}>{quality}</Text>
+            <Text style={tw`font-mono text-[11px] text-slate-300`}>
+              {quality}
+            </Text>
           )}
         </View>
         {canQuality && (
@@ -163,19 +212,26 @@ function PlayerTopBar({
 
 function CenterButton({
   isPlaying,
+  loading,
   onToggle,
 }: {
   isPlaying: boolean;
+  loading: boolean;
   onToggle: () => void;
 }) {
   return (
-    <View style={tw`absolute inset-0 items-center justify-center`} pointerEvents="box-none">
+    <View
+      style={tw`absolute inset-0 items-center justify-center`}
+      pointerEvents="box-none"
+    >
       <Pressable
         onPress={onToggle}
         style={tw`h-14 w-14 items-center justify-center rounded-full bg-black/60`}
-        accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+        accessibilityLabel={loading ? 'Loading' : isPlaying ? 'Pause' : 'Play'}
       >
-        {isPlaying ? (
+        {loading ? (
+          <ActivityIndicator size="small" color="#22d3ee" />
+        ) : isPlaying ? (
           <Pause size={26} color="#ffffff" />
         ) : (
           <Play3Icon size={26} color="#ffffff" />
@@ -207,28 +263,57 @@ function QualityMenu({
     sheetY.setValue(height);
     bgOpacity.setValue(0);
     RNAnimated.parallel([
-      RNAnimated.timing(sheetY, { toValue: 0, duration: 220, useNativeDriver: true }),
-      RNAnimated.timing(bgOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      RNAnimated.timing(sheetY, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      RNAnimated.timing(bgOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
     ]).start();
   }, [open, bgOpacity, height, sheetY]);
 
   const closeSheet = useCallback(() => {
     RNAnimated.parallel([
-      RNAnimated.timing(sheetY, { toValue: height, duration: 180, useNativeDriver: true }),
-      RNAnimated.timing(bgOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
+      RNAnimated.timing(sheetY, {
+        toValue: height,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      RNAnimated.timing(bgOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
     ]).start(() => onClose());
   }, [bgOpacity, height, onClose, sheetY]);
 
   return (
-    <Modal transparent visible={open} animationType="none" onRequestClose={closeSheet}>
+    <Modal
+      transparent
+      visible={open}
+      animationType="none"
+      onRequestClose={closeSheet}
+    >
       <View style={tw`flex-1 justify-end`}>
         <Pressable style={tw`absolute inset-0`} onPress={closeSheet}>
-          <RNAnimated.View style={[tw`flex-1 bg-black/60`, { opacity: bgOpacity }]} />
+          <RNAnimated.View
+            style={[tw`flex-1 bg-black/60`, { opacity: bgOpacity }]}
+          />
         </Pressable>
         <RNAnimated.View style={{ transform: [{ translateY: sheetY }] }}>
-          <View style={tw`rounded-t-[32px] border-t border-white/10 bg-[#1E1E1E] px-4 pb-8 pt-3`}>
+          <View
+            style={tw`rounded-t-[32px] border-t border-white/10 bg-[#1E1E1E] px-4 pb-8 pt-3`}
+          >
             <View style={tw`mx-auto mb-3 h-1 w-10 rounded-full bg-white/15`} />
-            <Text style={tw`mb-2 text-center font-sans-bold text-[15px] text-white`}>Quality</Text>
+            <Text
+              style={tw`mb-2 text-center font-sans-bold text-[15px] text-white`}
+            >
+              Quality
+            </Text>
             {formats.map((format) => {
               const active = format.formatId === currentId;
               return (
@@ -241,7 +326,9 @@ function QualityMenu({
                   }}
                   style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
                 >
-                  <Text style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}>
+                  <Text
+                    style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
+                  >
                     {formatLabel(format)}
                   </Text>
                   {active && <Check size={18} color="#22d3ee" />}
@@ -278,7 +365,10 @@ function PortraitPanel({
   return (
     <ScrollView style={tw`flex-1`} contentContainerStyle={tw`gap-6 px-5 py-5`}>
       <View>
-        <Text style={tw`font-sans-bold text-[20px] leading-7 text-white`} numberOfLines={2}>
+        <Text
+          style={tw`font-sans-bold text-[20px] leading-7 text-white`}
+          numberOfLines={2}
+        >
           {info?.title ?? item?.title ?? ''}
         </Text>
         <View style={tw`mt-2 flex-row items-center gap-2`}>
@@ -286,7 +376,10 @@ function PortraitPanel({
             {[item?.year, current ? formatLabel(current) : '', size]
               .filter(Boolean)
               .map((part, i, arr) => (
-                <Text key={part} style={tw`font-mono text-[12px] text-slate-500`}>
+                <Text
+                  key={part}
+                  style={tw`font-mono text-[12px] text-slate-500`}
+                >
                   {part}
                   {i < arr.length - 1 ? '  ·' : ''}
                 </Text>
@@ -313,8 +406,14 @@ function PortraitPanel({
       </View>
       {upNext.length > 0 && (
         <View style={tw`gap-3`}>
-          <Text style={tw`font-sans-bold text-[16px] text-slate-200`}>Up next</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={tw`gap-4`}>
+          <Text style={tw`font-sans-bold text-[16px] text-slate-200`}>
+            Up next
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={tw`gap-4`}
+          >
             {upNext.map((entry, index) => (
               <Pressable
                 key={`${entry.kind}-${entry.id}`}
@@ -334,16 +433,23 @@ function PortraitPanel({
                       cachePolicy="memory-disk"
                     />
                   ) : (
-                    <View style={tw`h-[170px] w-full items-center justify-center bg-white/5`}>
+                    <View
+                      style={tw`h-[170px] w-full items-center justify-center bg-white/5`}
+                    >
                       <Play size={22} color="#64748b" />
                     </View>
                   )}
                 </View>
-                <Text style={tw`mt-2 font-sans-medium uppercase text-[12px] text-slate-100`} numberOfLines={1}>
+                <Text
+                  style={tw`mt-2 font-sans-medium uppercase text-[12px] text-slate-100`}
+                  numberOfLines={1}
+                >
                   {entry.title}
                 </Text>
                 {entry.year && (
-                  <Text style={tw`mt-0.5 font-mono text-[11px] text-slate-500`}>{entry.year}</Text>
+                  <Text style={tw`mt-0.5 font-mono text-[11px] text-slate-500`}>
+                    {entry.year}
+                  </Text>
                 )}
               </Pressable>
             ))}
@@ -363,12 +469,17 @@ function ControlsOverlay({
   position,
   duration,
   buffered,
+  player,
+  cacheKey,
   top,
   onBack,
   onQuality,
   onFullscreen,
   onToggle,
   onSeek,
+  onInteract,
+  media,
+  loading,
 }: {
   title: string;
   quality: string;
@@ -378,12 +489,17 @@ function ControlsOverlay({
   position: number;
   duration: number;
   buffered: number;
+  loading: boolean;
+  player: VideoPlayer | null;
+  cacheKey: string;
+  media: SeekMedia;
   top: number;
   onBack: () => void;
   onQuality: () => void;
   onFullscreen: () => void;
   onToggle: () => void;
   onSeek: (fraction: number) => void;
+  onInteract: () => void;
 }) {
   return (
     <Animated.View
@@ -402,7 +518,11 @@ function ControlsOverlay({
         onQuality={onQuality}
         onFullscreen={onFullscreen}
       />
-      <CenterButton isPlaying={isPlaying} onToggle={onToggle} />
+      <CenterButton
+        isPlaying={isPlaying}
+        loading={loading}
+        onToggle={onToggle}
+      />
       <View style={tw`absolute inset-x-0 bottom-0`}>
         <LinearGradient
           colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.65)']}
@@ -417,7 +537,9 @@ function ControlsOverlay({
             <Pressable
               onPress={onFullscreen}
               style={tw`rounded-full bg-black/60 p-2.5`}
-              accessibilityLabel={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              accessibilityLabel={
+                fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
+              }
             >
               {fullscreen ? (
                 <Minimize size={20} color="#ffffff" />
@@ -427,10 +549,14 @@ function ControlsOverlay({
             </Pressable>
           </View>
           <SeekBar
+            player={player}
+            cacheKey={cacheKey}
             position={position}
             duration={duration}
             buffered={buffered}
             onSeek={onSeek}
+            onInteract={onInteract}
+            media={media}
           />
         </View>
       </View>
@@ -451,9 +577,15 @@ function StageState({
 }) {
   if (phase === 'loading') {
     return (
-      <View style={tw`absolute inset-0 items-center justify-center bg-black/60`}>
+      <View
+        style={tw`absolute inset-0 items-center justify-center bg-black/60`}
+      >
         {poster && (
-          <Image source={{ uri: poster }} style={tw`absolute inset-0 opacity-30`} contentFit="cover" />
+          <Image
+            source={{ uri: poster }}
+            style={tw`absolute inset-0 opacity-30`}
+            contentFit="cover"
+          />
         )}
         <ActivityIndicator size="large" color="#22d3ee" />
       </View>
@@ -461,8 +593,12 @@ function StageState({
   }
   if (phase === 'error') {
     return (
-      <View style={tw`absolute inset-0 items-center justify-center bg-black/80 px-8`}>
-        <Text style={tw`text-center font-sans-bold text-[17px] text-white`}>Could not play this</Text>
+      <View
+        style={tw`absolute inset-0 items-center justify-center bg-black/80 px-8`}
+      >
+        <Text style={tw`text-center font-sans-bold text-[17px] text-white`}>
+          Could not play this
+        </Text>
         <Text style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}>
           {fault ?? 'Unknown player error'}
         </Text>
@@ -471,7 +607,9 @@ function StageState({
           style={tw`mt-4 flex-row items-center gap-2 rounded-2xl bg-cyan-400 px-5 py-3`}
         >
           <RotateCcw size={18} color="#083344" />
-          <Text style={tw`font-sans-bold text-[15px] text-slate-950`}>Retry</Text>
+          <Text style={tw`font-sans-bold text-[15px] text-slate-950`}>
+            Retry
+          </Text>
         </Pressable>
       </View>
     );
@@ -483,14 +621,41 @@ type TapSide = 'left' | 'center' | 'right';
 
 const TAP_SIDES: TapSide[] = ['left', 'center', 'right'];
 
-function SeekMark({ mark }: { mark: { side: 'left' | 'right'; total: number } | null }) {
+function previewKey(item: MovieItem | null, currentId: string | null): string {
+  const kind = item?.kind ?? 'movie';
+  const id = item?.id ?? 'none';
+  return `${kind}/${id}/${currentId ?? 'none'}`;
+}
+
+function seekMedia(
+  info: VideoInfo | null,
+  currentId: string | null
+): SeekMedia {
+  if (!info) return null;
+  return {
+    formats: info.formats,
+    currentId,
+    headers: info.downloadHeaders ?? {},
+  };
+}
+
+function SeekMark({
+  mark,
+}: {
+  mark: { side: 'left' | 'right'; total: number } | null;
+}) {
   if (!mark) return null;
   return (
     <View
-      style={[tw`absolute inset-y-0 items-center justify-center`, mark.side === 'left' ? { left: 28 } : { right: 28 }]}
+      style={[
+        tw`absolute inset-y-0 items-center justify-center`,
+        mark.side === 'left' ? { left: 28 } : { right: 28 },
+      ]}
       pointerEvents="none"
     >
-      <View style={tw`flex-row items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5`}>
+      <View
+        style={tw`flex-row items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5`}
+      >
         {mark.side === 'left' ? (
           <RotateCcw size={16} color="#ffffff" />
         ) : (
@@ -521,12 +686,16 @@ function VideoStage({
   seekMark,
   controls,
   top,
+  cacheKey,
   onOpen,
   onBack,
   onQuality,
   onFullscreen,
   onToggle,
   onSeek,
+  onInteract,
+  media,
+  loading,
   onZoneTap,
 }: {
   player: VideoPlayer;
@@ -541,16 +710,20 @@ function VideoStage({
   position: number;
   duration: number;
   buffered: number;
+  loading: boolean;
   flash: string | null;
   seekMark: { side: 'left' | 'right'; total: number } | null;
   controls: boolean;
   top: number;
+  cacheKey: string;
+  media: SeekMedia;
   onOpen: () => void;
   onBack: () => void;
   onQuality: () => void;
   onFullscreen: () => void;
   onToggle: () => void;
   onSeek: (fraction: number) => void;
+  onInteract: () => void;
   onZoneTap: (side: TapSide) => void;
 }) {
   return (
@@ -563,7 +736,12 @@ function VideoStage({
         allowsPictureInPicture={false}
         fullscreenOptions={{ enable: false }}
       />
-      <StageState phase={phase} poster={poster} fault={fault} onRetry={onOpen} />
+      <StageState
+        phase={phase}
+        poster={poster}
+        fault={fault}
+        onRetry={onOpen}
+      />
       {phase !== 'loading' && (
         <View style={tw`absolute inset-0 flex-row`}>
           {TAP_SIDES.map((side) => (
@@ -586,17 +764,27 @@ function VideoStage({
           position={position}
           duration={duration}
           buffered={buffered}
+          player={player}
+          cacheKey={cacheKey}
+          media={media}
+          loading={loading}
           top={top}
           onBack={onBack}
           onQuality={onQuality}
           onFullscreen={onFullscreen}
           onToggle={onToggle}
           onSeek={onSeek}
+          onInteract={onInteract}
         />
       )}
       {flash && phase === 'ready' && (
-        <View style={tw`absolute inset-x-0 top-1/3 items-center`} pointerEvents="none">
-          <Text style={tw`rounded-full bg-black/70 px-3 py-1.5 font-sans-bold text-[16px] text-white`}>
+        <View
+          style={tw`absolute inset-x-0 top-1/3 items-center`}
+          pointerEvents="none"
+        >
+          <Text
+            style={tw`rounded-full bg-black/70 px-3 py-1.5 font-sans-bold text-[16px] text-white`}
+          >
             {flash}
           </Text>
         </View>
@@ -609,7 +797,10 @@ function VideoStage({
 function StallSpinner({ show }: { show: boolean }) {
   if (!show) return null;
   return (
-    <View style={tw`absolute inset-0 items-center justify-center`} pointerEvents="none">
+    <View
+      style={tw`absolute inset-0 items-center justify-center`}
+      pointerEvents="none"
+    >
       <View style={tw`rounded-full bg-black/60 p-4`}>
         <ActivityIndicator size="large" color="#ffffff" />
       </View>
@@ -617,18 +808,40 @@ function StallSpinner({ show }: { show: boolean }) {
   );
 }
 
-export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onClose }: Props) {
+export default function MoviePlayerScreen({
+  visible,
+  item,
+  upNext,
+  onSelect,
+  onClose,
+}: Props) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
-  const { player, phase, info, currentId, fault, isPlaying, position, open, close, switchQuality } =
-    useMoviePlayer();
+  const {
+    player,
+    phase,
+    info,
+    currentId,
+    fault,
+    isPlaying,
+    position,
+    open,
+    close,
+    switchQuality,
+  } = useMoviePlayer();
   const { downloads, startDownload } = useDownload(info);
   const [controls, setControls] = useState(true);
   const [qualityOpen, setQualityOpen] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
-  const [seekMark, setSeekMark] = useState<{ side: 'left' | 'right'; total: number } | null>(null);
+  const [seekMark, setSeekMark] = useState<{
+    side: 'left' | 'right';
+    total: number;
+  } | null>(null);
   const [stalled, setStalled] = useState(false);
+  const [seeking, setSeeking] = useState(false);
+  const seekTarget = useRef(0);
+  const seekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAdvance = useRef(Date.now());
@@ -692,7 +905,9 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
     const dir = side === 'left' ? -10 : 10;
     const now = Date.now();
     const total =
-      acc.current.side === side && now - acc.current.at < 1000 ? acc.current.total + 10 : 10;
+      acc.current.side === side && now - acc.current.at < 1000
+        ? acc.current.total + 10
+        : 10;
     acc.current = { side, total, at: now };
     if (accTimer.current) clearTimeout(accTimer.current);
     accTimer.current = setTimeout(() => {
@@ -741,10 +956,14 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
 
   const dlState = currentId ? downloads[currentId] : undefined;
   const downloading =
-    dlState?.status === 'downloading' || dlState?.status === 'muxing' || dlState?.status === 'saving';
+    dlState?.status === 'downloading' ||
+    dlState?.status === 'muxing' ||
+    dlState?.status === 'saving';
 
   const downloadCurrent = () => {
-    const current = info?.formats.find((format) => format.formatId === currentId) ?? info?.formats[0];
+    const current =
+      info?.formats.find((format) => format.formatId === currentId) ??
+      info?.formats[0];
     if (!current || downloading) return;
     tapImpact();
     log('Player', `download tap ${current.formatId}`);
@@ -759,6 +978,7 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
 
   const duration = player.duration || info?.duration || 0;
   const buffered = player.bufferedPosition || 0;
+  const thumbMedia = seekMedia(info, currentId);
   live.current = { pos: position, buf: buffered, playing: isPlaying };
 
   useEffect(() => {
@@ -766,14 +986,33 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
   }, [position]);
 
   useEffect(() => {
+    if (!seeking) return;
+    if (Math.abs(position - seekTarget.current) < 2.5) {
+      setSeeking(false);
+    }
+  }, [position, seeking]);
+
+  useEffect(
+    () => () => {
+      if (seekTimer.current) clearTimeout(seekTimer.current);
+    },
+    []
+  );
+
+  useEffect(() => {
     if (!visible) return;
     const timer = setInterval(() => {
       const snap = live.current;
       const hungry = snap.buf - snap.pos < 3;
-      const stuck = snap.playing && Date.now() - lastAdvance.current > 1500 && hungry;
+      const stuck =
+        snap.playing && Date.now() - lastAdvance.current > 1500 && hungry;
       setStalled((prev) => {
         if (prev !== stuck) {
-          if (stuck) log('Player', `stall at ${Math.round(snap.pos)}s (buffered ${Math.round(snap.buf)}s)`);
+          if (stuck)
+            log(
+              'Player',
+              `stall at ${Math.round(snap.pos)}s (buffered ${Math.round(snap.buf)}s)`
+            );
           else log('Player', `stall cleared at ${Math.round(snap.pos)}s`);
         }
         return stuck;
@@ -790,7 +1029,11 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
         { opacity: visible ? 1 : 0, pointerEvents: visible ? 'auto' : 'none' },
       ]}
     >
-      <View style={landscape ? tw`flex-1` : [tw`flex-1`, { paddingTop: insets.top }]}>
+      <View
+        style={
+          landscape ? tw`flex-1` : [tw`flex-1`, { paddingTop: insets.top }]
+        }
+      >
         <GestureDetector gesture={brightGesture}>
           <View style={{ height: videoH }}>
             <VideoStage
@@ -799,7 +1042,10 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
               poster={item?.poster}
               fault={fault}
               title={info?.title ?? item?.title ?? ''}
-              quality={info?.formats.find((format) => format.formatId === currentId)?.quality ?? ''}
+              quality={
+                info?.formats.find((format) => format.formatId === currentId)
+                  ?.quality ?? ''
+              }
               canQuality={(info?.formats.length ?? 0) > 1}
               fullscreen={fullscreen}
               isPlaying={isPlaying}
@@ -809,6 +1055,9 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
               flash={flash}
               seekMark={seekMark}
               controls={controls}
+              loading={seeking}
+              cacheKey={previewKey(item, currentId)}
+              media={thumbMedia}
               top={landscape ? insets.top : 0}
               onOpen={() => {
                 if (item) void open(item.kind, item.id);
@@ -822,14 +1071,19 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
                 setQualityOpen(true);
               }}
               onFullscreen={toggleFullscreen}
-            onToggle={toggle}
-            onSeek={(fraction) => {
-              player.currentTime = fraction * duration;
-              poke();
-            }}
-            onZoneTap={handleTap}
-          />
-          <StallSpinner show={stalled && phase === 'ready'} />
+              onToggle={toggle}
+              onSeek={(fraction) => {
+                player.currentTime = fraction * duration;
+                seekTarget.current = fraction * duration;
+                setSeeking(true);
+                if (seekTimer.current) clearTimeout(seekTimer.current);
+                seekTimer.current = setTimeout(() => setSeeking(false), 10000);
+                poke();
+              }}
+              onInteract={poke}
+              onZoneTap={handleTap}
+            />
+            <StallSpinner show={stalled && phase === 'ready'} />
           </View>
         </GestureDetector>
 
@@ -838,7 +1092,10 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
             info={info}
             item={item}
             currentId={currentId}
-            upNext={upNext.filter((entry) => !item || entry.id !== item.id || entry.kind !== item.kind)}
+            upNext={upNext.filter(
+              (entry) =>
+                !item || entry.id !== item.id || entry.kind !== item.kind
+            )}
             onDownload={downloadCurrent}
             onSelect={onSelect}
             downloading={downloading}

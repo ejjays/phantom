@@ -6,6 +6,7 @@ import {
 } from '@phantom/extractors';
 import { parseMovieUrl } from './parse';
 import { fetchTmdbTitle } from './tmdb';
+import { log } from '../../lib/log';
 import {
   VIDROCK_HEADERS,
   fetchVidrockSources,
@@ -43,16 +44,27 @@ export async function getInfo(
     const sources = await fetchVidrockSources(ref).catch(() => []);
     let formats =
       sources.length > 0
-        ? await vidrockToFormats(sources, meta?.durationSec ?? 0, { quick: true })
+        ? await vidrockToFormats(sources, meta?.durationSec ?? 0, {
+            quick: true,
+          })
         : [];
     let headers: Record<string, string> = { ...VIDROCK_HEADERS };
     if (formats.length === 0) {
-      const fallback = await fetchVidloveFormats(ref, meta?.durationSec ?? 0).catch(
-        () => null
+      log(
+        'Movies',
+        `vidrock dry for ${ref.kind}/${ref.tmdbId}, trying vidlove`
       );
+      const fallback = await fetchVidloveFormats(
+        ref,
+        meta?.durationSec ?? 0
+      ).catch(() => null);
       if (fallback && fallback.formats.length > 0) {
         formats = fallback.formats;
         headers = fallback.headers;
+        log(
+          'Movies',
+          `vidlove hit for ${ref.kind}/${ref.tmdbId} formats=${formats.length}`
+        );
       }
     }
     if (formats.length === 0) throw noVideo('Phantom');

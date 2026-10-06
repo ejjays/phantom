@@ -13,9 +13,11 @@ import {
   parallelHlsToMp4,
   parallelHlsMuxedToMp4,
   tagAudio,
+  attachCover,
   extractFrame,
   remuxToMp4,
   encodeToMp4,
+  probeFile,
 } from './mux';
 import { saveToDevice } from './save';
 import { checkStorageBeforeDownload } from './storagePreflight';
@@ -223,12 +225,10 @@ async function fetchMedia({
           reResolved = true;
           break;
         } catch (retryError) {
-          if (
-            !(
-              retryError instanceof Error &&
-              /chunked: HTTP/u.test(retryError.message)
-            )
-          ) {
+          if (!(
+            retryError instanceof Error &&
+            /chunked: HTTP/u.test(retryError.message)
+          )) {
             throw retryError;
           }
           lastError = retryError;
@@ -486,6 +486,23 @@ export async function runDownload({
       await tagAudioInPlace(saveTarget, stem, info, tag, track);
     }
 
+    if (format.isVideo && info.thumbnail?.startsWith('http')) {
+      try {
+        const cover = track(new File(Paths.cache, `${stem}.cover.jpg`));
+        await File.downloadFileAsync(info.thumbnail, cover, {
+          idempotent: true,
+        });
+        const covered = track(new File(Paths.cache, `${stem}.covered.mp4`));
+        if (await attachCover(saveTarget, cover, covered)) {
+          await moveAsync({ from: covered.uri, to: saveTarget.uri });
+          log('Download', `[Download] cover attached for ${stem}`);
+        }
+      } catch {
+        /* original file stands; cover art is a bonus */
+      }
+    }
+
+    await probeFile(saveTarget);
     const saved = await saveToDevice(saveTarget, (pct) =>
       onState({ status: 'saving', progress: pct })
     );
@@ -499,13 +516,15 @@ export async function runDownload({
     }
     await removeFile(saveTarget);
     if (saved.ok) {
+      const thumb = frameUri ?? inflight.thumbnail;
+      log('Download', `history thumb for ${stem}: ${thumb ?? '(none)'}`);
       await addHistory({
         id: stem,
         title: inflight.title,
         author: inflight.author,
         platform: inflight.platform,
         isAudio: inflight.isAudio,
-        thumbnail: frameUri ?? inflight.thumbnail,
+        thumbnail: thumb,
         ext: saveTarget.name.split('.').pop() || inflight.ext,
         uri: saved.uri,
         savedAt: Date.now(),

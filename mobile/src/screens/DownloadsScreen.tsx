@@ -29,9 +29,7 @@ import {
 import LottieView from 'lottie-react-native';
 import tw from '../lib/tw';
 import ufo from '../../assets/UFO.json';
-import SearchOverlay, {
-  SearchHighlight,
-} from '../components/SearchOverlay';
+import SearchOverlay, { SearchHighlight } from '../components/SearchOverlay';
 import {
   useDownloadHistory,
   removeHistory,
@@ -107,6 +105,26 @@ function MenuAction({ icon, label, onPress }: MenuActionProps) {
   );
 }
 
+function Thumb({ uri, iconSize }: { uri: string; iconSize?: number }) {
+  const [dead, setDead] = useState(false);
+  if (!uri || dead) {
+    return (
+      <View style={tw`h-full w-full items-center justify-center`}>
+        <Play size={iconSize ?? 20} color="#64748b" />
+      </View>
+    );
+  }
+  return (
+    <Image
+      source={{ uri }}
+      style={tw`h-full w-full`}
+      contentFit="cover"
+      cachePolicy="memory-disk"
+      onError={() => setDead(true)}
+    />
+  );
+}
+
 function Row({
   item,
   missing,
@@ -150,18 +168,7 @@ function Row({
           disabled={missing}
           style={tw`h-14 w-[100px] overflow-hidden rounded-md border border-cyan-400/30 bg-white/5 ${missing ? 'opacity-40' : ''}`}
         >
-          {item.thumbnail ? (
-            <Image
-              source={{ uri: item.thumbnail }}
-              style={tw`h-full w-full`}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-          ) : (
-            <View style={tw`h-full w-full items-center justify-center`}>
-              <Play size={20} color="#64748b" />
-            </View>
-          )}
+          <Thumb uri={item.thumbnail ?? ''} />
         </Pressable>
 
         <Pressable onPress={open} disabled={missing} style={tw`flex-1`}>
@@ -254,18 +261,7 @@ function GridCard({
       >
         <View>
           <View style={tw`${full ? 'aspect-video' : 'aspect-square'} w-full`}>
-            {item.thumbnail ? (
-              <Image
-                source={{ uri: item.thumbnail }}
-                style={tw`h-full w-full`}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-              />
-            ) : (
-              <View style={tw`h-full w-full items-center justify-center`}>
-                <Play size={24} color="#64748b" />
-              </View>
-            )}
+            <Thumb uri={item.thumbnail ?? ''} iconSize={24} />
           </View>
           <View style={tw`p-2.5`}>
             <Text
@@ -406,16 +402,7 @@ function InflightRow({
       <View
         style={tw`h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-white/5`}
       >
-        {item.thumbnail ? (
-          <Image
-            source={{ uri: item.thumbnail }}
-            style={tw`h-full w-full`}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-          />
-        ) : (
-          <Play size={20} color="#64748b" />
-        )}
+        <Thumb uri={item.thumbnail ?? ''} />
       </View>
 
       <View style={tw`flex-1`}>
@@ -499,9 +486,7 @@ function DownloadsScreenInner({ visible }: Props) {
     setSearchOpen(false);
     const term = query.trim().toLowerCase();
     if (term) {
-      const matched = items.find((it) =>
-        it.title.toLowerCase().includes(term)
-      );
+      const matched = items.find((it) => it.title.toLowerCase().includes(term));
       if (matched) setFocusEntryId(matched.id);
     }
     setQuery('');
@@ -675,11 +660,8 @@ function DownloadsScreenInner({ visible }: Props) {
             }}
             accessibilityLabel="Close menu"
           >
-            <View
-              style={tw`mr-3 flex-1 items-end`}
-              accessibilityViewIsModal
-            >
-<View
+            <View style={tw`mr-3 flex-1 items-end`} accessibilityViewIsModal>
+              <View
                 style={[
                   tw`overflow-hidden rounded-2xl border border-white/10 bg-[#15152c]`,
                   { marginTop: insets.top + 44 },
@@ -810,9 +792,7 @@ function DownloadsScreenInner({ visible }: Props) {
                             )
                           }
                         >
-                          <SearchHighlight
-                            active={focusEntryId === item.id}
-                          >
+                          <SearchHighlight active={focusEntryId === item.id}>
                             <GridCard
                               item={item}
                               missing={missing[item.id]}
@@ -895,7 +875,7 @@ function DownloadsScreenInner({ visible }: Props) {
       >
         <View style={{ height: 84 }}>
           <Host colorScheme="light" seedColor="#06b6d4" style={{ flex: 1 }}>
-<SnackbarHost ref={snackbarRef} />
+            <SnackbarHost ref={snackbarRef} />
           </Host>
         </View>
       </View>
