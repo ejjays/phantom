@@ -19,6 +19,7 @@ import {
   Minimize,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
+import { Play3Icon } from '../components/icons';
 import { useBackHandler } from '../lib/back';
 import { useMoviePlayer } from '../hooks/useMoviePlayer';
 import { useFullscreenLock } from '../hooks/useFullscreenLock';
@@ -26,6 +27,7 @@ import { useBrightnessSwipe } from '../hooks/useBrightnessSwipe';
 import { useDownload } from '../hooks/useDownload';
 import { formatLabel, formatClock, formatSize } from '../lib/format';
 import { tapImpact, tapSelection } from '../lib/haptics';
+import { usePressScale } from '../hooks/usePressScale';
 import { log } from '../lib/log';
 import type { Format, VideoInfo } from '@phantom/extractors';
 import type { MovieItem } from '../extractors/movies/browse';
@@ -85,11 +87,11 @@ function SeekBar({
         >
           <View style={tw`h-1 overflow-hidden rounded-full bg-white/25`}>
             <View style={[tw`absolute inset-y-0 left-0 bg-white/40`, { width: `${bufferedFrac * 100}%` }]} />
-            <View style={[tw`absolute inset-y-0 left-0 bg-red-500`, { width: `${shown * 100}%` }]} />
+            <View style={[tw`absolute inset-y-0 left-0 bg-cyan-400`, { width: `${shown * 100}%` }]} />
           </View>
           <View
             style={[
-              tw`absolute h-3.5 w-3.5 rounded-full bg-red-500`,
+              tw`absolute h-3.5 w-3.5 rounded-full bg-cyan-400`,
               { left: `${shown * 100}%`, marginLeft: -7, top: 5 },
             ]}
           />
@@ -164,13 +166,13 @@ function CenterButton({
     <View style={tw`absolute inset-0 items-center justify-center`} pointerEvents="box-none">
       <Pressable
         onPress={onToggle}
-        style={tw`h-16 w-16 items-center justify-center rounded-full bg-white`}
+        style={tw`h-14 w-14 items-center justify-center rounded-full bg-black/60`}
         accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
       >
         {isPlaying ? (
-          <Pause size={30} color="#000000" />
+          <Pause size={26} color="#ffffff" />
         ) : (
-          <Play size={30} color="#000000" />
+          <Play3Icon size={26} color="#ffffff" />
         )}
       </Pressable>
     </View>
@@ -193,7 +195,8 @@ function QualityMenu({
   return (
     <Modal transparent visible={open} animationType="fade" onRequestClose={onClose}>
       <Pressable style={tw`flex-1 justify-end bg-black/60`} onPress={onClose}>
-        <Pressable style={tw`rounded-t-3xl border-t border-white/10 bg-[#15152c] px-4 pb-8 pt-3`}>
+        <Pressable style={tw`rounded-t-[32px] border-t border-white/10 bg-[#1E1E1E] px-4 pb-8 pt-3`}>
+          <View style={tw`mx-auto mb-3 h-1 w-10 rounded-full bg-white/15`} />
           <Text style={tw`mb-2 text-center font-sans-bold text-[15px] text-white`}>Quality</Text>
           {formats.map((format) => {
             const active = format.formatId === currentId;
@@ -225,7 +228,6 @@ function PortraitPanel({
   item,
   currentId,
   upNext,
-  onQuality,
   onDownload,
   onSelect,
   downloading,
@@ -234,55 +236,53 @@ function PortraitPanel({
   item: MovieItem | null;
   currentId: string | null;
   upNext: MovieItem[];
-  onQuality: () => void;
   onDownload: () => void;
   onSelect: (entry: MovieItem) => void;
   downloading: boolean;
 }) {
   const current = info?.formats.find((format) => format.formatId === currentId);
   const size = current?.filesize ? formatSize(current.filesize) : '';
+  const dlPress = usePressScale();
   return (
-    <ScrollView style={tw`flex-1`} contentContainerStyle={tw`gap-4 px-4 py-4`}>
+    <ScrollView style={tw`flex-1`} contentContainerStyle={tw`gap-6 px-5 py-5`}>
       <View>
         <Text style={tw`font-sans-bold text-[20px] leading-7 text-white`} numberOfLines={2}>
           {info?.title ?? item?.title ?? ''}
         </Text>
-        <Text style={tw`mt-1 font-mono text-[12px] text-slate-400`}>
-          {[item?.year, current ? formatLabel(current) : '', size].filter(Boolean).join(' • ')}
-        </Text>
-      </View>
-      <View style={tw`flex-row gap-3`}>
-        <Pressable
-          onPress={onDownload}
-          disabled={!current || downloading}
-          testID="movie-player-download"
-          accessibilityLabel="Download this title"
-          style={({ pressed }) => [
-            tw`h-12 flex-1 flex-row items-center justify-center gap-2 rounded-2xl bg-cyan-400 ${pressed ? 'opacity-85' : ''} ${!current ? 'opacity-50' : ''}`,
-          ]}
-        >
-          <Download size={20} color="#083344" strokeWidth={2.5} />
-          <Text style={tw`font-sans-bold text-[15px] text-slate-950`}>
-            {downloading ? 'Saving…' : 'Download'}
-          </Text>
-        </Pressable>
-        {(info?.formats.length ?? 0) > 1 && (
+        <View style={tw`mt-2 flex-row items-center gap-2`}>
+          <View style={tw`flex-1 flex-row items-center gap-2`}>
+            {[item?.year, current ? formatLabel(current) : '', size]
+              .filter(Boolean)
+              .map((part, i, arr) => (
+                <Text key={part} style={tw`font-mono text-[12px] text-slate-500`}>
+                  {part}
+                  {i < arr.length - 1 ? '  ·' : ''}
+                </Text>
+              ))}
+          </View>
           <Pressable
-            onPress={onQuality}
-            style={tw`h-12 flex-row items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-4`}
-            accessibilityLabel="Playback quality"
+            onPress={onDownload}
+            disabled={!current || downloading}
+            testID="movie-player-download"
+            accessibilityLabel="Download this title"
+            style={tw`h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-white/10 ${!current ? 'opacity-50' : ''}`}
+            onPressIn={dlPress.onPressIn}
+            onPressOut={dlPress.onPressOut}
           >
-            <Settings size={18} color="#e2e8f0" />
-            <Text style={tw`font-sans-bold text-[15px] text-slate-200`}>
-              {current ? formatLabel(current) : 'Quality'}
-            </Text>
+            <Animated.View style={dlPress.pressScaleStyle}>
+              {downloading ? (
+                <ActivityIndicator size="small" color="#e2e8f0" />
+              ) : (
+                <Download size={20} color="#e2e8f0" strokeWidth={2.5} />
+              )}
+            </Animated.View>
           </Pressable>
-        )}
+        </View>
       </View>
       {upNext.length > 0 && (
-        <View>
-          <Text style={tw`mb-2 font-sans-bold text-[16px] text-slate-200`}>Up next</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={tw`gap-3`}>
+        <View style={tw`gap-3`}>
+          <Text style={tw`font-sans-bold text-[16px] text-slate-200`}>Up next</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={tw`gap-4`}>
             {upNext.map((entry, index) => (
               <Pressable
                 key={`${entry.kind}-${entry.id}`}
@@ -291,27 +291,27 @@ function PortraitPanel({
                   tapSelection();
                   onSelect(entry);
                 }}
-                style={{ width: 112 }}
+                style={{ width: 116 }}
               >
-                <View style={tw`overflow-hidden rounded-2xl border border-white/10 bg-white/5`}>
+                <View style={tw`overflow-hidden rounded-[26px] bg-white/5`}>
                   {entry.poster ? (
                     <Image
                       source={{ uri: entry.poster }}
-                      style={{ width: '100%', height: 168 }}
+                      style={{ width: '100%', height: 170 }}
                       contentFit="cover"
                       cachePolicy="memory-disk"
                     />
                   ) : (
-                    <View style={tw`h-full w-full items-center justify-center bg-white/5`}>
+                    <View style={tw`h-[170px] w-full items-center justify-center bg-white/5`}>
                       <Play size={22} color="#64748b" />
                     </View>
                   )}
                 </View>
-                <Text style={tw`mt-1.5 font-mono-semibold text-[11px] text-slate-100`} numberOfLines={1}>
+                <Text style={tw`mt-2 font-sans-medium uppercase text-[12px] text-slate-100`} numberOfLines={1}>
                   {entry.title}
                 </Text>
                 {entry.year && (
-                  <Text style={tw`font-mono text-[10px] text-slate-500`}>{entry.year}</Text>
+                  <Text style={tw`mt-0.5 font-mono text-[11px] text-slate-500`}>{entry.year}</Text>
                 )}
               </Pressable>
             ))}
@@ -634,7 +634,7 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
   const poke = useCallback(() => {
     setControls(true);
     if (hideTimer.current) clearTimeout(hideTimer.current);
-    hideTimer.current = setTimeout(() => setControls(false), 3000);
+    hideTimer.current = setTimeout(() => setControls(false), 5000);
   }, []);
 
   const brightGesture = useBrightnessSwipe((level) => {
@@ -808,10 +808,6 @@ export default function MoviePlayerScreen({ visible, item, upNext, onSelect, onC
             item={item}
             currentId={currentId}
             upNext={upNext.filter((entry) => !item || entry.id !== item.id || entry.kind !== item.kind)}
-            onQuality={() => {
-              tapSelection();
-              setQualityOpen(true);
-            }}
             onDownload={downloadCurrent}
             onSelect={onSelect}
             downloading={downloading}

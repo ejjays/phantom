@@ -7,13 +7,13 @@ import {
   FlatList,
   ScrollView,
   RefreshControl,
-  Keyboard,
   ActivityIndicator,
   useWindowDimensions,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardController } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import LottieView from 'lottie-react-native';
@@ -22,6 +22,7 @@ import tw from '../lib/tw';
 import { useBackHandler } from '../lib/back';
 import { usePressScale } from '../hooks/usePressScale';
 import ufo from '../../assets/UFO.json';
+import searchAnim from '../../assets/Popcorn.json';
 import {
   MoviesSearchCircleIcon,
   MoviesBackCircleIcon,
@@ -246,6 +247,12 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
   }, [visible, loadBrowse]);
 
   useEffect(() => {
+    if (visible) return;
+    searchRef.current?.blur();
+    void KeyboardController.dismiss();
+  }, [visible]);
+
+  useEffect(() => {
     if (!searchOpen) return;
     const timer = setTimeout(() => searchRef.current?.focus(), 100);
     return () => clearTimeout(timer);
@@ -389,6 +396,8 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
     if (searchOpen) {
       setSearchOpen(false);
       onQuery('');
+      searchRef.current?.blur();
+      void KeyboardController.dismiss();
       return true;
     }
     if (!railKey) return false;
@@ -416,7 +425,8 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
                 tapSelection();
                 setSearchOpen(false);
                 onQuery('');
-                Keyboard.dismiss();
+                searchRef.current?.blur();
+                void KeyboardController.dismiss();
               }}
               testID="movies-search-back"
               accessibilityRole="button"
@@ -430,10 +440,10 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
                 ref={searchRef}
                 testID="movies-search"
                 style={[tw`flex-1 font-sans text-[12px] text-white`, { textAlignVertical: 'center', paddingVertical: 0 }]}
-                placeholder="Search any movies name here"
+                placeholder="Search movies or shows"
                 placeholderTextColor="#939392"
-                cursorColor="#EB2F3D"
-                selectionColor="#EB2F3D"
+                cursorColor="#22d3ee"
+                selectionColor="#22d3ee"
                 value={query}
                 onChangeText={onQuery}
                 returnKeyType="search"
@@ -465,7 +475,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
               <Pressable
                 onPress={() => {
                   tapSelection();
-                  Keyboard.dismiss();
+                  void KeyboardController.dismiss();
                   onClose();
                 }}
                 testID="movies-close"
@@ -509,9 +519,13 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
             </Text>
           }
           ListEmptyComponent={
-            searching ? null : (
+            searching ? (
               <View style={tw`items-center px-8 pt-10`}>
-                <LottieView source={ufo} autoPlay loop style={{ width: 180, height: 180 }} />
+                <LottieView source={searchAnim} autoPlay loop={false} style={{ width: 180, height: 180 }} />
+              </View>
+            ) : (
+              <View style={tw`items-center px-8 pt-10`}>
+                <LottieView source={ufo} autoPlay loop={false} style={{ width: 180, height: 180 }} />
                 <Text style={tw`mt-2 text-center font-mono-medium text-sm text-cyan-400`}>
                   Nothing found out there.
                 </Text>
@@ -541,9 +555,10 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
             </View>
           ) : (
             <View style={tw`items-center px-8 pt-10`}>
-              <Text style={tw`font-sans-semibold text-[16px] text-white`}>Recent search</Text>
+              <LottieView source={searchAnim} autoPlay loop={false} style={{ width: 180, height: 180 }} />
+              <Text style={tw`mt-2 font-sans-semibold text-[16px] text-white`}>Search Movie</Text>
               <Text style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}>
-                Search any movies name here
+                Type a title to get started
               </Text>
             </View>
           )
@@ -656,7 +671,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
           )}
           {trending.length === 0 && rails.every((rail) => rail.items.length === 0) && !loading && (
             <View style={tw`items-center px-8 pt-10`}>
-              <LottieView source={ufo} autoPlay loop style={{ width: 200, height: 200 }} />
+              <LottieView source={ufo} autoPlay loop={false} style={{ width: 200, height: 200 }} />
               <Text style={tw`mt-2 text-center font-mono-medium text-sm text-cyan-400`}>
                 Could not reach Watchluna.
               </Text>
