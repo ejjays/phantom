@@ -2,6 +2,7 @@ import {
   buildVideoInfo,
   classifyThrown,
   noVideo,
+  type Format,
   type VideoInfo,
 } from '@phantom/extractors';
 import { parseMovieUrl } from './parse';
@@ -16,6 +17,10 @@ import { fetchVidloveFormats } from './vidlove';
 
 export { parseMovieUrl } from './parse';
 export { decryptVidrockPayload } from './aesgcm';
+
+function bestHeight(formats: Format[]): number {
+  return formats.reduce((top, format) => Math.max(top, format.height ?? 0), 0);
+}
 
 export async function getInfo(
   url: string,
@@ -49,21 +54,27 @@ export async function getInfo(
           })
         : [];
     let headers: Record<string, string> = { ...VIDROCK_HEADERS };
-    if (formats.length === 0) {
-      log(
-        'Movies',
-        `vidrock dry for ${ref.kind}/${ref.tmdbId}, trying vidlove`
-      );
+    const rockBest = bestHeight(formats);
+    if (rockBest <= 1080) {
+      if (formats.length === 0) {
+        log('Movies', `vidrock dry for ${ref.kind}/${ref.tmdbId}, trying vidlove`);
+      } else {
+        log(
+          'Movies',
+          `vidrock capped at ${rockBest}p for ${ref.kind}/${ref.tmdbId}, trying vidlove`
+        );
+      }
       const fallback = await fetchVidloveFormats(
         ref,
         meta?.durationSec ?? 0
       ).catch(() => null);
-      if (fallback && fallback.formats.length > 0) {
+      const loveBest = fallback ? bestHeight(fallback.formats) : 0;
+      if (fallback && loveBest > 0 && loveBest >= rockBest) {
         formats = fallback.formats;
         headers = fallback.headers;
         log(
           'Movies',
-          `vidlove hit for ${ref.kind}/${ref.tmdbId} formats=${formats.length}`
+          `vidlove upgrade for ${ref.kind}/${ref.tmdbId} formats=${formats.length}`
         );
       }
     }
