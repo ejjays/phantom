@@ -35,11 +35,18 @@ export function useMoviePlayer() {
   const timeEvent = useEvent(player, 'timeUpdate', null);
 
   const playSource = useCallback(
-    async (format: Format, title: string, artwork: string | undefined, at?: number) => {
+    async (
+      format: Format,
+      title: string,
+      artwork: string | undefined,
+      headers: Record<string, string>,
+      at?: number
+    ) => {
       const goal = target.current;
       await player.replaceAsync({
         uri: format.url,
-        headers: VIDROCK_HEADERS,
+        headers,
+        contentType: format.isHls ? 'hls' : 'auto',
         metadata: { title, artist: 'Phantom', artwork },
       });
       // close()/open() during the await must not resurrect playback
@@ -74,7 +81,7 @@ export function useMoviePlayer() {
         queue.current = full.formats.slice(1);
         setInfo(full);
         setCurrentId(best.formatId);
-        await playSource(best, full.title, full.thumbnail ?? undefined);
+        await playSource(best, full.title, full.thumbnail ?? undefined, full.downloadHeaders ?? VIDROCK_HEADERS);
         if (target.current !== goal) return;
         setPhase('ready');
         log('Player', `playing ${kind}/${id} ${best.formatId} ms=${Date.now() - started}`);
@@ -96,7 +103,7 @@ export function useMoviePlayer() {
       setCurrentId(format.formatId);
       sameRetried.current = false;
       queue.current = info.formats.filter((entry) => entry.formatId !== format.formatId);
-      await playSource(format, info.title, info.thumbnail ?? undefined, at);
+      await playSource(format, info.title, info.thumbnail ?? undefined, info.downloadHeaders ?? VIDROCK_HEADERS, at);
       log('Player', `quality ${format.formatId} resumed at ${Math.round(at)}s`);
     },
     [info, playSource, player]
@@ -112,7 +119,7 @@ export function useMoviePlayer() {
     if (!deadLink && current && !sameRetried.current) {
       sameRetried.current = true;
       log('Player', `${goal.kind}/${goal.id} transient (${detail}) at ${Math.round(at)}s, replaying same source`);
-      void playSource(current, info?.title ?? goal.id, info?.thumbnail ?? undefined, at).catch(
+      void playSource(current, info?.title ?? goal.id, info?.thumbnail ?? undefined, info?.downloadHeaders ?? VIDROCK_HEADERS, at).catch(
         (err: unknown) => {
           logError(
             'Player',
@@ -128,7 +135,7 @@ export function useMoviePlayer() {
       sameRetried.current = false;
       log('Player', `${goal.kind}/${goal.id} ${detail} at ${Math.round(at)}s, trying ${trying.formatId}`);
       setCurrentId(trying.formatId);
-      void playSource(trying, info?.title ?? goal.id, info?.thumbnail ?? undefined, at).catch(
+      void playSource(trying, info?.title ?? goal.id, info?.thumbnail ?? undefined, info?.downloadHeaders ?? VIDROCK_HEADERS, at).catch(
         (err: unknown) => {
           logError(
             'Player',
@@ -157,7 +164,7 @@ export function useMoviePlayer() {
         sameRetried.current = false;
         setInfo(full);
         setCurrentId(best.formatId);
-        await playSource(best, full.title, full.thumbnail ?? undefined, at);
+        await playSource(best, full.title, full.thumbnail ?? undefined, full.downloadHeaders ?? VIDROCK_HEADERS, at);
         log('Player', `resumed ${best.formatId} at ${Math.round(at)}s`);
       } catch (err) {
         if (target.current !== goal) return;

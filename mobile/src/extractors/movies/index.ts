@@ -11,6 +11,7 @@ import {
   fetchVidrockSources,
   vidrockToFormats,
 } from './vidrock';
+import { fetchVidloveFormats } from './vidlove';
 
 export { parseMovieUrl } from './parse';
 export { decryptVidrockPayload } from './aesgcm';
@@ -39,12 +40,22 @@ export async function getInfo(
       })
     );
 
-    const sources = await fetchVidrockSources(ref);
-    if (sources.length === 0) throw noVideo('Phantom');
-
-    const formats = await vidrockToFormats(sources, meta?.durationSec ?? 0, { quick: true });
+    const sources = await fetchVidrockSources(ref).catch(() => []);
+    let formats =
+      sources.length > 0
+        ? await vidrockToFormats(sources, meta?.durationSec ?? 0, { quick: true })
+        : [];
+    let headers: Record<string, string> = { ...VIDROCK_HEADERS };
+    if (formats.length === 0) {
+      const fallback = await fetchVidloveFormats(ref, meta?.durationSec ?? 0).catch(
+        () => null
+      );
+      if (fallback && fallback.formats.length > 0) {
+        formats = fallback.formats;
+        headers = fallback.headers;
+      }
+    }
     if (formats.length === 0) throw noVideo('Phantom');
-    const headers: Record<string, string> = { ...VIDROCK_HEADERS };
 
     return {
       type: 'video',
