@@ -36,11 +36,17 @@ export function useMoviePlayer() {
 
   const playSource = useCallback(
     async (format: Format, title: string, artwork: string | undefined, at?: number) => {
+      const goal = target.current;
       await player.replaceAsync({
         uri: format.url,
         headers: VIDROCK_HEADERS,
         metadata: { title, artist: 'Phantom', artwork },
       });
+      // close()/open() during the await must not resurrect playback
+      if (target.current !== goal) {
+        player.pause();
+        return;
+      }
       if (typeof at === 'number' && at > 1) player.currentTime = at;
       player.play();
     },
@@ -49,7 +55,8 @@ export function useMoviePlayer() {
 
   const open = useCallback(
     async (kind: MovieItem['kind'], id: string) => {
-      target.current = { kind, id };
+      const goal = { kind, id };
+      target.current = goal;
       retried.current = false;
       sameRetried.current = false;
       queue.current = [];
@@ -61,15 +68,18 @@ export function useMoviePlayer() {
       log('Player', `open ${kind}/${id}`);
       try {
         const full = await freshInfo(kind, id);
+        if (target.current !== goal) return;
         if (!full) throw new Error('no playable sources');
         const best = full.formats[0];
         queue.current = full.formats.slice(1);
         setInfo(full);
         setCurrentId(best.formatId);
         await playSource(best, full.title, full.thumbnail ?? undefined);
+        if (target.current !== goal) return;
         setPhase('ready');
         log('Player', `playing ${kind}/${id} ${best.formatId} ms=${Date.now() - started}`);
       } catch (err) {
+        if (target.current !== goal) return;
         const message = err instanceof Error ? err.message : String(err);
         setFault(message);
         setPhase('error');
@@ -139,6 +149,7 @@ export function useMoviePlayer() {
     void (async () => {
       try {
         const full = await freshInfo(goal.kind, goal.id);
+        if (target.current !== goal) return;
         const candidates = full?.formats ?? [];
         if (!full || candidates.length === 0) throw new Error('no sources on retry');
         const [best, ...rest] = candidates;
@@ -149,6 +160,7 @@ export function useMoviePlayer() {
         await playSource(best, full.title, full.thumbnail ?? undefined, at);
         log('Player', `resumed ${best.formatId} at ${Math.round(at)}s`);
       } catch (err) {
+        if (target.current !== goal) return;
         const message = err instanceof Error ? err.message : String(err);
         setFault(message);
         setPhase('error');

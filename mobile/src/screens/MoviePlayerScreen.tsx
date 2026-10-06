@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Modal, ScrollView, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, Modal, ScrollView, Animated as RNAnimated, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { VideoView, type VideoPlayer } from 'expo-video';
@@ -52,6 +52,7 @@ function SeekBar({
   onSeek: (fraction: number) => void;
 }) {
   const [scrub, setScrub] = useState<number | null>(null);
+  const scrubVal = useRef<number | null>(null);
   const trackW = useRef(0);
   const shown = scrub ?? (duration > 0 ? position / duration : 0);
   const bufferedFrac = duration > 0 ? Math.min(1, buffered / duration) : 0;
@@ -61,14 +62,19 @@ function SeekBar({
     .onUpdate((event) => {
       if (trackW.current <= 0) return;
       const frac = Math.max(0, Math.min(1, event.x / trackW.current));
+      scrubVal.current = frac;
       setScrub(frac);
     })
     .onEnd(() => {
-      setScrub((active) => {
-        if (active !== null) onSeek(active);
-        return null;
-      });
+      const active = scrubVal.current;
+      scrubVal.current = null;
+      if (active !== null) onSeek(active);
     });
+
+  useEffect(() => {
+    if (scrub === null || duration <= 0) return;
+    if (Math.abs(position - scrub * duration) < 1.5) setScrub(null);
+  }, [position, scrub, duration]);
 
   return (
     <View>
@@ -192,33 +198,59 @@ function QualityMenu({
   onPick: (format: Format) => void;
   onClose: () => void;
 }) {
+  const { height } = useWindowDimensions();
+  const sheetY = useRef(new RNAnimated.Value(height)).current;
+  const bgOpacity = useRef(new RNAnimated.Value(0)).current;
+
+  useEffect(() => {
+    if (!open) return;
+    sheetY.setValue(height);
+    bgOpacity.setValue(0);
+    RNAnimated.parallel([
+      RNAnimated.timing(sheetY, { toValue: 0, duration: 220, useNativeDriver: true }),
+      RNAnimated.timing(bgOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start();
+  }, [open, bgOpacity, height, sheetY]);
+
+  const closeSheet = useCallback(() => {
+    RNAnimated.parallel([
+      RNAnimated.timing(sheetY, { toValue: height, duration: 180, useNativeDriver: true }),
+      RNAnimated.timing(bgOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
+    ]).start(() => onClose());
+  }, [bgOpacity, height, onClose, sheetY]);
+
   return (
-    <Modal transparent visible={open} animationType="fade" onRequestClose={onClose}>
-      <Pressable style={tw`flex-1 justify-end bg-black/60`} onPress={onClose}>
-        <Pressable style={tw`rounded-t-[32px] border-t border-white/10 bg-[#1E1E1E] px-4 pb-8 pt-3`}>
-          <View style={tw`mx-auto mb-3 h-1 w-10 rounded-full bg-white/15`} />
-          <Text style={tw`mb-2 text-center font-sans-bold text-[15px] text-white`}>Quality</Text>
-          {formats.map((format) => {
-            const active = format.formatId === currentId;
-            return (
-              <Pressable
-                key={format.formatId}
-                onPress={() => {
-                  tapSelection();
-                  onPick(format);
-                  onClose();
-                }}
-                style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
-              >
-                <Text style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}>
-                  {formatLabel(format)}
-                </Text>
-                {active && <Check size={18} color="#22d3ee" />}
-              </Pressable>
-            );
-          })}
+    <Modal transparent visible={open} animationType="none" onRequestClose={closeSheet}>
+      <View style={tw`flex-1 justify-end`}>
+        <Pressable style={tw`absolute inset-0`} onPress={closeSheet}>
+          <RNAnimated.View style={[tw`flex-1 bg-black/60`, { opacity: bgOpacity }]} />
         </Pressable>
-      </Pressable>
+        <RNAnimated.View style={{ transform: [{ translateY: sheetY }] }}>
+          <View style={tw`rounded-t-[32px] border-t border-white/10 bg-[#1E1E1E] px-4 pb-8 pt-3`}>
+            <View style={tw`mx-auto mb-3 h-1 w-10 rounded-full bg-white/15`} />
+            <Text style={tw`mb-2 text-center font-sans-bold text-[15px] text-white`}>Quality</Text>
+            {formats.map((format) => {
+              const active = format.formatId === currentId;
+              return (
+                <Pressable
+                  key={format.formatId}
+                  onPress={() => {
+                    tapSelection();
+                    onPick(format);
+                    closeSheet();
+                  }}
+                  style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                >
+                  <Text style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}>
+                    {formatLabel(format)}
+                  </Text>
+                  {active && <Check size={18} color="#22d3ee" />}
+                </Pressable>
+              );
+            })}
+          </View>
+        </RNAnimated.View>
+      </View>
     </Modal>
   );
 }
@@ -424,7 +456,6 @@ function StageState({
           <Image source={{ uri: poster }} style={tw`absolute inset-0 opacity-30`} contentFit="cover" />
         )}
         <ActivityIndicator size="large" color="#22d3ee" />
-        <Text style={tw`mt-3 font-mono text-[12px] text-slate-300`}>Loading stream…</Text>
       </View>
     );
   }
