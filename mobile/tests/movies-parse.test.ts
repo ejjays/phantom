@@ -185,7 +185,7 @@ describe('movies getInfo', () => {
     expect(ids.some((id) => id.includes('1080p'))).toBe(true);
     expect(info?.formats[0].height).toBe(1080);
     expect(info?.formats[0].isHls).toBe(true);
-    const nova = info?.formats.find((f) => f.formatId.includes('nova'));
+    const nova = info?.formats.find((f) => f.formatId.includes('nova-1080p'));
     expect(nova?.filesize).toBe(300000);
   });
 

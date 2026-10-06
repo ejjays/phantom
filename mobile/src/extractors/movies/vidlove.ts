@@ -117,12 +117,36 @@ function manifestFormats(source: VidloveSource, durationSec: number): Format[] {
     ];
   }
   const master = parseHlsMaster(manifest, source.url);
-  return hlsVariantsToFormats(master, { durationSec }).map((variant) => ({
+  const variants = hlsVariantsToFormats(master, { durationSec }).map((variant) => ({
     ...variant,
     formatId: `vidlove-vidapi-${variant.formatId}`,
     hlsKeepAlive: true,
     note: `vidlove ${source.label ?? 'VidAPI'}`,
   }));
+  const top = variants[0];
+  const auto: Format[] =
+    top && source.url
+      ? [
+          {
+            formatId: 'vidlove-vidapi-auto',
+            url: source.url,
+            extension: 'mp4',
+            resolution: top.resolution,
+            quality: 'Auto',
+            width: top.width,
+            height: top.height,
+            vcodec: 'h264',
+            acodec: 'aac',
+            isMuxed: true,
+            isVideo: true,
+            isAudio: false,
+            isHls: true,
+            hlsKeepAlive: true,
+            note: `vidlove ${source.label ?? 'VidAPI'}`,
+          },
+        ]
+      : [];
+  return [...auto, ...variants];
 }
 
 export async function fetchVidloveFormats(

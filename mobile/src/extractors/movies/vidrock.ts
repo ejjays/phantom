@@ -244,6 +244,7 @@ export async function vidrockToFormats(
   opts?: { quick?: boolean }
 ): Promise<Format[]> {
   const formats: Format[] = [];
+  const autos: Format[] = [];
   const seen = new Set<string>();
   const push = (format: Format): void => {
     const key = `${format.height ?? format.formatId}|${format.url}`;
@@ -310,8 +311,28 @@ export async function vidrockToFormats(
         note: `vidrock ${source.name}`,
       });
     });
+    const top = variants[0];
+    if (top) {
+      autos.push({
+        formatId: `vidrock-${source.name.toLowerCase()}-auto`,
+        url: source.url,
+        extension: 'mp4',
+        resolution: top.resolution,
+        quality: 'Auto',
+        width: top.width,
+        height: top.height,
+        vcodec: 'h264',
+        acodec: 'aac',
+        isMuxed: true,
+        isVideo: true,
+        isAudio: false,
+        isHls: true,
+        hlsKeepAlive: true,
+        note: `vidrock ${source.name}`,
+      });
+    }
   }
 
   formats.sort((lhs, rhs) => (rhs.height ?? 0) - (lhs.height ?? 0));
-  return formats;
+  return [...autos, ...formats];
 }

@@ -147,6 +147,29 @@ type FetchMediaInput = {
   track: (file: File) => File;
 };
 
+// adaptive "auto" urls point at the master: pin the best variant so the
+// segment downloader never mistakes variant urls for segments
+async function pinMasterVariant(
+  url: string,
+  headers: Record<string, string>,
+  durationSec: number
+): Promise<string> {
+  try {
+    const text = await (await fetch(url, { headers })).text();
+    if (text.includes('#EXTM3U') && text.includes('#EXT-X-STREAM-INF')) {
+      const { parseHlsMaster, hlsVariantsToFormats } = await import('@phantom/extractors');
+      const best = hlsVariantsToFormats(parseHlsMaster(text, url), { durationSec })[0];
+      if (best?.url) {
+        log('downloadPipeline', `[Download] master pinned to ${best.quality}`);
+        return best.url;
+      }
+    }
+  } catch {
+    /* play it as-is; ffmpeg tolerates masters */
+  }
+  return url;
+}
+
 async function fetchMedia({
   info,
   format,
@@ -310,15 +333,17 @@ async function fetchMedia({
         /* progress optional */
       }
     }
+    // adaptive "auto" urls point at the master: pin the best variant so
+    // the segment downloader never mistakes variant urls for segments
+    const playlistUrl = await pinMasterVariant(format.url, headers, durationSec);
     onState({ status: 'downloading', progress: 0 });
     const hStart = Date.now();
     const onHls = (pct: number): void =>
       onState({ status: 'downloading', progress: Math.min(98, pct) });
-    // separate video+audio hls -> parallel fetch; else ffmpeg-direct first:
-    // js segment fetching storms devtools inspection into oom, and native
-    // ffmpeg http is invisible to it. parallel stays as fallback.
+    // cdns throttle per-connection, so parallel segments beat a single
+    // ffmpeg pull; ffmpeg stays as fallback for odd playlists.
     // signed hls urls expire mid-queue — one fresh-resolve retry before failing
-    let path = 'direct';
+    let path = 'parallel-muxed';
     const runHls = async (playlistUrl: string): Promise<boolean> => {
       if (format.hlsAudioUrl) {
         const okSplit = await parallelHlsToMp4(
@@ -342,15 +367,6 @@ async function fetchMedia({
           format.hlsKeepAlive
         );
       }
-      const okDirect = await hlsDirectToMp4(
-        playlistUrl,
-        outFile,
-        durationSec,
-        headers,
-        onHls,
-        format.hlsKeepAlive
-      );
-      if (okDirect) return true;
       const okMuxed = await parallelHlsMuxedToMp4(
         playlistUrl,
         outFile,
@@ -362,6 +378,18 @@ async function fetchMedia({
         path = 'parallel-muxed';
         return true;
       }
+      const okDirect = await hlsDirectToMp4(
+        playlistUrl,
+        outFile,
+        durationSec,
+        headers,
+        onHls,
+        format.hlsKeepAlive
+      );
+      if (okDirect) {
+        path = 'direct';
+        return true;
+      }
       return hlsToMp4(
         playlistUrl,
         outFile,
@@ -371,7 +399,7 @@ async function fetchMedia({
         format.hlsKeepAlive
       );
     };
-    let ok = await runHls(format.url);
+    let ok = await runHls(playlistUrl);
     if (!ok && !signal.aborted) {
       let freshUrl: string | null = null;
       try {

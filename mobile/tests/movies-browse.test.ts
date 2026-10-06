@@ -238,9 +238,11 @@ describe('vidrockToFormats quick mode', () => {
       7380,
       { quick: true }
     );
-    expect(formats).toHaveLength(2);
-    expect(formats[0].formatId).toContain('orion-1080p');
-    expect(formats[0].filesize).toBeGreaterThan(0);
+    expect(formats).toHaveLength(3);
+    expect(formats[0].formatId).toContain('orion-auto');
+    expect(formats[0].quality).toBe('Auto');
+    expect(formats[1].formatId).toContain('orion-1080p');
+    expect(formats[1].filesize).toBeGreaterThan(0);
     const touchedSegments = mockFetch.mock.calls.filter((call) =>
       String(call[0]).includes('cdn.example') || String(call[0]).includes('seg.example')
     );

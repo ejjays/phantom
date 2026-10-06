@@ -25,9 +25,10 @@ function fsPath(uri: string): string {
 
 // hls concurrency: fetch().arrayBuffer() parks each segment on the java
 // heap (okhttp buffers whole responses), so keep in-flight low — 16-way
-// bursts of 720p chunks oom 512mb heaps alongside webviews
+// bursts of 720p chunks oom 512mb heaps alongside webviews. 6 splits the
+// difference: matches per-connection-throttled cdns without the heap risk.
 const HLS_CONCURRENCY = 4;
-const MUXED_HLS_CONCURRENCY = 4;
+const MUXED_HLS_CONCURRENCY = 6;
 
 export async function muxVideoAudio(
   video: File,
@@ -350,22 +351,27 @@ export async function parallelHlsToMp4(
   const audio = new File(Paths.cache, `${out.name}.a.mp4`);
   try {
     const started = Date.now();
-    const vid = await downloadPlaylistToFile(
-      videoPlaylist,
-      headers,
-      video,
-      (done, total) => onProgress(Math.round((done / total) * 80)),
-      HLS_CONCURRENCY,
-      signal
-    );
-    const aud = await downloadPlaylistToFile(
-      audioPlaylist,
-      headers,
-      audio,
-      (done, total) => onProgress(80 + Math.round((done / total) * 12)),
-      HLS_CONCURRENCY,
-      signal
-    );
+    // video+audio pull at once — two region sets multiply throughput the
+    // same way parallel segments do; progress reporters interleave, last
+    // writer wins, both stay monotonic within their own 0-80 / 80-92 lane
+    const [vid, aud] = await Promise.all([
+      downloadPlaylistToFile(
+        videoPlaylist,
+        headers,
+        video,
+        (done, total) => onProgress(Math.round((done / total) * 80)),
+        HLS_CONCURRENCY,
+        signal
+      ),
+      downloadPlaylistToFile(
+        audioPlaylist,
+        headers,
+        audio,
+        (done, total) => onProgress(80 + Math.round((done / total) * 12)),
+        HLS_CONCURRENCY,
+        signal
+      ),
+    ]);
     const secs = (Date.now() - started) / 1000;
     const totalBytes = vid.bytes + aud.bytes;
     const mbps = secs > 0 ? ((totalBytes * 8) / 1e6 / secs).toFixed(1) : '0';
