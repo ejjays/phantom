@@ -16,6 +16,7 @@ import { traceContext } from './utils/infra/trace.util.js';
 import { randomUUID } from 'node:crypto';
 import db from './utils/infra/db.util.js';
 import videoRoutes from './routes/video.routes.js';
+import { CACHE_DIR } from './services/ytdlp/config.js';
 import {
   requireApiKey,
   requireLocalOrApiKey,
@@ -291,10 +292,7 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
-const TEMP_DIR = path.join(__dirname, 'temp');
-const CACHE_DIR = path.join(TEMP_DIR, 'yt-dlp-cache');
-
-[TEMP_DIR, CACHE_DIR].forEach((dir) => {
+[CACHE_DIR].forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -472,4 +470,4 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
-startJanitor({ tempDir: TEMP_DIR, db });
+startJanitor({ tempDir: CACHE_DIR, db });

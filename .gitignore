@@ -61,7 +61,7 @@ web/api/coverage/
 web/api/ci-results/
 temp.xml
 bin
-
+proto/
 
 # sensitive cookies and secrets
 .env
