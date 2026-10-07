@@ -3,9 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../src/lib/net', () => ({
   gatedFetch: vi.fn(),
   mapLimit: vi.fn(),
+  fetchWithTimeout: vi.fn(),
 }));
 
-import { gatedFetch } from '../src/lib/net';
+import { fetchWithTimeout, gatedFetch } from '../src/lib/net';
 import { vidrockToFormats } from '../src/extractors/movies/vidrock';
 import {
   searchTitles,
@@ -16,6 +17,8 @@ import {
 } from '../src/extractors/movies/browse';
 
 const mockFetch = vi.mocked(gatedFetch);
+const mockTimeout = vi.mocked(fetchWithTimeout);
+mockTimeout.mockImplementation((url, init) => mockFetch(url, init));
 
 function textRes(body: string, ok = true): Response {
   return { ok, status: ok ? 200 : 404, text: () => Promise.resolve(body) } as unknown as Response;

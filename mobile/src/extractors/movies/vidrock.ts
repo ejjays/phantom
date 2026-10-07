@@ -3,8 +3,11 @@ import {
   parseHlsMaster,
   type Format,
 } from '@phantom/extractors';
-import { gatedFetch } from '../../lib/net';
+import { fetchWithTimeout } from '../../lib/net';
 import { DESKTOP_UA } from '../../lib/userAgents';
+
+// one wedged cdn host must not stall the whole title
+const FETCH_TIMEOUT_MS = 8000;
 import { VIDROCK_API, VIDROCK_KEY_HEX, VIDROCK_REFERER } from './constants';
 import { decryptVidrockPayload } from './aesgcm';
 import type { MovieRef } from './parse';
@@ -62,9 +65,13 @@ export function vidrockPath(ref: MovieRef): string {
 
 export async function fetchVidrockSources(ref: MovieRef): Promise<VidrockSource[]> {
   blockedHosts.clear();
-  const res = await gatedFetch(`${VIDROCK_API}/${vidrockPath(ref)}`, {
-    headers: VIDROCK_HEADERS,
-  });
+  const res = await fetchWithTimeout(
+    `${VIDROCK_API}/${vidrockPath(ref)}`,
+    {
+      headers: VIDROCK_HEADERS,
+    },
+    FETCH_TIMEOUT_MS
+  );
   if (!res.ok) throw new Error(`vidrock ${res.status}`);
   const api = (await res.json()) as VidrockApi;
   const out: VidrockSource[] = [];
@@ -85,7 +92,7 @@ type QualityLevel = { resolution?: number; url?: string };
 
 async function jsonLevels(url: string): Promise<QualityLevel[] | null> {
   try {
-    const res = await gatedFetch(url, { headers: VIDROCK_HEADERS });
+    const res = await fetchWithTimeout(url, { headers: VIDROCK_HEADERS }, FETCH_TIMEOUT_MS);
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       markBlocked(url, res.status, res.headers.get('content-type') ?? '', body);
@@ -109,7 +116,7 @@ async function jsonLevels(url: string): Promise<QualityLevel[] | null> {
 
 async function playlistText(url: string): Promise<string | null> {
   try {
-    const res = await gatedFetch(url, { headers: VIDROCK_HEADERS });
+    const res = await fetchWithTimeout(url, { headers: VIDROCK_HEADERS }, FETCH_TIMEOUT_MS);
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       markBlocked(url, res.status, res.headers.get('content-type') ?? '', body);
@@ -198,7 +205,11 @@ async function sampleSegments(
   let count = 0;
   for (const seg of picks) {
     try {
-      const head = await gatedFetch(seg, { method: 'HEAD', headers: VIDROCK_HEADERS });
+      const head = await fetchWithTimeout(
+        seg,
+        { method: 'HEAD', headers: VIDROCK_HEADERS },
+        FETCH_TIMEOUT_MS
+      );
       if ((head.headers.get('content-type') ?? '').startsWith('image/')) {
         return { dead: true };
       }
@@ -220,7 +231,11 @@ async function sampleSegments(
 // media playlist instead, falling back to the claim when probing fails
 async function estimateVariantSize(variantUrl: string): Promise<number | undefined> {
   try {
-    const res = await gatedFetch(variantUrl, { headers: VIDROCK_HEADERS });
+    const res = await fetchWithTimeout(
+      variantUrl,
+      { headers: VIDROCK_HEADERS },
+      FETCH_TIMEOUT_MS
+    );
     if (!res.ok) return undefined;
     const text = await res.text();
     if (!text.includes('#EXTM3U') || text.includes('#EXT-X-STREAM-INF')) {

@@ -1,4 +1,4 @@
-import { File, Paths } from 'expo-file-system';
+import { File, FileMode, Paths } from 'expo-file-system';
 import {
   FFmpegKit,
   FFmpegKitConfig,
@@ -6,7 +6,7 @@ import {
   Level,
   ReturnCode,
 } from '@nikhil-cephei/ffmpeg-kit-react-native';
-import { downloadPlaylistToFile } from './hls';
+import { downloadPlaylistToFile, nativeSegmentsToFiles, parseMediaPlaylist } from './hls';
 import { DESKTOP_UA } from '../userAgents';
 import { log, warn as logWarn } from '../log';
 
@@ -29,6 +29,9 @@ function fsPath(uri: string): string {
 // difference: matches per-connection-throttled cdns without the heap risk.
 const HLS_CONCURRENCY = 4;
 const MUXED_HLS_CONCURRENCY = 6;
+// native pulls bypass js heap + devtools inspection entirely, so this can
+// run wider than the js fetch path without the same oom surface
+const NATIVE_SEG_CONCURRENCY = 6;
 
 export async function muxVideoAudio(
   video: File,
@@ -106,6 +109,39 @@ export async function attachCover(
     `[cover] ffmpeg failed (${await session.getReturnCode()}): ${String(output).slice(-400)}`
   );
   return false;
+}
+
+// single frame from a remote mp4 for seek previews. android's retriever
+// chokes on some remote files (missing faststart, odd headers), while
+// ffmpeg range-reads whatever it needs. never throws: true/false only.
+export async function remoteExtractFrame(
+  url: string,
+  headers: Record<string, string>,
+  timeSec: number,
+  out: File
+): Promise<boolean> {
+  const block = Object.entries(headers)
+    .filter(([key]) => key.toLowerCase() !== 'user-agent' && key.toLowerCase() !== 'content-type')
+    .map(([key, value]) => `${key}: ${value}\r\n`)
+    .join('');
+  const ua = headers['User-Agent'] ?? headers['user-agent'];
+  const args = [
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-y',
+    '-ss',
+    String(Math.max(0, Math.floor(timeSec))),
+  ];
+  if (block) args.push('-headers', block);
+  if (ua) args.push('-user_agent', ua);
+  args.push('-i', url, '-frames:v', '1', '-q:v', '5', fsPath(out.uri));
+  try {
+    const session = await FFmpegKit.executeWithArguments(args);
+    return ReturnCode.isSuccess(await session.getReturnCode());
+  } catch {
+    return false;
+  }
 }
 
 export async function extractFrame(src: File, out: File): Promise<boolean> {
@@ -351,27 +387,22 @@ export async function parallelHlsToMp4(
   const audio = new File(Paths.cache, `${out.name}.a.mp4`);
   try {
     const started = Date.now();
-    // video+audio pull at once — two region sets multiply throughput the
-    // same way parallel segments do; progress reporters interleave, last
-    // writer wins, both stay monotonic within their own 0-80 / 80-92 lane
-    const [vid, aud] = await Promise.all([
-      downloadPlaylistToFile(
-        videoPlaylist,
-        headers,
-        video,
-        (done, total) => onProgress(Math.round((done / total) * 80)),
-        HLS_CONCURRENCY,
-        signal
-      ),
-      downloadPlaylistToFile(
-        audioPlaylist,
-        headers,
-        audio,
-        (done, total) => onProgress(80 + Math.round((done / total) * 12)),
-        HLS_CONCURRENCY,
-        signal
-      ),
-    ]);
+    const vid = await downloadPlaylistToFile(
+      videoPlaylist,
+      headers,
+      video,
+      (done, total) => onProgress(Math.round((done / total) * 80)),
+      HLS_CONCURRENCY,
+      signal
+    );
+    const aud = await downloadPlaylistToFile(
+      audioPlaylist,
+      headers,
+      audio,
+      (done, total) => onProgress(80 + Math.round((done / total) * 12)),
+      HLS_CONCURRENCY,
+      signal
+    );
     const secs = (Date.now() - started) / 1000;
     const totalBytes = vid.bytes + aud.bytes;
     const mbps = secs > 0 ? ((totalBytes * 8) / 1e6 / secs).toFixed(1) : '0';
@@ -404,6 +435,77 @@ export async function remuxToMp4(src: File, out: File): Promise<boolean> {
   );
   return false;
 }
+
+// native-stack variant of the parallel pull: segments land on disk via
+// blob-util (no js heap, invisible to devtools inspection), then ffmpeg
+// concat joins them — same output as parallelHlsMuxedToMp4 without the oom
+export async function nativeHlsMuxedToMp4(
+  playlist: string,
+  out: File,
+  headers: Record<string, string>,
+  onProgress: (pct: number) => void,
+  signal?: AbortSignal
+): Promise<boolean> {
+  const tag = out.name.replace(/[^a-z0-9]+/giu, '_');
+  const made: string[] = [];
+  const sweep = (): void => {
+    for (const path of made) {
+      try {
+        new File(path).delete();
+      } catch {
+        /* best effort */
+      }
+    }
+    made.length = 0;
+  };
+  try {
+    const res = await fetch(playlist, { headers, signal });
+    if (!res.ok) return false;
+    const urls = parseMediaPlaylist(await res.text(), playlist);
+    if (urls.length === 0) return false;
+    const dests = urls.map(
+      (_, idx) => `${Paths.cache.uri}/${tag}-seg-${String(idx).padStart(6, '0')}.ts`
+    );
+    await nativeSegmentsToFiles(
+      urls,
+      headers,
+      dests,
+      (done, total) => onProgress(Math.round((done / total) * 80)),
+      NATIVE_SEG_CONCURRENCY,
+      signal
+    );
+    made.push(...dests);
+    const list = new File(Paths.cache, `${tag}-list.txt`);
+    const lines = dests
+      .map((dest) => `file '${fsPath(dest).replace(/'/gu, "'\\''")}'`)
+      .join('\n');
+    const handle = list.open(FileMode.WriteOnly);
+    try {
+      handle.writeBytes(new TextEncoder().encode(lines));
+    } finally {
+      handle.close();
+    }
+    made.push(list.uri);
+    const joined = new File(Paths.cache, `${tag}-joined.ts`);
+    made.push(joined.uri);
+    const concat = await FFmpegKit.execute(
+      `-hide_banner -loglevel error -y -f concat -safe 0 -i "${fsPath(list.uri)}" -c copy "${fsPath(joined.uri)}"`
+    );
+    if (!ReturnCode.isSuccess(await concat.getReturnCode())) return false;
+    onProgress(88);
+    const ok = await remuxToMp4(joined, out);
+    if (ok) onProgress(92);
+    return ok;
+  } catch (err: unknown) {
+    logWarn(
+      'mux',
+      `[hls-native] ${err instanceof Error ? err.message : String(err)}`
+    );
+    return false;
+  } finally {
+    sweep();
+  }
+};
 
 export async function parallelHlsMuxedToMp4(
   playlist: string,

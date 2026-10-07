@@ -2,13 +2,16 @@ import { vi, describe, it, expect } from 'vitest';
 
 vi.mock('../src/lib/net', () => ({
   gatedFetch: vi.fn(),
+  fetchWithTimeout: vi.fn(),
 }));
 
-import { gatedFetch } from '../src/lib/net';
+import { fetchWithTimeout, gatedFetch } from '../src/lib/net';
 import { vidrockToFormats, hasBlockedHosts } from '../src/extractors/movies/vidrock';
 import { resolveWatchPageViaBrowser } from '../src/extractors/movies/browserProbe';
 
 const mockedFetch = vi.mocked(gatedFetch);
+const mockTimeout = vi.mocked(fetchWithTimeout);
+mockTimeout.mockImplementation((url, init) => mockedFetch(url, init));
 
 function blockedResponse() {
   return {

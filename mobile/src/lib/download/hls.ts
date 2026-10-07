@@ -1,5 +1,6 @@
 import { File, FileMode } from 'expo-file-system';
-import { withRetry } from '../retry';
+import ReactNativeBlobUtil from 'react-native-blob-util';
+import { ABORT_MESSAGE, withRetry } from '../retry';
 
 interface WriteHandle {
   writeBytes: (bytes: Uint8Array) => void;
@@ -157,5 +158,72 @@ export async function downloadPlaylistToFile(
     return { segments: urls.length, bytes };
   } finally {
     handle.close();
+  }
+}
+
+type Cancellable = { cancel?: () => void };
+
+// native-stack segment pull: blob-util writes straight to disk, so large
+// playlists never touch the js heap and stay invisible to devtools network
+// inspection (whose per-event json ooms dev builds on big pulls)
+export async function nativeSegmentsToFiles(
+  urls: string[],
+  headers: Record<string, string>,
+  dests: string[],
+  onProgress: (done: number, total: number) => void,
+  concurrency: number,
+  signal?: AbortSignal
+): Promise<void> {
+  const cancelTasks: Cancellable[] = [];
+  const onAbort = (): void => {
+    for (const task of cancelTasks) {
+      try {
+        task.cancel?.();
+      } catch {
+        /* already settled */
+      }
+    }
+  };
+  signal?.addEventListener('abort', onAbort, { once: true });
+  try {
+    let next = 0;
+    let done = 0;
+    const worker = async (): Promise<void> => {
+      while (next < urls.length) {
+        if (signal?.aborted) throw new Error(ABORT_MESSAGE);
+        const idx = next;
+        next += 1;
+        await withRetry(
+          async () => {
+            // blob-util wants a raw fs path, not a file:// uri
+            const raw = decodeURIComponent(dests[idx].replace(/^file:\/\//u, ''));
+            const task = ReactNativeBlobUtil.config({ path: raw }).fetch(
+              'GET',
+              urls[idx],
+              headers
+            );
+            cancelTasks.push(task);
+            const res = await task;
+            const info = res.info();
+            if (info.status >= 400) throw new Error(`segment HTTP ${info.status}`);
+            const contentType =
+              info.headers['Content-Type'] ?? info.headers['content-type'] ?? null;
+            if (typeof contentType === 'string' && contentType.startsWith('image/')) {
+              throw new Error(`segment content ${contentType} (expired link?)`);
+            }
+          },
+          { retries: 2, delayMs: 400, signal }
+        );
+        done += 1;
+        onProgress(done, urls.length);
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.max(1, Math.min(concurrency, urls.length)) }, () =>
+        worker()
+      )
+    );
+  } finally {
+    signal?.removeEventListener('abort', onAbort);
   }
 }

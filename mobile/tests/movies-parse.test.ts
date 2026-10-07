@@ -3,14 +3,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../src/lib/net', () => ({
   gatedFetch: vi.fn(),
   mapLimit: vi.fn(),
+  fetchWithTimeout: vi.fn(),
 }));
 
-import { gatedFetch } from '../src/lib/net';
+import { fetchWithTimeout, gatedFetch } from '../src/lib/net';
 import { getInfo } from '../src/extractors/movies';
 import { parseMovieUrl } from '../src/extractors/movies/parse';
 import { decryptVidrockPayload } from '../src/extractors/movies/aesgcm';
 
 const mockFetch = vi.mocked(gatedFetch);
+const mockTimeout = vi.mocked(fetchWithTimeout);
+mockTimeout.mockImplementation((url, init) => mockFetch(url, init));
 
 const KEY = '7f3e9c2a8b5d1f4e6a9c3b7d2e5f8a1c4b6d9e2f5a8c1b4d7e9f2a5c8b1d4e7f';
 const NOVA_ENC =

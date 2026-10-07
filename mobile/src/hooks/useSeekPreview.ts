@@ -17,6 +17,7 @@ export type SeekMedia = {
 
 const BUCKET_SEC = 5;
 const FETCH_TIMEOUT_MS = 12000;
+const REMOTE_TIMEOUT_MS = 20000;
 const HLS_TIMEOUT_MS = 15000;
 const DISPLAY_SETTLE_MS = 220;
 const MAX_CACHED = 24;
@@ -124,13 +125,35 @@ export function useSeekPreview(
   }, []);
 
   const grabMp4 = useCallback(
-    async (at: number): Promise<ThumbValue | null> => {
+    async (
+      at: number,
+      url: string,
+      headers: Record<string, string>,
+      bucket: number
+    ): Promise<ThumbValue | null> => {
       if (!player) return null;
-      const thumbs = await withTimeout(
-        player.generateThumbnailsAsync(at, { maxWidth: THUMB_WIDTH }),
-        FETCH_TIMEOUT_MS
-      );
-      return thumbs[0] ?? null;
+      try {
+        const thumbs = await withTimeout(
+          player.generateThumbnailsAsync(at, { maxWidth: THUMB_WIDTH }),
+          FETCH_TIMEOUT_MS
+        );
+        if (thumbs[0]) return thumbs[0];
+      } catch {
+        /* retriever can't read this file; ffmpeg range-reads instead */
+      }
+      try {
+        const outFile = new File(Paths.cache, `seekthumb-${slug.current}-${bucket}.jpg`);
+        const { remoteExtractFrame } = await import('../lib/download/mux');
+        const ok = await withTimeout(
+          remoteExtractFrame(url, headers, at, outFile),
+          REMOTE_TIMEOUT_MS
+        ).catch(() => false);
+        if (!ok) return null;
+        thumbFiles.current.push(outFile.uri);
+        return outFile.uri;
+      } catch {
+        return null;
+      }
     },
     [player]
   );
@@ -211,7 +234,9 @@ export function useSeekPreview(
             ),
             HLS_TIMEOUT_MS
           )
-        : grabMp4(at);
+        : current && media
+          ? grabMp4(at, current.url, media.headers, bucket)
+          : Promise.resolve(null);
     void work.then(
       (result) => {
         busy.current = false;

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../src/lib/net', () => ({
   gatedFetch: vi.fn(),
   mapLimit: vi.fn(),
+  fetchWithTimeout: vi.fn(),
 }));
 
 import { gatedFetch } from '../src/lib/net';

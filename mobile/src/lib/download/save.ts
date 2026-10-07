@@ -137,6 +137,30 @@ type SaveResult = { ok: boolean; uri?: string };
 
 // the update installer's source: an apk that lives in the user's visible
 // folder stages cleanly on oem roms, unlike app-private cache files
+// sidecar subtitle for the user's chosen save folder — players pick these up
+// automatically when the name matches the video stem. needs the saf folder,
+// so it no-ops when the user has none granted.
+export async function saveSidecarText(
+  fileName: string,
+  text: string
+): Promise<boolean> {
+  const dir = await getSaveDir();
+  if (!dir) return false;
+  try {
+    const target = await StorageAccessFramework.createFileAsync(
+      dir,
+      fileName,
+      'text/vtt'
+    );
+    await writeAsStringAsync(target, text, { encoding: EncodingType.UTF8 });
+    log('save', `[save] sidecar: ${fileName}`);
+    return true;
+  } catch (err: unknown) {
+    logWarn('save', `[save] sidecar failed: ${err instanceof Error ? err.message : String(err)}`);
+    return false;
+  }
+}
+
 export async function saveApkToFolder(
   source: File,
   displayName: string,

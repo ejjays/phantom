@@ -10,6 +10,7 @@ import {
   demuxToM4a,
   hlsToMp4,
   hlsDirectToMp4,
+  nativeHlsMuxedToMp4,
   parallelHlsToMp4,
   parallelHlsMuxedToMp4,
   tagAudio,
@@ -19,11 +20,23 @@ import {
   encodeToMp4,
   probeFile,
 } from './mux';
-import { saveToDevice } from './save';
+import { saveSidecarText, saveToDevice } from './save';
 import { checkStorageBeforeDownload } from './storagePreflight';
 import { log } from '../log';
 import { ABORT_MESSAGE } from '../retry';
 import { upsertInflight, removeInflight, type InflightItem } from '../inflight';
+import { parseMovieUrl } from '../../extractors/movies/parse';
+import {
+  fetchVidloveSubtitles,
+  vidloveHeaders,
+} from '../../extractors/movies/vidlove';
+import {
+  fetchVttText,
+  fitCuesToDuration,
+  formatVtt,
+  parseVtt,
+  pickTrack,
+} from '../subtitles';
 import { addHistory } from '../downloadHistory';
 import { resolve } from '../../extractors';
 import {
@@ -340,10 +353,11 @@ async function fetchMedia({
     const hStart = Date.now();
     const onHls = (pct: number): void =>
       onState({ status: 'downloading', progress: Math.min(98, pct) });
-    // cdns throttle per-connection, so parallel segments beat a single
-    // ffmpeg pull; ffmpeg stays as fallback for odd playlists.
+    // ffmpeg-direct first: js segment fetching storms devtools inspection
+    // into oom on dev builds, and native ffmpeg http is invisible to it.
+    // parallel stays as fallback for throttled single connections.
     // signed hls urls expire mid-queue — one fresh-resolve retry before failing
-    let path = 'parallel-muxed';
+    let path = 'direct';
     const runHls = async (playlistUrl: string): Promise<boolean> => {
       if (format.hlsAudioUrl) {
         const okSplit = await parallelHlsToMp4(
@@ -367,15 +381,15 @@ async function fetchMedia({
           format.hlsKeepAlive
         );
       }
-      const okMuxed = await parallelHlsMuxedToMp4(
+      const okNative = await nativeHlsMuxedToMp4(
         playlistUrl,
         outFile,
         headers,
         onHls,
         signal
       );
-      if (okMuxed) {
-        path = 'parallel-muxed';
+      if (okNative) {
+        path = 'native-muxed';
         return true;
       }
       const okDirect = await hlsDirectToMp4(
@@ -386,8 +400,16 @@ async function fetchMedia({
         onHls,
         format.hlsKeepAlive
       );
-      if (okDirect) {
-        path = 'direct';
+      if (okDirect) return true;
+      const okMuxed = await parallelHlsMuxedToMp4(
+        playlistUrl,
+        outFile,
+        headers,
+        onHls,
+        signal
+      );
+      if (okMuxed) {
+        path = 'parallel-muxed';
         return true;
       }
       return hlsToMp4(
@@ -427,6 +449,26 @@ async function fetchMedia({
   const destination = track(new File(Paths.cache, `${stem}.${ext}`));
   await fetchTo(format.url, destination, 0, 100, 'file');
   return destination;
+}
+
+// movies carry provider subtitles; drop an english sidecar next to the video
+// so external players pick it up. fire-and-forget: never affects the download.
+async function saveMovieSidecar(info: VideoInfo, stem: string): Promise<void> {
+  try {
+    if (info.extractorKey !== 'phantom') return;
+    const ref = parseMovieUrl(info.webpageUrl);
+    if (!ref) return;
+    const tracks = await fetchVidloveSubtitles(ref);
+    const chosen = pickTrack(tracks, 'en');
+    if (!chosen) return;
+    const text = await fetchVttText(chosen.url, vidloveHeaders(ref));
+    if (!text) return;
+    const cues = fitCuesToDuration(parseVtt(text), info.duration ?? 0);
+    if (cues.length === 0) return;
+    await saveSidecarText(`${stem}.en.vtt`, formatVtt(cues));
+  } catch {
+    /* subtitles are a bonus, never a download failure */
+  }
 }
 
 export async function runDownload({
@@ -557,6 +599,7 @@ export async function runDownload({
         uri: saved.uri,
         savedAt: Date.now(),
       });
+      void saveMovieSidecar(info, stem);
     }
     return saved.ok
       ? { status: 'saved', uri: saved.uri }

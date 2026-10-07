@@ -107,6 +107,25 @@ export function timeoutSignal(ms: number): AbortSignal {
   return controller.signal;
 }
 
+// gatedFetch never gives up on its own: one wedged cdn host stalls the
+// whole resolve until tcp times out (30s+ on mobile). cap every call.
+export async function fetchWithTimeout(
+  input: string,
+  init: RequestInit | undefined,
+  ms: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const onAbort = (): void => controller.abort();
+  init?.signal?.addEventListener('abort', onAbort, { once: true });
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await gatedFetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+    init?.signal?.removeEventListener('abort', onAbort);
+  }
+}
+
 // bounded-concurrency map; avoids Promise.all CDN sprays
 export async function mapLimit<T, R>(
   items: T[],

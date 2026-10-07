@@ -68,8 +68,10 @@ export async function getInfo(
         ref,
         meta?.durationSec ?? 0
       ).catch(() => null);
+      // strict upgrade only: equal labels lie (a "1080p" cam is worse than a
+      // clean 720p), so vidlove must genuinely clear the bar to take over
       const loveBest = fallback ? bestHeight(fallback.formats) : 0;
-      if (fallback && loveBest > 0 && loveBest >= rockBest) {
+      if (fallback && loveBest > rockBest) {
         formats = fallback.formats;
         headers = fallback.headers;
         log(

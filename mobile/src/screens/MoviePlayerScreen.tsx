@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import {
   Download,
   Maximize,
   Minimize,
+  Captions,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { Play3Icon } from '../components/icons';
@@ -34,6 +35,7 @@ import { useMoviePlayer } from '../hooks/useMoviePlayer';
 import { useFullscreenLock } from '../hooks/useFullscreenLock';
 import { useBrightnessSwipe } from '../hooks/useBrightnessSwipe';
 import { useSeekPreview, type SeekMedia } from '../hooks/useSeekPreview';
+import { useSubtitles } from '../hooks/useSubtitles';
 import { useDownload } from '../hooks/useDownload';
 import { formatLabel, formatClock, formatSize } from '../lib/format';
 import { tapImpact, tapSelection } from '../lib/haptics';
@@ -41,6 +43,7 @@ import { usePressScale } from '../hooks/usePressScale';
 import { log } from '../lib/log';
 import type { Format, VideoInfo } from '@phantom/extractors';
 import type { MovieItem } from '../extractors/movies/browse';
+import type { MovieRef } from '../extractors/movies/parse';
 
 type Props = {
   visible: boolean;
@@ -480,6 +483,9 @@ function ControlsOverlay({
   onInteract,
   media,
   loading,
+  subsOn,
+  canSubs,
+  onToggleSubs,
 }: {
   title: string;
   quality: string;
@@ -500,6 +506,9 @@ function ControlsOverlay({
   onToggle: () => void;
   onSeek: (fraction: number) => void;
   onInteract: () => void;
+  subsOn: boolean;
+  canSubs: boolean;
+  onToggleSubs: () => void;
 }) {
   return (
     <Animated.View
@@ -534,19 +543,33 @@ function ControlsOverlay({
             <Text style={tw`font-mono text-[11px] text-slate-200`}>
               {formatClock(position)} / {formatClock(duration)}
             </Text>
-            <Pressable
-              onPress={onFullscreen}
-              style={tw`rounded-full bg-black/60 p-2.5`}
-              accessibilityLabel={
-                fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
-              }
-            >
-              {fullscreen ? (
-                <Minimize size={20} color="#ffffff" />
-              ) : (
-                <Maximize size={20} color="#ffffff" />
-              )}
-            </Pressable>
+            <View style={tw`flex-row items-center gap-2`}>
+              <Pressable
+                onPress={onToggleSubs}
+                disabled={!canSubs}
+                style={tw`rounded-full bg-black/60 p-2.5 ${canSubs ? '' : 'opacity-40'}`}
+                accessibilityLabel={subsOn ? 'Turn subtitles off' : 'Turn subtitles on'}
+              >
+                <Captions
+                  size={20}
+                  color={subsOn ? '#22d3ee' : '#ffffff'}
+                  strokeWidth={subsOn ? 2.5 : 2}
+                />
+              </Pressable>
+              <Pressable
+                onPress={onFullscreen}
+                style={tw`rounded-full bg-black/60 p-2.5`}
+                accessibilityLabel={
+                  fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
+                }
+              >
+                {fullscreen ? (
+                  <Minimize size={20} color="#ffffff" />
+                ) : (
+                  <Maximize size={20} color="#ffffff" />
+                )}
+              </Pressable>
+            </View>
           </View>
           <SeekBar
             player={player}
@@ -627,6 +650,21 @@ function previewKey(item: MovieItem | null, currentId: string | null): string {
   return `${kind}/${id}/${currentId ?? 'none'}`;
 }
 
+function silenceNativeCaptions(player: VideoPlayer): void {
+  try {
+    player.subtitleTrack = null;
+  } catch {
+    /* builds without the subtitle api */
+  }
+}
+
+function subRefOf(item: MovieItem | null): MovieRef | null {
+  if (!item) return null;
+  return item.kind === 'tv'
+    ? { kind: 'tv', tmdbId: item.id, season: '1', episode: '1' }
+    : { kind: 'movie', tmdbId: item.id };
+}
+
 function seekMedia(
   info: VideoInfo | null,
   currentId: string | null
@@ -697,6 +735,9 @@ function VideoStage({
   media,
   loading,
   onZoneTap,
+  subsOn,
+  canSubs,
+  onToggleSubs,
 }: {
   player: VideoPlayer;
   phase: string;
@@ -725,6 +766,9 @@ function VideoStage({
   onSeek: (fraction: number) => void;
   onInteract: () => void;
   onZoneTap: (side: TapSide) => void;
+  subsOn: boolean;
+  canSubs: boolean;
+  onToggleSubs: () => void;
 }) {
   return (
     <>
@@ -775,6 +819,9 @@ function VideoStage({
           onToggle={onToggle}
           onSeek={onSeek}
           onInteract={onInteract}
+          subsOn={subsOn}
+          canSubs={canSubs}
+          onToggleSubs={onToggleSubs}
         />
       )}
       {flash && phase === 'ready' && (
@@ -791,6 +838,35 @@ function VideoStage({
       )}
       <SeekMark mark={seekMark} />
     </>
+  );
+}
+
+function captionBottom(landscape: boolean, controls: boolean): number {
+  if (!landscape) return 8;
+  return controls ? 80 : 24;
+}
+
+function CaptionLayer({
+  show,
+  line,
+  bottom,
+}: {
+  show: boolean;
+  line: string | null;
+  bottom: number;
+}) {
+  if (!show || !line) return null;
+  return (
+    <View
+      style={[tw`absolute inset-x-0 items-center px-8`, { bottom }]}
+      pointerEvents="none"
+    >
+      <Text
+        style={tw`rounded-lg bg-black/70 px-3 py-1.5 text-center font-sans text-[15px] leading-5 text-white`}
+      >
+        {line}
+      </Text>
+    </View>
   );
 }
 
@@ -840,6 +916,7 @@ export default function MoviePlayerScreen({
   } | null>(null);
   const [stalled, setStalled] = useState(false);
   const [seeking, setSeeking] = useState(false);
+  const [subsOn, setSubsOn] = useState(false);
   const seekTarget = useRef(0);
   const seekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -979,6 +1056,17 @@ export default function MoviePlayerScreen({
   const duration = player.duration || info?.duration || 0;
   const buffered = player.bufferedPosition || 0;
   const thumbMedia = seekMedia(info, currentId);
+  const subRef = useMemo(() => subRefOf(item), [item]);
+  const subs = useSubtitles(subRef, duration, subsOn);
+  useEffect(() => {
+    if (visible && subsOn && subs.tracks.length > 0) {
+      silenceNativeCaptions(player);
+    }
+  }, [visible, subsOn, subs.tracks.length, player, currentId, phase]);
+  const tickSubs = subs.tick;
+  useEffect(() => {
+    tickSubs(position);
+  }, [position, tickSubs]);
   live.current = { pos: position, buf: buffered, playing: isPlaying };
 
   useEffect(() => {
@@ -1080,10 +1168,22 @@ export default function MoviePlayerScreen({
                 seekTimer.current = setTimeout(() => setSeeking(false), 10000);
                 poke();
               }}
-              onInteract={poke}
-              onZoneTap={handleTap}
-            />
-            <StallSpinner show={stalled && phase === 'ready'} />
+            onInteract={poke}
+            onZoneTap={handleTap}
+            subsOn={subsOn}
+            canSubs={subs.tracks.length > 0}
+            onToggleSubs={() => {
+              tapSelection();
+              setSubsOn((on) => !on);
+              poke();
+            }}
+          />
+          <StallSpinner show={stalled && phase === 'ready'} />
+          <CaptionLayer
+            show={subsOn}
+            line={subs.line}
+            bottom={captionBottom(landscape, controls)}
+          />
           </View>
         </GestureDetector>
 

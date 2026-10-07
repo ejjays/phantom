@@ -3,7 +3,12 @@ import {
   parseHlsMaster,
   type Format,
 } from '@phantom/extractors';
-import { gatedFetch } from '../../lib/net';
+import { fetchWithTimeout } from '../../lib/net';
+
+// vidlove backends flap; never let one stall the title
+const FETCH_TIMEOUT_MS = 8000;
+import { log } from '../../lib/log';
+import { langOfLabel, type SubtitleTrack } from '../../lib/subtitles';
 import { DESKTOP_UA } from '../../lib/userAgents';
 import { VIDLOVE_API, VIDLOVE_ORIGIN, VIDLOVE_PLAYER } from './constants';
 import type { MovieRef } from './parse';
@@ -18,8 +23,11 @@ type VidloveSource = {
   qualities?: VidloveQuality[];
 };
 
+type VidloveSubtitle = { label?: string; file?: string };
+
 type VidloveApi = {
   source?: VidloveSource | null;
+  subtitles?: VidloveSubtitle[];
 };
 
 export function vidloveEmbedUrl(ref: MovieRef): string {
@@ -45,20 +53,27 @@ function apiUrls(ref: MovieRef): string[] {
   return [base, `${base}&sources=vidapi`, `${base}&sources=moviebox`];
 }
 
+async function fetchApi(
+  url: string,
+  headers: Record<string, string>
+): Promise<VidloveApi | null> {
+  try {
+    const res = await fetchWithTimeout(url, { headers }, FETCH_TIMEOUT_MS);
+    if (!res.ok) return null;
+    return (await res.json()) as VidloveApi;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchSource(
   url: string,
   headers: Record<string, string>
 ): Promise<VidloveSource | null> {
-  try {
-    const res = await gatedFetch(url, { headers });
-    if (!res.ok) return null;
-    const data = (await res.json()) as VidloveApi;
-    const source = data?.source;
-    if (!source || typeof source !== 'object' || !source.url) return null;
-    return source;
-  } catch {
-    return null;
-  }
+  const data = await fetchApi(url, headers);
+  const source = data?.source;
+  if (!source || typeof source !== 'object' || !source.url) return null;
+  return source;
 }
 
 function heightOf(label: string | undefined): number | undefined {
@@ -149,6 +164,42 @@ function manifestFormats(source: VidloveSource, durationSec: number): Format[] {
   return [...auto, ...variants];
 }
 
+// subtitle lists ride along with whichever backend answered, and only some of
+// them carry them — ask every server at once and merge what comes back
+export async function fetchVidloveSubtitles(
+  ref: MovieRef
+): Promise<SubtitleTrack[]> {
+  const headers = vidloveHeaders(ref);
+  const out: SubtitleTrack[] = [];
+  const seen = new Set<string>();
+  const collect = (responses: (VidloveApi | null)[]): void => {
+    for (const data of responses) {
+      for (const entry of data?.subtitles ?? []) {
+        const file = entry?.file;
+        if (!file || !/^https?:\/\//u.test(file) || seen.has(file)) continue;
+        const label = entry.label?.trim() || 'Unknown';
+        seen.add(file);
+        out.push({ label, lang: langOfLabel(label), url: file });
+      }
+    }
+  };
+  collect(
+    await Promise.all(apiUrls(ref).map((url) => fetchApi(url, headers)))
+  );
+  // subtitle lists flap between backends just like streams do: one retry
+  // before concluding the title genuinely has none
+  if (out.length === 0) {
+    await new Promise((done) => setTimeout(done, 1500));
+    collect(
+      await Promise.all(apiUrls(ref).map((url) => fetchApi(url, headers)))
+    );
+    if (out.length > 0) {
+      log('Movies', `vidlove retry found subtitles for ${ref.kind}/${ref.tmdbId}`);
+    }
+  }
+  return out;
+}
+
 export async function fetchVidloveFormats(
   ref: MovieRef,
   durationSec: number
@@ -156,22 +207,58 @@ export async function fetchVidloveFormats(
   const headers = vidloveHeaders(ref);
   const seen = new Set<string>();
   const formats: Format[] = [];
-  for (const url of apiUrls(ref)) {
-    const source = await fetchSource(url, headers);
-    if (!source) continue;
-    const candidates =
-      source.manifest?.includes('#EXTM3U') ?? false
-        ? manifestFormats(source, durationSec)
-        : qualityFormats(source);
-    for (const format of candidates) {
-      const key = `${format.height ?? format.formatId}|${format.url}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      formats.push(format);
+  // backends sign the same stream with different urls, so dedupe on the
+  // human label (auto/1080p/720p per source) instead of the url
+  const dedupeKey = (format: Format): string =>
+    `${format.formatId}|${format.height ?? ''}|${format.isHls ? 'hls' : 'file'}`;
+  // servers are uneven and partially redundant: a 480p moviebox hit must not
+  // hide a 1080p vidapi one, and every rung matters as a stall fallback.
+  // parallel fetch keeps the wall-clock cost of walking them all at one round.
+  const collect = (responses: (VidloveSource | null)[]): void => {
+    for (const source of responses) {
+      if (!source) continue;
+      const candidates =
+        source.manifest?.includes('#EXTM3U') ?? false
+          ? manifestFormats(source, durationSec)
+          : qualityFormats(source);
+      for (const format of candidates) {
+        const key = dedupeKey(format);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        formats.push(format);
+      }
     }
-    if (formats.length > 0) break;
+  };
+  collect(
+    await Promise.all(apiUrls(ref).map((url) => fetchSource(url, headers)))
+  );
+  // vidapi backends flap empty while moviebox answers: one retry so a cam
+  // mp4 is never the only option when a clean encode exists
+  if (
+    formats.length > 0 &&
+    formats.every((format) => format.formatId.includes('moviebox'))
+  ) {
+    await new Promise((done) => setTimeout(done, 1500));
+    collect(
+      await Promise.all(apiUrls(ref).map((url) => fetchSource(url, headers)))
+    );
+    if (formats.some((format) => !format.formatId.includes('moviebox'))) {
+      log('Movies', `vidlove retry found clean for ${ref.kind}/${ref.tmdbId}`);
+    }
   }
   if (formats.length === 0) return null;
-  formats.sort((lhs, rhs) => (rhs.height ?? 0) - (lhs.height ?? 0));
+  // moviebox mp4s proved untrustworthy (cams, and once a different film
+  // behind the id), so they rank below every vidapi rung: clean encodes
+  // first, adaptive auto at the very top, moviebox only as last resort
+  const rank = (format: Format): number =>
+    format.formatId.includes('moviebox') ? 0 : 1;
+  const autoRank = (format: Format): number =>
+    format.formatId.endsWith('-auto') ? 1 : 0;
+  formats.sort(
+    (lhs, rhs) =>
+      autoRank(rhs) - autoRank(lhs) ||
+      rank(rhs) - rank(lhs) ||
+      (rhs.height ?? 0) - (lhs.height ?? 0)
+  );
   return { formats, headers };
 }
