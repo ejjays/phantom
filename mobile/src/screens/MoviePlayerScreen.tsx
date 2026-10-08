@@ -14,7 +14,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { VideoView, type VideoPlayer } from 'expo-video';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import {
@@ -36,7 +35,7 @@ import {
   Plus,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
-import { Play3Icon } from '../components/icons';
+import { Play3Icon, CcOutlineIcon, CcFilledIcon } from '../components/icons';
 import { useBackHandler } from '../lib/back';
 import { useMoviePlayer } from '../hooks/useMoviePlayer';
 import { useFullscreenLock } from '../hooks/useFullscreenLock';
@@ -168,6 +167,9 @@ function PlayerTopBar({
   onBack,
   onQuality,
   top,
+  subsOn,
+  canSubs,
+  onToggleSubs,
 }: {
   title: string;
   quality: string;
@@ -177,20 +179,18 @@ function PlayerTopBar({
   onQuality: () => void;
   onFullscreen: () => void;
   top: number;
+  subsOn: boolean;
+  canSubs: boolean;
+  onToggleSubs: () => void;
 }) {
   return (
     <View>
-      <LinearGradient
-        colors={['rgba(0,0,0,0.65)', 'rgba(0,0,0,0)']}
-        style={[tw`absolute inset-x-0 top-0 h-24`, { paddingTop: top }]}
-        pointerEvents="none"
-      />
       <View
         style={[tw`flex-row items-center gap-3 px-4`, { paddingTop: top + 8 }]}
       >
         <Pressable
           onPress={onBack}
-          style={tw`rounded-full bg-black/60 p-2.5`}
+          style={tw`p-2.5`}
           accessibilityLabel="Close player"
         >
           <ArrowLeft size={22} color="#ffffff" />
@@ -208,10 +208,22 @@ function PlayerTopBar({
             </Text>
           )}
         </View>
+        <Pressable
+          onPress={onToggleSubs}
+          disabled={!canSubs}
+          style={tw`p-2.5 ${canSubs ? '' : 'opacity-40'}`}
+          accessibilityLabel={subsOn ? 'Turn subtitles off' : 'Turn subtitles on'}
+        >
+          {subsOn ? (
+            <CcFilledIcon size={20} color="#ffffff" />
+          ) : (
+            <CcOutlineIcon size={20} color="#ffffff" />
+          )}
+        </Pressable>
         {canQuality && (
           <Pressable
             onPress={onQuality}
-            style={tw`rounded-full bg-black/60 p-2.5`}
+            style={tw`p-2.5`}
             accessibilityLabel="Playback quality"
           >
             <Settings size={20} color="#ffffff" />
@@ -807,6 +819,7 @@ function ControlsOverlay({
       style={tw`absolute inset-0`}
       pointerEvents="box-none"
     >
+      <View style={tw`absolute inset-0 bg-black/40`} pointerEvents="none" />
       <PlayerTopBar
         title={title}
         quality={quality}
@@ -816,6 +829,9 @@ function ControlsOverlay({
         onBack={onBack}
         onQuality={onQuality}
         onFullscreen={onFullscreen}
+        subsOn={subsOn}
+        canSubs={canSubs}
+        onToggleSubs={onToggleSubs}
       />
       <CenterButton
         isPlaying={isPlaying}
@@ -823,11 +839,6 @@ function ControlsOverlay({
         onToggle={onToggle}
       />
       <View style={tw`absolute inset-x-0 bottom-0`}>
-        <LinearGradient
-          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.65)']}
-          style={tw`absolute inset-x-0 bottom-0 h-20`}
-          pointerEvents="none"
-        />
         <View style={tw`px-4 pb-2`}>
           <View style={tw`mb-1 flex-row items-center justify-between`}>
             <Text style={tw`font-mono text-[11px] text-slate-200`}>
@@ -835,20 +846,8 @@ function ControlsOverlay({
             </Text>
             <View style={tw`flex-row items-center gap-2`}>
               <Pressable
-                onPress={onToggleSubs}
-                disabled={!canSubs}
-                style={tw`rounded-full bg-black/60 p-2.5 ${canSubs ? '' : 'opacity-40'}`}
-                accessibilityLabel={subsOn ? 'Turn subtitles off' : 'Turn subtitles on'}
-              >
-                <Captions
-                  size={20}
-                  color={subsOn ? '#22d3ee' : '#ffffff'}
-                  strokeWidth={subsOn ? 2.5 : 2}
-                />
-              </Pressable>
-              <Pressable
                 onPress={onFullscreen}
-                style={tw`rounded-full bg-black/60 p-2.5`}
+                style={tw`p-2.5`}
                 accessibilityLabel={
                   fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
                 }
