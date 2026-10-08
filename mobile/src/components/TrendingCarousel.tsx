@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -42,7 +42,7 @@ function MetaLine({ item }: { item: MovieItem }) {
   );
 }
 
-function TrendingSlide({
+const TrendingSlide = memo(function TrendingSlide({
   item,
   pageW,
   bannerH,
@@ -143,7 +143,7 @@ function TrendingSlide({
       </View>
     </View>
   );
-}
+});
 
 function TrendingDot({
   index,
@@ -179,10 +179,12 @@ function TrendingDot({
 
 export default function TrendingCarousel({
   items,
+  paused,
   onOpen,
   onPlay,
 }: {
   items: MovieItem[];
+  paused?: boolean;
   onOpen: (item: MovieItem) => void;
   onPlay: (item: MovieItem) => void;
 }) {
@@ -204,12 +206,12 @@ export default function TrendingCarousel({
   );
 
   useEffect(() => {
-    if (total < 2) return undefined;
+    if (paused || total < 2) return undefined;
     const timer = setTimeout(() => {
       listRef.current?.scrollToIndex({ index: rawRef.current + 1, animated: true });
     }, 4500);
     return () => clearTimeout(timer);
-  }, [raw, total, trio]);
+  }, [raw, total, trio, paused]);
 
   const normalize = useCallback(
     (value: number) => {

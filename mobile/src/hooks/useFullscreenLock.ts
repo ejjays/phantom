@@ -4,47 +4,48 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { setStatusBarHidden } from 'expo-status-bar';
 import { log, error as logError } from '../lib/log';
 
-async function setImmersive(hidden: boolean): Promise<void> {
-  setStatusBarHidden(hidden, 'fade');
-  await NavigationBar.setVisibilityAsync(hidden ? 'hidden' : 'visible');
-}
-
 export function useFullscreenLock() {
   const [fullscreen, setFullscreen] = useState(false);
 
-  const enter = useCallback(async () => {
-    try {
-      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-      await setImmersive(true);
-      setFullscreen(true);
-      log('Player', 'fullscreen on');
-    } catch (err) {
+  const enter = useCallback(() => {
+    setFullscreen(true);
+    log('Player', 'fullscreen on');
+    setStatusBarHidden(true, 'fade');
+    void ScreenOrientation.lockAsync(
+      ScreenOrientation.OrientationLock.LANDSCAPE
+    ).catch((err: unknown) => {
       logError(
         'Player',
         `fullscreen lock failed: ${err instanceof Error ? err.message : String(err)}`
       );
-    }
+    });
+    void NavigationBar.setVisibilityAsync('hidden').catch(() => undefined);
   }, []);
 
-  const exit = useCallback(async () => {
-    try {
-      await ScreenOrientation.unlockAsync();
-      await setImmersive(false);
-    } catch (err) {
-      logError(
-        'Player',
-        `fullscreen unlock failed: ${err instanceof Error ? err.message : String(err)}`
-      );
-    } finally {
-      setFullscreen(false);
-      log('Player', 'fullscreen off');
-    }
+  const exit = useCallback(() => {
+    setFullscreen(false);
+    log('Player', 'fullscreen off');
+    setStatusBarHidden(false, 'fade');
+    void ScreenOrientation.lockAsync(
+      ScreenOrientation.OrientationLock.PORTRAIT_UP
+    )
+      .catch((err: unknown) => {
+        logError(
+          'Player',
+          `fullscreen unlock failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+      })
+      .finally(() => {
+        void ScreenOrientation.unlockAsync().catch(() => undefined);
+      });
+    void NavigationBar.setVisibilityAsync('visible').catch(() => undefined);
   }, []);
 
   useEffect(
     () => () => {
       void ScreenOrientation.unlockAsync().catch(() => undefined);
-      void setImmersive(false).catch(() => undefined);
+      setStatusBarHidden(false, 'fade');
+      void NavigationBar.setVisibilityAsync('visible').catch(() => undefined);
     },
     []
   );

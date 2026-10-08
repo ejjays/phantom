@@ -70,7 +70,7 @@ const RAIL_DEFS = [
 
 const EXPLORE_CAP = 10;
 
-function PosterCard({
+const PosterCard = memo(function PosterCard({
   item,
   width,
   height,
@@ -140,7 +140,7 @@ function PosterCard({
       </Animated.View>
     </Pressable>
   );
-}
+});
 
 function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
   const insets = useSafeAreaInsets();
@@ -378,6 +378,11 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
 
   const closePlayer = useCallback(() => {
     setPlaying(false);
+  }, []);
+
+  const playItem = useCallback((item: MovieItem) => {
+    setPlayerItem(item);
+    setPlaying(true);
   }, []);
 
   const onQuery = (text: string) => {
@@ -626,11 +631,9 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
               </Text>
               <TrendingCarousel
                 items={trending}
+                paused={detailOpen || playing || !visible}
                 onOpen={openDetail}
-                onPlay={(item) => {
-                  setPlayerItem(item);
-                  setPlaying(true);
-                }}
+                onPlay={playItem}
               />
             </View>
           )}

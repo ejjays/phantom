@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
+  StatusBar,
   Animated as RNAnimated,
   useWindowDimensions,
 } from 'react-native';
@@ -309,7 +310,10 @@ function QualityMenu({
         </Pressable>
         <RNAnimated.View style={{ transform: [{ translateY: sheetY }] }}>
           <View
-            style={tw`rounded-t-[32px] border-t border-white/10 bg-[#1E1E1E] px-4 pb-8 pt-3`}
+            style={[
+              tw`rounded-t-[32px] border-t border-white/10 bg-[#1E1E1E] px-4 pb-8 pt-3`,
+              { alignSelf: 'center', width: '100%', maxWidth: 480 },
+            ]}
           >
             <View style={tw`mx-auto mb-3 h-1 w-10 rounded-full bg-white/15`} />
             <Text
@@ -846,6 +850,10 @@ function captionBottom(landscape: boolean, controls: boolean): number {
   return controls ? 80 : 24;
 }
 
+function portraitTopPad(top: number): number {
+  return Math.max(top, StatusBar.currentHeight ?? 0);
+}
+
 function CaptionLayer({
   show,
   line,
@@ -893,7 +901,6 @@ export default function MoviePlayerScreen({
 }: Props) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
-  const landscape = width > height;
   const {
     player,
     phase,
@@ -1108,7 +1115,9 @@ export default function MoviePlayerScreen({
     }, 500);
     return () => clearInterval(timer);
   }, [visible]);
-  const videoH = landscape ? height : (width * 9) / 16;
+  const expanded = fullscreen;
+  const portraitH = (Math.min(width, height) * 9) / 16;
+  const portraitTop = portraitTopPad(insets.top);
 
   return (
     <View
@@ -1119,11 +1128,11 @@ export default function MoviePlayerScreen({
     >
       <View
         style={
-          landscape ? tw`flex-1` : [tw`flex-1`, { paddingTop: insets.top }]
+          expanded ? tw`flex-1` : [tw`flex-1`, { paddingTop: portraitTop }]
         }
       >
         <GestureDetector gesture={brightGesture}>
-          <View style={{ height: videoH }}>
+          <View style={expanded ? tw`flex-1` : { height: portraitH }}>
             <VideoStage
               player={player}
               phase={phase}
@@ -1146,7 +1155,7 @@ export default function MoviePlayerScreen({
               loading={seeking}
               cacheKey={previewKey(item, currentId)}
               media={thumbMedia}
-              top={landscape ? insets.top : 0}
+              top={expanded ? insets.top : 0}
               onOpen={() => {
                 if (item) void open(item.kind, item.id);
               }}
@@ -1182,12 +1191,12 @@ export default function MoviePlayerScreen({
           <CaptionLayer
             show={subsOn}
             line={subs.line}
-            bottom={captionBottom(landscape, controls)}
+            bottom={captionBottom(expanded, controls)}
           />
           </View>
         </GestureDetector>
 
-        {!landscape && (
+        <View style={expanded ? { display: 'none' } : tw`flex-1`}>
           <PortraitPanel
             info={info}
             item={item}
@@ -1200,7 +1209,7 @@ export default function MoviePlayerScreen({
             onSelect={onSelect}
             downloading={downloading}
           />
-        )}
+        </View>
       </View>
 
       <QualityMenu
