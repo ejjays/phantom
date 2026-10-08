@@ -21,6 +21,8 @@ export function useMoviePlayer() {
   const [info, setInfo] = useState<VideoInfo | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [fault, setFault] = useState<string | null>(null);
+  const [rate, setRateState] = useState(1);
+  const rateRef = useRef(1);
   const target = useRef<TitleRef | null>(null);
   const retried = useRef(false);
   const sameRetried = useRef(false);
@@ -56,6 +58,18 @@ export function useMoviePlayer() {
       }
       if (typeof at === 'number' && at > 1) player.currentTime = at;
       player.play();
+      player.playbackRate = rateRef.current;
+    },
+    [player]
+  );
+
+  const setRate = useCallback(
+    (next: number) => {
+      const clamped = Math.min(2, Math.max(0.25, next));
+      rateRef.current = clamped;
+      setRateState(clamped);
+      player.playbackRate = clamped;
+      log('Player', `rate ${clamped}x at ${Math.round(player.currentTime)}s`);
     },
     [player]
   );
@@ -71,6 +85,8 @@ export function useMoviePlayer() {
       setFault(null);
       setInfo(null);
       setCurrentId(null);
+      rateRef.current = 1;
+      setRateState(1);
       const started = Date.now();
       log('Player', `open ${kind}/${id}`);
       try {
@@ -191,6 +207,8 @@ export function useMoviePlayer() {
     info,
     currentId,
     fault,
+    rate,
+    setRate,
     isPlaying: playingEvent?.isPlaying ?? false,
     position: timeEvent?.currentTime ?? 0,
     open,

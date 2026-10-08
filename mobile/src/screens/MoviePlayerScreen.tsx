@@ -31,6 +31,9 @@ import {
   Captions,
   SlidersHorizontal,
   ChevronRight,
+  Gauge,
+  Minus,
+  Plus,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { Play3Icon } from '../components/icons';
@@ -249,16 +252,89 @@ function CenterButton({
   );
 }
 
-function MenuBack({ title, onBack }: { title: string; onBack: () => void }) {
+function formatRate(rate: number): string {
+  return `${rate.toFixed(2).replace(/0$/, '')}x`;
+}
+
+const SPEED_MIN = 0.25;
+const SPEED_MAX = 2;
+
+function SpeedSlider({
+  value,
+  onScrub,
+  onCommit,
+}: {
+  value: number;
+  onScrub: (rate: number) => void;
+  onCommit: (rate: number) => void;
+}) {
+  const trackW = useRef(0);
+  const scrubVal = useRef<number | null>(null);
+  const frac =
+    (Math.min(SPEED_MAX, Math.max(SPEED_MIN, value)) - SPEED_MIN) /
+    (SPEED_MAX - SPEED_MIN);
+  const pan = Gesture.Pan()
+    .runOnJS(true)
+    .onUpdate((event) => {
+      if (trackW.current <= 0) return;
+      const at = Math.max(0, Math.min(1, event.x / trackW.current));
+      const next = Math.round((SPEED_MIN + at * (SPEED_MAX - SPEED_MIN)) * 20) / 20;
+      scrubVal.current = next;
+      onScrub(next);
+    })
+    .onEnd(() => {
+      const done = scrubVal.current;
+      scrubVal.current = null;
+      if (done !== null) onCommit(done);
+    });
   return (
-    <Pressable
-      onPress={onBack}
-      style={tw`flex-row items-center gap-2 px-3 py-3`}
-      accessibilityLabel="Back to settings"
-    >
-      <ArrowLeft size={18} color="#ffffff" />
-      <Text style={tw`font-sans-bold text-[15px] text-white`}>{title}</Text>
-    </Pressable>
+    <GestureDetector gesture={pan}>
+      <View
+        onLayout={(event) => {
+          trackW.current = event.nativeEvent.layout.width;
+        }}
+        style={tw`h-8 flex-1 justify-center`}
+      >
+        <View style={tw`h-1 overflow-hidden rounded-full bg-white/25`}>
+          <View
+            style={[
+              tw`absolute inset-y-0 left-0 bg-white`,
+              { width: `${frac * 100}%` },
+            ]}
+          />
+        </View>
+        <View
+          style={[
+            tw`absolute h-4 w-4 rounded-full bg-white`,
+            { left: `${frac * 100}%`, marginLeft: -8, top: 8 },
+          ]}
+        />
+      </View>
+    </GestureDetector>
+  );
+}
+
+function MenuBack({
+  title,
+  onBack,
+  right,
+}: {
+  title: string;
+  onBack: () => void;
+  right?: ReactNode;
+}) {
+  return (
+    <View style={tw`flex-row items-center`}>
+      <Pressable
+        onPress={onBack}
+        style={tw`flex-1 flex-row items-center gap-2 px-3 py-3`}
+        accessibilityLabel="Back to settings"
+      >
+        <ArrowLeft size={18} color="#ffffff" />
+        <Text style={tw`font-sans-bold text-[15px] text-white`}>{title}</Text>
+      </Pressable>
+      {right !== undefined && <View style={tw`pr-3`}>{right}</View>}
+    </View>
   );
 }
 
@@ -301,8 +377,10 @@ function QualityMenu({
   subsOn,
   subsLabel,
   subTracks,
+  rate,
   onPick,
   onPickSub,
+  onPickRate,
   onClose,
 }: {
   open: boolean;
@@ -311,18 +389,23 @@ function QualityMenu({
   subsOn: boolean;
   subsLabel: string | null;
   subTracks: SubtitleTrack[];
+  rate: number;
   onPick: (format: Format) => void;
   onPickSub: (track: SubtitleTrack | null) => void;
+  onPickRate: (rate: number) => void;
   onClose: () => void;
 }) {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const [view, setView] = useState<'main' | 'quality' | 'subs'>('main');
+  const [view, setView] = useState<'main' | 'quality' | 'subs' | 'speed'>('main');
+  const [preview, setPreview] = useState<number | null>(null);
   const current = formats.find((format) => format.formatId === currentId);
   const qualityLabel = current ? formatLabel(current) : '';
   const activeSubLabel = subsOn
     ? (subsLabel ?? pickTrack(subTracks, 'en')?.label ?? subTracks[0]?.label ?? null)
     : null;
+  const speedNormal = Math.abs(rate - 1) < 0.001;
+  const shownRate = preview ?? rate;
   const sheetY = useRef(new RNAnimated.Value(height)).current;
   const bgOpacity = useRef(new RNAnimated.Value(0)).current;
   useEffect(() => {
@@ -361,6 +444,7 @@ function QualityMenu({
       }),
     ]).start(() => {
       setView('main');
+      setPreview(null);
       onClose();
     });
   }, [bgOpacity, height, onClose, sheetY]);
@@ -408,6 +492,15 @@ function QualityMenu({
                     setView('subs');
                   }}
                 />
+                <MenuRow
+                  icon={<Gauge size={20} color="#ffffff" />}
+                  label="Playback speed"
+                  value={formatRate(rate)}
+                  onPress={() => {
+                    tapSelection();
+                    setView('speed');
+                  }}
+                />
               </>
             ) : view === 'quality' ? (
               <>
@@ -434,7 +527,7 @@ function QualityMenu({
                   );
                 })}
               </>
-            ) : (
+            ) : view === 'subs' ? (
               <>
                 <MenuBack title="Subtitles" onBack={() => setView('main')} />
                 <Pressable
@@ -473,6 +566,64 @@ function QualityMenu({
                     </Pressable>
                   );
                 })}
+              </>
+            ) : (
+              <>
+                <MenuBack
+                  title="Playback speed"
+                  onBack={() => {
+                    setPreview(null);
+                    setView('main');
+                  }}
+                  right={
+                    <Pressable
+                      onPress={() => {
+                        tapSelection();
+                        onPickRate(1);
+                      }}
+                      disabled={speedNormal}
+                      style={tw`${speedNormal ? 'opacity-30' : ''}`}
+                      accessibilityLabel="Reset speed to normal"
+                    >
+                      <RotateCcw size={18} color="#ffffff" />
+                    </Pressable>
+                  }
+                />
+                <Text
+                  style={tw`text-center font-sans-bold text-[22px] text-white`}
+                >
+                  {formatRate(shownRate)}
+                </Text>
+                <View style={tw`flex-row items-center gap-3 px-1 py-1`}>
+                  <Pressable
+                    onPress={() => {
+                      tapSelection();
+                      onPickRate(rate - 0.25);
+                    }}
+                    style={tw`h-11 w-11 items-center justify-center rounded-full bg-white/10`}
+                    accessibilityLabel="Slower"
+                  >
+                    <Minus size={20} color="#ffffff" />
+                  </Pressable>
+                  <SpeedSlider
+                    value={shownRate}
+                    onScrub={setPreview}
+                    onCommit={(done) => {
+                      setPreview(null);
+                      onPickRate(done);
+                    }}
+                  />
+                  <Pressable
+                    onPress={() => {
+                      tapSelection();
+                      onPickRate(rate + 0.25);
+                    }}
+                    style={tw`h-11 w-11 items-center justify-center rounded-full bg-white/10`}
+                    accessibilityLabel="Faster"
+                  >
+                    <Plus size={20} color="#ffffff" />
+                  </Pressable>
+                </View>
               </>
             )}
             </View>
@@ -1041,6 +1192,8 @@ export default function MoviePlayerScreen({
     info,
     currentId,
     fault,
+    rate,
+    setRate,
     isPlaying,
     position,
     open,
@@ -1363,8 +1516,10 @@ export default function MoviePlayerScreen({
         subsOn={subsOn}
         subsLabel={subs.label}
         subTracks={subs.tracks}
+        rate={rate}
         onPick={(format) => void switchQuality(format)}
         onPickSub={pickSub}
+        onPickRate={setRate}
         onClose={() => setQualityOpen(false)}
       />
     </View>
