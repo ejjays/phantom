@@ -23,11 +23,11 @@ import { useBackHandler } from '../lib/back';
 import { usePressScale } from '../hooks/usePressScale';
 import ufo from '../../assets/UFO.json';
 import searchAnim from '../../assets/Popcorn.json';
+import phantomPirateLogo from '../../assets/phantom-pirate.png';
 import {
   MoviesSearchCircleIcon,
   MoviesBackCircleIcon,
   MoviesFilterIcon,
-  PhantomIcon,
   Play3Icon,
 } from '../components/icons';
 import TrendingCarousel from '../components/TrendingCarousel';
@@ -162,6 +162,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
   const [exploreMore, setExploreMore] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [recents, setRecents] = useState<MovieItem[]>([]);
+  const [requestedAt, setRequestedAt] = useState(0);
   const searchRef = useRef<TextInput>(null);
   const booted = useRef(false);
   const seq = useRef(0);
@@ -381,6 +382,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
   }, []);
 
   const playItem = useCallback((item: MovieItem) => {
+    setRequestedAt(Date.now());
     setPlayerItem(item);
     setPlaying(true);
   }, []);
@@ -389,6 +391,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
     (season: string, episode: string) => {
       if (!selected) return;
       tapSelection();
+      setRequestedAt(Date.now());
       setPlayerItem({ ...selected, season, episode });
       setPlaying(true);
     },
@@ -471,7 +474,11 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
         ) : (
           <View style={tw`flex-row items-center justify-between py-2`}>
             <View style={tw`flex-row items-center gap-2`}>
-              <PhantomIcon size={26} color="#FFFFFF" />
+              <Image
+                source={phantomPirateLogo}
+                style={{ width: 26, height: 26, borderRadius: 6 }}
+                contentFit="cover"
+              />
               <Text style={tw`font-sans-semibold text-[24px] text-white`}>Watch</Text>
             </View>
             <View style={tw`flex-row gap-3`}>
@@ -723,6 +730,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
         item={selected}
         onClose={closeDetail}
         onPlay={() => {
+          setRequestedAt(Date.now());
           setPlayerItem(selected);
           setPlaying(true);
         }}
@@ -732,7 +740,11 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
         visible={playing}
         item={playerItem}
         upNext={trending}
-        onSelect={setPlayerItem}
+        requestedAt={requestedAt}
+        onSelect={(entry) => {
+          setRequestedAt(Date.now());
+          setPlayerItem(entry);
+        }}
         onClose={closePlayer}
       />
     </View>

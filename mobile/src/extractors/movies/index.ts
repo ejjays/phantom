@@ -15,6 +15,7 @@ import {
 } from './vidrock';
 import { fetchVidloveFormats } from './vidlove';
 import { fetchVidzeeFormats } from './vidzee';
+import { fetchParadiseFormats } from './animeparadise';
 
 export { parseMovieUrl } from './parse';
 export { decryptVidrockPayload } from './aesgcm';
@@ -89,6 +90,17 @@ export async function getInfo(
         log(
           'Movies',
           `vidzee browser for ${ref.kind}/${ref.tmdbId} formats=${formats.length}`
+        );
+      }
+    }
+    if (formats.length === 0) {
+      const para = await fetchParadiseFormats(ref, title).catch(() => null);
+      if (para && para.formats.length > 0) {
+        formats = para.formats;
+        headers = para.headers;
+        log(
+          'Movies',
+          `paradise for ${ref.kind}/${ref.tmdbId} formats=${formats.length}`
         );
       }
     }

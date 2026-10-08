@@ -57,6 +57,7 @@ type Props = {
   visible: boolean;
   item: MovieItem | null;
   upNext: MovieItem[];
+  requestedAt: number;
   onSelect: (item: MovieItem) => void;
   onClose: () => void;
 };
@@ -933,6 +934,36 @@ type TapSide = 'left' | 'center' | 'right';
 
 const TAP_SIDES: TapSide[] = ['left', 'center', 'right'];
 
+function useTapToPlay(
+  visible: boolean,
+  isPlaying: boolean,
+  requestedAt: number,
+  itemKey: string
+): void {
+  const state = useRef({ key: '', logged: false });
+  useEffect(() => {
+    const key = `${visible}-${itemKey}`;
+    if (key !== state.current.key) {
+      state.current = { key, logged: false };
+    }
+    if (visible && isPlaying && requestedAt > 0 && !state.current.logged) {
+      state.current.logged = true;
+      log(
+        'Player',
+        `tap to playing ${((Date.now() - requestedAt) / 1000).toFixed(1)}s (${itemKey})`
+      );
+    }
+  }, [visible, isPlaying, requestedAt, itemKey]);
+}
+
+function itemKeyOf(item: MovieItem | null): string {
+  const kind = item?.kind ?? 'movie';
+  const id = item?.id ?? 'none';
+  const season = item?.season ?? '1';
+  const episode = item?.episode ?? '1';
+  return `${kind}/${id}/${season}/${episode}`;
+}
+
 function previewKey(item: MovieItem | null, currentId: string | null): string {
   const kind = item?.kind ?? 'movie';
   const id = item?.id ?? 'none';
@@ -1182,11 +1213,13 @@ export default function MoviePlayerScreen({
   visible,
   item,
   upNext,
+  requestedAt,
   onSelect,
   onClose,
 }: Props) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
+  const itemKey = itemKeyOf(item);
   const {
     player,
     phase,
@@ -1201,6 +1234,7 @@ export default function MoviePlayerScreen({
     close,
     switchQuality,
   } = useMoviePlayer();
+  useTapToPlay(visible, isPlaying, requestedAt, itemKey);
   const { downloads, startDownload } = useDownload(info);
   const [controls, setControls] = useState(true);
   const [qualityOpen, setQualityOpen] = useState(false);
