@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   View,
   Text,
   Pressable,
   ActivityIndicator,
-  Modal,
   ScrollView,
   StatusBar,
   Animated as RNAnimated,
+  Easing,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +29,8 @@ import {
   Maximize,
   Minimize,
   Captions,
+  SlidersHorizontal,
+  ChevronRight,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { Play3Icon } from '../components/icons';
@@ -39,6 +42,7 @@ import { useSeekPreview, type SeekMedia } from '../hooks/useSeekPreview';
 import { useSubtitles } from '../hooks/useSubtitles';
 import { useDownload } from '../hooks/useDownload';
 import { formatLabel, formatClock, formatSize } from '../lib/format';
+import { pickTrack, type SubtitleTrack } from '../lib/subtitles';
 import { tapImpact, tapSelection } from '../lib/haptics';
 import { usePressScale } from '../hooks/usePressScale';
 import { log } from '../lib/log';
@@ -245,23 +249,82 @@ function CenterButton({
   );
 }
 
+function MenuBack({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <Pressable
+      onPress={onBack}
+      style={tw`flex-row items-center gap-2 px-3 py-3`}
+      accessibilityLabel="Back to settings"
+    >
+      <ArrowLeft size={18} color="#ffffff" />
+      <Text style={tw`font-sans-bold text-[15px] text-white`}>{title}</Text>
+    </Pressable>
+  );
+}
+
+function MenuRow({
+  icon,
+  label,
+  value,
+  disabled,
+  onPress,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={tw`flex-row items-center gap-3 px-3 py-3 ${disabled ? 'opacity-40' : ''}`}
+      accessibilityLabel={label}
+    >
+      {icon}
+      <Text style={tw`flex-1 font-sans-medium text-[15px] text-white`}>
+        {label}
+      </Text>
+      {value !== '' && (
+        <Text style={tw`font-mono text-[13px] text-slate-400`}>{value}</Text>
+      )}
+      <ChevronRight size={18} color="#94a3b8" />
+    </Pressable>
+  );
+}
+
 function QualityMenu({
   open,
   formats,
   currentId,
+  subsOn,
+  subsLabel,
+  subTracks,
   onPick,
+  onPickSub,
   onClose,
 }: {
   open: boolean;
   formats: Format[];
   currentId: string | null;
+  subsOn: boolean;
+  subsLabel: string | null;
+  subTracks: SubtitleTrack[];
   onPick: (format: Format) => void;
+  onPickSub: (track: SubtitleTrack | null) => void;
   onClose: () => void;
 }) {
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const [view, setView] = useState<'main' | 'quality' | 'subs'>('main');
+  const current = formats.find((format) => format.formatId === currentId);
+  const qualityLabel = current ? formatLabel(current) : '';
+  const activeSubLabel = subsOn
+    ? (subsLabel ?? pickTrack(subTracks, 'en')?.label ?? subTracks[0]?.label ?? null)
+    : null;
   const sheetY = useRef(new RNAnimated.Value(height)).current;
   const bgOpacity = useRef(new RNAnimated.Value(0)).current;
-
   useEffect(() => {
     if (!open) return;
     sheetY.setValue(height);
@@ -269,12 +332,14 @@ function QualityMenu({
     RNAnimated.parallel([
       RNAnimated.timing(sheetY, {
         toValue: 0,
-        duration: 220,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
       RNAnimated.timing(bgOpacity, {
         toValue: 1,
-        duration: 200,
+        duration: 250,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
@@ -284,68 +349,137 @@ function QualityMenu({
     RNAnimated.parallel([
       RNAnimated.timing(sheetY, {
         toValue: height,
-        duration: 180,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
       RNAnimated.timing(bgOpacity, {
         toValue: 0,
-        duration: 150,
+        duration: 200,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-    ]).start(() => onClose());
+    ]).start(() => {
+      setView('main');
+      onClose();
+    });
   }, [bgOpacity, height, onClose, sheetY]);
 
   return (
-    <Modal
-      transparent
-      visible={open}
-      animationType="none"
-      onRequestClose={closeSheet}
-    >
-      <View style={tw`flex-1 justify-end`}>
+    <View pointerEvents={open ? 'auto' : 'none'} style={tw`absolute inset-0`}>
+      <View
+        style={[tw`flex-1 justify-end px-4`, { paddingBottom: 20 + insets.bottom }]}
+      >
         <Pressable style={tw`absolute inset-0`} onPress={closeSheet}>
           <RNAnimated.View
             style={[tw`flex-1 bg-black/60`, { opacity: bgOpacity }]}
           />
         </Pressable>
-        <RNAnimated.View style={{ transform: [{ translateY: sheetY }] }}>
-          <View
+        <RNAnimated.View
+          pointerEvents="box-none"
+          style={[tw`justify-end`, { transform: [{ translateY: sheetY }] }]}
+        >
+          <Animated.View
             style={[
-              tw`rounded-t-[32px] border-t border-white/10 bg-[#1E1E1E] px-4 pb-8 pt-3`,
+              tw`justify-end overflow-hidden rounded-[28px] bg-[#1E1E1E]`,
               { alignSelf: 'center', width: '100%', maxWidth: 480 },
             ]}
           >
+            <View style={tw`px-4 pb-4 pt-3`}>
             <View style={tw`mx-auto mb-3 h-1 w-10 rounded-full bg-white/15`} />
-            <Text
-              style={tw`mb-2 text-center font-sans-bold text-[15px] text-white`}
-            >
-              Quality
-            </Text>
-            {formats.map((format) => {
-              const active = format.formatId === currentId;
-              return (
-                <Pressable
-                  key={format.formatId}
+            {view === 'main' ? (
+              <>
+                <MenuRow
+                  icon={<SlidersHorizontal size={20} color="#ffffff" />}
+                  label="Quality"
+                  value={qualityLabel}
                   onPress={() => {
                     tapSelection();
-                    onPick(format);
+                    setView('quality');
+                  }}
+                />
+                <MenuRow
+                  icon={<Captions size={20} color="#ffffff" />}
+                  label="Subtitles"
+                  value={subsOn ? (activeSubLabel ?? 'On') : 'Off'}
+                  disabled={subTracks.length === 0}
+                  onPress={() => {
+                    tapSelection();
+                    setView('subs');
+                  }}
+                />
+              </>
+            ) : view === 'quality' ? (
+              <>
+                <MenuBack title="Quality" onBack={() => setView('main')} />
+                {formats.map((format) => {
+                  const active = format.formatId === currentId;
+                  return (
+                    <Pressable
+                      key={format.formatId}
+                      onPress={() => {
+                        tapSelection();
+                        onPick(format);
+                        closeSheet();
+                      }}
+                      style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                    >
+                      <Text
+                        style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
+                      >
+                        {formatLabel(format)}
+                      </Text>
+                      {active && <Check size={18} color="#22d3ee" />}
+                    </Pressable>
+                  );
+                })}
+              </>
+            ) : (
+              <>
+                <MenuBack title="Subtitles" onBack={() => setView('main')} />
+                <Pressable
+                  onPress={() => {
+                    tapSelection();
+                    onPickSub(null);
                     closeSheet();
                   }}
-                  style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                  style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${!subsOn ? 'bg-white/10' : ''}`}
                 >
                   <Text
-                    style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
+                    style={tw`font-mono-semibold text-[14px] ${!subsOn ? 'text-white' : 'text-slate-300'}`}
                   >
-                    {formatLabel(format)}
+                    Off
                   </Text>
-                  {active && <Check size={18} color="#22d3ee" />}
+                  {!subsOn && <Check size={18} color="#22d3ee" />}
                 </Pressable>
-              );
-            })}
-          </View>
+                {subTracks.map((track) => {
+                  const active = subsOn && track.label === activeSubLabel;
+                  return (
+                    <Pressable
+                      key={track.url}
+                      onPress={() => {
+                        tapSelection();
+                        onPickSub(track);
+                        closeSheet();
+                      }}
+                      style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                    >
+                      <Text
+                        style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
+                      >
+                        {track.label}
+                      </Text>
+                      {active && <Check size={18} color="#22d3ee" />}
+                    </Pressable>
+                  );
+                })}
+              </>
+            )}
+            </View>
+          </Animated.View>
         </RNAnimated.View>
       </View>
-    </Modal>
+    </View>
   );
 }
 
@@ -939,6 +1073,10 @@ export default function MoviePlayerScreen({
 
   useBackHandler(() => {
     if (!visible) return false;
+    if (qualityOpen) {
+      setQualityOpen(false);
+      return true;
+    }
     if (fullscreen) {
       void exit();
       return true;
@@ -1059,6 +1197,12 @@ export default function MoviePlayerScreen({
     poke();
     void (fullscreen ? exit() : enter());
   };
+
+  const pickSub = useCallback((track: SubtitleTrack | null) => {
+    tapSelection();
+    setSubsOn(track !== null);
+    poke();
+  }, [poke]);
 
   const duration = player.duration || info?.duration || 0;
   const buffered = player.bufferedPosition || 0;
@@ -1216,7 +1360,11 @@ export default function MoviePlayerScreen({
         open={qualityOpen}
         formats={info?.formats ?? []}
         currentId={currentId}
+        subsOn={subsOn}
+        subsLabel={subs.label}
+        subTracks={subs.tracks}
         onPick={(format) => void switchQuality(format)}
+        onPickSub={pickSub}
         onClose={() => setQualityOpen(false)}
       />
     </View>
