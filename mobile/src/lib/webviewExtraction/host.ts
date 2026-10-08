@@ -13,7 +13,7 @@ import {
 const TAG = 'webviewExtraction';
 
 interface WebViewHandle {
-  navigate: (uri: string) => void;
+  navigate: (uri: string, headers?: Record<string, string>) => void;
   injectJavaScript: (js: string) => void;
 }
 
@@ -28,6 +28,10 @@ interface Pending {
 }
 
 let handle: WebViewHandle | null = null;
+let extraHeaders: Record<string, string> | undefined;
+export function setExtractHeaders(headers: Record<string, string> | undefined): void {
+  extraHeaders = headers;
+}
 let active: Pending | null = null;
 const queue: Pending[] = [];
 const inflight = new Map<string, Promise<PageScan | null>>();
@@ -49,7 +53,7 @@ const NUDGE_MAX = 5;
 // players that wait for a tap never emit media: muted-play every video and
 // click the first play-looking control so scans see the stream
 const NUDGE_JS =
-  '(function(){try{var challenged=/quick check|just a moment|verifying|attention|challenge|blocked|verify you are human|are you human/i.test(document.title||"");if(challenged){var btns=document.querySelectorAll("button,a");for(var b=0;b<btns.length;b++){var t="";try{t=btns[b].innerText||""}catch(e){}if(/continue|proceed|verify|confirm|enter site|i am human|not a robot/i.test(t)){try{btns[b].click()}catch(e){}break;}}var boxes=document.querySelectorAll("input[type=\\"checkbox\\"]");for(var k=0;k<boxes.length;k++){try{boxes[k].click()}catch(e){}}return;}var vids=document.querySelectorAll("video");for(var i=0;i<vids.length;i++){try{vids[i].muted=true;var p=vids[i].play();if(p&&p.catch)p.catch(function(){})}catch(e){}}var els=document.querySelectorAll("button");for(var j=0;j<els.length;j++){var el=els[j];var s="";try{s=String(el.className||"")+" "+(el.id||"")+" "+(el.getAttribute("aria-label")||"")}catch(e){}if(/play/i.test(s)){el.click();break;}}}catch(e){}})();';
+  '(function(){try{var challenged=/quick check|just a moment|verifying|attention|challenge|blocked|verify you are human|are you human/i.test(document.title||"");if(challenged){var btns=document.querySelectorAll("button,a");for(var b=0;b<btns.length;b++){var t="";try{t=btns[b].innerText||""}catch(e){}if(/continue|proceed|verify|confirm|enter site|i am human|not a robot/i.test(t)){try{btns[b].click()}catch(e){}break;}}var boxes=document.querySelectorAll("input[type=\\"checkbox\\"]");for(var k=0;k<boxes.length;k++){try{boxes[k].click()}catch(e){}}return;}var vids=document.querySelectorAll("video");for(var i=0;i<vids.length;i++){try{vids[i].muted=true;var p=vids[i].play();if(p&&p.catch)p.catch(function(){})}catch(e){}}var els=document.querySelectorAll("button,[role="button"],div");for(var j=0;j<els.length;j++){var el=els[j];var s="";try{s=String(el.className||"")+" "+(el.id||"")+" "+(el.getAttribute("aria-label")||"")+" "+String(el.innerText||"").slice(0,40)}catch(e){}if(/play/i.test(s)){el.click();break;}}}catch(e){}})();';
 
 const PROBE_GRACE = 1_500;
 const MAX_PROBES = 4;
@@ -129,7 +133,8 @@ function finish(scan: PageScan | null): void {
       `| title: ${merged.title || '(empty)'}`,
       `| videos: ${merged.videos.length}`,
       merged.videos.map((video) => video.url),
-      `| cookies: ${merged.cookies ? 'yes' : 'no'}`
+      `| cookies: ${merged.cookies ? 'yes' : 'no'}`,
+      `| candidates: ${JSON.stringify(merged.candidates ?? [])}`
     );
     pending.onScan?.(merged);
     pending.resolve(merged);
@@ -155,7 +160,7 @@ function pump(): void {
   probed = [];
   pendingHls = 0;
   log(TAG, 'extract start', pending.url);
-  handle.navigate(pending.pageUrl);
+  handle.navigate(pending.pageUrl, extraHeaders);
   pending.timer = setTimeout(() => {
     log(TAG, 'timeout (30s), no scan', pending.url);
     finish(null);
@@ -163,9 +168,11 @@ function pump(): void {
 }
 
 // android fires onLoadEnd for iframes and navigationStateChange repeats:
-// inject once per distinct page url, or ids churn and scans go stale
-function injectSniffer(url: string): void {
-  if (!active || url === lastInjectedUrl) return;
+// inject once per distinct page url, but a bot-check reload keeps the url
+// while wiping the injected sniffer, so reloads always re-inject
+function injectSniffer(url: string, isReload: boolean): void {
+  if (!active || (url === lastInjectedUrl && !isReload)) return;
+  log(TAG, 'inject', url, isReload ? '(reload)' : '');
   lastInjectedUrl = url;
   scanCounter += 1;
   currentScanId = scanCounter;
@@ -331,8 +338,8 @@ function armProbeTimer(): void {
   }, PROBE_GRACE);
 }
 
-export function onWebViewPageEnded(url: string): void {
-  injectSniffer(url);
+export function onWebViewPageEnded(url: string, isReload = false): void {
+  injectSniffer(url, isReload);
 }
 
 export function onWebViewRequest(url: string): void {
@@ -361,8 +368,8 @@ export function onWebViewFailed(): void {
 
 export function onWebViewHttpError(url: string): void {
   if (active && url === active.url) {
-    log(TAG, 'http error on active page', url);
-    finish(null);
+    log(TAG, 'http error on active page, holding for challenge solve', url);
+    lastInjectedUrl = undefined;
   }
 }
 

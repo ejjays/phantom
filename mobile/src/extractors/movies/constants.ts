@@ -10,3 +10,7 @@ export const VIDROCK_KEY_HEX =
 export const VIDLOVE_API = 'https://api.vidlove.cc';
 export const VIDLOVE_PLAYER = 'https://player.vidlove.cc';
 export const VIDLOVE_ORIGIN = 'https://player.vidlove.cc';
+
+export const VIDZEE_PLAYER = 'https://player.vidzee.wtf';
+export const VIDZEE_ORIGIN = 'https://player.vidzee.wtf';
+export const VIDZEE_API = 'https://core.vidzee.wtf';

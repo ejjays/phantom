@@ -17,7 +17,14 @@ import { usePressScale } from '../hooks/usePressScale';
 import { Play3Icon, Play3FilledIcon } from '../components/icons';
 import { resolve } from '../extractors';
 import { type MovieItem, type MovieTitle } from '../extractors/movies/browse';
-import { fetchCredits, fetchTmdbTitle } from '../extractors/movies/tmdb';
+import {
+  fetchCredits,
+  fetchTmdbTitle,
+  fetchTvSeasons,
+  fetchSeasonEpisodes,
+  type TmdbSeason,
+  type TmdbEpisode,
+} from '../extractors/movies/tmdb';
 import { hasBlockedHosts, VIDROCK_HEADERS } from '../extractors/movies/vidrock';
 import { LUNA_HOSTS } from '../extractors/movies/constants';
 import { useDownload } from '../hooks/useDownload';
@@ -33,6 +40,7 @@ type Props = {
   item: MovieItem | null;
   onClose: () => void;
   onPlay: () => void;
+  onPlayEpisode: (season: string, episode: string) => void;
 };
 
 function Meta({ label, value }: { label: string; value: string }) {
@@ -422,7 +430,154 @@ function DetailHero({ backdrop, poster }: { backdrop?: string; poster?: string }
   );
 }
 
-export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Props) {
+function SeasonEpisodes({
+  tmdbId,
+  season,
+  onPlay,
+}: {
+  tmdbId: string;
+  season: number;
+  onPlay: (season: string, episode: string) => void;
+}) {
+  const [episodes, setEpisodes] = useState<TmdbEpisode[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchSeasonEpisodes(tmdbId, season).then((found) => {
+      if (!cancelled) setEpisodes(found);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tmdbId, season]);
+  if (episodes === null) {
+    return (
+      <View style={tw`gap-2.5 pt-1`}>
+        {[0, 1].map((row) => (
+          <View key={row} style={tw`flex-row gap-3`}>
+            <Skeleton width={120} height={68} radius={12} />
+            <View style={tw`flex-1 gap-1.5 pt-1`}>
+              <Skeleton width={120} height={14} radius={4} />
+              <Skeleton width="90%" height={12} radius={4} />
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  }
+  if (episodes.length === 0) return null;
+  return (
+    <View style={tw`gap-1 pt-1`}>
+      {episodes.map((ep) => (
+        <Pressable
+          key={ep.number}
+          onPress={() => {
+            tapSelection();
+            onPlay(String(season), String(ep.number));
+          }}
+          style={tw`flex-row items-center gap-3 rounded-2xl py-2`}
+          accessibilityLabel={`Play episode ${ep.number}: ${ep.name}`}
+        >
+          {ep.still ? (
+            <Image
+              source={{ uri: ep.still }}
+              style={{ width: 120, aspectRatio: 16 / 9, borderRadius: 12 }}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <View
+              style={[
+                tw`items-center justify-center bg-white/5`,
+                { width: 120, aspectRatio: 16 / 9, borderRadius: 12 },
+              ]}
+            >
+              <Play3Icon size={18} color="#64748b" />
+            </View>
+          )}
+          <View style={tw`flex-1 gap-0.5`}>
+            <Text style={tw`font-mono text-[11px] text-slate-500`}>
+              E{ep.number}
+            </Text>
+            <Text
+              style={tw`font-sans-medium text-[14px] text-slate-100`}
+              numberOfLines={1}
+            >
+              {ep.name}
+            </Text>
+            {ep.overview && (
+              <Text
+                style={tw`font-sans text-[12px] leading-4 text-slate-400`}
+                numberOfLines={2}
+              >
+                {ep.overview}
+              </Text>
+            )}
+          </View>
+          <Play3Icon size={18} color="#e2e8f0" />
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function TvEpisodes({
+  tmdbId,
+  onPlay,
+}: {
+  tmdbId: string;
+  onPlay: (season: string, episode: string) => void;
+}) {
+  const [seasons, setSeasons] = useState<TmdbSeason[]>([]);
+  const [season, setSeason] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchTvSeasons(tmdbId).then((found) => {
+      if (cancelled) return;
+      setSeasons(found);
+      if (found.length > 0) setSeason((found.find((s) => s.number > 0) ?? found[0]).number);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tmdbId]);
+  if (seasons.length === 0) return null;
+  return (
+    <View style={tw`mt-5`}>
+      <Text style={tw`font-sans-semibold text-[16px] text-white`}>Episodes</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={tw`gap-2 pr-5 pt-2`}
+      >
+        {seasons.map((entry) => {
+          const active = entry.number === season;
+          return (
+            <Pressable
+              key={entry.number}
+              onPress={() => {
+                tapSelection();
+                setSeason(entry.number);
+              }}
+              style={tw`rounded-full px-4 py-2 ${active ? 'bg-white/20' : 'bg-white/5'}`}
+              accessibilityLabel={`Season ${entry.number}`}
+            >
+              <Text
+                style={tw`font-sans-medium text-[13px] ${active ? 'text-white' : 'text-slate-400'}`}
+              >
+                {entry.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      {season !== null && (
+        <SeasonEpisodes tmdbId={tmdbId} season={season} onPlay={onPlay} />
+      )}
+    </View>
+  );
+}
+
+export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPlayEpisode }: Props) {
   const insets = useSafeAreaInsets();
   const [details, setDetails] = useState<MovieTitle | null>(null);
   const [video, setVideo] = useState<VideoInfo | null>(null);
@@ -677,6 +832,10 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay }: Pr
                       {details.description}
                     </Text>
                   </View>
+                )}
+
+                {item?.kind === 'tv' && item && (
+                  <TvEpisodes tmdbId={item.id} onPlay={onPlayEpisode} />
                 )}
 
                 {details.director && (

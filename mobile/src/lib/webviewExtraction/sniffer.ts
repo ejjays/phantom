@@ -17,6 +17,7 @@ export interface PageScan {
   frames?: number;
   frameUrls?: string[];
   frameMeta?: { total: number; withSrc: number; srcdocLen: number; snippets: string[] };
+  candidates?: Array<{ tag: string; id: string; cls: string; txt: string }>;
 }
 
 const MEDIA_RE = /\.(?:mp4|webm|m3u8|mkv|mov)(?:[?#]|$)/iu;
@@ -214,6 +215,20 @@ export const SNIFFER_JS = `(() => {
       if (!out.ogImage && link && link.href) out.ogImage = abs(link.href);
     });
     try { out.frames = document.querySelectorAll('iframe').length; } catch (e) {}
+    try {
+      out.candidates = [];
+      var clickables_ = document.querySelectorAll('button,[role="button"],div');
+      for (var c_i = 0; c_i < clickables_.length && out.candidates.length < 8; c_i++) {
+        try {
+          var c_el = clickables_[c_i];
+          var c_txt = String(c_el.innerText || '').replace(/\\s+/g, ' ').slice(0, 30);
+          var c_cls = String(c_el.className || '').replace(/\\s+/g, ' ').slice(0, 60);
+          if (/play|watch|server|episode|load|start|continue/i.test(c_txt + ' ' + c_cls)) {
+            out.candidates.push({ tag: c_el.tagName, id: c_el.id || '', cls: c_cls, txt: c_txt });
+          }
+        } catch (e) {}
+      }
+    } catch (e) {}
     try { out.frameMeta = { total: document.querySelectorAll('iframe').length, withSrc: 0, srcdocLen: 0, snippets: [] };
       var frames_ = document.querySelectorAll('iframe');
       for (var f_i=0; f_i<frames_.length && f_i<6; f_i++) {

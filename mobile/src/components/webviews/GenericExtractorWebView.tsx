@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { warn as logWarn } from '../../lib/log';
+import { DESKTOP_UA } from '../../lib/userAgents';
 import {
   attachGenericWebView,
   onWebViewFailed,
@@ -15,7 +16,7 @@ export default function GenericExtractorWebView() {
   const ref = useRef<WebView>(null);
   const { width, height } = useWindowDimensions();
   const [source, setSource] = useState<
-    { uri: string } | { html: string; baseUrl: string }
+    { uri: string; headers?: Record<string, string> } | { html: string; baseUrl: string }
   >({ uri: 'about:blank' });
 
   const recover = (reason: string): void => {
@@ -39,17 +40,20 @@ export default function GenericExtractorWebView() {
       <WebView
         ref={ref}
         source={source}
+        userAgent={DESKTOP_UA}
         originWhitelist={['*']}
         javaScriptEnabled
         domStorageEnabled
         cacheEnabled
         onLoadStart={() =>
           attachGenericWebView({
-            navigate: (uri) => setSource({ uri }),
+            navigate: (uri, headers) => setSource(headers ? { uri, headers } : { uri }),
             injectJavaScript: (js) => ref.current?.injectJavaScript(js),
           })
         }
-        onNavigationStateChange={({ url }) => onWebViewPageEnded(url)}
+        onNavigationStateChange={({ url, navigationType }) =>
+          onWebViewPageEnded(url, navigationType === 'reload')
+        }
         onShouldStartLoadWithRequest={(request) => {
           onWebViewRequest(request.url);
           return true;

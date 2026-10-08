@@ -14,6 +14,7 @@ import {
   vidrockToFormats,
 } from './vidrock';
 import { fetchVidloveFormats } from './vidlove';
+import { fetchVidzeeFormats } from './vidzee';
 
 export { parseMovieUrl } from './parse';
 export { decryptVidrockPayload } from './aesgcm';
@@ -77,6 +78,17 @@ export async function getInfo(
         log(
           'Movies',
           `vidlove upgrade for ${ref.kind}/${ref.tmdbId} formats=${formats.length}`
+        );
+      }
+    }
+    if (formats.length === 0) {
+      const zee = await fetchVidzeeFormats(ref).catch(() => null);
+      if (zee && zee.formats.length > 0) {
+        formats = zee.formats;
+        headers = zee.headers;
+        log(
+          'Movies',
+          `vidzee browser for ${ref.kind}/${ref.tmdbId} formats=${formats.length}`
         );
       }
     }

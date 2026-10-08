@@ -936,7 +936,8 @@ const TAP_SIDES: TapSide[] = ['left', 'center', 'right'];
 function previewKey(item: MovieItem | null, currentId: string | null): string {
   const kind = item?.kind ?? 'movie';
   const id = item?.id ?? 'none';
-  return `${kind}/${id}/${currentId ?? 'none'}`;
+  const ep = item?.kind === 'tv' ? `/s${item.season ?? '1'}e${item.episode ?? '1'}` : '';
+  return `${kind}/${id}${ep}/${currentId ?? 'none'}`;
 }
 
 function silenceNativeCaptions(player: VideoPlayer): void {
@@ -950,7 +951,7 @@ function silenceNativeCaptions(player: VideoPlayer): void {
 function subRefOf(item: MovieItem | null): MovieRef | null {
   if (!item) return null;
   return item.kind === 'tv'
-    ? { kind: 'tv', tmdbId: item.id, season: '1', episode: '1' }
+    ? { kind: 'tv', tmdbId: item.id, season: item.season ?? '1', episode: item.episode ?? '1' }
     : { kind: 'movie', tmdbId: item.id };
 }
 
@@ -1240,7 +1241,7 @@ export default function MoviePlayerScreen({
 
   useEffect(() => {
     if (!visible || !item) return;
-    void open(item.kind, item.id);
+    void open(item.kind, item.id, item.season, item.episode);
   }, [visible, item, open]);
 
   useEffect(() => {
@@ -1454,7 +1455,7 @@ export default function MoviePlayerScreen({
               media={thumbMedia}
               top={expanded ? insets.top : 0}
               onOpen={() => {
-                if (item) void open(item.kind, item.id);
+                if (item) void open(item.kind, item.id, item.season, item.episode);
               }}
               onBack={() => {
                 tapSelection();

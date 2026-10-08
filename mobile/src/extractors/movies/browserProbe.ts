@@ -1,6 +1,7 @@
 import type { Format } from '@phantom/extractors';
 import type { PageScan } from '../../lib/webviewExtraction/sniffer';
-import { mp4Format, singleHls } from './vidrock';
+import { setExtractHeaders } from '../../lib/webviewExtraction/host';
+import { mp4Format, singleHls, VIDROCK_HEADERS } from './vidrock';
 import { log, error as logError } from '../../lib/log';
 
 const BROWSER_TIMEOUT = 40_000;
@@ -118,4 +119,56 @@ function formatsOf(scan: PageScan | null): { formats: Format[]; cookies?: string
   const formats = [...hls, ...mp4];
   if (formats.length === 0) return null;
   return scan.cookies ? { formats, cookies: scan.cookies } : { formats };
+}
+
+function slugifyTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, '-')
+    .replace(/^-+|-+$/gu, '');
+}
+
+function lunaCookie(): string | undefined {
+  const raw = process.env.EXPO_PUBLIC_LUNA_COOKIE;
+  return typeof raw === 'string' && raw.length > 0 ? raw : undefined;
+}
+
+export async function resolveLunaWatchPage(
+  kind: 'movie' | 'tv',
+  tmdbId: string,
+  title: string,
+  scan?: ScanFetcher
+): Promise<{ formats: Format[]; headers: Record<string, string> } | null> {
+  const started = Date.now();
+  const cookie = lunaCookie();
+  const page = cookie
+    ? kind === 'movie'
+      ? `https://watchluna.io/movie/watch-${slugifyTitle(title)}-online-free-${tmdbId}`
+      : `https://watchluna.io/tv/watch-${slugifyTitle(title)}-online-free-${tmdbId}`
+    : kind === 'movie'
+      ? `https://watchluna.gd/watch/movie/${tmdbId}`
+      : `https://watchluna.gd/watch/tv/${tmdbId}/1/1`;
+  if (cookie) setExtractHeaders({ Cookie: cookie });
+  try {
+    const viaBrowser =
+      scan === undefined
+        ? await resolveWatchPageViaBrowser(page)
+        : await resolveWatchPageViaBrowser(page, scan);
+    const found = viaBrowser?.formats ?? [];
+    if (found.length === 0) return null;
+    const formats = found.map((format, index) => ({
+      ...format,
+      formatId: `luna-${format.isHls ? 'hls' : 'mp4'}-${index}`,
+      note: `luna ${format.note ?? 'browser'}`,
+    }));
+    const headers: Record<string, string> = { ...VIDROCK_HEADERS, Referer: page };
+    if (viaBrowser?.cookies) headers['Cookie'] = viaBrowser.cookies;
+    log(
+      'Movies',
+      `luna watch ${kind}/${tmdbId} formats=${formats.length} ms=${Date.now() - started}`
+    );
+    return { formats, headers };
+  } finally {
+    if (cookie) setExtractHeaders(undefined);
+  }
 }

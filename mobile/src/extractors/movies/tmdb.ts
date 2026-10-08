@@ -16,7 +16,7 @@ const TMDB_API = 'https://api.themoviedb.org/3';
 const TMDB_IMG = 'https://image.tmdb.org/t/p';
 const CAST_LIMIT = 8;
 
-const cache = new Map<string, TmdbCredits | TmdbTitle | null>();
+const cache = new Map<string, TmdbCredits | TmdbTitle | TmdbSeason[] | TmdbEpisode[] | null>();
 
 function apiKey(): string | undefined {
   const key = process.env.EXPO_PUBLIC_TMDB_API_KEY;
@@ -114,7 +114,105 @@ export async function fetchTmdbTitle(
   }
 }
 
+export type TmdbSeason = {
+  number: number;
+  name: string;
+  episodeCount: number;
+};
+
+export type TmdbEpisode = {
+  number: number;
+  name: string;
+  overview?: string;
+  still?: string;
+};
+
+function seasonOf(entry: unknown): TmdbSeason | null {
+  const rec = entry as Record<string, unknown> | null;
+  if (!rec || typeof rec['season_number'] !== 'number') return null;
+  const count = rec['episode_count'];
+  return {
+    number: rec['season_number'],
+    name:
+      typeof rec['name'] === 'string' && rec['name'].length > 0
+        ? rec['name']
+        : `Season ${rec['season_number']}`,
+    episodeCount: typeof count === 'number' ? count : 0,
+  };
+}
+
+function episodeOf(entry: unknown): TmdbEpisode | null {
+  const rec = entry as Record<string, unknown> | null;
+  if (!rec || typeof rec['episode_number'] !== 'number') return null;
+  const name = rec['name'];
+  const overview = rec['overview'];
+  const ep: TmdbEpisode = {
+    number: rec['episode_number'],
+    name: typeof name === 'string' && name.length > 0 ? name : `Episode ${rec['episode_number']}`,
+  };
+  if (typeof overview === 'string' && overview.length > 0) ep.overview = overview;
+  const still = imageOf(rec['still_path'], 'w300');
+  if (still) ep.still = still;
+  return ep;
+}
+
+export async function fetchTvSeasons(tmdbId: string): Promise<TmdbSeason[]> {
+  const cacheKey = `seasons/tv/${tmdbId}`;
+  if (cache.has(cacheKey)) {
+    const hit = cache.get(cacheKey);
+    return Array.isArray(hit) ? (hit as TmdbSeason[]) : [];
+  }
+  const key = apiKey();
+  if (!key) return [];
+  try {
+    const res = await gatedFetch(
+      `${TMDB_API}/tv/${encodeURIComponent(tmdbId)}?api_key=${encodeURIComponent(key)}&language=en-US`
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as { seasons?: unknown };
+    const seasons: TmdbSeason[] = Array.isArray(data.seasons)
+      ? data.seasons.map(seasonOf).filter((s): s is TmdbSeason => s !== null)
+      : [];
+    if (cache.size > 100) cache.clear();
+    cache.set(cacheKey, seasons);
+    return seasons;
+  } catch (err) {
+    logError('Movies', `tmdb seasons tv/${tmdbId} failed: ${err instanceof Error ? err.message : String(err)}`);
+    return [];
+  }
+}
+
+export async function fetchSeasonEpisodes(
+  tmdbId: string,
+  season: number
+): Promise<TmdbEpisode[]> {
+  const cacheKey = `season/tv/${tmdbId}/${season}`;
+  if (cache.has(cacheKey)) {
+    const hit = cache.get(cacheKey);
+    return Array.isArray(hit) ? (hit as TmdbEpisode[]) : [];
+  }
+  const key = apiKey();
+  if (!key) return [];
+  try {
+    const res = await gatedFetch(
+      `${TMDB_API}/tv/${encodeURIComponent(tmdbId)}/season/${season}?api_key=${encodeURIComponent(key)}&language=en-US`
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as { episodes?: unknown };
+    const episodes: TmdbEpisode[] = Array.isArray(data.episodes)
+      ? data.episodes.map(episodeOf).filter((e): e is TmdbEpisode => e !== null)
+      : [];
+    if (cache.size > 100) cache.clear();
+    cache.set(cacheKey, episodes);
+    return episodes;
+  } catch (err) {
+    logError('Movies', `tmdb season tv/${tmdbId}/${season} failed: ${err instanceof Error ? err.message : String(err)}`);
+    return [];
+  }
+}
+
 export async function fetchCredits(kind: MovieKind, tmdbId: string): Promise<TmdbCredits | null> {
+
   const cacheKey = `${kind}/${tmdbId}`;
   if (cache.has(cacheKey)) {
     const hit = cache.get(cacheKey);

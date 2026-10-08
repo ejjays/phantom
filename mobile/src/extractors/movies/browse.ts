@@ -12,6 +12,8 @@ export type MovieItem = {
   year?: string;
   poster?: string;
   rating?: number;
+  season?: string;
+  episode?: string;
 };
 
 export type MovieRail = {

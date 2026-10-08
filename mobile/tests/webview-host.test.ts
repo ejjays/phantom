@@ -57,7 +57,8 @@ describe('webview host', () => {
     const promise = extractFromPage('https://cdn.example/video.mp4');
 
     expect(handle.navigate).toHaveBeenCalledWith(
-      expect.stringContaining('data:text/html')
+      expect.stringContaining('data:text/html'),
+      undefined
     );
     onGenericWebViewMessage(
       JSON.stringify({
@@ -86,13 +87,13 @@ describe('webview host', () => {
     const first = extractFromPage('https://a.com');
     const second = extractFromPage('https://b.com');
     expect(handle.navigate).toHaveBeenCalledTimes(1);
-    expect(handle.navigate).toHaveBeenCalledWith('https://a.com');
+    expect(handle.navigate).toHaveBeenCalledWith('https://a.com', undefined);
 
     onGenericWebViewMessage(scanMessage('https://a.com'));
     return expect(first)
       .resolves.toMatchObject({ url: 'https://a.com' })
       .then(() => {
-        expect(handle.navigate).toHaveBeenLastCalledWith('https://b.com');
+        expect(handle.navigate).toHaveBeenLastCalledWith('https://b.com', undefined);
         onGenericWebViewMessage(scanMessage('https://b.com'));
         return expect(second).resolves.toMatchObject({ url: 'https://b.com' });
       });
@@ -388,12 +389,17 @@ it('injects the sniffer once per page url', () => {
     expect(handle.navigate).toHaveBeenCalled();
   });
 
-  it('resolves null on http error for the active page', async () => {
+  it('holds past http errors on the active page for a challenge solve', async () => {
     const handle = makeHandle();
     attachGenericWebView(handle);
     const promise = extractFromPage('https://a.com');
+    void promise.catch(() => undefined);
 
     onWebViewHttpError('https://a.com');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(handle.navigate).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(30_000);
     await expect(promise).resolves.toBeNull();
   });
 
@@ -586,7 +592,8 @@ describe('media request interception', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(settled).toBe('pending');
     expect(handle.navigate).toHaveBeenCalledWith(
-      expect.stringContaining('data:text/html')
+      expect.stringContaining('data:text/html'),
+      undefined
     );
 
     onGenericWebViewMessage(

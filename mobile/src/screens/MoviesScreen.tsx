@@ -385,6 +385,16 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
     setPlaying(true);
   }, []);
 
+  const playEpisode = useCallback(
+    (season: string, episode: string) => {
+      if (!selected) return;
+      tapSelection();
+      setPlayerItem({ ...selected, season, episode });
+      setPlaying(true);
+    },
+    [selected]
+  );
+
   const onQuery = (text: string) => {
     setQuery(text);
     if (text.trim().length < 2) {
@@ -716,6 +726,7 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
           setPlayerItem(selected);
           setPlaying(true);
         }}
+        onPlayEpisode={playEpisode}
       />
       <MoviePlayerScreen
         visible={playing}
