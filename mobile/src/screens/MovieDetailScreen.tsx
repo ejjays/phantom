@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Download, Check, Star, ArrowLeft, RotateCcw } from 'lucide-react-native';
+import { Download, Check, Star, ArrowLeft, RotateCcw, ChevronRight } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { useBackHandler } from '../lib/back';
 import { usePressScale } from '../hooks/usePressScale';
@@ -28,6 +28,7 @@ import {
 import { hasBlockedHosts, VIDROCK_HEADERS } from '../extractors/movies/vidrock';
 import { LUNA_HOSTS } from '../extractors/movies/constants';
 import { useDownload } from '../hooks/useDownload';
+import MovieEpisodesScreen from './MovieEpisodesScreen';
 import { formatLabel, type DownloadState } from '../lib/format';
 import { tapImpact, tapSelection } from '../lib/haptics';
 import { log, error as logError } from '../lib/log';
@@ -433,11 +434,15 @@ function DetailHero({ backdrop, poster }: { backdrop?: string; poster?: string }
 function SeasonEpisodes({
   tmdbId,
   season,
+  limit,
   onPlay,
+  onViewAll,
 }: {
   tmdbId: string;
   season: number;
+  limit?: number;
   onPlay: (season: string, episode: string) => void;
+  onViewAll?: (season: number) => void;
 }) {
   const [episodes, setEpisodes] = useState<TmdbEpisode[] | null>(null);
   useEffect(() => {
@@ -465,9 +470,10 @@ function SeasonEpisodes({
     );
   }
   if (episodes.length === 0) return null;
+  const shown = typeof limit === 'number' ? episodes.slice(0, limit) : episodes;
   return (
     <View style={tw`gap-1 pt-1`}>
-      {episodes.map((ep) => (
+      {shown.map((ep) => (
         <Pressable
           key={ep.number}
           onPress={() => {
@@ -504,18 +510,25 @@ function SeasonEpisodes({
             >
               {ep.name}
             </Text>
-            {ep.overview && (
-              <Text
-                style={tw`font-sans text-[12px] leading-4 text-slate-400`}
-                numberOfLines={2}
-              >
-                {ep.overview}
-              </Text>
-            )}
           </View>
           <Play3Icon size={18} color="#e2e8f0" />
         </Pressable>
       ))}
+      {typeof limit === 'number' && episodes.length > limit && (
+        <Pressable
+          onPress={() => {
+            tapSelection();
+            onViewAll?.(season);
+          }}
+          style={tw`mt-1 flex-row items-center justify-center gap-1 rounded-full bg-white/5 py-3`}
+          accessibilityLabel={`View all ${episodes.length} episodes`}
+        >
+          <Text style={tw`font-sans-semibold text-[13px] text-cyan-400`}>
+            View all {episodes.length} episodes
+          </Text>
+          <ChevronRight size={15} color="#22d3ee" />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -523,9 +536,11 @@ function SeasonEpisodes({
 function TvEpisodes({
   tmdbId,
   onPlay,
+  onViewAll,
 }: {
   tmdbId: string;
   onPlay: (season: string, episode: string) => void;
+  onViewAll: (season: number) => void;
 }) {
   const [seasons, setSeasons] = useState<TmdbSeason[]>([]);
   const [season, setSeason] = useState<number | null>(null);
@@ -541,6 +556,9 @@ function TvEpisodes({
     };
   }, [tmdbId]);
   if (seasons.length === 0) return null;
+  const ordered = [...seasons].sort(
+    (first, second) => (first.number === 0 ? 1 : 0) - (second.number === 0 ? 1 : 0) || first.number - second.number
+  );
   return (
     <View style={tw`mt-5`}>
       <Text style={tw`font-sans-semibold text-[16px] text-white`}>Episodes</Text>
@@ -549,7 +567,7 @@ function TvEpisodes({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={tw`gap-2 pr-5 pt-2`}
       >
-        {seasons.map((entry) => {
+        {ordered.map((entry) => {
           const active = entry.number === season;
           return (
             <Pressable
@@ -571,9 +589,116 @@ function TvEpisodes({
         })}
       </ScrollView>
       {season !== null && (
-        <SeasonEpisodes tmdbId={tmdbId} season={season} onPlay={onPlay} />
+        <SeasonEpisodes tmdbId={tmdbId} season={season} limit={3} onPlay={onPlay} onViewAll={onViewAll} />
       )}
     </View>
+  );
+}
+
+function DetailBody({
+  details,
+  item,
+  onPlayEpisode,
+  onViewAll,
+}: {
+  details: MovieTitle | null;
+  item: MovieItem | null;
+  onPlayEpisode: (season: string, episode: string) => void;
+  onViewAll: (season: number) => void;
+}) {
+  if (!details) return <DetailSkeletons />;
+  return (
+    <>
+      <DetailMeta details={details} />
+
+      {details.genres.length > 0 && (
+        <View style={tw`mt-5 flex-row flex-wrap gap-1.5`}>
+          {details.genres.map((genre) => (
+            <Text
+              key={genre}
+              style={tw`rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-sans-medium text-[12px] text-slate-100`}
+            >
+              {genre}
+            </Text>
+          ))}
+        </View>
+      )}
+
+      {details.description && (
+        <View style={tw`mt-5`}>
+          <Text style={tw`font-sans-semibold text-[16px] text-white`}>Story Plot</Text>
+          <Text style={tw`mt-1.5 font-sans text-[14px] leading-6 text-slate-300`}>
+            {details.description}
+          </Text>
+        </View>
+      )}
+
+      {item?.kind === 'tv' && item && (
+        <TvEpisodes tmdbId={item.id} onPlay={onPlayEpisode} onViewAll={onViewAll} />
+      )}
+
+      {details.director && (
+        <View style={tw`mt-5`}>
+          <Text style={tw`font-sans-semibold text-[16px] text-white`}>Director</Text>
+          <View style={tw`mt-2 flex-row items-center gap-2.5`}>
+            {details.directorPhoto ? (
+              <Image
+                source={{ uri: details.directorPhoto }}
+                style={tw`h-11 w-11 rounded-full`}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
+            ) : (
+              <View style={tw`h-11 w-11 items-center justify-center rounded-full bg-white/10`}>
+                <Text style={tw`font-sans-semibold text-[14px] text-slate-200`}>
+                  {initialsOf(details.director)}
+                </Text>
+              </View>
+            )}
+            <Text style={tw`font-sans text-[14px] text-slate-300`}>{details.director}</Text>
+          </View>
+        </View>
+      )}
+
+      {details.cast.length > 0 && (
+        <View style={tw`mt-5`}>
+          <Text style={tw`font-sans-semibold text-[16px] text-white`}>Cast</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={tw`gap-3 pr-5 pt-2`}
+          >
+            {details.cast.slice(0, 8).map((name) => {
+              const photo = details.castPhotos?.[name];
+              return (
+                <View key={name} style={tw`w-[68px] items-center`}>
+                  {photo ? (
+                    <Image
+                      source={{ uri: photo }}
+                      style={tw`h-14 w-14 rounded-full`}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
+                  ) : (
+                    <View style={tw`h-14 w-14 items-center justify-center rounded-full bg-white/10`}>
+                      <Text style={tw`font-sans-semibold text-[16px] text-slate-200`}>
+                        {initialsOf(name)}
+                      </Text>
+                    </View>
+                  )}
+                  <Text
+                    style={tw`mt-1.5 text-center font-sans-medium text-[10px] text-slate-300`}
+                    numberOfLines={2}
+                  >
+                    {name}
+                  </Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+    </>
   );
 }
 
@@ -586,6 +711,8 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
   const [checking, setChecking] = useState(false);
   const [reloads, setReloads] = useState(0);
   const [dlError, setDlError] = useState<string | null>(null);
+  const [episodesOpen, setEpisodesOpen] = useState(false);
+  const [episodesSeason, setEpisodesSeason] = useState<number | null>(null);
   const { downloads, startDownload } = useDownload(video);
 
   useBackHandler(() => {
@@ -606,6 +733,8 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
     setFailed(false);
     setNoSources(false);
     setDlError(null);
+    setEpisodesOpen(false);
+    setEpisodesSeason(null);
     setChecking(true);
     const target = `https://watchluna.gd/${kind}/${id}`;
     let found: MovieTitle | null = null;
@@ -808,101 +937,15 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
           <View style={tw`mx-4 -mt-[120px] rounded-[32px] bg-[#1E1E1E] p-5`}>
             <TitleBlock details={details} item={item} kind={item?.kind ?? 'movie'} />
 
-            {details ? (
-              <>
-                <DetailMeta details={details} />
-
-                {details.genres.length > 0 && (
-                  <View style={tw`mt-5 flex-row flex-wrap gap-1.5`}>
-                    {details.genres.map((genre) => (
-                      <Text
-                        key={genre}
-                        style={tw`rounded-full border border-white/10 bg-white/10 px-3 py-1.5 font-sans-medium text-[12px] text-slate-100`}
-                      >
-                        {genre}
-                      </Text>
-                    ))}
-                  </View>
-                )}
-
-                {details.description && (
-                  <View style={tw`mt-5`}>
-                    <Text style={tw`font-sans-semibold text-[16px] text-white`}>Story Plot</Text>
-                    <Text style={tw`mt-1.5 font-sans text-[14px] leading-6 text-slate-300`}>
-                      {details.description}
-                    </Text>
-                  </View>
-                )}
-
-                {item?.kind === 'tv' && item && (
-                  <TvEpisodes tmdbId={item.id} onPlay={onPlayEpisode} />
-                )}
-
-                {details.director && (
-                  <View style={tw`mt-5`}>
-                    <Text style={tw`font-sans-semibold text-[16px] text-white`}>Director</Text>
-                    <View style={tw`mt-2 flex-row items-center gap-2.5`}>
-                      {details.directorPhoto ? (
-                        <Image
-                          source={{ uri: details.directorPhoto }}
-                          style={tw`h-11 w-11 rounded-full`}
-                          contentFit="cover"
-                          cachePolicy="memory-disk"
-                        />
-                      ) : (
-                        <View style={tw`h-11 w-11 items-center justify-center rounded-full bg-white/10`}>
-                          <Text style={tw`font-sans-semibold text-[14px] text-slate-200`}>
-                            {initialsOf(details.director)}
-                          </Text>
-                        </View>
-                      )}
-                      <Text style={tw`font-sans text-[14px] text-slate-300`}>{details.director}</Text>
-                    </View>
-                  </View>
-                )}
-
-                {details.cast.length > 0 && (
-                  <View style={tw`mt-5`}>
-                    <Text style={tw`font-sans-semibold text-[16px] text-white`}>Cast</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={tw`gap-3 pr-5 pt-2`}
-                    >
-                      {details.cast.slice(0, 8).map((name) => {
-                        const photo = details.castPhotos?.[name];
-                        return (
-                          <View key={name} style={tw`w-[68px] items-center`}>
-                            {photo ? (
-                              <Image
-                                source={{ uri: photo }}
-                                style={tw`h-14 w-14 rounded-full`}
-                                contentFit="cover"
-                                cachePolicy="memory-disk"
-                              />
-                            ) : (
-                              <View style={tw`h-14 w-14 items-center justify-center rounded-full bg-white/10`}>
-                                <Text style={tw`font-sans-semibold text-[16px] text-slate-200`}>
-                                  {initialsOf(name)}
-                                </Text>
-                              </View>
-                            )}
-                            <Text
-                              style={tw`mt-1.5 text-center font-sans-medium text-[10px] text-slate-300`}
-                              numberOfLines={2}
-                            >
-                              {name}
-                            </Text>
-                          </View>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-                )}
-              </>
-            ) : (
-              <DetailSkeletons />
-            )}
+            <DetailBody
+              details={details}
+              item={item}
+              onPlayEpisode={onPlayEpisode}
+              onViewAll={(picked) => {
+                setEpisodesSeason(picked);
+                setEpisodesOpen(true);
+              }}
+            />
           </View>
         )}
       </ScrollView>
@@ -917,6 +960,16 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
           onPlay={onPlay}
           onDownload={onDownload}
           onRecheck={recheckSources}
+        />
+      )}
+      {episodesOpen && (
+        <MovieEpisodesScreen
+          visible={visible}
+          tmdbId={item?.id ?? ''}
+          title={details?.title ?? item?.title ?? ''}
+          initialSeason={episodesSeason}
+          onClose={() => setEpisodesOpen(false)}
+          onPlay={onPlayEpisode}
         />
       )}
     </View>
