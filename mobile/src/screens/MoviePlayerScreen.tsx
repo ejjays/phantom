@@ -1303,10 +1303,10 @@ async function shapeFinal(
       getGroqKey().catch(() => ''),
       getCerebrasKey().catch(() => ''),
     ]);
-    const primaryKey = groqKey || cerebrasKey;
-    const fallbackKey = groqKey && cerebrasKey ? cerebrasKey : undefined;
+    const primaryKey = cerebrasKey || groqKey;
+    const fallbackKey = cerebrasKey && groqKey ? groqKey : undefined;
     if (!primaryKey) {
-      log('Player', 'cc translate skipped (no groq or cerebras key)');
+      log('Player', 'cc translate skipped (no cerebras or groq key)');
     } else {
       const lines = await translateLines(
         base.map((cue) => cue.text),

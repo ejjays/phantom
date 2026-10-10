@@ -68,4 +68,26 @@ describe('translateLines', () => {
     await expect(translateLines(['x'], 'ko', 'en', 'key')).resolves.toEqual(['Hi']);
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  it('routes csk- key to Cerebras endpoint and falls back on error', async () => {
+    const urls: string[] = [];
+    const models: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        urls.push(url);
+        const body = JSON.parse(String(init?.body ?? '{}')) as { model?: string };
+        if (body.model) models.push(body.model);
+        if (url.includes('cerebras')) {
+          return Promise.resolve(new Response('rate limited', { status: 429, headers: { 'retry-after': '30' } }));
+        }
+        return Promise.resolve(Response.json({ choices: [{ message: { content: '1. Fallback' } }] }));
+      })
+    );
+    const res = await translateLines(['input'], 'ko', 'en', 'csk-test', 'gsk-test');
+    expect(res).toEqual(['Fallback']);
+    expect(urls[0]).toContain('api.cerebras.ai');
+    expect(models[0]).toBe('gpt-oss-120b');
+    expect(urls[1]).toContain('api.groq.com');
+  });
 });

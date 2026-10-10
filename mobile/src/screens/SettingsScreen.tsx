@@ -1454,7 +1454,7 @@ function SettingsScreen({
         <LinkRow
           Icon={KeyRound}
           label="Cerebras key"
-          hint="Translation fallback when Groq hits rate limits"
+          hint="Fast subtitle translation (primary, 3000 tok/s)"
           value={cerebrasSet ? 'Set' : 'Off'}
           tone={cerebrasSet ? 'good' : undefined}
           onPress={() => {
@@ -1658,8 +1658,8 @@ function SettingsScreen({
             <Text
               style={tw`mt-1 font-sans text-[13px] leading-5 text-slate-400`}
             >
-              Paste your free Cerebras key (starts with csk-) for translation
-              fallback. Stays on this phone, never shared.
+              Paste your free Cerebras key (starts with csk-) for ultra-fast
+              subtitle translation. Stays on this phone, never shared.
             </Text>
             <TextInput
               value={cerebrasValue}
