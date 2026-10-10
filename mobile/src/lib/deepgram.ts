@@ -7,7 +7,7 @@ const DG_API = 'https://api.deepgram.com/v1/listen';
 
 export type DeepgramWord = { word: string; start: number; end: number };
 
-export type TranscriptResult = { words: DeepgramWord[]; cues: SubtitleCue[]; lang: string };
+export type TranscriptResult = { words: DeepgramWord[]; cues: UtteranceCue[]; lang: string };
 
 function rec(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null
@@ -40,7 +40,24 @@ export function deepgramWords(payload: unknown): DeepgramWord[] {
       }
     }
   }
-  return out.sort((lhs, rhs) => lhs.start - rhs.start);
+  out.sort((lhs, rhs) => lhs.start - rhs.start);
+  // diarization can emit overlapping words — clamp to monotonic
+  for (let i = 1; i < out.length; i++) {
+    const prev = out[i - 1];
+    const curr = out[i];
+    if (prev && curr) {
+      if (curr.start < prev.start) curr.start = prev.start;
+      if (curr.end <= curr.start) curr.end = curr.start + 0.1;
+    }
+  }
+  return out;
+}
+
+export type UtteranceCue = SubtitleCue & { speaker: number };
+
+function speakerOf(item: Record<string, unknown> | null): number {
+  const speaker = item?.['speaker'];
+  return typeof speaker === 'number' && Number.isFinite(speaker) ? Math.floor(speaker) : -1;
 }
 
 export function deepgramLang(payload: unknown): string {
@@ -55,9 +72,31 @@ export function deepgramLang(payload: unknown): string {
   return typeof lang === 'string' ? lang.toLowerCase().slice(0, 2) : '';
 }
 
-export function deepgramUtterances(payload: unknown): SubtitleCue[] {
+export function deepgramConfidence(payload: unknown): number {
+  const channels = rec(rec(payload)?.['results'])?.['channels'];
+  if (!Array.isArray(channels)) return -1;
+  let total = 0;
+  let count = 0;
+  for (const channel of channels) {
+    const alternatives = rec(channel)?.['alternatives'];
+    if (!Array.isArray(alternatives)) continue;
+    for (const alternative of alternatives) {
+      const words = rec(alternative)?.['words'];
+      if (!Array.isArray(words)) continue;
+      for (const entry of words) {
+        const confidence = num(rec(entry)?.['confidence']);
+        if (confidence === null) continue;
+        total += confidence;
+        count += 1;
+      }
+    }
+  }
+  return count === 0 ? -1 : total / count;
+}
+
+export function deepgramUtterances(payload: unknown): UtteranceCue[] {
   const utterances = rec(rec(payload)?.['results'])?.['utterances'];
-  const out: SubtitleCue[] = [];
+  const out: UtteranceCue[] = [];
   if (!Array.isArray(utterances)) return out;
   for (const entry of utterances) {
     const item = rec(entry);
@@ -66,7 +105,7 @@ export function deepgramUtterances(payload: unknown): SubtitleCue[] {
     const end = num(item?.['end']);
     if (typeof text !== 'string' || text.trim().length === 0) continue;
     if (start === null || end === null || end <= start) continue;
-    out.push({ start, end, text: text.trim() });
+    out.push({ start, end, text: text.trim(), speaker: speakerOf(item) });
   }
   return out.sort((lhs, rhs) => lhs.start - rhs.start);
 }
@@ -87,7 +126,7 @@ export async function transcribeFile(
     }
     const langParam = lang === 'auto' ? 'detect_language=true' : `language=${lang}`;
     const res = await fetch(
-      `${DG_API}?model=nova-3&smart_format=true&punctuate=true&${langParam}&utterances=true&filler_words=true`,
+      `${DG_API}?model=nova-3&smart_format=true&punctuate=true&${langParam}&utterances=true&filler_words=true&numerals=true&paragraphs=true&diarize_model=latest`,
       {
         method: 'POST',
         headers: { Authorization: `Token ${apiKey}`, 'Content-Type': mime },
@@ -109,9 +148,10 @@ export async function transcribeFile(
     const words = deepgramWords(payload);
     const cues = deepgramUtterances(payload);
     const detected = deepgramLang(payload);
+    const confidence = deepgramConfidence(payload);
     log(
       'Deepgram',
-      `transcribed words=${words.length} utterances=${cues.length} lang=${detected} ms=${Date.now() - started}`
+      `transcribed words=${words.length} utterances=${cues.length} lang=${detected} conf=${confidence < 0 ? 'n/a' : confidence.toFixed(2)} ms=${Date.now() - started}`
     );
     return { words, cues, lang: detected };
   } catch (err) {

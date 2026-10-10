@@ -1,7 +1,9 @@
 import { log } from './log';
 
 const GROQ_CHAT_API = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'openai/gpt-oss-120b';
+const CEREBRAS_CHAT_API = 'https://api.cerebras.ai/v1/chat/completions';
+const GROQ_MODEL = 'openai/gpt-oss-120b';
+const CEREBRAS_MODEL = 'gpt-oss-120b';
 
 const LANG_NAMES: Record<string, string> = {
   en: 'English',
@@ -60,10 +62,19 @@ export function translateLines(
   texts: string[],
   fromCode: string,
   toCode: string,
-  apiKey: string
+  apiKey: string,
+  fallbackKey?: string
 ): Promise<string[] | null> {
   if (texts.length === 0) return Promise.resolve([]);
-  const task = translateQueue.then(() => translateAttempt(texts, fromCode, toCode, apiKey));
+  const task = translateQueue.then(async () => {
+    const primary = await translateAttempt(texts, fromCode, toCode, apiKey);
+    if (primary) return primary;
+    if (fallbackKey && fallbackKey !== apiKey) {
+      log('Translate', 'primary failed, trying fallback provider');
+      return translateAttempt(texts, fromCode, toCode, fallbackKey);
+    }
+    return null;
+  });
   translateQueue = task.then(
     () => undefined,
     () => undefined
@@ -94,18 +105,21 @@ async function translateBatch(
 ): Promise<string[] | null> {
   const started = Date.now();
   const backoffs = [5000, 15000];
+  const isCerebras = apiKey.startsWith('csk-');
+  const endpoint = isCerebras ? CEREBRAS_CHAT_API : GROQ_CHAT_API;
+  const model = isCerebras ? CEREBRAS_MODEL : GROQ_MODEL;
   let mismatchRetried = false;
   for (let attempt = 0; ; attempt++) {
     try {
       const numbered = texts.map((text, i) => `${i + 1}. ${text}`).join('\n');
-      const res = await fetch(GROQ_CHAT_API, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: MODEL,
+          model,
           temperature: 0.2,
           max_tokens: 8192,
           messages: [
@@ -120,7 +134,12 @@ async function translateBatch(
       if (res.status === 429 && attempt < backoffs.length) {
         const header = res.headers.get('retry-after');
         const hinted = header ? Math.round(Number(header) * 1000) : 0;
-        const wait = hinted > 0 ? hinted : (backoffs[attempt] ?? 15000);
+        // avoid freezing the player when a provider gives an 8-minute cooldown
+        if (hinted > 20000) {
+          log('Translate', `rate limited (${Math.round(hinted / 1000)}s), aborting`);
+          return null;
+        }
+        const wait = Math.min(hinted > 0 ? hinted : (backoffs[attempt] ?? 15000), 20000);
         log('Translate', `rate limited, retrying in ${Math.round(wait / 1000)}s`);
         await new Promise((done) => setTimeout(done, wait));
         continue;

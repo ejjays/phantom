@@ -67,6 +67,7 @@ import { transcribeFile as transcribeGroq } from '../lib/groq';
 import {
   getDeepgramKey,
   getGroqKey,
+  getCerebrasKey,
   getTranscriber,
   setTranscriber,
   getSubLang,
@@ -1298,15 +1299,21 @@ async function shapeFinal(
   const base =
     transcript.cues.length > 0 ? transcript.cues : wordsToCues(transcript.words);
   if (subLang !== 'same' && transcript.lang !== subLang) {
-    const key = await getGroqKey().catch(() => '');
-    if (!key) {
-      log('Player', 'cc translate skipped (no groq key)');
+    const [groqKey, cerebrasKey] = await Promise.all([
+      getGroqKey().catch(() => ''),
+      getCerebrasKey().catch(() => ''),
+    ]);
+    const primaryKey = groqKey || cerebrasKey;
+    const fallbackKey = groqKey && cerebrasKey ? cerebrasKey : undefined;
+    if (!primaryKey) {
+      log('Player', 'cc translate skipped (no groq or cerebras key)');
     } else {
       const lines = await translateLines(
         base.map((cue) => cue.text),
         transcript.lang || 'auto',
         subLang,
-        key
+        primaryKey,
+        fallbackKey,
       );
       if (lines) {
         const translated = base.map((cue, i) => ({ ...cue, text: lines[i] ?? cue.text }));
@@ -1318,7 +1325,8 @@ async function shapeFinal(
       }
     }
   }
-  return { cues: shapeTranscript(transcript), label: generatedLabel(provider) };
+  const shaped = shapeTranscript(transcript);
+  return { cues: shaped, label: generatedLabel(provider) };
 }
 
 async function transcribeSample(

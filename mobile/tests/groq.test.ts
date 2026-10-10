@@ -69,8 +69,21 @@ describe('groqSegments', () => {
         ],
       })
     ).toEqual([
-      { start: 1.0, end: 2.0, text: 'First.' },
-      { start: 5.0, end: 6.0, text: 'Second.' },
+      { start: 1.0, end: 2.0, text: 'First.', speaker: -1 },
+      { start: 5.0, end: 6.0, text: 'Second.', speaker: -1 },
+    ]);
+  });
+
+  it('clamps segments exceeding 8 seconds and filters hallucinations', () => {
+    expect(
+      groqSegments({
+        segments: [
+          { start: 0.0, end: 30.0, text: '다음 영상에서 만나요.' },
+          { start: 30.0, end: 50.0, text: 'Real speech.' },
+        ],
+      })
+    ).toEqual([
+      { start: 30.0, end: 38.0, text: 'Real speech.', speaker: -1 },
     ]);
   });
 

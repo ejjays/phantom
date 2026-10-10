@@ -81,6 +81,8 @@ import {
   setDeepgramKey,
   getGroqKey,
   setGroqKey,
+  getCerebrasKey,
+  setCerebrasKey,
   formatName,
   type FilenameFormat,
 } from '../lib/settings';
@@ -823,6 +825,10 @@ function SettingsScreen({
   const [groqValue, setGroqValue] = useState('');
   const [groqSet, setGroqSet] = useState(false);
   const [groqSaving, setGroqSaving] = useState(false);
+  const [cerebrasOpen, setCerebrasOpen] = useState(false);
+  const [cerebrasValue, setCerebrasValue] = useState('');
+  const [cerebrasSet, setCerebrasSet] = useState(false);
+  const [cerebrasSaving, setCerebrasSaving] = useState(false);
   const [cookieTarget, setCookieTarget] = useState<
     'youtube' | 'bilibili' | null
   >(null);
@@ -910,6 +916,9 @@ function SettingsScreen({
       .catch(() => undefined);
     getGroqKey()
       .then((v) => setGroqSet(!!v))
+      .catch(() => undefined);
+    getCerebrasKey()
+      .then((v) => setCerebrasSet(!!v))
       .catch(() => undefined);
   }, []);
 
@@ -1439,6 +1448,23 @@ function SettingsScreen({
             setGroqOpen(true);
           }}
           tile={false}
+          iconSize={26}
+          light={light}
+        />
+        <LinkRow
+          Icon={KeyRound}
+          label="Cerebras key"
+          hint="Translation fallback when Groq hits rate limits"
+          value={cerebrasSet ? 'Set' : 'Off'}
+          tone={cerebrasSet ? 'good' : undefined}
+          onPress={() => {
+            tapSelection();
+            getCerebrasKey()
+              .then(setCerebrasValue)
+              .catch(() => undefined);
+            setCerebrasOpen(true);
+          }}
+          tile={false}
           last
           iconSize={26}
           light={light}
@@ -1599,6 +1625,89 @@ function SettingsScreen({
                 accessibilityLabel="Save key"
               >
                 {groqSaving ? (
+                  <ActivityIndicator size="small" color="#083344" />
+                ) : (
+                  <Text style={tw`font-sans-bold text-[14px] text-slate-950`}>
+                    Save
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        transparent
+        visible={cerebrasOpen}
+        animationType="fade"
+        onRequestClose={() => setCerebrasOpen(false)}
+      >
+        <View style={tw`flex-1 items-center justify-center px-6`}>
+          <Pressable
+            style={tw`absolute inset-0 bg-black/70`}
+            onPress={() => setCerebrasOpen(false)}
+            accessibilityLabel="Close"
+          />
+          <View
+            style={tw`w-full max-w-[420px] rounded-[28px] bg-[#1E1E1E] p-5`}
+          >
+            <Text style={tw`font-sans-bold text-[16px] text-white`}>
+              Cerebras key
+            </Text>
+            <Text
+              style={tw`mt-1 font-sans text-[13px] leading-5 text-slate-400`}
+            >
+              Paste your free Cerebras key (starts with csk-) for translation
+              fallback. Stays on this phone, never shared.
+            </Text>
+            <TextInput
+              value={cerebrasValue}
+              onChangeText={setCerebrasValue}
+              placeholder="Paste key…"
+              placeholderTextColor="#5b6472"
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={tw`mt-3 rounded-2xl bg-white/10 px-4 py-3 font-mono text-[14px] text-white`}
+            />
+            <View style={tw`mt-4 flex-row gap-2`}>
+              <Pressable
+                onPress={() => {
+                  tapSelection();
+                  setCerebrasSaving(true);
+                  void setCerebrasKey('')
+                    .then(() => {
+                      setCerebrasValue('');
+                      setCerebrasSet(false);
+                      setCerebrasOpen(false);
+                    })
+                    .finally(() => setCerebrasSaving(false));
+                }}
+                disabled={cerebrasSaving}
+                style={tw`flex-1 items-center rounded-full bg-white/10 py-3`}
+                accessibilityLabel="Remove key"
+              >
+                <Text style={tw`font-sans-semibold text-[14px] text-slate-200`}>
+                  Clear
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  tapSelection();
+                  setCerebrasSaving(true);
+                  void setCerebrasKey(cerebrasValue)
+                    .then(() => {
+                      setCerebrasSet(cerebrasValue.trim().length > 0);
+                      setCerebrasOpen(false);
+                    })
+                    .finally(() => setCerebrasSaving(false));
+                }}
+                disabled={cerebrasSaving}
+                style={tw`flex-1 items-center rounded-full bg-cyan-400 py-3`}
+                accessibilityLabel="Save key"
+              >
+                {cerebrasSaving ? (
                   <ActivityIndicator size="small" color="#083344" />
                 ) : (
                   <Text style={tw`font-sans-bold text-[14px] text-slate-950`}>

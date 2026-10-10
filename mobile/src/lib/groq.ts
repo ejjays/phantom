@@ -1,8 +1,7 @@
 import { File } from 'expo-file-system';
 import { log } from './log';
-import type { DeepgramWord, TranscriptResult } from './deepgram';
+import type { DeepgramWord, TranscriptResult, UtteranceCue } from './deepgram';
 import type { TranscribeLang } from './settings';
-import type { SubtitleCue } from './subtitles';
 
 const GROQ_API = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
@@ -131,19 +130,28 @@ export function groqWords(payload: unknown): DeepgramWord[] {
   return out.sort((lhs, rhs) => lhs.start - rhs.start);
 }
 
-export function groqSegments(payload: unknown): SubtitleCue[] {
+// whisper hallucinates these during silent intros (music, no speech)
+const WHISPER_HALLUCINATIONS =
+  /^(다음 영상에서 만나요|시청해 주셔서 감사합니다|구독과 좋아요)[.!]?$/iu;
+
+const MAX_SEGMENT_SEC = 8;
+
+export function groqSegments(payload: unknown): UtteranceCue[] {
   const segments = rec(payload)?.['segments'];
-  const out: SubtitleCue[] = [];
+  const out: UtteranceCue[] = [];
   if (!Array.isArray(segments)) return out;
   for (const entry of segments) {
     const item = rec(entry);
     const text = item?.['text'];
     const start = num(item?.['start']);
-    const end = num(item?.['end']);
+    let end = num(item?.['end']);
     if (typeof text !== 'string' || text.trim().length === 0) continue;
     if (start === null || end === null || end <= start) continue;
-    if (out.length > 0 && out[out.length - 1]?.text === text.trim()) continue;
-    out.push({ start, end, text: text.trim() });
+    const trimmed = text.trim();
+    if (WHISPER_HALLUCINATIONS.test(trimmed)) continue;
+    if (end - start > MAX_SEGMENT_SEC) end = start + MAX_SEGMENT_SEC;
+    if (out.length > 0 && out[out.length - 1]?.text === trimmed) continue;
+    out.push({ start, end, text: trimmed, speaker: -1 });
   }
   return out.sort((lhs, rhs) => lhs.start - rhs.start);
 }
@@ -172,6 +180,7 @@ export async function transcribeFile(
       {
         model: 'whisper-large-v3-turbo',
         response_format: 'verbose_json',
+        'timestamp_granularities[]': 'word',
         ...(lang === 'auto' ? {} : { language: lang }),
       },
       'sample.mp3',

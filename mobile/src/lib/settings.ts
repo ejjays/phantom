@@ -4,6 +4,7 @@ const YT_COOKIE_KEY = 'phantom.cookie.youtube';
 const BILI_COOKIE_KEY = 'phantom.cookie.bilibili';
 const DEEPGRAM_KEY = 'phantom.deepgram.apikey';
 const GROQ_KEY = 'phantom.groq.apikey';
+const CEREBRAS_KEY = 'phantom.cerebras.apikey';
 const TRANSCRIBER_KEY = 'phantom.transcriber.choice';
 
 export type TranscriberChoice = 'deepgram' | 'groq';
@@ -59,6 +60,15 @@ export function getGroqKey(): Promise<string> {
 
 export function setGroqKey(value: string): Promise<void> {
   return AsyncStorage.setItem(GROQ_KEY, value.trim()).catch(() => undefined);
+}
+
+// personal cerebras key for high-speed ai translation; stays on-device, never shipped
+export function getCerebrasKey(): Promise<string> {
+  return storedCookie(CEREBRAS_KEY);
+}
+
+export function setCerebrasKey(value: string): Promise<void> {
+  return AsyncStorage.setItem(CEREBRAS_KEY, value.trim()).catch(() => undefined);
 }
 
 // temp dev: which cloud transcriber the cc flow uses
