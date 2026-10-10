@@ -21,9 +21,33 @@ export class File {
   text(): Promise<string> {
     return Promise.resolve('');
   }
+  bytes(): Promise<Uint8Array> {
+    return Promise.resolve(new Uint8Array(0));
+  }
   write(_content: string): void {}
 }
 
 export const FileMode = { ReadWrite: 'w', ReadOnly: 'r' };
 
 export const Paths = { cache: '/stub/cache' };
+
+// legacy entry stand-ins (aliased per-subpath in vitest config)
+export const EncodingType = { Base64: 'base64', UTF8: 'utf8' };
+
+export function readAsStringAsync(): Promise<string> {
+  return Promise.resolve('');
+}
+
+export function writeAsStringAsync(): Promise<void> {
+  return Promise.resolve();
+}
+
+export const FileSystemUploadType = { BINARY_CONTENT: 0, MULTIPART: 1 };
+
+export function uploadAsync(): Promise<{
+  status: number;
+  body: string;
+  headers: Record<string, string>;
+}> {
+  return Promise.resolve({ status: 200, body: '{}', headers: {} });
+}

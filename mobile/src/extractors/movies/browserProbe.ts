@@ -1,6 +1,5 @@
 import type { Format } from '@phantom/extractors';
 import type { PageScan } from '../../lib/webviewExtraction/sniffer';
-import { setExtractHeaders } from '../../lib/webviewExtraction/host';
 import { mp4Format, singleHls, VIDROCK_HEADERS } from './vidrock';
 import { log, error as logError } from '../../lib/log';
 
@@ -38,20 +37,30 @@ export async function resolveWatchPageViaBrowser(
   }
   for (const snip of first?.frameMeta?.snippets ?? []) {
     const srcMatch = /src=["']([^"']+)["']/iu.exec(snip);
-    if (srcMatch && !EMBED_SKIP_RE.test(srcMatch[1])) embedCandidates.add(srcMatch[1]);
+    if (srcMatch && !EMBED_SKIP_RE.test(srcMatch[1]))
+      embedCandidates.add(srcMatch[1]);
     const hrefMatch = /href=["']([^"']+)["']/iu.exec(snip);
-    if (hrefMatch && !EMBED_SKIP_RE.test(hrefMatch[1])) embedCandidates.add(hrefMatch[1]);
+    if (hrefMatch && !EMBED_SKIP_RE.test(hrefMatch[1]))
+      embedCandidates.add(hrefMatch[1]);
     const apiMatch = /data-api=["']([^"']+)["']/iu.exec(snip);
     if (apiMatch && !EMBED_SKIP_RE.test(apiMatch[1])) {
       try {
-        embedCandidates.add(new URL(apiMatch[1], first?.url ?? pageUrl).toString());
+        embedCandidates.add(
+          new URL(apiMatch[1], first?.url ?? pageUrl).toString()
+        );
       } catch {
         embedCandidates.add(apiMatch[1]);
       }
     }
   }
   const embeds = [...embedCandidates];
-  log('Movies', 'browser frames', `${first?.frames ?? 0}`, 'urls', `${embeds.length}`);
+  log(
+    'Movies',
+    'browser frames',
+    `${first?.frames ?? 0}`,
+    'urls',
+    `${embeds.length}`
+  );
   if (embeds.length > 0) {
     log(
       'Movies',
@@ -71,7 +80,10 @@ export async function resolveWatchPageViaBrowser(
   for (const embed of embeds.slice(0, 2)) {
     const mapped = await resolveWatchPageViaBrowser(embed, scan, depth + 1);
     if (mapped) {
-      log('Movies', `browser stream resolved ${mapped.formats.length} ms=${Date.now() - started}`);
+      log(
+        'Movies',
+        `browser stream resolved ${mapped.formats.length} ms=${Date.now() - started}`
+      );
       return mapped;
     }
   }
@@ -89,7 +101,10 @@ async function timedScan(
       new Promise<null>((done) => setTimeout(() => done(null), timeout)),
     ]);
   } catch (err) {
-    logError('Movies', `browser stream failed: ${err instanceof Error ? err.message : String(err)}`);
+    logError(
+      'Movies',
+      `browser stream failed: ${err instanceof Error ? err.message : String(err)}`
+    );
     return null;
   }
 }
@@ -97,13 +112,17 @@ async function timedScan(
 function formatOfUrl(rawUrl: string): boolean {
   try {
     const path = new URL(rawUrl).pathname.toLowerCase();
-    return /[.](?:mp4|webm|m3u8|mkv|mov|ts)$/u.test(path) || /[.]m3u8/u.test(rawUrl);
+    return (
+      /[.](?:mp4|webm|m3u8|mkv|mov|ts)$/u.test(path) || /[.]m3u8/u.test(rawUrl)
+    );
   } catch {
     return /\.(?:mp4|webm|m3u8|mkv|mov|ts)(?:[?#]|$)/iu.test(rawUrl);
   }
 }
 
-function formatsOf(scan: PageScan | null): { formats: Format[]; cookies?: string } | null {
+function formatsOf(
+  scan: PageScan | null
+): { formats: Format[]; cookies?: string } | null {
   if (!scan || scan.videos.length === 0) return null;
   const seen = new Set<string>();
   const hls: Format[] = [];
@@ -121,54 +140,32 @@ function formatsOf(scan: PageScan | null): { formats: Format[]; cookies?: string
   return scan.cookies ? { formats, cookies: scan.cookies } : { formats };
 }
 
-function slugifyTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/gu, '-')
-    .replace(/^-+|-+$/gu, '');
-}
-
-function lunaCookie(): string | undefined {
-  const raw = process.env.EXPO_PUBLIC_LUNA_COOKIE;
-  return typeof raw === 'string' && raw.length > 0 ? raw : undefined;
-}
-
 export async function resolveLunaWatchPage(
   kind: 'movie' | 'tv',
   tmdbId: string,
-  title: string,
   scan?: ScanFetcher
 ): Promise<{ formats: Format[]; headers: Record<string, string> } | null> {
   const started = Date.now();
-  const cookie = lunaCookie();
-  const page = cookie
-    ? kind === 'movie'
-      ? `https://watchluna.io/movie/watch-${slugifyTitle(title)}-online-free-${tmdbId}`
-      : `https://watchluna.io/tv/watch-${slugifyTitle(title)}-online-free-${tmdbId}`
-    : kind === 'movie'
+  const page =
+    kind === 'movie'
       ? `https://watchluna.gd/watch/movie/${tmdbId}`
       : `https://watchluna.gd/watch/tv/${tmdbId}/1/1`;
-  if (cookie) setExtractHeaders({ Cookie: cookie });
-  try {
-    const viaBrowser =
-      scan === undefined
-        ? await resolveWatchPageViaBrowser(page)
-        : await resolveWatchPageViaBrowser(page, scan);
-    const found = viaBrowser?.formats ?? [];
-    if (found.length === 0) return null;
-    const formats = found.map((format, index) => ({
-      ...format,
-      formatId: `luna-${format.isHls ? 'hls' : 'mp4'}-${index}`,
-      note: `luna ${format.note ?? 'browser'}`,
-    }));
-    const headers: Record<string, string> = { ...VIDROCK_HEADERS, Referer: page };
-    if (viaBrowser?.cookies) headers['Cookie'] = viaBrowser.cookies;
-    log(
-      'Movies',
-      `luna watch ${kind}/${tmdbId} formats=${formats.length} ms=${Date.now() - started}`
-    );
-    return { formats, headers };
-  } finally {
-    if (cookie) setExtractHeaders(undefined);
-  }
+  const viaBrowser =
+    scan === undefined
+      ? await resolveWatchPageViaBrowser(page)
+      : await resolveWatchPageViaBrowser(page, scan);
+  const found = viaBrowser?.formats ?? [];
+  if (found.length === 0) return null;
+  const formats = found.map((format, index) => ({
+    ...format,
+    formatId: `luna-${format.isHls ? 'hls' : 'mp4'}-${index}`,
+    note: `luna ${format.note ?? 'browser'}`,
+  }));
+  const headers: Record<string, string> = { ...VIDROCK_HEADERS, Referer: page };
+  if (viaBrowser?.cookies) headers['Cookie'] = viaBrowser.cookies;
+  log(
+    'Movies',
+    `luna watch ${kind}/${tmdbId} formats=${formats.length} ms=${Date.now() - started}`
+  );
+  return { formats, headers };
 }

@@ -3,11 +3,14 @@ import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   resolve: {
-    alias: {
-      'expo-file-system': fileURLToPath(
-        new URL('./tests/stubs/expo-file-system.ts', import.meta.url)
-      ),
-    },
+    alias: [
+      {
+        find: /^expo-file-system(\/legacy)?$/,
+        replacement: fileURLToPath(
+          new URL('./tests/stubs/expo-file-system.ts', import.meta.url)
+        ),
+      },
+    ],
   },
   test: {
     environment: 'node',

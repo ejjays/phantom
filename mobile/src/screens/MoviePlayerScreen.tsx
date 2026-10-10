@@ -13,7 +13,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { VideoView, type VideoPlayer } from 'expo-video';
+import { useEvent } from 'expo';
+import {
+  VideoView,
+  type VideoPlayer,
+  type SubtitleTrack as NativeSubtitleTrack,
+} from 'expo-video';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import {
@@ -33,6 +38,7 @@ import {
   Gauge,
   Minus,
   Plus,
+  Sparkles,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
 import { Play3Icon, CcOutlineIcon, CcFilledIcon } from '../components/icons';
@@ -44,7 +50,28 @@ import { useSeekPreview, type SeekMedia } from '../hooks/useSeekPreview';
 import { useSubtitles } from '../hooks/useSubtitles';
 import { useDownload } from '../hooks/useDownload';
 import { formatLabel, formatClock, formatSize } from '../lib/format';
-import { pickTrack, type SubtitleTrack } from '../lib/subtitles';
+import {
+  pickTrack,
+  alignCuesToSpeech,
+  speechOfWords,
+  wordsToCues,
+  type SubtitleTrack,
+  type SubtitleCue,
+} from '../lib/subtitles';
+import { extractAudioSample } from '../lib/download/mux';
+import {
+  transcribeFile as transcribeDeepgram,
+  type DeepgramWord,
+} from '../lib/deepgram';
+import { transcribeFile as transcribeGroq } from '../lib/groq';
+import {
+  getDeepgramKey,
+  getGroqKey,
+  getTranscriber,
+  setTranscriber,
+  type TranscriberChoice,
+} from '../lib/settings';
+import { File, Paths } from 'expo-file-system';
 import { tapImpact, tapSelection } from '../lib/haptics';
 import { usePressScale } from '../hooks/usePressScale';
 import { log } from '../lib/log';
@@ -212,7 +239,9 @@ function PlayerTopBar({
           onPress={onToggleSubs}
           disabled={!canSubs}
           style={tw`p-2.5 ${canSubs ? '' : 'opacity-40'}`}
-          accessibilityLabel={subsOn ? 'Turn subtitles off' : 'Turn subtitles on'}
+          accessibilityLabel={
+            subsOn ? 'Turn subtitles off' : 'Turn subtitles on'
+          }
         >
           {subsOn ? (
             <CcFilledIcon size={20} color="#ffffff" />
@@ -265,6 +294,11 @@ function CenterButton({
   );
 }
 
+function formatDelay(delay: number): string {
+  if (delay === 0) return '0s';
+  return `${delay > 0 ? '+' : ''}${delay.toFixed(1)}s`;
+}
+
 function formatRate(rate: number): string {
   return `${rate.toFixed(2).replace(/0$/, '')}x`;
 }
@@ -291,7 +325,8 @@ function SpeedSlider({
     .onUpdate((event) => {
       if (trackW.current <= 0) return;
       const at = Math.max(0, Math.min(1, event.x / trackW.current));
-      const next = Math.round((SPEED_MIN + at * (SPEED_MAX - SPEED_MIN)) * 20) / 20;
+      const next =
+        Math.round((SPEED_MIN + at * (SPEED_MAX - SPEED_MIN)) * 20) / 20;
       scrubVal.current = next;
       onScrub(next);
     })
@@ -390,10 +425,18 @@ function QualityMenu({
   subsOn,
   subsLabel,
   subTracks,
+  embedTracks,
+  embedSel,
   rate,
+  subDelay,
+  transcriber,
   onPick,
   onPickSub,
+  onPickEmbed,
   onPickRate,
+  onDelay,
+  onAutoSync,
+  onTranscriber,
   onClose,
 }: {
   open: boolean;
@@ -402,20 +445,38 @@ function QualityMenu({
   subsOn: boolean;
   subsLabel: string | null;
   subTracks: SubtitleTrack[];
+  embedTracks: NativeSubtitleTrack[];
+  embedSel: NativeSubtitleTrack | null;
   rate: number;
+  subDelay: number;
+  transcriber: TranscriberChoice;
   onPick: (format: Format) => void;
   onPickSub: (track: SubtitleTrack | null) => void;
+  onPickEmbed: (track: NativeSubtitleTrack) => void;
   onPickRate: (rate: number) => void;
+  onDelay: (delay: number) => void;
+  onAutoSync: (
+    onPhase?: (phase: 'listen' | 'cloud') => void
+  ) => Promise<number | null>;
+  onTranscriber: (value: TranscriberChoice) => void;
   onClose: () => void;
 }) {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const [view, setView] = useState<'main' | 'quality' | 'subs' | 'speed'>('main');
+  const [view, setView] = useState<'main' | 'quality' | 'subs' | 'speed'>(
+    'main'
+  );
   const [preview, setPreview] = useState<number | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncPhase, setSyncPhase] = useState<'listen' | 'cloud'>('listen');
+  const [syncError, setSyncError] = useState<string | null>(null);
   const current = formats.find((format) => format.formatId === currentId);
   const qualityLabel = current ? formatLabel(current) : '';
   const activeSubLabel = subsOn
-    ? (subsLabel ?? pickTrack(subTracks, 'en')?.label ?? subTracks[0]?.label ?? null)
+    ? (subsLabel ??
+      pickTrack(subTracks, 'en')?.label ??
+      subTracks[0]?.label ??
+      null)
     : null;
   const speedNormal = Math.abs(rate - 1) < 0.001;
   const shownRate = preview ?? rate;
@@ -465,7 +526,10 @@ function QualityMenu({
   return (
     <View pointerEvents={open ? 'auto' : 'none'} style={tw`absolute inset-0`}>
       <View
-        style={[tw`flex-1 justify-end px-4`, { paddingBottom: 20 + insets.bottom }]}
+        style={[
+          tw`flex-1 justify-end px-4`,
+          { paddingBottom: 20 + insets.bottom },
+        ]}
       >
         <Pressable style={tw`absolute inset-0`} onPress={closeSheet}>
           <RNAnimated.View
@@ -483,162 +547,317 @@ function QualityMenu({
             ]}
           >
             <View style={tw`px-4 pb-4 pt-3`}>
-            <View style={tw`mx-auto mb-3 h-1 w-10 rounded-full bg-white/15`} />
-            {view === 'main' ? (
-              <>
-                <MenuRow
-                  icon={<SlidersHorizontal size={20} color="#ffffff" />}
-                  label="Quality"
-                  value={qualityLabel}
-                  onPress={() => {
-                    tapSelection();
-                    setView('quality');
-                  }}
-                />
-                <MenuRow
-                  icon={<Captions size={20} color="#ffffff" />}
-                  label="Subtitles"
-                  value={subsOn ? (activeSubLabel ?? 'On') : 'Off'}
-                  disabled={subTracks.length === 0}
-                  onPress={() => {
-                    tapSelection();
-                    setView('subs');
-                  }}
-                />
-                <MenuRow
-                  icon={<Gauge size={20} color="#ffffff" />}
-                  label="Playback speed"
-                  value={formatRate(rate)}
-                  onPress={() => {
-                    tapSelection();
-                    setView('speed');
-                  }}
-                />
-              </>
-            ) : view === 'quality' ? (
-              <>
-                <MenuBack title="Quality" onBack={() => setView('main')} />
-                {formats.map((format) => {
-                  const active = format.formatId === currentId;
-                  return (
-                    <Pressable
-                      key={format.formatId}
-                      onPress={() => {
-                        tapSelection();
-                        onPick(format);
-                        closeSheet();
-                      }}
-                      style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
-                    >
-                      <Text
-                        style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
-                      >
-                        {formatLabel(format)}
-                      </Text>
-                      {active && <Check size={18} color="#22d3ee" />}
-                    </Pressable>
-                  );
-                })}
-              </>
-            ) : view === 'subs' ? (
-              <>
-                <MenuBack title="Subtitles" onBack={() => setView('main')} />
-                <Pressable
-                  onPress={() => {
-                    tapSelection();
-                    onPickSub(null);
-                    closeSheet();
-                  }}
-                  style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${!subsOn ? 'bg-white/10' : ''}`}
-                >
-                  <Text
-                    style={tw`font-mono-semibold text-[14px] ${!subsOn ? 'text-white' : 'text-slate-300'}`}
-                  >
-                    Off
-                  </Text>
-                  {!subsOn && <Check size={18} color="#22d3ee" />}
-                </Pressable>
-                {subTracks.map((track) => {
-                  const active = subsOn && track.label === activeSubLabel;
-                  return (
-                    <Pressable
-                      key={track.url}
-                      onPress={() => {
-                        tapSelection();
-                        onPickSub(track);
-                        closeSheet();
-                      }}
-                      style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
-                    >
-                      <Text
-                        style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
-                      >
-                        {track.label}
-                      </Text>
-                      {active && <Check size={18} color="#22d3ee" />}
-                    </Pressable>
-                  );
-                })}
-              </>
-            ) : (
-              <>
-                <MenuBack
-                  title="Playback speed"
-                  onBack={() => {
-                    setPreview(null);
-                    setView('main');
-                  }}
-                  right={
-                    <Pressable
-                      onPress={() => {
-                        tapSelection();
-                        onPickRate(1);
-                      }}
-                      disabled={speedNormal}
-                      style={tw`${speedNormal ? 'opacity-30' : ''}`}
-                      accessibilityLabel="Reset speed to normal"
-                    >
-                      <RotateCcw size={18} color="#ffffff" />
-                    </Pressable>
-                  }
-                />
-                <Text
-                  style={tw`text-center font-sans-bold text-[22px] text-white`}
-                >
-                  {formatRate(shownRate)}
-                </Text>
-                <View style={tw`flex-row items-center gap-3 px-1 py-1`}>
-                  <Pressable
+              <View
+                style={tw`mx-auto mb-3 h-1 w-10 rounded-full bg-white/15`}
+              />
+              {view === 'main' ? (
+                <>
+                  <MenuRow
+                    icon={<SlidersHorizontal size={20} color="#ffffff" />}
+                    label="Quality"
+                    value={qualityLabel}
                     onPress={() => {
                       tapSelection();
-                      onPickRate(rate - 0.25);
-                    }}
-                    style={tw`h-11 w-11 items-center justify-center rounded-full bg-white/10`}
-                    accessibilityLabel="Slower"
-                  >
-                    <Minus size={20} color="#ffffff" />
-                  </Pressable>
-                  <SpeedSlider
-                    value={shownRate}
-                    onScrub={setPreview}
-                    onCommit={(done) => {
-                      setPreview(null);
-                      onPickRate(done);
+                      setView('quality');
                     }}
                   />
+                  <MenuRow
+                    icon={<Captions size={20} color="#ffffff" />}
+                    label="Subtitles"
+                    value={
+                      embedSel
+                        ? embedSel.label
+                        : subsOn
+                          ? (activeSubLabel ?? 'On')
+                          : 'Off'
+                    }
+                    onPress={() => {
+                      tapSelection();
+                      setView('subs');
+                    }}
+                  />
+                  <MenuRow
+                    icon={<Gauge size={20} color="#ffffff" />}
+                    label="Playback speed"
+                    value={formatRate(rate)}
+                    onPress={() => {
+                      tapSelection();
+                      setView('speed');
+                    }}
+                  />
+                </>
+              ) : view === 'quality' ? (
+                <>
+                  <MenuBack title="Quality" onBack={() => setView('main')} />
+                  {formats.map((format) => {
+                    const active = format.formatId === currentId;
+                    return (
+                      <Pressable
+                        key={format.formatId}
+                        onPress={() => {
+                          tapSelection();
+                          onPick(format);
+                          closeSheet();
+                        }}
+                        style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                      >
+                        <Text
+                          style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
+                        >
+                          {formatLabel(format)}
+                        </Text>
+                        {active && <Check size={18} color="#22d3ee" />}
+                      </Pressable>
+                    );
+                  })}
+                </>
+              ) : view === 'subs' ? (
+                <>
+                  <MenuBack title="Subtitles" onBack={() => setView('main')} />
+                  {embedTracks.length > 0 && (
+                    <Text
+                      style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
+                    >
+                      On this video
+                    </Text>
+                  )}
+                  {embedTracks.map((track) => {
+                    const active =
+                      embedSel !== null &&
+                      (embedSel.id ?? embedSel.label) ===
+                        (track.id ?? track.label);
+                    return (
+                      <Pressable
+                        key={track.id ?? track.label}
+                        onPress={() => {
+                          tapSelection();
+                          onPickEmbed(track);
+                          closeSheet();
+                        }}
+                        style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                      >
+                        <Text
+                          style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
+                        >
+                          {track.label}
+                        </Text>
+                        {active && <Check size={18} color="#22d3ee" />}
+                      </Pressable>
+                    );
+                  })}
+                  {embedTracks.length > 0 && (
+                    <Text
+                      style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
+                    >
+                      More subtitles
+                    </Text>
+                  )}
                   <Pressable
                     onPress={() => {
                       tapSelection();
-                      onPickRate(rate + 0.25);
+                      onPickSub(null);
+                      closeSheet();
                     }}
-                    style={tw`h-11 w-11 items-center justify-center rounded-full bg-white/10`}
-                    accessibilityLabel="Faster"
+                    style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${!subsOn ? 'bg-white/10' : ''}`}
                   >
-                    <Plus size={20} color="#ffffff" />
+                    <Text
+                      style={tw`font-mono-semibold text-[14px] ${!subsOn ? 'text-white' : 'text-slate-300'}`}
+                    >
+                      Off
+                    </Text>
+                    {!subsOn && <Check size={18} color="#22d3ee" />}
                   </Pressable>
-                </View>
-              </>
-            )}
+                  {subTracks.map((track) => {
+                    const active = subsOn && track.label === activeSubLabel;
+                    return (
+                      <Pressable
+                        key={track.url}
+                        onPress={() => {
+                          tapSelection();
+                          onPickSub(track);
+                          closeSheet();
+                        }}
+                        style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                      >
+                        <Text
+                          style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
+                        >
+                          {track.label}
+                        </Text>
+                        {active && <Check size={18} color="#22d3ee" />}
+                      </Pressable>
+                    );
+                  })}
+                  <Text
+                    style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
+                  >
+                    AI voice
+                  </Text>
+                  {(['deepgram', 'groq'] as const).map((choice) => {
+                    const active = transcriber === choice;
+                    return (
+                      <Pressable
+                        key={choice}
+                        onPress={() => {
+                          tapSelection();
+                          onTranscriber(choice);
+                        }}
+                        style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                      >
+                        <Text
+                          style={tw`font-mono-semibold text-[14px] capitalize ${active ? 'text-white' : 'text-slate-300'}`}
+                        >
+                          {choice}
+                        </Text>
+                        {active && <Check size={18} color="#22d3ee" />}
+                      </Pressable>
+                    );
+                  })}
+                  <View
+                    style={tw`flex-row items-center justify-between px-3 py-2`}
+                  >
+                    <Text
+                      style={tw`font-mono-semibold text-[14px] text-slate-300`}
+                    >
+                      Sync
+                    </Text>
+                    <View style={tw`flex-row items-center gap-2`}>
+                      <Pressable
+                        onPress={() => {
+                          tapSelection();
+                          onDelay(
+                            Math.max(
+                              -10,
+                              Math.round((subDelay - 0.5) * 10) / 10
+                            )
+                          );
+                        }}
+                        style={tw`h-9 w-9 items-center justify-center rounded-full bg-white/10`}
+                        accessibilityLabel="Delay subtitles"
+                      >
+                        <Minus size={16} color="#ffffff" />
+                      </Pressable>
+                      <Text
+                        style={tw`w-12 text-center font-mono text-[13px] text-white`}
+                      >
+                        {formatDelay(subDelay)}
+                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          tapSelection();
+                          onDelay(
+                            Math.min(10, Math.round((subDelay + 0.5) * 10) / 10)
+                          );
+                        }}
+                        style={tw`h-9 w-9 items-center justify-center rounded-full bg-white/10`}
+                        accessibilityLabel="Advance subtitles"
+                      >
+                        <Plus size={16} color="#ffffff" />
+                      </Pressable>
+                    </View>
+                  </View>
+                  {syncing ? (
+                    <View
+                      style={tw`mt-1 flex-row items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-3`}
+                    >
+                      <ActivityIndicator size="small" color="#ffffff" />
+                      <Text style={tw`font-sans-medium text-[14px] text-white`}>
+                        {syncPhase === 'cloud' ? 'Transcribing…' : 'Listening…'}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Pressable
+                      onPress={() => {
+                        tapSelection();
+                        setSyncPhase('listen');
+                        setSyncing(true);
+                        setSyncError(null);
+                        void onAutoSync(setSyncPhase).then((offset) => {
+                          setSyncing(false);
+                          if (offset === null) {
+                            setSyncError('Could not sync — try manual');
+                            return;
+                          }
+                          onDelay(offset);
+                          closeSheet();
+                        });
+                      }}
+                      style={tw`mt-1 flex-row items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-3`}
+                      accessibilityLabel="Auto-sync subtitles"
+                    >
+                      <Sparkles size={16} color="#ffffff" />
+                      <Text style={tw`font-sans-medium text-[14px] text-white`}>
+                        Auto-sync
+                      </Text>
+                    </Pressable>
+                  )}
+                  {syncError && (
+                    <Text
+                      style={tw`px-3 pb-1 text-center font-mono text-[11px] text-red-400`}
+                    >
+                      {syncError}
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <>
+                  <MenuBack
+                    title="Playback speed"
+                    onBack={() => {
+                      setPreview(null);
+                      setView('main');
+                    }}
+                    right={
+                      <Pressable
+                        onPress={() => {
+                          tapSelection();
+                          onPickRate(1);
+                        }}
+                        disabled={speedNormal}
+                        style={tw`${speedNormal ? 'opacity-30' : ''}`}
+                        accessibilityLabel="Reset speed to normal"
+                      >
+                        <RotateCcw size={18} color="#ffffff" />
+                      </Pressable>
+                    }
+                  />
+                  <Text
+                    style={tw`text-center font-sans-bold text-[22px] text-white`}
+                  >
+                    {formatRate(shownRate)}
+                  </Text>
+                  <View style={tw`flex-row items-center gap-3 px-1 py-1`}>
+                    <Pressable
+                      onPress={() => {
+                        tapSelection();
+                        onPickRate(rate - 0.25);
+                      }}
+                      style={tw`h-11 w-11 items-center justify-center rounded-full bg-white/10`}
+                      accessibilityLabel="Slower"
+                    >
+                      <Minus size={20} color="#ffffff" />
+                    </Pressable>
+                    <SpeedSlider
+                      value={shownRate}
+                      onScrub={setPreview}
+                      onCommit={(done) => {
+                        setPreview(null);
+                        onPickRate(done);
+                      }}
+                    />
+                    <Pressable
+                      onPress={() => {
+                        tapSelection();
+                        onPickRate(rate + 0.25);
+                      }}
+                      style={tw`h-11 w-11 items-center justify-center rounded-full bg-white/10`}
+                      accessibilityLabel="Faster"
+                    >
+                      <Plus size={20} color="#ffffff" />
+                    </Pressable>
+                  </View>
+                </>
+              )}
             </View>
           </Animated.View>
         </RNAnimated.View>
@@ -963,10 +1182,120 @@ function itemKeyOf(item: MovieItem | null): string {
   return `${kind}/${id}/${season}/${episode}`;
 }
 
+function embedList(
+  event: { availableSubtitleTracks?: NativeSubtitleTrack[] | null } | null
+): NativeSubtitleTrack[] {
+  return event?.availableSubtitleTracks ?? [];
+}
+
+type TranscribeFn = (
+  fsPath: string,
+  mime: string,
+  apiKey: string
+) => Promise<DeepgramWord[]>;
+
+async function transcribeSample(
+  url: string,
+  headers: Record<string, string>,
+  windowSec: number,
+  apiKey: string,
+  transcribe: TranscribeFn,
+  provider: TranscriberChoice
+): Promise<DeepgramWord[] | null> {
+  const audio = new File(Paths.cache, `sync-${Date.now()}.mp3`);
+  try {
+    const path = await extractAudioSample(url, headers, audio, windowSec);
+    const bytes = audio.size ?? 0;
+    log('Player', `cloud-sync via ${provider}: sample bytes=${bytes}`);
+    if (!path || bytes < 50_000) {
+      log('Player', `cloud-sync via ${provider}: extract failed`);
+      return null;
+    }
+    return transcribe(audio.uri, 'audio/mpeg', apiKey);
+  } finally {
+    try {
+      await audio.delete();
+    } catch {
+      /* best effort cleanup */
+    }
+  }
+}
+
+async function cloudSyncOffset(
+  url: string,
+  headers: Record<string, string>,
+  windowSec: number,
+  apiKey: string,
+  transcribe: TranscribeFn,
+  provider: TranscriberChoice,
+  cues: SubtitleCue[]
+): Promise<number | null> {
+  const words = await transcribeSample(
+    url,
+    headers,
+    windowSec,
+    apiKey,
+    transcribe,
+    provider
+  );
+  if (!words || words.length === 0) return null;
+  {
+    const segs = speechOfWords(words);
+    const horizon = windowSec + 60;
+    const range = cues.filter((cue) => cue.start < horizon);
+    log(
+      'Player',
+      `cloud-sync via ${provider}: segs=${segs.length} cuesInRange=${range.length}`
+    );
+    const result = alignCuesToSpeech(range, segs, horizon, (dbg) => {
+      const peaks = dbg.top
+        .map((peak) => `${peak.offset}s:${peak.score.toFixed(3)}`)
+        .join(' ');
+      log(
+        'Player',
+        `cloud-sync best=${dbg.best}s score=${dbg.bestScore.toFixed(3)} zero=${dbg.zero.toFixed(3)} top=${peaks}`
+      );
+    });
+    if (!result) {
+      log('Player', 'cloud-sync align found no offset');
+      return null;
+    }
+    log(
+      'Player',
+      `cloud-sync offset ${result.offset}s confidence ${result.confidence.toFixed(2)}`
+    );
+    return result.offset;
+  }
+}
+
+function captionState(
+  subsOn: boolean,
+  embedOn: boolean,
+  _downloaded: number,
+  _embedded: number
+): { icon: boolean; overlay: boolean; can: boolean } {
+  return {
+    icon: subsOn || embedOn,
+    overlay: subsOn && !embedOn,
+    // temp dev: cc always enabled, deepgram generates when providers give nothing
+    can: true,
+  };
+}
+
+function hashableMediaUrl(
+  info: VideoInfo | null,
+  currentId: string | null
+): string | null {
+  const current = info?.formats.find((format) => format.formatId === currentId);
+  if (!current || current.isHls || !current.url) return null;
+  return current.url;
+}
+
 function previewKey(item: MovieItem | null, currentId: string | null): string {
   const kind = item?.kind ?? 'movie';
   const id = item?.id ?? 'none';
-  const ep = item?.kind === 'tv' ? `/s${item.season ?? '1'}e${item.episode ?? '1'}` : '';
+  const ep =
+    item?.kind === 'tv' ? `/s${item.season ?? '1'}e${item.episode ?? '1'}` : '';
   return `${kind}/${id}${ep}/${currentId ?? 'none'}`;
 }
 
@@ -981,7 +1310,12 @@ function silenceNativeCaptions(player: VideoPlayer): void {
 function subRefOf(item: MovieItem | null): MovieRef | null {
   if (!item) return null;
   return item.kind === 'tv'
-    ? { kind: 'tv', tmdbId: item.id, season: item.season ?? '1', episode: item.episode ?? '1' }
+    ? {
+        kind: 'tv',
+        tmdbId: item.id,
+        season: item.season ?? '1',
+        episode: item.episode ?? '1',
+      }
     : { kind: 'movie', tmdbId: item.id };
 }
 
@@ -1233,6 +1567,12 @@ export default function MoviePlayerScreen({
     close,
     switchQuality,
   } = useMoviePlayer();
+  const subsAvailEvent = useEvent(
+    player,
+    'availableSubtitleTracksChange',
+    null
+  );
+  const embedTracks = embedList(subsAvailEvent);
   useTapToPlay(visible, isPlaying, requestedAt, itemKey);
   const { downloads, startDownload } = useDownload(info);
   const [controls, setControls] = useState(true);
@@ -1245,6 +1585,10 @@ export default function MoviePlayerScreen({
   const [stalled, setStalled] = useState(false);
   const [seeking, setSeeking] = useState(false);
   const [subsOn, setSubsOn] = useState(false);
+  const [transcriber, setTranscriberChoice] =
+    useState<TranscriberChoice>('deepgram');
+  const [subDelay, setSubDelay] = useState(0);
+  const [embedSel, setEmbedSel] = useState<NativeSubtitleTrack | null>(null);
   const seekTarget = useRef(0);
   const seekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1274,6 +1618,11 @@ export default function MoviePlayerScreen({
 
   useEffect(() => {
     if (!visible || !item) return;
+    setSubDelay(0);
+    setEmbedSel(null);
+    getTranscriber()
+      .then(setTranscriberChoice)
+      .catch(() => undefined);
     void open(item.kind, item.id, item.season, item.episode);
   }, [visible, item, open]);
 
@@ -1385,26 +1734,117 @@ export default function MoviePlayerScreen({
     void (fullscreen ? exit() : enter());
   };
 
-  const pickSub = useCallback((track: SubtitleTrack | null) => {
-    tapSelection();
-    setSubsOn(track !== null);
-    poke();
-  }, [poke]);
+  const pickSub = useCallback(
+    (track: SubtitleTrack | null) => {
+      tapSelection();
+      setEmbedSel(null);
+      setSubsOn(track !== null);
+      poke();
+    },
+    [poke]
+  );
 
   const duration = player.duration || info?.duration || 0;
   const buffered = player.bufferedPosition || 0;
   const thumbMedia = seekMedia(info, currentId);
   const subRef = useMemo(() => subRefOf(item), [item]);
-  const subs = useSubtitles(subRef, duration, subsOn);
+  const subs = useSubtitles(
+    subRef,
+    duration,
+    subsOn,
+    hashableMediaUrl(info, currentId)
+  );
+  const caps = captionState(
+    subsOn,
+    embedSel !== null,
+    subs.tracks.length,
+    embedTracks.length
+  );
   useEffect(() => {
-    if (visible && subsOn && subs.tracks.length > 0) {
+    if (visible && subsOn && !embedSel && subs.tracks.length > 0) {
       silenceNativeCaptions(player);
     }
-  }, [visible, subsOn, subs.tracks.length, player, currentId, phase]);
-  const tickSubs = subs.tick;
+  }, [visible, subsOn, subs.tracks.length, player, currentId, phase, embedSel]);
   useEffect(() => {
-    tickSubs(position);
-  }, [position, tickSubs]);
+    if (!visible) return;
+    try {
+      player.subtitleTrack = embedSel;
+    } catch {
+      /* builds without the subtitle api */
+    }
+  }, [visible, player, embedSel]);
+  const tickSubs = subs.tick;
+  const autoSyncSubs = useCallback(
+    async (
+      onPhase?: (phase: 'listen' | 'cloud') => void
+    ): Promise<number | null> => {
+      const cues = subs.getCues();
+      const current = info?.formats.find(
+        (format) => format.formatId === currentId
+      );
+      const url = current?.url;
+      if (!url) return null;
+      const headers = info?.downloadHeaders ?? {};
+      const window = Math.min(600, Math.max(60, Math.floor(duration)));
+      // temp dev: chosen cloud transcriber only, providers off. restore before ship
+      const choice = await getTranscriber().catch(
+        (): TranscriberChoice => 'deepgram'
+      );
+      const stored: Record<TranscriberChoice, string> = {
+        deepgram: await getDeepgramKey().catch(() => ''),
+        groq: await getGroqKey().catch(() => ''),
+      };
+      const provider: TranscriberChoice = choice;
+      const apiKey = stored[provider];
+      if (!apiKey) {
+        log('Player', `cc skipped (save your ${provider} key in settings)`);
+        return null;
+      }
+      const transcribe =
+        provider === 'groq' ? transcribeGroq : transcribeDeepgram;
+      onPhase?.('cloud');
+      const cloudWindow = Math.min(300, window);
+      if (cues.length > 0) {
+        return cloudSyncOffset(
+          url,
+          headers,
+          cloudWindow,
+          apiKey,
+          transcribe,
+          provider,
+          cues
+        ).catch(() => null);
+      }
+      const words = await transcribeSample(
+        url,
+        headers,
+        cloudWindow,
+        apiKey,
+        transcribe,
+        provider
+      );
+      if (!words || words.length === 0) {
+        log('Player', `cc generate via ${provider} failed`);
+        return null;
+      }
+      const generated = wordsToCues(words).map((cue) => {
+        // temp dev: show lines a beat early, whisper starts lag speech
+        const start = Math.max(0, Math.round((cue.start - 0.5) * 10) / 10);
+        return { ...cue, start, end: Math.max(cue.end - 0.5, start + 0.1) };
+      });
+      subs.setGeneratedCues(
+        generated,
+        provider === 'groq' ? 'AI subs (Groq)' : 'AI subs (Deepgram)'
+      );
+      setSubsOn(true);
+      log('Player', `cc generated via ${provider} cues=${generated.length}`);
+      return 0;
+    },
+    [subs, info, currentId, duration]
+  );
+  useEffect(() => {
+    tickSubs(position - subDelay);
+  }, [position, tickSubs, subDelay]);
   live.current = { pos: position, buf: buffered, playing: isPlaying };
 
   useEffect(() => {
@@ -1488,7 +1928,8 @@ export default function MoviePlayerScreen({
               media={thumbMedia}
               top={expanded ? insets.top : 0}
               onOpen={() => {
-                if (item) void open(item.kind, item.id, item.season, item.episode);
+                if (item)
+                  void open(item.kind, item.id, item.season, item.episode);
               }}
               onBack={() => {
                 tapSelection();
@@ -1508,22 +1949,29 @@ export default function MoviePlayerScreen({
                 seekTimer.current = setTimeout(() => setSeeking(false), 10000);
                 poke();
               }}
-            onInteract={poke}
-            onZoneTap={handleTap}
-            subsOn={subsOn}
-            canSubs={subs.tracks.length > 0}
-            onToggleSubs={() => {
-              tapSelection();
-              setSubsOn((on) => !on);
-              poke();
-            }}
-          />
-          <StallSpinner show={stalled && phase === 'ready'} />
-          <CaptionLayer
-            show={subsOn}
-            line={subs.line}
-            bottom={captionBottom(expanded, controls)}
-          />
+              onInteract={poke}
+              onZoneTap={handleTap}
+              subsOn={caps.icon}
+              canSubs={caps.can}
+              onToggleSubs={() => {
+                tapSelection();
+                if (embedSel) setEmbedSel(null);
+                setSubsOn(true);
+                poke();
+                // temp dev: cc tap = chosen cloud transcriber. restore toggle before ship
+                void (async () => {
+                  const offset = await autoSyncSubs();
+                  if (offset === null) log('Player', 'cc transcribe failed');
+                  else setSubDelay(offset);
+                })();
+              }}
+            />
+            <StallSpinner show={stalled && phase === 'ready'} />
+            <CaptionLayer
+              show={caps.overlay}
+              line={subs.line}
+              bottom={captionBottom(expanded, controls)}
+            />
           </View>
         </GestureDetector>
 
@@ -1550,10 +1998,22 @@ export default function MoviePlayerScreen({
         subsOn={subsOn}
         subsLabel={subs.label}
         subTracks={subs.tracks}
+        embedTracks={embedTracks}
+        embedSel={embedSel}
         rate={rate}
+        subDelay={subDelay}
+        transcriber={transcriber}
         onPick={(format) => void switchQuality(format)}
         onPickSub={pickSub}
+        onPickEmbed={setEmbedSel}
         onPickRate={setRate}
+        onDelay={setSubDelay}
+        onAutoSync={autoSyncSubs}
+        onTranscriber={(value) => {
+          tapSelection();
+          setTranscriberChoice(value);
+          void setTranscriber(value).catch(() => undefined);
+        }}
         onClose={() => setQualityOpen(false)}
       />
     </View>

@@ -18,6 +18,8 @@ import {
   AppState,
   StatusBar,
   Dimensions,
+  Modal,
+  TextInput,
   useWindowDimensions,
 } from 'react-native';
 import { useBackHandler } from '../lib/back';
@@ -26,7 +28,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
-import { ChevronRight, Ghost } from 'lucide-react-native';
+import { ChevronRight, Ghost, KeyRound } from 'lucide-react-native';
 import { tapSelection, tapSuccess, setHapticsEnabled } from '../lib/haptics';
 import { cacheSize, clearCache, formatBytes } from '../lib/storageUsage';
 import tw from '../lib/tw';
@@ -75,6 +77,10 @@ import {
   setYoutubeCookie,
   getBilibiliCookie,
   setBilibiliCookie,
+  getDeepgramKey,
+  setDeepgramKey,
+  getGroqKey,
+  setGroqKey,
   formatName,
   type FilenameFormat,
 } from '../lib/settings';
@@ -809,6 +815,14 @@ function SettingsScreen({
   const [nameError, setNameError] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [cookieSet, setCookieSet] = useState({ youtube: '', bilibili: '' });
+  const [deepgramOpen, setDeepgramOpen] = useState(false);
+  const [deepgramValue, setDeepgramValue] = useState('');
+  const [deepgramSet, setDeepgramSet] = useState(false);
+  const [deepgramSaving, setDeepgramSaving] = useState(false);
+  const [groqOpen, setGroqOpen] = useState(false);
+  const [groqValue, setGroqValue] = useState('');
+  const [groqSet, setGroqSet] = useState(false);
+  const [groqSaving, setGroqSaving] = useState(false);
   const [cookieTarget, setCookieTarget] = useState<
     'youtube' | 'bilibili' | null
   >(null);
@@ -890,6 +904,12 @@ function SettingsScreen({
       .catch(() => undefined);
     getBilibiliCookie()
       .then((v) => setCookieSet((prev) => ({ ...prev, bilibili: v })))
+      .catch(() => undefined);
+    getDeepgramKey()
+      .then((v) => setDeepgramSet(!!v))
+      .catch(() => undefined);
+    getGroqKey()
+      .then((v) => setGroqSet(!!v))
       .catch(() => undefined);
   }, []);
 
@@ -1385,11 +1405,211 @@ function SettingsScreen({
             cookiesScreen.setOpen(true);
           }}
           tile={false}
+          iconSize={26}
+          light={light}
+        />
+        <LinkRow
+          Icon={KeyRound}
+          label="AI subtitles key"
+          hint="Your own Deepgram key, stays on this device"
+          value={deepgramSet ? 'Set' : 'Off'}
+          tone={deepgramSet ? 'good' : undefined}
+          onPress={() => {
+            tapSelection();
+            getDeepgramKey()
+              .then(setDeepgramValue)
+              .catch(() => undefined);
+            setDeepgramOpen(true);
+          }}
+          tile={false}
+          iconSize={26}
+          light={light}
+        />
+        <LinkRow
+          Icon={KeyRound}
+          label="Groq key"
+          hint="Free Whisper transcription, stays on this device"
+          value={groqSet ? 'Set' : 'Off'}
+          tone={groqSet ? 'good' : undefined}
+          onPress={() => {
+            tapSelection();
+            getGroqKey()
+              .then(setGroqValue)
+              .catch(() => undefined);
+            setGroqOpen(true);
+          }}
+          tile={false}
           last
           iconSize={26}
           light={light}
         />
       </Card>
+
+      <Modal
+        transparent
+        visible={deepgramOpen}
+        animationType="fade"
+        onRequestClose={() => setDeepgramOpen(false)}
+      >
+        <View style={tw`flex-1 items-center justify-center px-6`}>
+          <Pressable
+            style={tw`absolute inset-0 bg-black/70`}
+            onPress={() => setDeepgramOpen(false)}
+            accessibilityLabel="Close"
+          />
+          <View
+            style={tw`w-full max-w-[420px] rounded-[28px] bg-[#1E1E1E] p-5`}
+          >
+            <Text style={tw`font-sans-bold text-[16px] text-white`}>
+              AI subtitles key
+            </Text>
+            <Text
+              style={tw`mt-1 font-sans text-[13px] leading-5 text-slate-400`}
+            >
+              Paste your personal Deepgram key. It never leaves this phone and
+              only pays for your own episodes.
+            </Text>
+            <TextInput
+              value={deepgramValue}
+              onChangeText={setDeepgramValue}
+              placeholder="Paste key…"
+              placeholderTextColor="#5b6472"
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={tw`mt-3 rounded-2xl bg-white/10 px-4 py-3 font-mono text-[14px] text-white`}
+            />
+            <View style={tw`mt-4 flex-row gap-2`}>
+              <Pressable
+                onPress={() => {
+                  tapSelection();
+                  setDeepgramSaving(true);
+                  void setDeepgramKey('')
+                    .then(() => {
+                      setDeepgramValue('');
+                      setDeepgramSet(false);
+                      setDeepgramOpen(false);
+                    })
+                    .finally(() => setDeepgramSaving(false));
+                }}
+                disabled={deepgramSaving}
+                style={tw`flex-1 items-center rounded-full bg-white/10 py-3`}
+                accessibilityLabel="Remove key"
+              >
+                <Text style={tw`font-sans-semibold text-[14px] text-slate-200`}>
+                  Clear
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  tapSelection();
+                  setDeepgramSaving(true);
+                  void setDeepgramKey(deepgramValue)
+                    .then(() => {
+                      setDeepgramSet(deepgramValue.trim().length > 0);
+                      setDeepgramOpen(false);
+                    })
+                    .finally(() => setDeepgramSaving(false));
+                }}
+                disabled={deepgramSaving}
+                style={tw`flex-1 items-center rounded-full bg-cyan-400 py-3`}
+                accessibilityLabel="Save key"
+              >
+                {deepgramSaving ? (
+                  <ActivityIndicator size="small" color="#083344" />
+                ) : (
+                  <Text style={tw`font-sans-bold text-[14px] text-slate-950`}>
+                    Save
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        transparent
+        visible={groqOpen}
+        animationType="fade"
+        onRequestClose={() => setGroqOpen(false)}
+      >
+        <View style={tw`flex-1 items-center justify-center px-6`}>
+          <Pressable
+            style={tw`absolute inset-0 bg-black/70`}
+            onPress={() => setGroqOpen(false)}
+            accessibilityLabel="Close"
+          />
+          <View
+            style={tw`w-full max-w-[420px] rounded-[28px] bg-[#1E1E1E] p-5`}
+          >
+            <Text style={tw`font-sans-bold text-[16px] text-white`}>
+              Groq key
+            </Text>
+            <Text
+              style={tw`mt-1 font-sans text-[13px] leading-5 text-slate-400`}
+            >
+              Paste your free Groq key for Whisper transcription. It never
+              leaves this phone and only pays for your own episodes.
+            </Text>
+            <TextInput
+              value={groqValue}
+              onChangeText={setGroqValue}
+              placeholder="Paste key…"
+              placeholderTextColor="#5b6472"
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={tw`mt-3 rounded-2xl bg-white/10 px-4 py-3 font-mono text-[14px] text-white`}
+            />
+            <View style={tw`mt-4 flex-row gap-2`}>
+              <Pressable
+                onPress={() => {
+                  tapSelection();
+                  setGroqSaving(true);
+                  void setGroqKey('')
+                    .then(() => {
+                      setGroqValue('');
+                      setGroqSet(false);
+                      setGroqOpen(false);
+                    })
+                    .finally(() => setGroqSaving(false));
+                }}
+                disabled={groqSaving}
+                style={tw`flex-1 items-center rounded-full bg-white/10 py-3`}
+                accessibilityLabel="Remove key"
+              >
+                <Text style={tw`font-sans-semibold text-[14px] text-slate-200`}>
+                  Clear
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  tapSelection();
+                  setGroqSaving(true);
+                  void setGroqKey(groqValue)
+                    .then(() => {
+                      setGroqSet(groqValue.trim().length > 0);
+                      setGroqOpen(false);
+                    })
+                    .finally(() => setGroqSaving(false));
+                }}
+                disabled={groqSaving}
+                style={tw`flex-1 items-center rounded-full bg-cyan-400 py-3`}
+                accessibilityLabel="Save key"
+              >
+                {groqSaving ? (
+                  <ActivityIndicator size="small" color="#083344" />
+                ) : (
+                  <Text style={tw`font-sans-bold text-[14px] text-slate-950`}>
+                    Save
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <SectionLabel light={light}>About</SectionLabel>
       <Card light={light}>

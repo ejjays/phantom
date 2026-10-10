@@ -16,7 +16,8 @@ export default function GenericExtractorWebView() {
   const ref = useRef<WebView>(null);
   const { width, height } = useWindowDimensions();
   const [source, setSource] = useState<
-    { uri: string; headers?: Record<string, string> } | { html: string; baseUrl: string }
+    | { uri: string; headers?: Record<string, string> }
+    | { html: string; baseUrl: string }
   >({ uri: 'about:blank' });
 
   const recover = (reason: string): void => {
@@ -47,7 +48,7 @@ export default function GenericExtractorWebView() {
         cacheEnabled
         onLoadStart={() =>
           attachGenericWebView({
-            navigate: (uri, headers) => setSource(headers ? { uri, headers } : { uri }),
+            navigate: (uri) => setSource({ uri }),
             injectJavaScript: (js) => ref.current?.injectJavaScript(js),
           })
         }

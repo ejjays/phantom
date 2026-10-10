@@ -8,6 +8,7 @@ vi.mock('../src/lib/net', () => ({
 
 import { gatedFetch } from '../src/lib/net';
 import {
+  alignCuesToSpeech,
   cueAt,
   fetchVttText,
   fitCuesToDuration,
@@ -15,6 +16,11 @@ import {
   langOfLabel,
   parseVtt,
   pickTrack,
+  speechOfSilence,
+  speechOfWords,
+  wordsToCues,
+  type SpeechSeg,
+  type SubtitleCue,
   type SubtitleTrack,
 } from '../src/lib/subtitles';
 
@@ -47,6 +53,125 @@ describe('parseVtt', () => {
   it('drops empty and note blocks', () => {
     expect(parseVtt('WEBVTT\n\nNOTE hi\n')).toHaveLength(0);
     expect(parseVtt('')).toHaveLength(0);
+  });
+
+  it('strips ass overrides and newlines', () => {
+    const cues = parseVtt(
+      'WEBVTT\n\n00:00:01.000 --> 00:00:03.000\n{\\an8}Top line\\Nsecond line\n'
+    );
+    expect(cues).toHaveLength(1);
+    expect(cues[0]?.text).toBe('Top line\nsecond line');
+  });
+});
+
+describe('alignCuesToSpeech', () => {
+  const speech: SpeechSeg[] = [
+    { start: 100, end: 140 },
+    { start: 200, end: 260 },
+    { start: 320, end: 360 },
+    { start: 420, end: 470 },
+    { start: 530, end: 580 },
+    { start: 640, end: 690 },
+    { start: 750, end: 800 },
+    { start: 860, end: 910 },
+  ];
+  const cue = (start: number, end: number): SubtitleCue => ({
+    start,
+    end,
+    text: 'x',
+  });
+
+  it('finds a constant shift', () => {
+    const cues = [
+      cue(92, 94),
+      cue(110, 112),
+      cue(220, 224),
+      cue(330, 334),
+      cue(540, 544),
+      cue(760, 764),
+    ];
+    const found = alignCuesToSpeech(cues, speech, 1000);
+    expect(found?.offset).toBe(8);
+    expect(found ? found.confidence > 0.6 : false).toBe(true);
+  });
+
+  it('reports zero when already synced', () => {
+    const cues = [
+      cue(100, 104),
+      cue(220, 224),
+      cue(430, 434),
+      cue(650, 654),
+      cue(870, 874),
+    ];
+    const found = alignCuesToSpeech(cues, speech, 1000);
+    expect(found?.offset).toBe(0);
+  });
+
+  it('returns null with no signal', () => {
+    expect(alignCuesToSpeech([], speech, 300)).toBeNull();
+    expect(alignCuesToSpeech([cue(100, 104)], [], 300)).toBeNull();
+    expect(
+      alignCuesToSpeech([cue(100, 104)], [{ start: 10, end: 14 }], 300)
+    ).toBeNull();
+  });
+});
+
+describe('speechOfWords', () => {
+  it('merges near words and drops junk', () => {
+    expect(
+      speechOfWords([
+        { start: 1.0, end: 1.4 },
+        { start: 1.5, end: 1.9 },
+        { start: 10.0, end: 10.5 },
+        { start: 5.0, end: 4.0 },
+      ])
+    ).toEqual([
+      { start: 1.0, end: 1.9 },
+      { start: 10.0, end: 10.5 },
+    ]);
+  });
+});
+describe('wordsToCues', () => {
+  const word = (text: string, start: number, end: number) => ({
+    word: text,
+    start,
+    end,
+  });
+  it('breaks on pauses and length', () => {
+    expect(
+      wordsToCues([
+        word('hello', 1.0, 1.4),
+        word('there', 1.5, 1.9),
+        word('later', 5.0, 5.4),
+      ])
+    ).toEqual([
+      { start: 1.0, end: 1.9, text: 'hello there' },
+      { start: 5.0, end: 5.4, text: 'later' },
+    ]);
+    expect(wordsToCues([])).toEqual([]);
+    expect(wordsToCues([word('  ', 1.0, 1.4), word('bad', 2.0, 1.0)])).toEqual(
+      []
+    );
+  });
+});
+
+describe('speechOfSilence', () => {
+  it('inverts closed silences into speech', () => {
+    const segs = speechOfSilence(
+      '[silencedetect] silence_start: 10\n[silencedetect] silence_end: 20 | silence_duration: 10\n' +
+        '[silencedetect] silence_start: 50\n[silencedetect] silence_end: 60 | silence_duration: 10\n',
+      100
+    );
+    expect(segs).toEqual([
+      { start: 0, end: 10 },
+      { start: 20, end: 50 },
+      { start: 60, end: 100 },
+    ]);
+  });
+
+  it('ignores dangling starts and tiny slivers', () => {
+    const segs = speechOfSilence('[silencedetect] silence_start: 90\n', 100);
+    expect(segs).toEqual([{ start: 0, end: 100 }]);
   });
 });
 
@@ -154,6 +279,8 @@ describe('fetchVttText', () => {
       status: 200,
       text: () => Promise.resolve(VTT),
     } as unknown as Response);
-    await expect(fetchVttText('https://x/en.vtt', {})).resolves.toContain('WEBVTT');
+    await expect(fetchVttText('https://x/en.vtt', {})).resolves.toContain(
+      'WEBVTT'
+    );
   });
 });

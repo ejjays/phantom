@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useEvent } from 'expo';
 import { useVideoPlayer } from 'expo-video';
+import type { AudioTrack } from 'expo-video';
 import { resolve } from '../extractors';
 import { VIDROCK_HEADERS } from '../extractors/movies/vidrock';
 import { fetchVidzeeFormats } from '../extractors/movies/vidzee';
@@ -10,14 +11,33 @@ import type { MovieRef } from '../extractors/movies/parse';
 import type { Format, VideoInfo } from '@phantom/extractors';
 import type { MovieItem } from '../extractors/movies/browse';
 import { log, error as logError } from '../lib/log';
+import { fetchWithTimeout } from '../lib/net';
 
 export type PlayerPhase = 'idle' | 'loading' | 'ready' | 'error';
+
+export function pickEnglishAudio(
+  tracks: AudioTrack[] | null | undefined
+): AudioTrack | null {
+  if (!tracks) return null;
+  // single-audio hls routinely reports language: null despite the type
+  return (
+    tracks.find(
+      (track) =>
+        typeof track.language === 'string' &&
+        track.language.toLowerCase().startsWith('en')
+    ) ?? null
+  );
+}
 
 function aliveFormats(formats: Format[], dead: string[]): Format[] {
   return formats.filter((format) => !dead.includes(format.url));
 }
 
-function noteDeadUrl(dead: string[], info: VideoInfo | null, currentId: string | null): void {
+function noteDeadUrl(
+  dead: string[],
+  info: VideoInfo | null,
+  currentId: string | null
+): void {
   const failed = info?.formats.find((format) => format.formatId === currentId);
   if (failed && !dead.includes(failed.url)) dead.push(failed.url);
 }
@@ -31,7 +51,12 @@ async function rescueFormats(
 ): Promise<RescueResult | null> {
   const ref: MovieRef =
     goal.kind === 'tv'
-      ? { kind: 'tv', tmdbId: goal.id, season: goal.season, episode: goal.episode }
+      ? {
+          kind: 'tv',
+          tmdbId: goal.id,
+          season: goal.season,
+          episode: goal.episode,
+        }
       : { kind: 'movie', tmdbId: goal.id };
   const [zeeRes, paraRes] = await Promise.all([
     fetchVidzeeFormats(ref).catch(() => null),
@@ -44,24 +69,57 @@ async function rescueFormats(
     }
   }
   if (goal.season !== '1' || goal.episode !== '1') return null;
-  const luna = await resolveLunaWatchPage(goal.kind, goal.id, title).catch(() => null);
+  const luna = await resolveLunaWatchPage(goal.kind, goal.id).catch(() => null);
   const alive = aliveFormats(luna?.formats ?? [], dead);
   if (alive.length === 0) return null;
   return { formats: alive, headers: luna?.headers ?? VIDROCK_HEADERS };
 }
 
-type TitleRef = { kind: MovieItem['kind']; id: string; season: string; episode: string };
+type TitleRef = {
+  kind: MovieItem['kind'];
+  id: string;
+  season: string;
+  episode: string;
+};
 
-async function freshInfo(
+const PROBE_MS = 6_000;
+
+// player errors arrive as formatted exoplayer text, so probe the url for a
+// status code we own instead of parsing it
+async function sourceAlive(
+  url: string,
+  headers: Record<string, string>
+): Promise<boolean> {
+  try {
+    const res = await fetchWithTimeout(
+      url,
+      { method: 'GET', headers: { ...headers, Range: 'bytes=0-0' } },
+      PROBE_MS
+    );
+    return res.status < 400;
+  } catch {
+    // inconclusive: replay once before walking the quality queue
+    return true;
+  }
+}
+
+async function loadInfo(
   kind: MovieItem['kind'],
   id: string,
   season: string,
-  episode: string
+  episode: string,
+  fresh = false
 ): Promise<VideoInfo | null> {
   const path =
     kind === 'tv' ? `tv/${id}/${season}/${episode}` : `${kind}/${id}`;
-  const resolved = await resolve(`https://watchluna.gd/${path}`, undefined, { fresh: true });
-  return resolved && !resolved.isPartial && resolved.formats.length > 0 ? resolved : null;
+  const resolved = await resolve(
+    `https://watchluna.gd/${path}`,
+    undefined,
+    fresh ? { fresh: true } : undefined
+  );
+  return resolved && !resolved.isPartial && resolved.formats.length > 0
+    ? resolved
+    : null;
 }
 
 export function useMoviePlayer() {
@@ -84,6 +142,24 @@ export function useMoviePlayer() {
   const statusEvent = useEvent(player, 'statusChange', null);
   const playingEvent = useEvent(player, 'playingChange', null);
   const timeEvent = useEvent(player, 'timeUpdate', null);
+  const sourceEvent = useEvent(player, 'sourceLoad', null);
+
+  useEffect(() => {
+    if (!sourceEvent) return;
+    const tracks = sourceEvent.availableAudioTracks ?? [];
+    log(
+      'Player',
+      `audio tracks [${tracks.map((track) => track.language).join(',')}] active=${player.audioTrack?.language ?? '?'}`
+    );
+    const pick = pickEnglishAudio(tracks);
+    if (!pick) return;
+    try {
+      player.audioTrack = pick;
+      log('Player', `audio forced ${pick.language} (${pick.label})`);
+    } catch {
+      /* older builds reject explicit audio selection */
+    }
+  }, [sourceEvent, player]);
 
   const playSource = useCallback(
     async (
@@ -124,7 +200,12 @@ export function useMoviePlayer() {
   );
 
   const open = useCallback(
-    async (kind: MovieItem['kind'], id: string, season = '1', episode = '1') => {
+    async (
+      kind: MovieItem['kind'],
+      id: string,
+      season = '1',
+      episode = '1'
+    ) => {
       const goal = { kind, id, season, episode };
       target.current = goal;
       retried.current = false;
@@ -138,20 +219,29 @@ export function useMoviePlayer() {
       rateRef.current = 1;
       setRateState(1);
       const started = Date.now();
-      const slug = kind === 'tv' ? `${kind}/${id}/${season}/${episode}` : `${kind}/${id}`;
+      const slug =
+        kind === 'tv' ? `${kind}/${id}/${season}/${episode}` : `${kind}/${id}`;
       log('Player', `open ${slug}`);
       try {
-        const full = await freshInfo(kind, id, season, episode);
+        const full = await loadInfo(kind, id, season, episode);
         if (target.current !== goal) return;
         if (!full) throw new Error('no playable sources');
         const best = full.formats[0];
         queue.current = full.formats.slice(1);
         setInfo(full);
         setCurrentId(best.formatId);
-        await playSource(best, full.title, full.thumbnail ?? undefined, full.downloadHeaders ?? VIDROCK_HEADERS);
+        await playSource(
+          best,
+          full.title,
+          full.thumbnail ?? undefined,
+          full.downloadHeaders ?? VIDROCK_HEADERS
+        );
         if (target.current !== goal) return;
         setPhase('ready');
-        log('Player', `playing ${kind}/${id} ${best.formatId} ms=${Date.now() - started}`);
+        log(
+          'Player',
+          `playing ${kind}/${id} ${best.formatId} ms=${Date.now() - started}`
+        );
       } catch (err) {
         if (target.current !== goal) return;
         const message = err instanceof Error ? err.message : String(err);
@@ -169,8 +259,16 @@ export function useMoviePlayer() {
       const at = player.currentTime;
       setCurrentId(format.formatId);
       sameRetried.current = false;
-      queue.current = info.formats.filter((entry) => entry.formatId !== format.formatId);
-      await playSource(format, info.title, info.thumbnail ?? undefined, info.downloadHeaders ?? VIDROCK_HEADERS, at);
+      queue.current = info.formats.filter(
+        (entry) => entry.formatId !== format.formatId
+      );
+      await playSource(
+        format,
+        info.title,
+        info.thumbnail ?? undefined,
+        info.downloadHeaders ?? VIDROCK_HEADERS,
+        at
+      );
       log('Player', `quality ${format.formatId} resumed at ${Math.round(at)}s`);
     },
     [info, playSource, player]
@@ -181,74 +279,118 @@ export function useMoviePlayer() {
     const at = player.currentTime;
     const goal = target.current;
     const detail = statusEvent.error?.message ?? 'source died';
-    const deadLink = /response code:\s*4\d\d|http\s*4\d\d|playlist http 4\d\d|segment http 4\d\d/i.test(detail);
-    const stillborn = /response code:\s*503/i.test(detail) && at < 1;
-    const current = info?.formats.find((format) => format.formatId === currentId) ?? null;
+    const current =
+      info?.formats.find((format) => format.formatId === currentId) ?? null;
+    const headers = info?.downloadHeaders ?? VIDROCK_HEADERS;
     noteDeadUrl(deadUrls.current, info, currentId);
-    if (!deadLink && !stillborn && current && !sameRetried.current) {
-      sameRetried.current = true;
-      log('Player', `${goal.kind}/${goal.id} transient (${detail}) at ${Math.round(at)}s, replaying same source`);
-      void playSource(current, info?.title ?? goal.id, info?.thumbnail ?? undefined, info?.downloadHeaders ?? VIDROCK_HEADERS, at).catch(
-        (err: unknown) => {
+    void (async () => {
+      const alive = current ? await sourceAlive(current.url, headers) : false;
+      if (target.current !== goal) return;
+      if (alive && current && !sameRetried.current) {
+        sameRetried.current = true;
+        log(
+          'Player',
+          `${goal.kind}/${goal.id} transient (${detail}) at ${Math.round(at)}s, replaying same source`
+        );
+        void playSource(
+          current,
+          info?.title ?? goal.id,
+          info?.thumbnail ?? undefined,
+          headers,
+          at
+        ).catch((err: unknown) => {
           logError(
             'Player',
             `replay ${current.formatId} failed: ${err instanceof Error ? err.message : String(err)}`
           );
-        }
-      );
-      return;
-    }
-    const trying = queue.current[0];
-    if (trying) {
-      queue.current = queue.current.slice(1);
-      sameRetried.current = false;
-      log('Player', `${goal.kind}/${goal.id} ${detail} at ${Math.round(at)}s, trying ${trying.formatId}`);
-      setCurrentId(trying.formatId);
-      void playSource(trying, info?.title ?? goal.id, info?.thumbnail ?? undefined, info?.downloadHeaders ?? VIDROCK_HEADERS, at).catch(
-        (err: unknown) => {
+        });
+        return;
+      }
+      const trying = queue.current[0];
+      if (trying) {
+        queue.current = queue.current.slice(1);
+        sameRetried.current = false;
+        log(
+          'Player',
+          `${goal.kind}/${goal.id} ${detail} at ${Math.round(at)}s, trying ${trying.formatId}`
+        );
+        setCurrentId(trying.formatId);
+        void playSource(
+          trying,
+          info?.title ?? goal.id,
+          info?.thumbnail ?? undefined,
+          headers,
+          at
+        ).catch((err: unknown) => {
           logError(
             'Player',
             `fallback ${trying.formatId} failed: ${err instanceof Error ? err.message : String(err)}`
           );
-        }
-      );
-      return;
-    }
-    if (retried.current) {
-      setFault(detail);
-      setPhase('error');
-      logError('Player', `${goal.kind}/${goal.id} all sources exhausted: ${detail}`);
-      return;
-    }
-    retried.current = true;
-    log('Player', `${goal.kind}/${goal.id} ${detail} at ${Math.round(at)}s, re-resolving`);
-    void (async () => {
-      try {
-        const full = await freshInfo(goal.kind, goal.id, goal.season, goal.episode);
-        if (target.current !== goal) return;
-        const fresh = (full?.formats ?? []).filter(
-          (format) => !deadUrls.current.includes(format.url)
+        });
+        return;
+      }
+      if (retried.current) {
+        setFault(detail);
+        setPhase('error');
+        logError(
+          'Player',
+          `${goal.kind}/${goal.id} all sources exhausted: ${detail}`
         );
-        if (full && fresh.length > 0) {
-          const [best, ...rest] = fresh;
-          queue.current = rest;
-          sameRetried.current = false;
-          setInfo(full);
-          setCurrentId(best.formatId);
-          await playSource(best, full.title, full.thumbnail ?? undefined, full.downloadHeaders ?? VIDROCK_HEADERS, at);
-          log('Player', `resumed ${best.formatId} at ${Math.round(at)}s`);
-          return;
-        }
-        if (!info) throw new Error('no sources on retry');
+        return;
+      }
+      retried.current = true;
+      log(
+        'Player',
+        `${goal.kind}/${goal.id} ${detail} at ${Math.round(at)}s, re-resolving`
+      );
+      const full = await loadInfo(
+        goal.kind,
+        goal.id,
+        goal.season,
+        goal.episode,
+        true
+      );
+      if (target.current !== goal) return;
+      const fresh = (full?.formats ?? []).filter(
+        (format) => !deadUrls.current.includes(format.url)
+      );
+      if (full && fresh.length > 0) {
+        const [best, ...rest] = fresh;
+        queue.current = rest;
+        sameRetried.current = false;
+        setInfo(full);
+        setCurrentId(best.formatId);
+        await playSource(
+          best,
+          full.title,
+          full.thumbnail ?? undefined,
+          full.downloadHeaders ?? VIDROCK_HEADERS,
+          at
+        );
+        log('Player', `resumed ${best.formatId} at ${Math.round(at)}s`);
+        return;
+      }
+      if (!info) throw new Error('no sources on retry');
+      try {
         const picked = await rescueFormats(goal, info.title, deadUrls.current);
         if (target.current !== goal) return;
         if (!picked) throw new Error('no sources on retry');
         const [best, ...rest] = picked.formats;
         queue.current = rest;
         sameRetried.current = false;
-        setInfo({ ...info, formats: picked.formats, downloadHeaders: picked.headers });
+        setInfo({
+          ...info,
+          formats: picked.formats,
+          downloadHeaders: picked.headers,
+        });
         setCurrentId(best.formatId);
-        await playSource(best, info.title, info.thumbnail ?? undefined, picked.headers, at);
+        await playSource(
+          best,
+          info.title,
+          info.thumbnail ?? undefined,
+          picked.headers,
+          at
+        );
         log('Player', `resumed ${best.formatId} at ${Math.round(at)}s`);
       } catch (err) {
         if (target.current !== goal) return;
@@ -257,7 +399,13 @@ export function useMoviePlayer() {
         setPhase('error');
         logError('Player', `retry failed: ${message}`);
       }
-    })();
+    })().catch((err: unknown) => {
+      if (target.current !== goal) return;
+      const message = err instanceof Error ? err.message : String(err);
+      setFault(message);
+      setPhase('error');
+      logError('Player', `recovery failed: ${message}`);
+    });
   }, [statusEvent, playSource, player, info, currentId]);
 
   const close = useCallback(() => {

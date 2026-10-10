@@ -13,7 +13,7 @@ import {
 const TAG = 'webviewExtraction';
 
 interface WebViewHandle {
-  navigate: (uri: string, headers?: Record<string, string>) => void;
+  navigate: (uri: string) => void;
   injectJavaScript: (js: string) => void;
 }
 
@@ -28,10 +28,6 @@ interface Pending {
 }
 
 let handle: WebViewHandle | null = null;
-let extraHeaders: Record<string, string> | undefined;
-export function setExtractHeaders(headers: Record<string, string> | undefined): void {
-  extraHeaders = headers;
-}
 let active: Pending | null = null;
 const queue: Pending[] = [];
 const inflight = new Map<string, Promise<PageScan | null>>();
@@ -160,7 +156,7 @@ function pump(): void {
   probed = [];
   pendingHls = 0;
   log(TAG, 'extract start', pending.url);
-  handle.navigate(pending.pageUrl, extraHeaders);
+  handle.navigate(pending.pageUrl);
   pending.timer = setTimeout(() => {
     log(TAG, 'timeout (30s), no scan', pending.url);
     finish(null);
@@ -176,7 +172,9 @@ function injectSniffer(url: string, isReload: boolean): void {
   lastInjectedUrl = url;
   scanCounter += 1;
   currentScanId = scanCounter;
-  handle?.injectJavaScript(`window.__phantom_scan_id=${scanCounter};${SNIFFER_JS}`);
+  handle?.injectJavaScript(
+    `window.__phantom_scan_id=${scanCounter};${SNIFFER_JS}`
+  );
 }
 
 export function attachGenericWebView(webview: WebViewHandle): void {
@@ -297,7 +295,10 @@ export function onGenericWebViewMessage(raw: string): void {
         return;
       }
       // challenge walls sometimes auto-clear: hold instead of settling
-      if (looksChallenged(scan.title) && Date.now() - active.start < CHALLENGE_HOLD) {
+      if (
+        looksChallenged(scan.title) &&
+        Date.now() - active.start < CHALLENGE_HOLD
+      ) {
         log(TAG, 'challenge wall, holding', active.url);
         stableCount = 0;
         return;

@@ -5,6 +5,7 @@ import {
 } from '@phantom/extractors';
 import { fetchWithTimeout } from '../../lib/net';
 import { DESKTOP_UA } from '../../lib/userAgents';
+import { log } from '../../lib/log';
 
 // one wedged cdn host must not stall the whole title
 const FETCH_TIMEOUT_MS = 8000;
@@ -27,7 +28,12 @@ type VidrockEntry = {
 
 type VidrockApi = Record<string, VidrockEntry>;
 
-export type VidrockSource = { name: string; url: string; streamType: string };
+export type VidrockSource = {
+  name: string;
+  url: string;
+  streamType: string;
+  language?: string;
+};
 
 const blockedHosts = new Set<string>();
 
@@ -39,7 +45,11 @@ function hostOf(url: string): string {
   }
 }
 
-function looksBlocked(status: number, contentType: string, body: string): boolean {
+function looksBlocked(
+  status: number,
+  contentType: string,
+  body: string
+): boolean {
   if (status !== 403 && status !== 429 && status !== 503) return false;
   if (!contentType.includes('text/html')) return false;
   return /just a moment|attention required|cf-chl|challenge-platform|turnstile|access blocked|access denied|are you human|captcha/iu.test(
@@ -47,7 +57,12 @@ function looksBlocked(status: number, contentType: string, body: string): boolea
   );
 }
 
-function markBlocked(url: string, status: number, contentType: string, body: string): void {
+function markBlocked(
+  url: string,
+  status: number,
+  contentType: string,
+  body: string
+): void {
   if (!looksBlocked(status, contentType, body)) return;
   const host = hostOf(url);
   if (host) blockedHosts.add(host);
@@ -63,7 +78,9 @@ export function vidrockPath(ref: MovieRef): string {
     : `tv/${ref.tmdbId}/${ref.season}/${ref.episode}`;
 }
 
-export async function fetchVidrockSources(ref: MovieRef): Promise<VidrockSource[]> {
+export async function fetchVidrockSources(
+  ref: MovieRef
+): Promise<VidrockSource[]> {
   blockedHosts.clear();
   const res = await fetchWithTimeout(
     `${VIDROCK_API}/${vidrockPath(ref)}`,
@@ -80,19 +97,39 @@ export async function fetchVidrockSources(ref: MovieRef): Promise<VidrockSource[
     try {
       const url = decryptVidrockPayload(entry.url, VIDROCK_KEY_HEX);
       if (!/^https?:\/\//u.test(url)) continue;
-      out.push({ name, url, streamType: entry.type ?? '' });
+      const language =
+        typeof entry.language === 'string' ? entry.language : undefined;
+      out.push({ name, url, streamType: entry.type ?? '', language });
     } catch {
       continue;
     }
   }
+  out.sort((lhs, rhs) => langRank(lhs.language) - langRank(rhs.language));
+  log(
+    'Movies',
+    `vidrock servers ${out.map((source) => serverLabel(source)).join(',')}`
+  );
   return out;
+}
+
+function langRank(language: string | undefined): number {
+  if (!language) return 1;
+  return /^english/iu.test(language) ? 0 : 2;
+}
+
+function serverLabel(source: VidrockSource): string {
+  return `${source.name}:${source.language ?? '?'}`;
 }
 
 type QualityLevel = { resolution?: number; url?: string };
 
 async function jsonLevels(url: string): Promise<QualityLevel[] | null> {
   try {
-    const res = await fetchWithTimeout(url, { headers: VIDROCK_HEADERS }, FETCH_TIMEOUT_MS);
+    const res = await fetchWithTimeout(
+      url,
+      { headers: VIDROCK_HEADERS },
+      FETCH_TIMEOUT_MS
+    );
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       markBlocked(url, res.status, res.headers.get('content-type') ?? '', body);
@@ -108,7 +145,9 @@ async function jsonLevels(url: string): Promise<QualityLevel[] | null> {
     }
     const data = (await res.json()) as QualityLevel[];
     if (!Array.isArray(data) || data.length === 0 || !data[0].url) return null;
-    return [...data].sort((lhs, rhs) => (rhs.resolution ?? 0) - (lhs.resolution ?? 0));
+    return [...data].sort(
+      (lhs, rhs) => (rhs.resolution ?? 0) - (lhs.resolution ?? 0)
+    );
   } catch {
     return null;
   }
@@ -116,7 +155,11 @@ async function jsonLevels(url: string): Promise<QualityLevel[] | null> {
 
 async function playlistText(url: string): Promise<string | null> {
   try {
-    const res = await fetchWithTimeout(url, { headers: VIDROCK_HEADERS }, FETCH_TIMEOUT_MS);
+    const res = await fetchWithTimeout(
+      url,
+      { headers: VIDROCK_HEADERS },
+      FETCH_TIMEOUT_MS
+    );
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       markBlocked(url, res.status, res.headers.get('content-type') ?? '', body);
@@ -151,7 +194,11 @@ export function mp4Format(name: string, url: string): Format {
   };
 }
 
-export function singleHls(name: string, url: string, filesize?: number): Format {
+export function singleHls(
+  name: string,
+  url: string,
+  filesize?: number
+): Format {
   return {
     formatId: `vidrock-${name.toLowerCase()}-1080p`,
     url,
@@ -229,7 +276,9 @@ async function sampleSegments(
 
 // master BANDWIDTH claims run ~2-3x hot — sample each variant's real
 // media playlist instead, falling back to the claim when probing fails
-async function estimateVariantSize(variantUrl: string): Promise<number | undefined> {
+async function estimateVariantSize(
+  variantUrl: string
+): Promise<number | undefined> {
   try {
     const res = await fetchWithTimeout(
       variantUrl,
@@ -243,10 +292,15 @@ async function estimateVariantSize(variantUrl: string): Promise<number | undefin
     }
     const all = playlistSegments(text, variantUrl);
     if (all.length === 0) return undefined;
-    const picks = [all[0], all[Math.floor(all.length / 2)], all[all.length - 1]].filter(
-      (seg, idx, arr) => seg && arr.indexOf(seg) === idx
+    const picks = [
+      all[0],
+      all[Math.floor(all.length / 2)],
+      all[all.length - 1],
+    ].filter((seg, idx, arr) => seg && arr.indexOf(seg) === idx);
+    const { dead, filesize } = await sampleSegments(
+      picks.slice(0, 3),
+      all.length
     );
-    const { dead, filesize } = await sampleSegments(picks.slice(0, 3), all.length);
     return dead ? undefined : filesize;
   } catch {
     return undefined;

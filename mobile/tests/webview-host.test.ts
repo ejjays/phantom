@@ -57,8 +57,7 @@ describe('webview host', () => {
     const promise = extractFromPage('https://cdn.example/video.mp4');
 
     expect(handle.navigate).toHaveBeenCalledWith(
-      expect.stringContaining('data:text/html'),
-      undefined
+      expect.stringContaining('data:text/html')
     );
     onGenericWebViewMessage(
       JSON.stringify({
@@ -87,13 +86,13 @@ describe('webview host', () => {
     const first = extractFromPage('https://a.com');
     const second = extractFromPage('https://b.com');
     expect(handle.navigate).toHaveBeenCalledTimes(1);
-    expect(handle.navigate).toHaveBeenCalledWith('https://a.com', undefined);
+    expect(handle.navigate).toHaveBeenCalledWith('https://a.com');
 
     onGenericWebViewMessage(scanMessage('https://a.com'));
     return expect(first)
       .resolves.toMatchObject({ url: 'https://a.com' })
       .then(() => {
-        expect(handle.navigate).toHaveBeenLastCalledWith('https://b.com', undefined);
+        expect(handle.navigate).toHaveBeenLastCalledWith('https://b.com');
         onGenericWebViewMessage(scanMessage('https://b.com'));
         return expect(second).resolves.toMatchObject({ url: 'https://b.com' });
       });
@@ -112,7 +111,7 @@ describe('webview host', () => {
     expect(onScan.mock.calls[0][0].videos).toHaveLength(1);
   });
 
-it('injects the sniffer once per page url', () => {
+  it('injects the sniffer once per page url', () => {
     const handle = makeHandle();
     attachGenericWebView(handle);
     void extractFromPage('https://a.com');
@@ -171,7 +170,10 @@ it('injects the sniffer once per page url', () => {
     onGenericWebViewMessage(empty);
     vi.advanceTimersByTime(8_000);
     onGenericWebViewMessage(empty);
-    await expect(promise).resolves.toMatchObject({ url: 'https://a.com', videos: [] });
+    await expect(promise).resolves.toMatchObject({
+      url: 'https://a.com',
+      videos: [],
+    });
   });
 
   it('holds empty scans until the patience floor even when idle', async () => {
@@ -196,7 +198,10 @@ it('injects the sniffer once per page url', () => {
 
     vi.advanceTimersByTime(2_000);
     onGenericWebViewMessage(empty);
-    await expect(promise).resolves.toMatchObject({ url: 'https://a.com', videos: [] });
+    await expect(promise).resolves.toMatchObject({
+      url: 'https://a.com',
+      videos: [],
+    });
   });
 
   it('ignores stale scans from a previous injection', async () => {
@@ -293,7 +298,11 @@ it('injects the sniffer once per page url', () => {
           videos: ['u1', 'u2', 'u3', 'u4', 'u5', 'u6'].map((id) => {
             const d = dims[id];
             return d
-              ? { url: `https://c.example/${id}.mp4`, width: d[0], height: d[1] }
+              ? {
+                  url: `https://c.example/${id}.mp4`,
+                  width: d[0],
+                  height: d[1],
+                }
               : { url: `https://c.example/${id}.mp4` };
           }),
           images: [],
@@ -308,7 +317,12 @@ it('injects the sniffer once per page url', () => {
     expect(probeCalls()).toHaveLength(4);
 
     onGenericWebViewMessage(
-      scan({ u1: [1920, 1080], u2: [1920, 1080], u3: [1920, 1080], u4: [1920, 1080] })
+      scan({
+        u1: [1920, 1080],
+        u2: [1920, 1080],
+        u3: [1920, 1080],
+        u4: [1920, 1080],
+      })
     );
     expect(probeCalls()).toHaveLength(6);
 
@@ -468,7 +482,12 @@ describe('hls manifest probing', () => {
       width: 1920,
       height: 1080,
     },
-    { url: 'https://cdn.example/hls/720/index.m3u8', type: 'm3u8', width: 1280, height: 720 },
+    {
+      url: 'https://cdn.example/hls/720/index.m3u8',
+      type: 'm3u8',
+      width: 1280,
+      height: 720,
+    },
   ];
   const hlsCalls = (handle: ReturnType<typeof makeHandle>) =>
     handle.injectJavaScript.mock.calls.filter((call) =>
@@ -546,7 +565,9 @@ describe('hls manifest probing', () => {
     });
 
     onGenericWebViewMessage(hlsScan());
-    onGenericWebViewMessage(JSON.stringify({ ...JSON.parse(hlsResult(variants)), id: 0 }));
+    onGenericWebViewMessage(
+      JSON.stringify({ ...JSON.parse(hlsResult(variants)), id: 0 })
+    );
     vi.advanceTimersByTime(1_500);
     expect(settled).toBe('pending');
 
@@ -592,8 +613,7 @@ describe('media request interception', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(settled).toBe('pending');
     expect(handle.navigate).toHaveBeenCalledWith(
-      expect.stringContaining('data:text/html'),
-      undefined
+      expect.stringContaining('data:text/html')
     );
 
     onGenericWebViewMessage(
@@ -603,7 +623,11 @@ describe('media request interception', () => {
           url: 'data:text/html;charset=utf-8,probe',
           title: '',
           videos: [
-            { url: 'https://cdn.example/movie.m3u8', width: 1920, height: 1080 },
+            {
+              url: 'https://cdn.example/movie.m3u8',
+              width: 1920,
+              height: 1080,
+            },
           ],
           images: [],
         },
@@ -614,7 +638,9 @@ describe('media request interception', () => {
     expect(scan).toEqual({
       url: 'https://cdn.example/movie.m3u8',
       title: '',
-      videos: [{ url: 'https://cdn.example/movie.m3u8', height: 1080, width: 1920 }],
+      videos: [
+        { url: 'https://cdn.example/movie.m3u8', height: 1080, width: 1920 },
+      ],
       images: [],
       isDirect: true,
     });
@@ -661,7 +687,9 @@ describe('media request interception', () => {
       })
     );
     expect(handle.injectJavaScript).toHaveBeenCalledWith(
-      expect.stringContaining('__phantom_probe("https://cdn.example/stream.mov")')
+      expect.stringContaining(
+        '__phantom_probe("https://cdn.example/stream.mov")'
+      )
     );
     onGenericWebViewMessage(
       JSON.stringify({
@@ -670,7 +698,11 @@ describe('media request interception', () => {
           url: 'https://a.com',
           title: 't',
           videos: [
-            { url: 'https://cdn.example/stream.mov', width: 1920, height: 1080 },
+            {
+              url: 'https://cdn.example/stream.mov',
+              width: 1920,
+              height: 1080,
+            },
           ],
           images: [],
         },

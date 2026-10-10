@@ -6,9 +6,14 @@ import {
   Level,
   ReturnCode,
 } from '@nikhil-cephei/ffmpeg-kit-react-native';
-import { downloadPlaylistToFile, nativeSegmentsToFiles, parseMediaPlaylist } from './hls';
+import {
+  downloadPlaylistToFile,
+  nativeSegmentsToFiles,
+  parseMediaPlaylist,
+} from './hls';
 import { DESKTOP_UA } from '../userAgents';
 import { log, warn as logWarn } from '../log';
+import { speechOfSilence } from '../subtitles';
 
 // ffmpeg-kit verbose by default → keep errors only & silence upstream Loading log
 const _origLog = console.log.bind(console);
@@ -121,7 +126,11 @@ export async function remoteExtractFrame(
   out: File
 ): Promise<boolean> {
   const block = Object.entries(headers)
-    .filter(([key]) => key.toLowerCase() !== 'user-agent' && key.toLowerCase() !== 'content-type')
+    .filter(
+      ([key]) =>
+        key.toLowerCase() !== 'user-agent' &&
+        key.toLowerCase() !== 'content-type'
+    )
     .map(([key, value]) => `${key}: ${value}\r\n`)
     .join('');
   const ua = headers['User-Agent'] ?? headers['user-agent'];
@@ -144,6 +153,54 @@ export async function remoteExtractFrame(
   }
 }
 
+// voice activity for subtitle auto-sync: runs silencedetect over the first
+// minutes of a stream and returns speaking intervals. never throws.
+export async function detectSpeechSegments(
+  url: string,
+  headers: Record<string, string>,
+  windowSec: number
+): Promise<Array<{ start: number; end: number }> | null> {
+  const block = Object.entries(headers)
+    .filter(
+      ([key]) =>
+        key.toLowerCase() !== 'user-agent' &&
+        key.toLowerCase() !== 'content-type'
+    )
+    .map(([key, value]) => `${key}: ${value}\r\n`)
+    .join('');
+  const ua = headers['User-Agent'] ?? headers['user-agent'];
+  const window = Math.min(600, Math.max(60, Math.floor(windowSec)));
+  const run = async (extra: string[]): Promise<string | null> => {
+    const args = ['-hide_banner', '-loglevel', 'info', '-y', ...extra];
+    if (block) args.push('-headers', block);
+    if (ua) args.push('-user_agent', ua);
+    args.push(
+      '-i',
+      url,
+      '-t',
+      String(window),
+      '-vn',
+      '-af',
+      'highpass=f=200,lowpass=f=3400,silencedetect=noise=-35dB:d=0.3',
+      '-f',
+      'null',
+      '-'
+    );
+    try {
+      const session = await FFmpegKit.executeWithArguments(args);
+      if (!ReturnCode.isSuccess(await session.getReturnCode())) return null;
+      return String(await session.getOutput());
+    } catch {
+      return null;
+    }
+  };
+  // old on-device builds lack the extension allowlist: retry bare
+  const output =
+    (await run(['-allowed_segment_extensions', 'ALL'])) ?? (await run([]));
+  if (output === null) return null;
+  return speechOfSilence(output, window);
+}
+
 export async function extractFrame(src: File, out: File): Promise<boolean> {
   const base = `-hide_banner -loglevel error -y -i "${fsPath(src.uri)}"`;
   for (const seek of ['-ss 1', '']) {
@@ -153,6 +210,64 @@ export async function extractFrame(src: File, out: File): Promise<boolean> {
     if (ReturnCode.isSuccess(await session.getReturnCode())) return true;
   }
   return false;
+}
+
+// short audio sample for cloud transcription: first minutes as small mono
+// mp3, returns the fs path or null. old on-device builds lack the extension
+// allowlist flag, so retry bare when flagged runs fail. never throws.
+export async function extractAudioSample(
+  url: string,
+  headers: Record<string, string>,
+  out: File,
+  windowSec: number
+): Promise<string | null> {
+  const block = Object.entries(headers)
+    .filter(
+      ([key]) =>
+        key.toLowerCase() !== 'user-agent' &&
+        key.toLowerCase() !== 'content-type'
+    )
+    .map(([key, value]) => `${key}: ${value}\r\n`)
+    .join('');
+  const ua = headers['User-Agent'] ?? headers['user-agent'];
+  const window = String(Math.max(60, Math.min(300, Math.floor(windowSec))));
+  const run = async (extra: string[], quiet: boolean): Promise<boolean> => {
+    const args = [
+      '-hide_banner',
+      '-loglevel',
+      quiet ? 'quiet' : 'error',
+      '-y',
+      ...extra,
+    ];
+    if (block) args.push('-headers', block);
+    if (ua) args.push('-user_agent', ua);
+    args.push(
+      '-i',
+      url,
+      '-t',
+      window,
+      '-vn',
+      '-ar',
+      '16000',
+      '-ac',
+      '1',
+      '-c:a',
+      'libmp3lame',
+      '-q:a',
+      '4',
+      fsPath(out.uri)
+    );
+    try {
+      const session = await FFmpegKit.executeWithArguments(args);
+      return ReturnCode.isSuccess(await session.getReturnCode());
+    } catch {
+      return false;
+    }
+  };
+  const ok =
+    (await run(['-allowed_segment_extensions', 'ALL'], true)) ||
+    (await run([], false));
+  return ok ? fsPath(out.uri) : null;
 }
 
 export async function encodeToMp4(src: File, out: File): Promise<boolean> {
@@ -464,7 +579,8 @@ export async function nativeHlsMuxedToMp4(
     const urls = parseMediaPlaylist(await res.text(), playlist);
     if (urls.length === 0) return false;
     const dests = urls.map(
-      (_, idx) => `${Paths.cache.uri}/${tag}-seg-${String(idx).padStart(6, '0')}.ts`
+      (_, idx) =>
+        `${Paths.cache.uri}/${tag}-seg-${String(idx).padStart(6, '0')}.ts`
     );
     await nativeSegmentsToFiles(
       urls,
@@ -505,7 +621,7 @@ export async function nativeHlsMuxedToMp4(
   } finally {
     sweep();
   }
-};
+}
 
 export async function parallelHlsMuxedToMp4(
   playlist: string,

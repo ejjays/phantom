@@ -48,34 +48,42 @@ export async function getInfo(
       })
     );
 
-    const sources = await fetchVidrockSources(ref).catch(() => []);
-    let formats =
-      sources.length > 0
-        ? await vidrockToFormats(sources, meta?.durationSec ?? 0, {
-            quick: true,
-          })
-        : [];
+    const duration = meta?.durationSec ?? 0;
+    // all legs fire together: one dead provider costs a single wait, not a sum
+    const [rockFormats, love, zee, para] = await Promise.all([
+      fetchVidrockSources(ref)
+        .then((sources) =>
+          sources.length > 0
+            ? vidrockToFormats(sources, duration, { quick: true })
+            : []
+        )
+        .catch(() => [] as Format[]),
+      fetchVidloveFormats(ref, duration).catch(() => null),
+      fetchVidzeeFormats(ref).catch(() => null),
+      fetchParadiseFormats(ref, title).catch(() => null),
+    ]);
+
+    let formats = rockFormats;
     let headers: Record<string, string> = { ...VIDROCK_HEADERS };
     const rockBest = bestHeight(formats);
     if (rockBest <= 1080) {
       if (formats.length === 0) {
-        log('Movies', `vidrock dry for ${ref.kind}/${ref.tmdbId}, trying vidlove`);
+        log(
+          'Movies',
+          `vidrock dry for ${ref.kind}/${ref.tmdbId}, trying vidlove`
+        );
       } else {
         log(
           'Movies',
           `vidrock capped at ${rockBest}p for ${ref.kind}/${ref.tmdbId}, trying vidlove`
         );
       }
-      const fallback = await fetchVidloveFormats(
-        ref,
-        meta?.durationSec ?? 0
-      ).catch(() => null);
       // strict upgrade only: equal labels lie (a "1080p" cam is worse than a
       // clean 720p), so vidlove must genuinely clear the bar to take over
-      const loveBest = fallback ? bestHeight(fallback.formats) : 0;
-      if (fallback && loveBest > rockBest) {
-        formats = fallback.formats;
-        headers = fallback.headers;
+      const loveBest = love ? bestHeight(love.formats) : 0;
+      if (love && loveBest > rockBest) {
+        formats = love.formats;
+        headers = love.headers;
         log(
           'Movies',
           `vidlove upgrade for ${ref.kind}/${ref.tmdbId} formats=${formats.length}`
@@ -83,24 +91,18 @@ export async function getInfo(
       }
     }
     if (formats.length === 0) {
-      const zee = await fetchVidzeeFormats(ref).catch(() => null);
-      if (zee && zee.formats.length > 0) {
-        formats = zee.formats;
-        headers = zee.headers;
+      const spare =
+        zee && zee.formats.length > 0
+          ? { name: 'vidzee', ...zee }
+          : para && para.formats.length > 0
+            ? { name: 'paradise', ...para }
+            : null;
+      if (spare) {
+        formats = spare.formats;
+        headers = spare.headers;
         log(
           'Movies',
-          `vidzee browser for ${ref.kind}/${ref.tmdbId} formats=${formats.length}`
-        );
-      }
-    }
-    if (formats.length === 0) {
-      const para = await fetchParadiseFormats(ref, title).catch(() => null);
-      if (para && para.formats.length > 0) {
-        formats = para.formats;
-        headers = para.headers;
-        log(
-          'Movies',
-          `paradise for ${ref.kind}/${ref.tmdbId} formats=${formats.length}`
+          `${spare.name} for ${ref.kind}/${ref.tmdbId} formats=${formats.length}`
         );
       }
     }

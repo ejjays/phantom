@@ -2,6 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const YT_COOKIE_KEY = 'phantom.cookie.youtube';
 const BILI_COOKIE_KEY = 'phantom.cookie.bilibili';
+const DEEPGRAM_KEY = 'phantom.deepgram.apikey';
+const GROQ_KEY = 'phantom.groq.apikey';
+const TRANSCRIBER_KEY = 'phantom.transcriber.choice';
+
+export type TranscriberChoice = 'deepgram' | 'groq';
 
 const storedCookie = async (key: string): Promise<string> =>
   ((await AsyncStorage.getItem(key).catch(() => null)) ?? '').trim();
@@ -26,6 +31,36 @@ export function setYoutubeCookie(value: string): Promise<void> {
   return AsyncStorage.setItem(YT_COOKIE_KEY, value.trim()).catch(
     () => undefined
   );
+}
+
+// personal deepgram key for ai subtitle sync; stays on-device, never shipped
+export function getDeepgramKey(): Promise<string> {
+  return storedCookie(DEEPGRAM_KEY);
+}
+
+export function setDeepgramKey(value: string): Promise<void> {
+  return AsyncStorage.setItem(DEEPGRAM_KEY, value.trim()).catch(
+    () => undefined
+  );
+}
+
+// personal groq key for ai subtitle sync; stays on-device, never shipped
+export function getGroqKey(): Promise<string> {
+  return storedCookie(GROQ_KEY);
+}
+
+export function setGroqKey(value: string): Promise<void> {
+  return AsyncStorage.setItem(GROQ_KEY, value.trim()).catch(() => undefined);
+}
+
+// temp dev: which cloud transcriber the cc flow uses
+export async function getTranscriber(): Promise<TranscriberChoice> {
+  const stored = await storedCookie(TRANSCRIBER_KEY);
+  return stored === 'groq' ? 'groq' : 'deepgram';
+}
+
+export function setTranscriber(value: TranscriberChoice): Promise<void> {
+  return AsyncStorage.setItem(TRANSCRIBER_KEY, value).catch(() => undefined);
 }
 
 // optional IG session cookie — unlocks authenticated media API (high rate
