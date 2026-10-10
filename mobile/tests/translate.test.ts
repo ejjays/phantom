@@ -79,7 +79,7 @@ describe('translateLines', () => {
         const body = JSON.parse(String(init?.body ?? '{}')) as { model?: string };
         if (body.model) models.push(body.model);
         if (url.includes('cerebras')) {
-          return Promise.resolve(new Response('rate limited', { status: 429, headers: { 'retry-after': '30' } }));
+          return Promise.resolve(new Response('rate limited', { status: 429, headers: { 'retry-after': '70' } }));
         }
         return Promise.resolve(Response.json({ choices: [{ message: { content: '1. Fallback' } }] }));
       })

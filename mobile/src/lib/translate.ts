@@ -90,6 +90,9 @@ async function translateAttempt(
 ): Promise<string[] | null> {
   const out: string[] = [];
   for (let at = 0; at < texts.length; at += 25) {
+    if (at > 0) {
+      await new Promise((done) => setTimeout(done, 300));
+    }
     const part = await translateBatch(texts.slice(at, at + 25), fromCode, toCode, apiKey);
     if (!part) return null;
     out.push(...part);
@@ -108,6 +111,7 @@ async function translateBatch(
   const isCerebras = apiKey.startsWith('csk-');
   const endpoint = isCerebras ? CEREBRAS_CHAT_API : GROQ_CHAT_API;
   const model = isCerebras ? CEREBRAS_MODEL : GROQ_MODEL;
+  const maxAbortMs = isCerebras ? 60000 : 20000;
   let mismatchRetried = false;
   for (let attempt = 0; ; attempt++) {
     try {
@@ -121,7 +125,7 @@ async function translateBatch(
         body: JSON.stringify({
           model,
           temperature: 0.2,
-          max_tokens: 8192,
+          max_tokens: 1024,
           messages: [
             {
               role: 'system',
@@ -134,12 +138,11 @@ async function translateBatch(
       if (res.status === 429 && attempt < backoffs.length) {
         const header = res.headers.get('retry-after');
         const hinted = header ? Math.round(Number(header) * 1000) : 0;
-        // avoid freezing the player when a provider gives an 8-minute cooldown
-        if (hinted > 20000) {
+        if (hinted > maxAbortMs) {
           log('Translate', `rate limited (${Math.round(hinted / 1000)}s), aborting`);
           return null;
         }
-        const wait = Math.min(hinted > 0 ? hinted : (backoffs[attempt] ?? 15000), 20000);
+        const wait = Math.min(hinted > 0 ? hinted : (backoffs[attempt] ?? 15000), maxAbortMs);
         log('Translate', `rate limited, retrying in ${Math.round(wait / 1000)}s`);
         await new Promise((done) => setTimeout(done, wait));
         continue;
