@@ -7,7 +7,21 @@ const LANG_NAMES: Record<string, string> = {
   en: 'English',
   ko: 'Korean',
   ja: 'Japanese',
+  es: 'Spanish',
+  fr: 'French',
 };
+
+const TARGET_NAMES: Record<string, string> = {
+  en: 'English',
+  ko: 'Korean',
+  ja: 'Japanese',
+  es: 'Spanish',
+  fr: 'French',
+};
+
+export function targetName(code: string): string {
+  return TARGET_NAMES[code] ?? 'English';
+}
 
 export function langName(code: string): string {
   return LANG_NAMES[code] ?? 'the audio language';
@@ -45,10 +59,11 @@ let translateQueue: Promise<void> = Promise.resolve();
 export function translateLines(
   texts: string[],
   fromCode: string,
+  toCode: string,
   apiKey: string
 ): Promise<string[] | null> {
   if (texts.length === 0) return Promise.resolve([]);
-  const task = translateQueue.then(() => translateAttempt(texts, fromCode, apiKey));
+  const task = translateQueue.then(() => translateAttempt(texts, fromCode, toCode, apiKey));
   translateQueue = task.then(
     () => undefined,
     () => undefined
@@ -59,11 +74,12 @@ export function translateLines(
 async function translateAttempt(
   texts: string[],
   fromCode: string,
+  toCode: string,
   apiKey: string
 ): Promise<string[] | null> {
   const out: string[] = [];
   for (let at = 0; at < texts.length; at += 25) {
-    const part = await translateBatch(texts.slice(at, at + 25), fromCode, apiKey);
+    const part = await translateBatch(texts.slice(at, at + 25), fromCode, toCode, apiKey);
     if (!part) return null;
     out.push(...part);
   }
@@ -73,6 +89,7 @@ async function translateAttempt(
 async function translateBatch(
   texts: string[],
   fromCode: string,
+  toCode: string,
   apiKey: string
 ): Promise<string[] | null> {
   const started = Date.now();
@@ -94,7 +111,7 @@ async function translateBatch(
           messages: [
             {
               role: 'system',
-              content: `You translate ${langName(fromCode)} TV subtitles to natural English. Return ONLY the translated lines, numbered exactly like the input, one per line. Never merge, split, drop, or explain lines.`,
+              content: `You translate ${langName(fromCode)} TV subtitles to natural ${targetName(toCode)}. Return ONLY the translated lines, numbered exactly like the input, one per line. Never merge, split, drop, or explain lines.`,
             },
             { role: 'user', content: numbered },
           ],

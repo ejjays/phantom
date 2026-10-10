@@ -10,7 +10,9 @@ export type TranscriberChoice = 'deepgram' | 'groq';
 
 export type TranscribeLang = 'auto' | 'en' | 'ko' | 'ja';
 
-export type SubLang = 'same' | 'en';
+export type SubLang = 'same' | 'en' | 'ko' | 'ja' | 'es' | 'fr';
+
+export const SUB_LANGS: SubLang[] = ['same', 'en', 'ko', 'ja', 'es', 'fr'];
 
 const TRANSCRIBE_LANG_KEY = 'phantom.transcriber.lang';
 
@@ -81,10 +83,10 @@ export function setTranscribeLang(value: TranscribeLang): Promise<void> {
 
 const SUB_LANG_KEY = 'phantom.sublang.choice';
 
-// temp dev: subtitle output language for generated subs
+// temp dev: subtitle output language for generated subs, english default
 export async function getSubLang(): Promise<SubLang> {
   const stored = await storedCookie(SUB_LANG_KEY);
-  return stored === 'en' ? 'en' : 'same';
+  return (SUB_LANGS as string[]).includes(stored) ? (stored as SubLang) : 'en';
 }
 
 export function setSubLang(value: SubLang): Promise<void> {

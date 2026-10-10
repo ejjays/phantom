@@ -72,8 +72,6 @@ import {
   getGroqKey,
   getTranscriber,
   setTranscriber,
-  getTranscribeLang,
-  setTranscribeLang,
   getSubLang,
   setSubLang,
   type TranscriberChoice,
@@ -439,7 +437,6 @@ function QualityMenu({
   rate,
   subDelay,
   transcriber,
-  transLang,
   onPick,
   onPickSub,
   onPickEmbed,
@@ -447,7 +444,6 @@ function QualityMenu({
   onDelay,
   onAutoSync,
   onTranscriber,
-  onTransLang,
   subLang,
   onSubLang,
   full,
@@ -465,7 +461,6 @@ function QualityMenu({
   rate: number;
   subDelay: number;
   transcriber: TranscriberChoice;
-  transLang: TranscribeLang;
   subLang: SubLang;
   full: { done: number; total: number } | null;
   onPick: (format: Format) => void;
@@ -477,7 +472,6 @@ function QualityMenu({
     onPhase?: (phase: 'listen' | 'cloud') => void
   ) => Promise<number | null>;
   onTranscriber: (value: TranscriberChoice) => void;
-  onTransLang: (value: TranscribeLang) => void;
   onSubLang: (value: SubLang) => void;
   onStopFull: () => void;
   onClose: () => void;
@@ -737,41 +731,18 @@ function QualityMenu({
                   <Text
                     style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
                   >
-                    AI language
+                    Subtitles in
                   </Text>
                   {(
                     [
-                      ['auto', 'Auto'],
+                      ['same', 'Same as audio'],
                       ['en', 'English'],
                       ['ko', 'Korean'],
                       ['ja', 'Japanese'],
+                      ['es', 'Spanish'],
+                      ['fr', 'French'],
                     ] as const
                   ).map(([choice, title]) => {
-                    const active = transLang === choice;
-                    return (
-                      <Pressable
-                        key={choice}
-                        onPress={() => {
-                          tapSelection();
-                          onTransLang(choice);
-                        }}
-                        style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
-                      >
-                        <Text
-                          style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
-                        >
-                          {title}
-                        </Text>
-                        {active && <Check size={18} color="#22d3ee" />}
-                      </Pressable>
-                    );
-                  })}
-                  <Text
-                    style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
-                  >
-                    Subtitles in
-                  </Text>
-                  {(['same', 'en'] as const).map((choice) => {
                     const active = subLang === choice;
                     return (
                       <Pressable
@@ -785,7 +756,7 @@ function QualityMenu({
                         <Text
                           style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
                         >
-                          {choice === 'en' ? 'English' : 'Same as audio'}
+                          {title}
                         </Text>
                         {active && <Check size={18} color="#22d3ee" />}
                       </Pressable>
@@ -1327,7 +1298,8 @@ async function resolveTranscriber(): Promise<{
     provider: choice,
     apiKey,
     transcribe: choice === 'groq' ? transcribeGroq : transcribeDeepgram,
-    lang: await getTranscribeLang().catch((): TranscribeLang => 'auto'),
+    // source always auto-detected; user picks the subtitle target instead
+    lang: 'auto' as TranscribeLang,
   };
 }
 
@@ -1356,7 +1328,7 @@ async function shapeFinal(
 ): Promise<{ cues: SubtitleCue[]; label: string }> {
   const base =
     transcript.cues.length > 0 ? transcript.cues : wordsToCues(transcript.words);
-  if (subLang === 'en' && transcript.lang !== 'en') {
+  if (subLang !== 'same' && transcript.lang !== subLang) {
     const key = await getGroqKey().catch(() => '');
     if (!key) {
       log('Player', 'cc translate skipped (no groq key)');
@@ -1364,14 +1336,15 @@ async function shapeFinal(
       const lines = await translateLines(
         base.map((cue) => cue.text),
         transcript.lang || 'auto',
+        subLang,
         key
       );
       if (lines) {
         const translated = base.map((cue, i) => ({ ...cue, text: lines[i] ?? cue.text }));
-        log('Player', `cc translated to english lines=${lines.length}`);
+        log('Player', `cc translated to ${subLang} lines=${lines.length}`);
         return {
           cues: shiftEarly(translated.flatMap((cue) => splitLongText(cue))),
-          label: 'AI subs EN',
+          label: `AI subs ${subLang.toUpperCase()}`,
         };
       }
     }
@@ -1797,8 +1770,7 @@ export default function MoviePlayerScreen({
   const [subsOn, setSubsOn] = useState(false);
   const [transcriber, setTranscriberChoice] =
     useState<TranscriberChoice>('deepgram');
-  const [transLang, setTransLang] = useState<TranscribeLang>('auto');
-  const [subLang, setSubLangChoice] = useState<SubLang>('same');
+  const [subLang, setSubLangChoice] = useState<SubLang>('en');
   const [fullProg, setFullProg] = useState<{ done: number; total: number } | null>(null);
   const fullAbort = useRef<AbortController | null>(null);
   const fullKey = useRef<string>('');
@@ -1839,9 +1811,6 @@ export default function MoviePlayerScreen({
     setEmbedSel(null);
     getTranscriber()
       .then(setTranscriberChoice)
-      .catch(() => undefined);
-    getTranscribeLang()
-      .then(setTransLang)
       .catch(() => undefined);
     getSubLang()
       .then(setSubLangChoice)
@@ -2041,7 +2010,7 @@ export default function MoviePlayerScreen({
         return null;
       }
       log('Player', `cc cues via ${provider}: utterances=${transcript.cues.length}`);
-      const subLang = await getSubLang().catch((): SubLang => 'same');
+      const subLang = await getSubLang().catch((): SubLang => 'en');
       const shaped = await shapeFinal(transcript, provider, subLang);
       subs.setGeneratedCues(shaped.cues, shaped.label);
       setSubsOn(true);
@@ -2063,7 +2032,7 @@ export default function MoviePlayerScreen({
       const resolved = await resolveTranscriber();
       if (!resolved) return false;
       const { provider, apiKey, transcribe, lang } = resolved;
-      const subLang = await getSubLang().catch((): SubLang => 'same');
+      const subLang = await getSubLang().catch((): SubLang => 'en');
       const headers = info?.downloadHeaders ?? {};
       const firstWindow = 90;
       const restWindow = 300;
@@ -2318,7 +2287,6 @@ export default function MoviePlayerScreen({
         rate={rate}
         subDelay={subDelay}
         transcriber={transcriber}
-        transLang={transLang}
         subLang={subLang}
         onPick={(format) => void switchQuality(format)}
         onPickSub={pickSub}
@@ -2330,11 +2298,6 @@ export default function MoviePlayerScreen({
           tapSelection();
           setTranscriberChoice(value);
           void setTranscriber(value).catch(() => undefined);
-        }}
-        onTransLang={(value) => {
-          tapSelection();
-          setTransLang(value);
-          void setTranscribeLang(value).catch(() => undefined);
         }}
         onSubLang={(value) => {
           tapSelection();
