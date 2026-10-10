@@ -40,57 +40,103 @@ function rec(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-export async function translateLines(
+let translateQueue: Promise<void> = Promise.resolve();
+
+export function translateLines(
   texts: string[],
   fromCode: string,
   apiKey: string
 ): Promise<string[] | null> {
-  if (texts.length === 0) return [];
+  if (texts.length === 0) return Promise.resolve([]);
+  const task = translateQueue.then(() => translateAttempt(texts, fromCode, apiKey));
+  translateQueue = task.then(
+    () => undefined,
+    () => undefined
+  );
+  return task;
+}
+
+async function translateAttempt(
+  texts: string[],
+  fromCode: string,
+  apiKey: string
+): Promise<string[] | null> {
+  const out: string[] = [];
+  for (let at = 0; at < texts.length; at += 25) {
+    const part = await translateBatch(texts.slice(at, at + 25), fromCode, apiKey);
+    if (!part) return null;
+    out.push(...part);
+  }
+  return out;
+}
+
+async function translateBatch(
+  texts: string[],
+  fromCode: string,
+  apiKey: string
+): Promise<string[] | null> {
   const started = Date.now();
-  try {
-    const numbered = texts.map((text, i) => `${i + 1}. ${text}`).join('\n');
-    const res = await fetch(GROQ_CHAT_API, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        temperature: 0.2,
-        max_tokens: 8192,
-        messages: [
-          {
-            role: 'system',
-            content: `You translate ${langName(fromCode)} TV subtitles to natural English. Return ONLY the translated lines, numbered exactly like the input, one per line. Never merge, split, drop, or explain lines.`,
-          },
-          { role: 'user', content: numbered },
-        ],
-      }),
-    });
-    if (res.status < 200 || res.status >= 300) {
-      let snippet = '';
-      try {
-        snippet = String(await res.text()).slice(0, 160);
-      } catch {
-        snippet = '';
+  const backoffs = [5000, 15000];
+  let mismatchRetried = false;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const numbered = texts.map((text, i) => `${i + 1}. ${text}`).join('\n');
+      const res = await fetch(GROQ_CHAT_API, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: 0.2,
+          max_tokens: 8192,
+          messages: [
+            {
+              role: 'system',
+              content: `You translate ${langName(fromCode)} TV subtitles to natural English. Return ONLY the translated lines, numbered exactly like the input, one per line. Never merge, split, drop, or explain lines.`,
+            },
+            { role: 'user', content: numbered },
+          ],
+        }),
+      });
+      if (res.status === 429 && attempt < backoffs.length) {
+        const header = res.headers.get('retry-after');
+        const hinted = header ? Math.round(Number(header) * 1000) : 0;
+        const wait = hinted > 0 ? hinted : (backoffs[attempt] ?? 15000);
+        log('Translate', `rate limited, retrying in ${Math.round(wait / 1000)}s`);
+        await new Promise((done) => setTimeout(done, wait));
+        continue;
       }
-      log('Translate', `http=${res.status} ms=${Date.now() - started} body=${snippet}`);
+      if (res.status < 200 || res.status >= 300) {
+        let snippet = '';
+        try {
+          snippet = String(await res.text()).slice(0, 160);
+        } catch {
+          snippet = '';
+        }
+        log('Translate', `http=${res.status} ms=${Date.now() - started} body=${snippet}`);
+        return null;
+      }
+      const payload = (await res.json()) as unknown;
+      const choices = rec(payload)?.['choices'];
+      const first = Array.isArray(choices) ? rec(choices[0]) : null;
+      const content = rec(first?.['message'])?.['content'];
+      const parsed = parseNumberedLines(String(content ?? ''), texts.length);
+      if (!parsed) {
+        if (!mismatchRetried) {
+          mismatchRetried = true;
+          log('Translate', `line mismatch, retrying once (${texts.length} lines)`);
+          continue;
+        }
+        log('Translate', `line mismatch, keeping source (${texts.length} lines)`);
+        return null;
+      }
+      log('Translate', `lines=${parsed.length} ms=${Date.now() - started}`);
+      return parsed;
+    } catch (err) {
+      log('Translate', `threw ms=${Date.now() - started}: ${String(err)}`);
       return null;
     }
-    const payload = (await res.json()) as unknown;
-    const choices = rec(payload)?.['choices'];
-    const first = Array.isArray(choices) ? rec(choices[0]) : null;
-    const content = rec(first?.['message'])?.['content'];
-    const parsed = parseNumberedLines(String(content ?? ''), texts.length);
-    if (!parsed) {
-      log('Translate', `line mismatch, keeping source (${texts.length} lines)`);
-      return null;
-    }
-    log('Translate', `lines=${parsed.length} ms=${Date.now() - started}`);
-    return parsed;
-  } catch (err) {
-    log('Translate', `threw ms=${Date.now() - started}: ${String(err)}`);
-    return null;
   }
 }

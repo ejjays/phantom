@@ -1801,6 +1801,9 @@ export default function MoviePlayerScreen({
   const [subLang, setSubLangChoice] = useState<SubLang>('same');
   const [fullProg, setFullProg] = useState<{ done: number; total: number } | null>(null);
   const fullAbort = useRef<AbortController | null>(null);
+  const fullKey = useRef<string>('');
+  const liveKey = useRef(itemKey);
+  liveKey.current = itemKey;
   const [subDelay, setSubDelay] = useState(0);
   const [embedSel, setEmbedSel] = useState<NativeSubtitleTrack | null>(null);
   const seekTarget = useRef(0);
@@ -2062,51 +2065,88 @@ export default function MoviePlayerScreen({
       const { provider, apiKey, transcribe, lang } = resolved;
       const subLang = await getSubLang().catch((): SubLang => 'same');
       const headers = info?.downloadHeaders ?? {};
-      const chunk = 300;
-      const total = Math.ceil(duration / chunk);
+      const firstWindow = 90;
+      const restWindow = 300;
+      const plan: Array<{ offset: number; window: number }> = [
+        { offset: 0, window: Math.min(firstWindow, duration) },
+      ];
+      if (duration > firstWindow) {
+        plan.push({ offset: firstWindow, window: Math.min(firstWindow, duration - firstWindow) });
+      }
+      for (let at = firstWindow * 2; at < duration; at += restWindow) {
+        plan.push({ offset: at, window: Math.min(restWindow, duration - at) });
+      }
+      const total = plan.length;
+      const startedAt = Date.now();
+      const elapsed = (): string => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
       log(
         'Player',
-        `full transcribe via ${provider}/${lang}: ${total} chunks ~${Math.round(duration / 60)}min audio`
+        `full transcribe via ${provider}/${lang}: ${total} chunks ~${Math.round(duration / 60)}min audio x3 workers`
       );
       let all: SubtitleCue[] = [];
-      for (let i = 0; i < total; i++) {
-        if (signal?.aborted) {
-          log('Player', `full transcribe cancelled at ${i}/${total}`);
-          return false;
+      let done = 0;
+      let next = 0;
+      const key = itemKey;
+      const runOne = async (): Promise<void> => {
+        while (true) {
+          if (signal?.aborted || liveKey.current !== key) return;
+          const index = next;
+          next += 1;
+          const job = plan[index];
+          if (!job) return;
+          const transcript = await transcribeSample(
+            url,
+            headers,
+            job.window,
+            apiKey,
+            transcribe,
+            provider,
+            lang,
+            job.offset
+          ).catch(() => null);
+          if (liveKey.current !== key) {
+            log('Player', `full transcribe abandoned, content changed (${key})`);
+            return;
+          }
+          if (transcript && (transcript.words.length > 0 || transcript.cues.length > 0)) {
+            const shaped = await shapeFinal(transcript, provider, subLang);
+            if (liveKey.current !== key) {
+              log('Player', `full transcribe abandoned, content changed (${key})`);
+              return;
+            }
+            all = [...all, ...shaped.cues].sort(
+              (lhs, rhs) => lhs.start - rhs.start
+            );
+            subs.setGeneratedCues(all, shaped.label);
+            setSubsOn(true);
+            log('Player', `full transcribe chunk ${index + 1}/${total} +${elapsed()}`);
+          } else {
+            log('Player', `full transcribe chunk ${index + 1}/${total} failed +${elapsed()}`);
+          }
+          done += 1;
+          onTick?.(done, total);
         }
-        const offset = i * chunk;
-        const transcript = await transcribeSample(
-          url,
-          headers,
-          chunk,
-          apiKey,
-          transcribe,
-          provider,
-          lang,
-          offset
-        ).catch(() => null);
-        if (transcript && (transcript.words.length > 0 || transcript.cues.length > 0)) {
-          const shaped = await shapeFinal(transcript, provider, subLang);
-          all = [...all, ...shaped.cues].sort(
-            (lhs, rhs) => lhs.start - rhs.start
-          );
-          subs.setGeneratedCues(all, shaped.label);
-          setSubsOn(true);
-        } else {
-          log('Player', `full transcribe chunk ${i + 1}/${total} failed`);
-        }
-        onTick?.(i + 1, total);
+      };
+      await Promise.all([runOne(), runOne(), runOne()]);
+      if (signal?.aborted || liveKey.current !== key) {
+        log('Player', `full transcribe cancelled +${elapsed()}`);
+        return false;
       }
-      log('Player', `full transcribe done cues=${all.length}`);
+      log('Player', `full transcribe done cues=${all.length} in ${elapsed()}`);
       return true;
     },
-    [subs, info, currentId, duration]
+    [subs, info, currentId, duration, itemKey]
   );
   const startFull = useCallback((): void => {
     if (fullAbort.current) {
-      log('Player', 'full transcribe already running');
-      return;
+      if (fullKey.current === itemKey) {
+        log('Player', 'full transcribe already running');
+        return;
+      }
+      log('Player', 'content changed, restarting transcribe');
+      fullAbort.current.abort();
     }
+    fullKey.current = itemKey;
     const controller = new AbortController();
     fullAbort.current = controller;
     setFullProg({ done: 0, total: 0 });
@@ -2117,7 +2157,7 @@ export default function MoviePlayerScreen({
       setFullProg(null);
       fullAbort.current = null;
     });
-  }, [transcribeFull]);
+  }, [transcribeFull, itemKey]);
   const stopFull = useCallback((): void => {
     fullAbort.current?.abort();
   }, []);

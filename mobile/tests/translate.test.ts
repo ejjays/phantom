@@ -50,9 +50,22 @@ describe('translateLines', () => {
     await expect(translateLines(['a', 'b'], 'ko', 'key')).resolves.toBeNull();
     vi.stubGlobal(
       'fetch',
-      vi.fn(() => Promise.resolve(new Response('bad', { status: 429 })))
+      vi.fn(() =>
+        Promise.resolve(new Response('limited', { status: 429, headers: { 'retry-after': '0.01' } }))
+      )
     );
     await expect(translateLines(['a'], 'ko', 'key')).resolves.toBeNull();
     await expect(translateLines([], 'ko', 'key')).resolves.toEqual([]);
+  });
+
+  it('retries rate limits then succeeds', async () => {
+    const limited = () =>
+      Promise.resolve(new Response('limited', { status: 429, headers: { 'retry-after': '0.01' } }));
+    const ok = () =>
+      Promise.resolve(Response.json({ choices: [{ message: { content: '1. Hi' } }] }));
+    const fetch = vi.fn().mockImplementationOnce(limited).mockImplementationOnce(ok);
+    vi.stubGlobal('fetch', fetch);
+    await expect(translateLines(['x'], 'ko', 'key')).resolves.toEqual(['Hi']);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
