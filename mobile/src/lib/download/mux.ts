@@ -215,13 +215,14 @@ export async function extractFrame(src: File, out: File): Promise<boolean> {
 // short audio sample for cloud transcription: window minutes as small mono
 // mp3 from an offset, returns the fs path or null. old on-device builds
 // lack the extension allowlist flag, so retry bare when flagged runs fail.
-// never throws.
+// host 5xx blips get two spaced retries. never throws.
 export async function extractAudioSample(
   url: string,
   headers: Record<string, string>,
   out: File,
   windowSec: number,
-  offsetSec = 0
+  offsetSec = 0,
+  signal?: AbortSignal
 ): Promise<string | null> {
   const block = Object.entries(headers)
     .filter(
@@ -267,10 +268,19 @@ export async function extractAudioSample(
       return false;
     }
   };
-  const ok =
-    (await run(['-allowed_segment_extensions', 'ALL'], true)) ||
-    (await run([], false));
-  return ok ? fsPath(out.uri) : null;
+  for (const wait of [0, 10000, 30000]) {
+    if (signal?.aborted) return null;
+    if (wait > 0) {
+      log('mux', `[sample] retrying in ${wait / 1000}s`);
+      await new Promise((done) => setTimeout(done, wait));
+      if (signal?.aborted) return null;
+    }
+    const ok =
+      (await run(['-allowed_segment_extensions', 'ALL'], true)) ||
+      (await run([], false));
+    if (ok) return fsPath(out.uri);
+  }
+  return null;
 }
 
 export async function encodeToMp4(src: File, out: File): Promise<boolean> {

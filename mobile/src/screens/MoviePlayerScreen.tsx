@@ -38,10 +38,9 @@ import {
   Gauge,
   Minus,
   Plus,
-  Sparkles,
 } from 'lucide-react-native';
 import tw from '../lib/tw';
-import { Play3Icon, CcOutlineIcon, CcFilledIcon } from '../components/icons';
+import { Play3Icon, CcOutlineIcon, CcFilledIcon, ArrowLeft2Icon, ArrowDown5Icon } from '../components/icons';
 import { useBackHandler } from '../lib/back';
 import { useMoviePlayer } from '../hooks/useMoviePlayer';
 import { useFullscreenLock } from '../hooks/useFullscreenLock';
@@ -52,8 +51,6 @@ import { useDownload } from '../hooks/useDownload';
 import { formatLabel, formatClock, formatSize } from '../lib/format';
 import {
   pickTrack,
-  alignCuesToSpeech,
-  speechOfWords,
   splitLongCues,
   splitLongText,
   wordsToCues,
@@ -198,8 +195,10 @@ function PlayerTopBar({
   title,
   quality,
   canQuality,
+  fullscreen,
   onBack,
   onQuality,
+  onFullscreen,
   top,
   subsOn,
   canSubs,
@@ -223,25 +222,33 @@ function PlayerTopBar({
         style={[tw`flex-row items-center gap-3 px-4`, { paddingTop: top + 8 }]}
       >
         <Pressable
-          onPress={onBack}
-          style={tw`p-2.5`}
-          accessibilityLabel="Close player"
+          onPress={fullscreen ? onFullscreen : onBack}
+          style={tw`-ml-3 p-2.5`}
+          accessibilityLabel={fullscreen ? 'Exit fullscreen' : 'Close player'}
         >
-          <ArrowLeft size={22} color="#ffffff" />
-        </Pressable>
-        <View style={tw`flex-1`}>
-          <Text
-            style={tw`font-sans-bold text-[15px] text-white`}
-            numberOfLines={1}
-          >
-            {title}
-          </Text>
-          {quality !== '' && (
-            <Text style={tw`font-mono text-[11px] text-slate-300`}>
-              {quality}
-            </Text>
+          {fullscreen ? (
+            <ArrowDown5Icon size={22} color="#ffffff" />
+          ) : (
+            <ArrowLeft2Icon size={22} color="#ffffff" />
           )}
-        </View>
+        </Pressable>
+        {fullscreen ? (
+          <View style={tw`flex-1`}>
+            <Text
+              style={tw`font-sans-bold text-[15px] text-white`}
+              numberOfLines={1}
+            >
+              {title}
+            </Text>
+            {quality !== '' && (
+              <Text style={tw`font-mono text-[11px] text-slate-300`}>
+                {quality}
+              </Text>
+            )}
+          </View>
+        ) : (
+          <View style={tw`flex-1`} />
+        )}
         <Pressable
           onPress={onToggleSubs}
           disabled={!canSubs}
@@ -442,7 +449,6 @@ function QualityMenu({
   onPickEmbed,
   onPickRate,
   onDelay,
-  onAutoSync,
   onTranscriber,
   subLang,
   onSubLang,
@@ -468,9 +474,6 @@ function QualityMenu({
   onPickEmbed: (track: NativeSubtitleTrack) => void;
   onPickRate: (rate: number) => void;
   onDelay: (delay: number) => void;
-  onAutoSync: (
-    onPhase?: (phase: 'listen' | 'cloud') => void
-  ) => Promise<number | null>;
   onTranscriber: (value: TranscriberChoice) => void;
   onSubLang: (value: SubLang) => void;
   onStopFull: () => void;
@@ -482,9 +485,6 @@ function QualityMenu({
     'main'
   );
   const [preview, setPreview] = useState<number | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [syncPhase, setSyncPhase] = useState<'listen' | 'cloud'>('listen');
-  const [syncError, setSyncError] = useState<string | null>(null);
   const current = formats.find((format) => format.formatId === currentId);
   const qualityLabel = current ? formatLabel(current) : '';
   const activeSubLabel = subsOn
@@ -558,7 +558,12 @@ function QualityMenu({
           <Animated.View
             style={[
               tw`justify-end overflow-hidden rounded-[28px] bg-[#1E1E1E]`,
-              { alignSelf: 'center', width: '100%', maxWidth: 480 },
+              {
+                alignSelf: 'center',
+                width: '100%',
+                maxWidth: 480,
+                maxHeight: Math.round(height * 0.85),
+              },
             ]}
           >
             <View style={tw`px-4 pb-4 pt-3`}>
@@ -629,6 +634,11 @@ function QualityMenu({
               ) : view === 'subs' ? (
                 <>
                   <MenuBack title="Subtitles" onBack={() => setView('main')} />
+                  <ScrollView
+                    style={{ maxHeight: Math.round(height * 0.6) }}
+                    contentContainerStyle={tw`pb-2`}
+                    showsVerticalScrollIndicator={false}
+                  >
                   {embedTracks.length > 0 && (
                     <Text
                       style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
@@ -706,7 +716,7 @@ function QualityMenu({
                   <Text
                     style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
                   >
-                    AI voice
+                    Transcribe with
                   </Text>
                   {(['deepgram', 'groq'] as const).map((choice) => {
                     const active = transcriber === choice;
@@ -805,48 +815,6 @@ function QualityMenu({
                       </Pressable>
                     </View>
                   </View>
-                  {syncing ? (
-                    <View
-                      style={tw`mt-1 flex-row items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-3`}
-                    >
-                      <ActivityIndicator size="small" color="#ffffff" />
-                      <Text style={tw`font-sans-medium text-[14px] text-white`}>
-                        {syncPhase === 'cloud' ? 'Transcribing…' : 'Listening…'}
-                      </Text>
-                    </View>
-                  ) : (
-                    <Pressable
-                      onPress={() => {
-                        tapSelection();
-                        setSyncPhase('listen');
-                        setSyncing(true);
-                        setSyncError(null);
-                        void onAutoSync(setSyncPhase).then((offset) => {
-                          setSyncing(false);
-                          if (offset === null) {
-                            setSyncError('Could not sync — try manual');
-                            return;
-                          }
-                          onDelay(offset);
-                          closeSheet();
-                        });
-                      }}
-                      style={tw`mt-1 flex-row items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-3`}
-                      accessibilityLabel="Auto-sync subtitles"
-                    >
-                      <Sparkles size={16} color="#ffffff" />
-                      <Text style={tw`font-sans-medium text-[14px] text-white`}>
-                        Auto-sync
-                      </Text>
-                    </Pressable>
-                  )}
-                  {syncError && (
-                    <Text
-                      style={tw`px-3 pb-1 text-center font-mono text-[11px] text-red-400`}
-                    >
-                      {syncError}
-                    </Text>
-                  )}
                   {full && (
                     <View
                       style={tw`mt-1 flex-row items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-3`}
@@ -869,6 +837,7 @@ function QualityMenu({
                       </Pressable>
                     </View>
                   )}
+                  </ScrollView>
                 </>
               ) : (
                 <>
@@ -1360,11 +1329,12 @@ async function transcribeSample(
   transcribe: TranscribeFn,
   provider: TranscriberChoice,
   lang: TranscribeLang,
-  offsetSec = 0
+  offsetSec = 0,
+  signal?: AbortSignal
 ): Promise<TranscriptResult | null> {
   const audio = new File(Paths.cache, `sync-${Date.now()}.mp3`);
   try {
-    const path = await extractAudioSample(url, headers, audio, windowSec, offsetSec);
+    const path = await extractAudioSample(url, headers, audio, windowSec, offsetSec, signal);
     const bytes = audio.size ?? 0;
     log('Player', `cloud-sync via ${provider}: sample bytes=${bytes} offset=${offsetSec}s`);
     if (!path || bytes < 50_000) {
@@ -1399,55 +1369,6 @@ async function transcribeSample(
     } catch {
       /* best effort cleanup */
     }
-  }
-}
-
-async function cloudSyncOffset(
-  url: string,
-  headers: Record<string, string>,
-  windowSec: number,
-  apiKey: string,
-  transcribe: TranscribeFn,
-  provider: TranscriberChoice,
-  lang: TranscribeLang,
-  cues: SubtitleCue[]
-): Promise<number | null> {
-  const transcript = await transcribeSample(
-    url,
-    headers,
-    windowSec,
-    apiKey,
-    transcribe,
-    provider,
-    lang
-  );
-  if (!transcript || (transcript.words.length === 0 && transcript.cues.length === 0)) return null;
-  {
-    const segs = speechOfWords(transcript.words);
-    const horizon = windowSec + 60;
-    const range = cues.filter((cue) => cue.start < horizon);
-    log(
-      'Player',
-      `cloud-sync via ${provider}: segs=${segs.length} cuesInRange=${range.length}`
-    );
-    const result = alignCuesToSpeech(range, segs, horizon, (dbg) => {
-      const peaks = dbg.top
-        .map((peak) => `${peak.offset}s:${peak.score.toFixed(3)}`)
-        .join(' ');
-      log(
-        'Player',
-        `cloud-sync best=${dbg.best}s score=${dbg.bestScore.toFixed(3)} zero=${dbg.zero.toFixed(3)} top=${peaks}`
-      );
-    });
-    if (!result) {
-      log('Player', 'cloud-sync align found no offset');
-      return null;
-    }
-    log(
-      'Player',
-      `cloud-sync offset ${result.offset}s confidence ${result.confidence.toFixed(2)}`
-    );
-    return result.offset;
   }
 }
 
@@ -1966,59 +1887,6 @@ export default function MoviePlayerScreen({
     }
   }, [visible, player, embedSel]);
   const tickSubs = subs.tick;
-  const autoSyncSubs = useCallback(
-    async (
-      onPhase?: (phase: 'listen' | 'cloud') => void
-    ): Promise<number | null> => {
-      const cues = subs.getCues();
-      const current = info?.formats.find(
-        (format) => format.formatId === currentId
-      );
-      const url = current?.url;
-      if (!url) return null;
-      const headers = info?.downloadHeaders ?? {};
-      const window = Math.min(600, Math.max(60, Math.floor(duration)));
-      // temp dev: chosen cloud transcriber only, providers off. restore before ship
-      const resolved = await resolveTranscriber();
-      if (!resolved) return null;
-      const { provider, apiKey, transcribe, lang } = resolved;
-      onPhase?.('cloud');
-      const cloudWindow = Math.min(300, window);
-      if (cues.length > 0) {
-        return cloudSyncOffset(
-          url,
-          headers,
-          cloudWindow,
-          apiKey,
-          transcribe,
-          provider,
-          lang,
-          cues
-        ).catch(() => null);
-      }
-      const transcript = await transcribeSample(
-        url,
-        headers,
-        cloudWindow,
-        apiKey,
-        transcribe,
-        provider,
-        lang
-      );
-      if (!transcript || (transcript.words.length === 0 && transcript.cues.length === 0)) {
-        log('Player', `cc generate via ${provider} failed`);
-        return null;
-      }
-      log('Player', `cc cues via ${provider}: utterances=${transcript.cues.length}`);
-      const subLang = await getSubLang().catch((): SubLang => 'en');
-      const shaped = await shapeFinal(transcript, provider, subLang);
-      subs.setGeneratedCues(shaped.cues, shaped.label);
-      setSubsOn(true);
-      log('Player', `cc generated via ${provider} cues=${shaped.cues.length}`);
-      return 0;
-    },
-    [subs, info, currentId, duration]
-  );
   const transcribeFull = useCallback(
     async (
       onTick?: (done: number, total: number) => void,
@@ -2071,7 +1939,8 @@ export default function MoviePlayerScreen({
             transcribe,
             provider,
             lang,
-            job.offset
+            job.offset,
+            signal
           ).catch(() => null);
           if (liveKey.current !== key) {
             log('Player', `full transcribe abandoned, content changed (${key})`);
@@ -2293,7 +2162,6 @@ export default function MoviePlayerScreen({
         onPickEmbed={setEmbedSel}
         onPickRate={setRate}
         onDelay={setSubDelay}
-        onAutoSync={autoSyncSubs}
         onTranscriber={(value) => {
           tapSelection();
           setTranscriberChoice(value);

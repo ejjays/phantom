@@ -5,7 +5,6 @@ import {
   TextInput,
   Pressable,
   FlatList,
-  ScrollView,
   RefreshControl,
   ActivityIndicator,
   useWindowDimensions,
@@ -139,6 +138,99 @@ const PosterCard = memo(function PosterCard({
       </Text>
       </Animated.View>
     </Pressable>
+  );
+});
+
+const BrowseHeader = memo(function BrowseHeader({
+  trending,
+  paused,
+  rails,
+  loading,
+  showExplore,
+  onOpen,
+  onPlay,
+  onOpenRail,
+  onLoadMoreRail,
+}: {
+  trending: MovieItem[];
+  paused: boolean;
+  rails: Rail[];
+  loading: boolean;
+  showExplore: boolean;
+  onOpen: (item: MovieItem) => void;
+  onPlay: (item: MovieItem) => void;
+  onOpenRail: (key: string) => void;
+  onLoadMoreRail: (key: string) => void;
+}) {
+  return (
+    <View>
+      {trending.length > 0 && (
+        <View style={tw`pt-2`}>
+          <Text style={tw`px-4 pb-2 font-sans-bold text-[16px] text-slate-200`}>
+            Trending this week
+          </Text>
+          <TrendingCarousel
+            items={trending}
+            paused={paused}
+            onOpen={onOpen}
+            onPlay={onPlay}
+          />
+        </View>
+      )}
+      {rails.map((rail) =>
+        rail.items.length > 0 ? (
+          <View key={rail.key} style={tw`mt-7`}>
+            <Pressable
+              onPress={() => {
+                tapSelection();
+                log('Movies', `rail open ${rail.key} items=${rail.items.length}`);
+                onOpenRail(rail.key);
+              }}
+              accessibilityLabel={`See all ${rail.title}`}
+              style={tw`flex-row items-center justify-between pr-4`}
+            >
+              <Text style={tw`px-4 pb-3 font-sans-bold text-[16px] text-slate-200`}>
+                {rail.title}
+              </Text>
+              <View style={tw`flex-row items-center gap-0.5 pb-3`}>
+                <Text style={tw`font-sans-semibold text-[13px] text-cyan-400`}>See all</Text>
+                <ChevronRight size={15} color="#22d3ee" />
+              </View>
+            </Pressable>
+            <FlatList
+              data={rail.items}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={tw`gap-3 px-4`}
+              keyExtractor={(item) => `${item.kind}-${item.id}`}
+              onEndReached={() => void onLoadMoreRail(rail.key)}
+              onEndReachedThreshold={0.6}
+              renderItem={({ item, index }) => (
+                <PosterCard item={item} width={162} height={216} testID={`movie-rail-${rail.key}-${index}`} onOpen={onOpen} />
+              )}
+            />
+          </View>
+        ) : null
+      )}
+      {trending.length === 0 && rails.every((rail) => rail.items.length === 0) && !loading && (
+        <View style={tw`items-center px-8 pt-10`}>
+          <LottieView source={ufo} autoPlay loop={false} style={{ width: 200, height: 200 }} />
+          <Text style={tw`mt-2 text-center font-mono-medium text-sm text-cyan-400`}>
+            Could not reach Watchluna.
+          </Text>
+          <Text style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}>
+            Pull down to retry.
+          </Text>
+        </View>
+      )}
+      {showExplore && (
+        <View style={tw`mt-6`}>
+          <Text style={tw`px-4 pb-2 font-sans-bold text-[16px] text-slate-200`}>
+            Explore more
+          </Text>
+        </View>
+      )}
+    </View>
   );
 });
 
@@ -368,6 +460,17 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
       onFullScreen?.(true);
     },
     [onFullScreen]
+  );
+
+  const onOpenRail = useCallback((key: string) => {
+    setRailKey(key);
+  }, []);
+
+  const onLoadMoreRail = useCallback(
+    (key: string) => {
+      void loadMoreRail(key);
+    },
+    [loadMoreRail]
   );
 
   const closeDetail = useCallback(() => {
@@ -626,8 +729,12 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
           }
         />
       ) : (
-        <ScrollView
-          contentContainerStyle={tw`pb-32`}
+        <FlatList
+          data={exploreItems}
+          numColumns={3}
+          keyExtractor={(item) => `${item.kind}-${item.id}`}
+          columnWrapperStyle={tw`gap-3 px-4`}
+          contentContainerStyle={tw`gap-3 pb-32`}
           keyboardShouldPersistTaps="handled"
           onScroll={onBrowseScroll}
           scrollEventThrottle={400}
@@ -640,87 +747,34 @@ function MoviesScreenInner({ visible, onFullScreen, onClose }: Props) {
               progressBackgroundColor="#1E1E1E"
             />
           }
-        >
-          {trending.length > 0 && (
-            <View style={tw`pt-2`}>
-              <Text style={tw`px-4 pb-2 font-sans-bold text-[16px] text-slate-200`}>
-                Trending this week
-              </Text>
-              <TrendingCarousel
-                items={trending}
-                paused={detailOpen || playing || !visible}
-                onOpen={openDetail}
-                onPlay={playItem}
-              />
-            </View>
-          )}
-          {rails.map((rail) =>
-            rail.items.length > 0 ? (
-              <View key={rail.key} style={tw`mt-7`}>
-                <Pressable
-                  onPress={() => {
-                    tapSelection();
-                    setRailKey(rail.key);
-                    log('Movies', `rail open ${rail.key} items=${rail.items.length}`);
-                  }}
-                  accessibilityLabel={`See all ${rail.title}`}
-                  style={tw`flex-row items-center justify-between pr-4`}
-                >
-                  <Text style={tw`px-4 pb-3 font-sans-bold text-[16px] text-slate-200`}>
-                    {rail.title}
-                  </Text>
-                  <View style={tw`flex-row items-center gap-0.5 pb-3`}>
-                    <Text style={tw`font-sans-semibold text-[13px] text-cyan-400`}>See all</Text>
-                    <ChevronRight size={15} color="#22d3ee" />
-                  </View>
-                </Pressable>
-                <FlatList
-                  data={rail.items}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={tw`gap-3 px-4`}
-                  keyExtractor={(item) => `${item.kind}-${item.id}`}
-                  onEndReached={() => void loadMoreRail(rail.key)}
-                  onEndReachedThreshold={0.6}
-                  renderItem={({ item, index }) => (
-                    <PosterCard item={item} width={162} height={216} testID={`movie-rail-${rail.key}-${index}`} onOpen={openDetail} />
-                  )}
-                />
-              </View>
+          ListHeaderComponent={
+            <BrowseHeader
+              trending={trending}
+              paused={detailOpen || playing || !visible}
+              rails={rails}
+              loading={loading}
+              showExplore={exploreItems.length > 0 || exploreMore}
+              onOpen={openDetail}
+              onPlay={playItem}
+              onOpenRail={onOpenRail}
+              onLoadMoreRail={onLoadMoreRail}
+            />
+          }
+          ListFooterComponent={
+            exploreMore ? (
+              <ActivityIndicator size="small" color="#22d3ee" style={tw`py-4`} />
             ) : null
+          }
+          renderItem={({ item, index }) => (
+            <PosterCard
+              item={item}
+              width={gridW}
+              height={gridW * 1.5}
+              testID={`movie-explore-${index}`}
+              onOpen={openDetail}
+            />
           )}
-          {trending.length === 0 && rails.every((rail) => rail.items.length === 0) && !loading && (
-            <View style={tw`items-center px-8 pt-10`}>
-              <LottieView source={ufo} autoPlay loop={false} style={{ width: 200, height: 200 }} />
-              <Text style={tw`mt-2 text-center font-mono-medium text-sm text-cyan-400`}>
-                Could not reach Watchluna.
-              </Text>
-              <Text style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}>
-                Pull down to retry.
-              </Text>
-            </View>
-          )}
-          {(exploreItems.length > 0 || exploreMore) && (
-            <View style={tw`mt-6`}>
-              <Text style={tw`px-4 pb-2 font-sans-bold text-[16px] text-slate-200`}>
-                Explore more
-              </Text>
-              <View style={tw`flex-row flex-wrap gap-3 px-4`}>
-                {exploreItems.map((item, index) => (
-                  <PosterCard
-                    key={`${item.kind}-${item.id}`}
-                    item={item}
-                    width={gridW}
-                    height={gridW * 1.5}
-                    testID={`movie-explore-${index}`}
-                    onOpen={openDetail}
-                  />
-                ))}
-              </View>
-              {exploreMore && <ActivityIndicator size="small" color="#22d3ee" style={tw`py-4`} />}
-            </View>
-          )}
-        </ScrollView>
+        />
       )}
       </Animated.View>
 
