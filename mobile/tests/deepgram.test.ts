@@ -4,7 +4,7 @@ vi.mock('react-native-blob-util', () => ({
   default: { fetch: vi.fn(), wrap: vi.fn((path: string) => path) },
 }));
 
-import { deepgramWords } from '../src/lib/deepgram';
+import { deepgramWords, deepgramUtterances } from '../src/lib/deepgram';
 
 const payload = {
   results: {
@@ -39,5 +39,31 @@ describe('deepgramWords', () => {
     expect(deepgramWords(null)).toEqual([]);
     expect(deepgramWords({})).toEqual([]);
     expect(deepgramWords({ results: {} })).toEqual([]);
+  });
+});
+
+describe('deepgramUtterances', () => {
+  const shaped = (utterances: unknown) => ({ results: { utterances } });
+  it('maps utterances to cues, sorted', () => {
+    expect(
+      deepgramUtterances(
+        shaped([
+          { start: 5.0, end: 7.2, transcript: 'Second line.' },
+          { start: 1.0, end: 2.4, transcript: 'First line.' },
+          { start: 9.0, end: 8.0, transcript: 'Backwards.' },
+          { start: 10.0, end: 11.0, transcript: '   ' },
+        ])
+      )
+    ).toEqual([
+      { start: 1.0, end: 2.4, text: 'First line.' },
+      { start: 5.0, end: 7.2, text: 'Second line.' },
+    ]);
+  });
+
+  it('returns empty on junk', () => {
+    expect(deepgramUtterances(null)).toEqual([]);
+    expect(deepgramUtterances({})).toEqual([]);
+    expect(deepgramUtterances({ results: {} })).toEqual([]);
+    expect(deepgramUtterances({ utterances: [] })).toEqual([]);
   });
 });

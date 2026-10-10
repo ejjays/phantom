@@ -54,6 +54,7 @@ import {
   pickTrack,
   alignCuesToSpeech,
   speechOfWords,
+  splitLongCues,
   wordsToCues,
   type SubtitleTrack,
   type SubtitleCue,
@@ -61,7 +62,7 @@ import {
 import { extractAudioSample } from '../lib/download/mux';
 import {
   transcribeFile as transcribeDeepgram,
-  type DeepgramWord,
+  type TranscriptResult,
 } from '../lib/deepgram';
 import { transcribeFile as transcribeGroq } from '../lib/groq';
 import {
@@ -69,7 +70,10 @@ import {
   getGroqKey,
   getTranscriber,
   setTranscriber,
+  getTranscribeLang,
+  setTranscribeLang,
   type TranscriberChoice,
+  type TranscribeLang,
 } from '../lib/settings';
 import { File, Paths } from 'expo-file-system';
 import { tapImpact, tapSelection } from '../lib/haptics';
@@ -430,6 +434,7 @@ function QualityMenu({
   rate,
   subDelay,
   transcriber,
+  transLang,
   onPick,
   onPickSub,
   onPickEmbed,
@@ -437,6 +442,7 @@ function QualityMenu({
   onDelay,
   onAutoSync,
   onTranscriber,
+  onTransLang,
   onClose,
 }: {
   open: boolean;
@@ -450,6 +456,7 @@ function QualityMenu({
   rate: number;
   subDelay: number;
   transcriber: TranscriberChoice;
+  transLang: TranscribeLang;
   onPick: (format: Format) => void;
   onPickSub: (track: SubtitleTrack | null) => void;
   onPickEmbed: (track: NativeSubtitleTrack) => void;
@@ -459,6 +466,7 @@ function QualityMenu({
     onPhase?: (phase: 'listen' | 'cloud') => void
   ) => Promise<number | null>;
   onTranscriber: (value: TranscriberChoice) => void;
+  onTransLang: (value: TranscribeLang) => void;
   onClose: () => void;
 }) {
   const { height } = useWindowDimensions();
@@ -708,6 +716,38 @@ function QualityMenu({
                           style={tw`font-mono-semibold text-[14px] capitalize ${active ? 'text-white' : 'text-slate-300'}`}
                         >
                           {choice}
+                        </Text>
+                        {active && <Check size={18} color="#22d3ee" />}
+                      </Pressable>
+                    );
+                  })}
+                  <Text
+                    style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
+                  >
+                    AI language
+                  </Text>
+                  {(
+                    [
+                      ['auto', 'Auto'],
+                      ['en', 'English'],
+                      ['ko', 'Korean'],
+                      ['ja', 'Japanese'],
+                    ] as const
+                  ).map(([choice, title]) => {
+                    const active = transLang === choice;
+                    return (
+                      <Pressable
+                        key={choice}
+                        onPress={() => {
+                          tapSelection();
+                          onTransLang(choice);
+                        }}
+                        style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                      >
+                        <Text
+                          style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
+                        >
+                          {title}
                         </Text>
                         {active && <Check size={18} color="#22d3ee" />}
                       </Pressable>
@@ -1191,8 +1231,9 @@ function embedList(
 type TranscribeFn = (
   fsPath: string,
   mime: string,
-  apiKey: string
-) => Promise<DeepgramWord[]>;
+  apiKey: string,
+  lang: TranscribeLang
+) => Promise<TranscriptResult>;
 
 async function transcribeSample(
   url: string,
@@ -1200,8 +1241,9 @@ async function transcribeSample(
   windowSec: number,
   apiKey: string,
   transcribe: TranscribeFn,
-  provider: TranscriberChoice
-): Promise<DeepgramWord[] | null> {
+  provider: TranscriberChoice,
+  lang: TranscribeLang
+): Promise<TranscriptResult | null> {
   const audio = new File(Paths.cache, `sync-${Date.now()}.mp3`);
   try {
     const path = await extractAudioSample(url, headers, audio, windowSec);
@@ -1211,7 +1253,16 @@ async function transcribeSample(
       log('Player', `cloud-sync via ${provider}: extract failed`);
       return null;
     }
-    return transcribe(audio.uri, 'audio/mpeg', apiKey);
+    try {
+      const head = (audio as unknown as { bytesSync(): Uint8Array }).bytesSync().slice(0, 16);
+      log(
+        'Player',
+        `cloud-sync head=${Array.from(head, (byte) => byte.toString(16).padStart(2, '0')).join('')}`
+      );
+    } catch (err) {
+      log('Player', `cloud-sync head unreadable: ${String(err)}`);
+    }
+    return transcribe(audio.uri, 'audio/mpeg', apiKey, lang);
   } finally {
     try {
       await audio.delete();
@@ -1228,19 +1279,21 @@ async function cloudSyncOffset(
   apiKey: string,
   transcribe: TranscribeFn,
   provider: TranscriberChoice,
+  lang: TranscribeLang,
   cues: SubtitleCue[]
 ): Promise<number | null> {
-  const words = await transcribeSample(
+  const transcript = await transcribeSample(
     url,
     headers,
     windowSec,
     apiKey,
     transcribe,
-    provider
+    provider,
+    lang
   );
-  if (!words || words.length === 0) return null;
+  if (!transcript || (transcript.words.length === 0 && transcript.cues.length === 0)) return null;
   {
-    const segs = speechOfWords(words);
+    const segs = speechOfWords(transcript.words);
     const horizon = windowSec + 60;
     const range = cues.filter((cue) => cue.start < horizon);
     log(
@@ -1587,6 +1640,7 @@ export default function MoviePlayerScreen({
   const [subsOn, setSubsOn] = useState(false);
   const [transcriber, setTranscriberChoice] =
     useState<TranscriberChoice>('deepgram');
+  const [transLang, setTransLang] = useState<TranscribeLang>('auto');
   const [subDelay, setSubDelay] = useState(0);
   const [embedSel, setEmbedSel] = useState<NativeSubtitleTrack | null>(null);
   const seekTarget = useRef(0);
@@ -1622,6 +1676,9 @@ export default function MoviePlayerScreen({
     setEmbedSel(null);
     getTranscriber()
       .then(setTranscriberChoice)
+      .catch(() => undefined);
+    getTranscribeLang()
+      .then(setTransLang)
       .catch(() => undefined);
     void open(item.kind, item.id, item.season, item.episode);
   }, [visible, item, open]);
@@ -1802,6 +1859,9 @@ export default function MoviePlayerScreen({
       }
       const transcribe =
         provider === 'groq' ? transcribeGroq : transcribeDeepgram;
+      const lang = await getTranscribeLang().catch(
+        (): TranscribeLang => 'auto'
+      );
       onPhase?.('cloud');
       const cloudWindow = Math.min(300, window);
       if (cues.length > 0) {
@@ -1812,22 +1872,27 @@ export default function MoviePlayerScreen({
           apiKey,
           transcribe,
           provider,
+          lang,
           cues
         ).catch(() => null);
       }
-      const words = await transcribeSample(
+      const transcript = await transcribeSample(
         url,
         headers,
         cloudWindow,
         apiKey,
         transcribe,
-        provider
+        provider,
+        lang
       );
-      if (!words || words.length === 0) {
+      if (!transcript || (transcript.words.length === 0 && transcript.cues.length === 0)) {
         log('Player', `cc generate via ${provider} failed`);
         return null;
       }
-      const generated = wordsToCues(words).map((cue) => {
+      const base =
+        transcript.cues.length > 0 ? transcript.cues : wordsToCues(transcript.words);
+      log('Player', `cc cues via ${provider}: utterances=${transcript.cues.length}`);
+      const generated = splitLongCues(base, transcript.words).map((cue) => {
         // temp dev: show lines a beat early, whisper starts lag speech
         const start = Math.max(0, Math.round((cue.start - 0.5) * 10) / 10);
         return { ...cue, start, end: Math.max(cue.end - 0.5, start + 0.1) };
@@ -2003,6 +2068,7 @@ export default function MoviePlayerScreen({
         rate={rate}
         subDelay={subDelay}
         transcriber={transcriber}
+        transLang={transLang}
         onPick={(format) => void switchQuality(format)}
         onPickSub={pickSub}
         onPickEmbed={setEmbedSel}
@@ -2013,6 +2079,11 @@ export default function MoviePlayerScreen({
           tapSelection();
           setTranscriberChoice(value);
           void setTranscriber(value).catch(() => undefined);
+        }}
+        onTransLang={(value) => {
+          tapSelection();
+          setTransLang(value);
+          void setTranscribeLang(value).catch(() => undefined);
         }}
         onClose={() => setQualityOpen(false)}
       />

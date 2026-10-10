@@ -1,9 +1,13 @@
-import ReactNativeBlobUtil from 'react-native-blob-util';
+import { File } from 'expo-file-system';
 import { log } from './log';
+import type { TranscribeLang } from './settings';
+import type { SubtitleCue } from './subtitles';
 
 const DG_API = 'https://api.deepgram.com/v1/listen';
 
 export type DeepgramWord = { word: string; start: number; end: number };
+
+export type TranscriptResult = { words: DeepgramWord[]; cues: SubtitleCue[] };
 
 function rec(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null
@@ -39,32 +43,66 @@ export function deepgramWords(payload: unknown): DeepgramWord[] {
   return out.sort((lhs, rhs) => lhs.start - rhs.start);
 }
 
+export function deepgramUtterances(payload: unknown): SubtitleCue[] {
+  const utterances = rec(rec(payload)?.['results'])?.['utterances'];
+  const out: SubtitleCue[] = [];
+  if (!Array.isArray(utterances)) return out;
+  for (const entry of utterances) {
+    const item = rec(entry);
+    const text = item?.['transcript'];
+    const start = num(item?.['start']);
+    const end = num(item?.['end']);
+    if (typeof text !== 'string' || text.trim().length === 0) continue;
+    if (start === null || end === null || end <= start) continue;
+    out.push({ start, end, text: text.trim() });
+  }
+  return out.sort((lhs, rhs) => lhs.start - rhs.start);
+}
+
 export async function transcribeFile(
   fsPath: string,
   mime: string,
-  apiKey: string
-): Promise<DeepgramWord[]> {
+  apiKey: string,
+  lang: TranscribeLang
+): Promise<TranscriptResult> {
   const started = Date.now();
+  const empty: TranscriptResult = { words: [], cues: [] };
   try {
-    const res = await ReactNativeBlobUtil.fetch(
-      'POST',
-      `${DG_API}?model=nova-3&smart_format=true&punctuate=true&detect_language=true`,
-      { Authorization: `Token ${apiKey}`, 'Content-Type': mime },
-      ReactNativeBlobUtil.wrap(fsPath)
-    );
-    const status = res.info().status;
-    if (status < 200 || status >= 300) {
-      log('Deepgram', `transcribe http=${status} ms=${Date.now() - started}`);
-      return [];
+    const data = (new File(fsPath) as unknown as { bytesSync(): Uint8Array }).bytesSync();
+    if (data.length === 0) {
+      log('Deepgram', 'sample unreadable');
+      return empty;
     }
-    const words = deepgramWords(await res.json());
+    const langParam = lang === 'auto' ? 'detect_language=true' : `language=${lang}`;
+    const res = await fetch(
+      `${DG_API}?model=nova-3&smart_format=true&punctuate=true&${langParam}&utterances=true&filler_words=true`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Token ${apiKey}`, 'Content-Type': mime },
+        body: data as unknown as BodyInit,
+      }
+    );
+    const status = res.status;
+    if (status < 200 || status >= 300) {
+      let snippet = '';
+      try {
+        snippet = String(await res.text()).slice(0, 160);
+      } catch {
+        snippet = '';
+      }
+      log('Deepgram', `transcribe http=${status} ms=${Date.now() - started} body=${snippet}`);
+      return empty;
+    }
+    const payload = (await res.json()) as unknown;
+    const words = deepgramWords(payload);
+    const cues = deepgramUtterances(payload);
     log(
       'Deepgram',
-      `transcribed words=${words.length} ms=${Date.now() - started}`
+      `transcribed words=${words.length} utterances=${cues.length} ms=${Date.now() - started}`
     );
-    return words;
-  } catch {
-    log('Deepgram', `transcribe threw ms=${Date.now() - started}`);
-    return [];
+    return { words, cues };
+  } catch (err) {
+    log('Deepgram', `transcribe threw ms=${Date.now() - started}: ${String(err)}`);
+    return empty;
   }
 }

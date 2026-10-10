@@ -230,7 +230,52 @@ export function wordsToCues(
   return out;
 }
 
-// shifts dialogue to sit on speech: scores every half-second offset in
+// splits over-long cues (deepgram utterances merge rapid dialogue) into
+// word-bounded chunks with exact timings from the transcript. pure, tested.
+export function splitLongCues(
+  cues: SubtitleCue[],
+  words: Array<{ word: string; start: number; end: number }>,
+  maxChars = 90
+): SubtitleCue[] {
+  const out: SubtitleCue[] = [];
+  for (const cue of cues) {
+    if (cue.text.length <= maxChars) {
+      out.push(cue);
+      continue;
+    }
+    const inside = words
+      .filter((word) => word.end > cue.start && word.start < cue.end && word.word.trim().length > 0)
+      .sort((lhs, rhs) => lhs.start - rhs.start);
+    if (inside.length === 0) {
+      out.push(cue);
+      continue;
+    }
+    let chunk: typeof inside = [];
+    let text = '';
+    const flushChunk = (): void => {
+      if (chunk.length === 0) return;
+      const first = chunk[0];
+      const last = chunk[chunk.length - 1];
+      if (first && last) out.push({ start: first.start, end: last.end, text });
+      chunk = [];
+      text = '';
+    };
+    for (const word of inside) {
+      const token = word.word.trim();
+      if (chunk.length > 0 && `${text} ${token}`.length > maxChars) flushChunk();
+      if (chunk.length === 0) {
+        chunk = [word];
+        text = token;
+      } else {
+        chunk.push(word);
+        text += ` ${token}`;
+      }
+    }
+    flushChunk();
+    if (chunk.length > 0 || text.length > 0) out.push(cue);
+  }
+  return out;
+}
 // ±60s by overlapped cue seconds minus half the silence overlap, and only
 // trusts a clear winner so sparse dialogue never invents timing
 export function alignCuesToSpeech(

@@ -16,6 +16,7 @@ vi.mock('expo-file-system/legacy', () => ({
 
 import {
   groqWords,
+  groqSegments,
   base64ToBytes,
   bytesToBase64,
   buildMultipartBody,
@@ -52,6 +53,31 @@ describe('groqWords', () => {
     expect(groqWords(null)).toEqual([]);
     expect(groqWords({})).toEqual([]);
     expect(groqWords({ text: 'x' })).toEqual([]);
+  });
+});
+
+describe('groqSegments', () => {
+  it('maps segments to cues and collapses repeats', () => {
+    expect(
+      groqSegments({
+        segments: [
+          { start: 1.0, end: 2.0, text: ' First.' },
+          { start: 2.0, end: 3.0, text: 'First.' },
+          { start: 3.0, end: 4.0, text: ' First. ' },
+          { start: 5.0, end: 6.0, text: 'Second.' },
+          { start: 7.0, end: 6.0, text: 'Backwards.' },
+        ],
+      })
+    ).toEqual([
+      { start: 1.0, end: 2.0, text: 'First.' },
+      { start: 5.0, end: 6.0, text: 'Second.' },
+    ]);
+  });
+
+  it('returns empty on junk', () => {
+    expect(groqSegments(null)).toEqual([]);
+    expect(groqSegments({})).toEqual([]);
+    expect(groqSegments({ segments: 'x' })).toEqual([]);
   });
 });
 

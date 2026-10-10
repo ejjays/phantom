@@ -18,6 +18,7 @@ import {
   pickTrack,
   speechOfSilence,
   speechOfWords,
+  splitLongCues,
   wordsToCues,
   type SpeechSeg,
   type SubtitleCue,
@@ -152,6 +153,31 @@ describe('wordsToCues', () => {
     expect(wordsToCues([word('  ', 1.0, 1.4), word('bad', 2.0, 1.0)])).toEqual(
       []
     );
+  });
+});
+
+describe('splitLongCues', () => {
+  const word = (text: string, start: number, end: number) => ({ word: text, start, end });
+  const cue = (start: number, end: number, text: string): SubtitleCue => ({ start, end, text });
+  it('leaves short cues alone', () => {
+    const cues = [cue(1, 2, 'hi')];
+    expect(splitLongCues(cues, [])).toEqual(cues);
+  });
+
+  it('splits walls at word bounds with exact times', () => {
+    const first = 'a'.repeat(40);
+    const second = 'b'.repeat(40);
+    const third = 'c'.repeat(40);
+    const words = [
+      word(first, 1.0, 1.5),
+      word(second, 1.6, 2.0),
+      word(third, 2.1, 2.5),
+    ];
+    const wall = cue(1.0, 2.5, `${first} ${second} ${third}`);
+    expect(splitLongCues([wall], words)).toEqual([
+      { start: 1.0, end: 2.0, text: `${first} ${second}` },
+      { start: 2.1, end: 2.5, text: third },
+    ]);
   });
 });
 

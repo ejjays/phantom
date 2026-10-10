@@ -8,6 +8,10 @@ const TRANSCRIBER_KEY = 'phantom.transcriber.choice';
 
 export type TranscriberChoice = 'deepgram' | 'groq';
 
+export type TranscribeLang = 'auto' | 'en' | 'ko' | 'ja';
+
+const TRANSCRIBE_LANG_KEY = 'phantom.transcriber.lang';
+
 const storedCookie = async (key: string): Promise<string> =>
   ((await AsyncStorage.getItem(key).catch(() => null)) ?? '').trim();
 
@@ -61,6 +65,16 @@ export async function getTranscriber(): Promise<TranscriberChoice> {
 
 export function setTranscriber(value: TranscriberChoice): Promise<void> {
   return AsyncStorage.setItem(TRANSCRIBER_KEY, value).catch(() => undefined);
+}
+
+// temp dev: transcription language hint for the cc flow
+export async function getTranscribeLang(): Promise<TranscribeLang> {
+  const stored = await storedCookie(TRANSCRIBE_LANG_KEY);
+  return stored === 'en' || stored === 'ko' || stored === 'ja' ? stored : 'auto';
+}
+
+export function setTranscribeLang(value: TranscribeLang): Promise<void> {
+  return AsyncStorage.setItem(TRANSCRIBE_LANG_KEY, value).catch(() => undefined);
 }
 
 // optional IG session cookie — unlocks authenticated media API (high rate
