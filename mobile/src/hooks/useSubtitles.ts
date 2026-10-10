@@ -22,7 +22,10 @@ import {
 } from '../lib/subtitles';
 import { log } from '../lib/log';
 
-// temp dev: provider subs off, cloud transcribe generates only. flip to restore
+// providers off by default: vidlove/opensubtitles/kitsunekko timing is
+// unreliable (wrong cuts, drift, gaps) next to cloud transcripts, and mixed
+// sources confuse which subs are showing. code kept as reference; flip to
+// restore the classic chain.
 const PROVIDERS_OFF = true;
 
 export function useSubtitles(
@@ -55,7 +58,7 @@ export function useSubtitles(
     setTracks([]);
     setLabel(null);
     setLine(null);
-    // temp dev: providers off, deepgram/groq generate only. remove to restore
+    // see PROVIDERS_OFF: cloud transcribe generates only for now
     if (PROVIDERS_OFF) {
       log('Subtitles', `provider chain disabled for ${key}`);
       return undefined;

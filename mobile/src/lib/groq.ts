@@ -155,7 +155,7 @@ export async function transcribeFile(
   lang: TranscribeLang
 ): Promise<TranscriptResult> {
   const started = Date.now();
-  const empty: TranscriptResult = { words: [], cues: [] };
+  const empty: TranscriptResult = { words: [], cues: [], lang: '' };
   try {
     log('Groq', `upload uri=${fsPath}`);
     const audio = new File(fsPath);
@@ -194,11 +194,13 @@ export async function transcribeFile(
     const payload = (await res.json()) as unknown;
     const words = groqWords(payload);
     const cues = groqSegments(payload);
+    const detected = rec(payload)?.['language'];
+    const heard = typeof detected === 'string' ? detected.toLowerCase().slice(0, 2) : '';
     log(
       'Groq',
-      `transcribed words=${words.length} segments=${cues.length} ms=${Date.now() - started}`
+      `transcribed words=${words.length} segments=${cues.length} lang=${heard} ms=${Date.now() - started}`
     );
-    return { words, cues };
+    return { words, cues, lang: heard };
   } catch (err) {
     log('Groq', `transcribe threw ms=${Date.now() - started}: ${String(err)}`);
     return empty;

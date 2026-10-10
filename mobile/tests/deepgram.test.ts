@@ -4,7 +4,7 @@ vi.mock('react-native-blob-util', () => ({
   default: { fetch: vi.fn(), wrap: vi.fn((path: string) => path) },
 }));
 
-import { deepgramWords, deepgramUtterances } from '../src/lib/deepgram';
+import { deepgramWords, deepgramUtterances, deepgramLang } from '../src/lib/deepgram';
 
 const payload = {
   results: {
@@ -65,5 +65,18 @@ describe('deepgramUtterances', () => {
     expect(deepgramUtterances({})).toEqual([]);
     expect(deepgramUtterances({ results: {} })).toEqual([]);
     expect(deepgramUtterances({ utterances: [] })).toEqual([]);
+  });
+});
+
+describe('deepgramLang', () => {
+  it('reads the detected language code', () => {
+    const shaped = (languages: unknown) => ({
+      results: { channels: [{ alternatives: [{ languages }] }] },
+    });
+    expect(deepgramLang(shaped(['en']))).toBe('en');
+    expect(deepgramLang(shaped(['ko']))).toBe('ko');
+    expect(deepgramLang(shaped([]))).toBe('');
+    expect(deepgramLang(null)).toBe('');
+    expect(deepgramLang({})).toBe('');
   });
 });

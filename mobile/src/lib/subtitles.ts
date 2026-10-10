@@ -276,6 +276,37 @@ export function splitLongCues(
   }
   return out;
 }
+
+// splits an over-long cue by sentences, dividing its span proportionally.
+// for translated cues whose word timings belong to another language. pure.
+export function splitLongText(cue: SubtitleCue, maxChars = 90): SubtitleCue[] {
+  if (cue.text.length <= maxChars) return [cue];
+  const sentences = cue.text.match(/[^.!?…]+[.!?…]+["”']?|\S[^.!?…]*$/gu) ?? [cue.text];
+  const chunks: string[] = [];
+  let current = '';
+  for (const sentence of sentences) {
+    const piece = sentence.trim();
+    if (piece.length === 0) continue;
+    if (current.length > 0 && `${current} ${piece}`.length > maxChars) {
+      chunks.push(current);
+      current = piece;
+    } else {
+      current = current.length > 0 ? `${current} ${piece}` : piece;
+    }
+  }
+  if (current.length > 0) chunks.push(current);
+  if (chunks.length < 2) return [cue];
+  const total = chunks.join(' ').length;
+  const span = cue.end - cue.start;
+  let at = cue.start;
+  return chunks.map((text, i) => {
+    const last = i === chunks.length - 1;
+    const end = last ? cue.end : at + (text.length / total) * span;
+    const start = at;
+    at = end;
+    return { start, end, text };
+  });
+}
 // ±60s by overlapped cue seconds minus half the silence overlap, and only
 // trusts a clear winner so sparse dialogue never invents timing
 export function alignCuesToSpeech(

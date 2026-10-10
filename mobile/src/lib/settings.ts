@@ -10,6 +10,8 @@ export type TranscriberChoice = 'deepgram' | 'groq';
 
 export type TranscribeLang = 'auto' | 'en' | 'ko' | 'ja';
 
+export type SubLang = 'same' | 'en';
+
 const TRANSCRIBE_LANG_KEY = 'phantom.transcriber.lang';
 
 const storedCookie = async (key: string): Promise<string> =>
@@ -75,6 +77,18 @@ export async function getTranscribeLang(): Promise<TranscribeLang> {
 
 export function setTranscribeLang(value: TranscribeLang): Promise<void> {
   return AsyncStorage.setItem(TRANSCRIBE_LANG_KEY, value).catch(() => undefined);
+}
+
+const SUB_LANG_KEY = 'phantom.sublang.choice';
+
+// temp dev: subtitle output language for generated subs
+export async function getSubLang(): Promise<SubLang> {
+  const stored = await storedCookie(SUB_LANG_KEY);
+  return stored === 'en' ? 'en' : 'same';
+}
+
+export function setSubLang(value: SubLang): Promise<void> {
+  return AsyncStorage.setItem(SUB_LANG_KEY, value).catch(() => undefined);
 }
 
 // optional IG session cookie — unlocks authenticated media API (high rate

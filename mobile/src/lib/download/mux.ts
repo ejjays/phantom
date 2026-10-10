@@ -212,14 +212,16 @@ export async function extractFrame(src: File, out: File): Promise<boolean> {
   return false;
 }
 
-// short audio sample for cloud transcription: first minutes as small mono
-// mp3, returns the fs path or null. old on-device builds lack the extension
-// allowlist flag, so retry bare when flagged runs fail. never throws.
+// short audio sample for cloud transcription: window minutes as small mono
+// mp3 from an offset, returns the fs path or null. old on-device builds
+// lack the extension allowlist flag, so retry bare when flagged runs fail.
+// never throws.
 export async function extractAudioSample(
   url: string,
   headers: Record<string, string>,
   out: File,
-  windowSec: number
+  windowSec: number,
+  offsetSec = 0
 ): Promise<string | null> {
   const block = Object.entries(headers)
     .filter(
@@ -241,6 +243,7 @@ export async function extractAudioSample(
     ];
     if (block) args.push('-headers', block);
     if (ua) args.push('-user_agent', ua);
+    if (offsetSec > 0) args.push('-ss', String(Math.floor(offsetSec)));
     args.push(
       '-i',
       url,

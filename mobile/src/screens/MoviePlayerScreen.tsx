@@ -55,11 +55,13 @@ import {
   alignCuesToSpeech,
   speechOfWords,
   splitLongCues,
+  splitLongText,
   wordsToCues,
   type SubtitleTrack,
   type SubtitleCue,
 } from '../lib/subtitles';
 import { extractAudioSample } from '../lib/download/mux';
+import { translateLines } from '../lib/translate';
 import {
   transcribeFile as transcribeDeepgram,
   type TranscriptResult,
@@ -72,8 +74,11 @@ import {
   setTranscriber,
   getTranscribeLang,
   setTranscribeLang,
+  getSubLang,
+  setSubLang,
   type TranscriberChoice,
   type TranscribeLang,
+  type SubLang,
 } from '../lib/settings';
 import { File, Paths } from 'expo-file-system';
 import { tapImpact, tapSelection } from '../lib/haptics';
@@ -443,6 +448,10 @@ function QualityMenu({
   onAutoSync,
   onTranscriber,
   onTransLang,
+  subLang,
+  onSubLang,
+  full,
+  onStopFull,
   onClose,
 }: {
   open: boolean;
@@ -457,6 +466,8 @@ function QualityMenu({
   subDelay: number;
   transcriber: TranscriberChoice;
   transLang: TranscribeLang;
+  subLang: SubLang;
+  full: { done: number; total: number } | null;
   onPick: (format: Format) => void;
   onPickSub: (track: SubtitleTrack | null) => void;
   onPickEmbed: (track: NativeSubtitleTrack) => void;
@@ -467,6 +478,8 @@ function QualityMenu({
   ) => Promise<number | null>;
   onTranscriber: (value: TranscriberChoice) => void;
   onTransLang: (value: TranscribeLang) => void;
+  onSubLang: (value: SubLang) => void;
+  onStopFull: () => void;
   onClose: () => void;
 }) {
   const { height } = useWindowDimensions();
@@ -753,6 +766,31 @@ function QualityMenu({
                       </Pressable>
                     );
                   })}
+                  <Text
+                    style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
+                  >
+                    Subtitles in
+                  </Text>
+                  {(['same', 'en'] as const).map((choice) => {
+                    const active = subLang === choice;
+                    return (
+                      <Pressable
+                        key={choice}
+                        onPress={() => {
+                          tapSelection();
+                          onSubLang(choice);
+                        }}
+                        style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                      >
+                        <Text
+                          style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
+                        >
+                          {choice === 'en' ? 'English' : 'Same as audio'}
+                        </Text>
+                        {active && <Check size={18} color="#22d3ee" />}
+                      </Pressable>
+                    );
+                  })}
                   <View
                     style={tw`flex-row items-center justify-between px-3 py-2`}
                   >
@@ -837,6 +875,28 @@ function QualityMenu({
                     >
                       {syncError}
                     </Text>
+                  )}
+                  {full && (
+                    <View
+                      style={tw`mt-1 flex-row items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-3`}
+                    >
+                      <ActivityIndicator size="small" color="#ffffff" />
+                      <Text style={tw`font-sans-medium text-[14px] text-white`}>
+                        {`Transcribing ${full.done}/${full.total}…`}
+                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          tapSelection();
+                          onStopFull();
+                        }}
+                        style={tw`ml-2 rounded-full bg-white/10 px-3 py-1.5`}
+                        accessibilityLabel="Cancel full transcription"
+                      >
+                        <Text style={tw`font-sans-semibold text-[13px] text-white`}>
+                          Stop
+                        </Text>
+                      </Pressable>
+                    </View>
                   )}
                 </>
               ) : (
@@ -1235,6 +1295,90 @@ type TranscribeFn = (
   lang: TranscribeLang
 ) => Promise<TranscriptResult>;
 
+function shiftTimes(result: TranscriptResult, offsetSec: number): TranscriptResult {
+  if (offsetSec <= 0) return result;
+  const shift = <T extends { start: number; end: number }>(entry: T): T => ({
+    ...entry,
+    start: entry.start + offsetSec,
+    end: entry.end + offsetSec,
+  });
+  return { words: result.words.map(shift), cues: result.cues.map(shift), lang: result.lang };
+}
+
+async function resolveTranscriber(): Promise<{
+  provider: TranscriberChoice;
+  apiKey: string;
+  transcribe: TranscribeFn;
+  lang: TranscribeLang;
+} | null> {
+  const choice = await getTranscriber().catch(
+    (): TranscriberChoice => 'deepgram'
+  );
+  const stored: Record<TranscriberChoice, string> = {
+    deepgram: await getDeepgramKey().catch(() => ''),
+    groq: await getGroqKey().catch(() => ''),
+  };
+  const apiKey = stored[choice];
+  if (!apiKey) {
+    log('Player', `cc skipped (save your ${choice} key in settings)`);
+    return null;
+  }
+  return {
+    provider: choice,
+    apiKey,
+    transcribe: choice === 'groq' ? transcribeGroq : transcribeDeepgram,
+    lang: await getTranscribeLang().catch((): TranscribeLang => 'auto'),
+  };
+}
+
+function generatedLabel(provider: TranscriberChoice): string {
+  return provider === 'groq' ? 'AI subs (Groq)' : 'AI subs (Deepgram)';
+}
+
+function shapeTranscript(transcript: TranscriptResult): SubtitleCue[] {
+  const base =
+    transcript.cues.length > 0 ? transcript.cues : wordsToCues(transcript.words);
+  return shiftEarly(splitLongCues(base, transcript.words));
+}
+
+function shiftEarly(cues: SubtitleCue[]): SubtitleCue[] {
+  // temp dev: show lines a beat early, whisper starts lag speech
+  return cues.map((cue) => {
+    const start = Math.max(0, Math.round((cue.start - 0.5) * 10) / 10);
+    return { ...cue, start, end: Math.max(cue.end - 0.5, start + 0.1) };
+  });
+}
+
+async function shapeFinal(
+  transcript: TranscriptResult,
+  provider: TranscriberChoice,
+  subLang: SubLang
+): Promise<{ cues: SubtitleCue[]; label: string }> {
+  const base =
+    transcript.cues.length > 0 ? transcript.cues : wordsToCues(transcript.words);
+  if (subLang === 'en' && transcript.lang !== 'en') {
+    const key = await getGroqKey().catch(() => '');
+    if (!key) {
+      log('Player', 'cc translate skipped (no groq key)');
+    } else {
+      const lines = await translateLines(
+        base.map((cue) => cue.text),
+        transcript.lang || 'auto',
+        key
+      );
+      if (lines) {
+        const translated = base.map((cue, i) => ({ ...cue, text: lines[i] ?? cue.text }));
+        log('Player', `cc translated to english lines=${lines.length}`);
+        return {
+          cues: shiftEarly(translated.flatMap((cue) => splitLongText(cue))),
+          label: 'AI subs EN',
+        };
+      }
+    }
+  }
+  return { cues: shapeTranscript(transcript), label: generatedLabel(provider) };
+}
+
 async function transcribeSample(
   url: string,
   headers: Record<string, string>,
@@ -1242,13 +1386,14 @@ async function transcribeSample(
   apiKey: string,
   transcribe: TranscribeFn,
   provider: TranscriberChoice,
-  lang: TranscribeLang
+  lang: TranscribeLang,
+  offsetSec = 0
 ): Promise<TranscriptResult | null> {
   const audio = new File(Paths.cache, `sync-${Date.now()}.mp3`);
   try {
-    const path = await extractAudioSample(url, headers, audio, windowSec);
+    const path = await extractAudioSample(url, headers, audio, windowSec, offsetSec);
     const bytes = audio.size ?? 0;
-    log('Player', `cloud-sync via ${provider}: sample bytes=${bytes}`);
+    log('Player', `cloud-sync via ${provider}: sample bytes=${bytes} offset=${offsetSec}s`);
     if (!path || bytes < 50_000) {
       log('Player', `cloud-sync via ${provider}: extract failed`);
       return null;
@@ -1262,7 +1407,19 @@ async function transcribeSample(
     } catch (err) {
       log('Player', `cloud-sync head unreadable: ${String(err)}`);
     }
-    return transcribe(audio.uri, 'audio/mpeg', apiKey, lang);
+    const result = await transcribe(audio.uri, 'audio/mpeg', apiKey, lang);
+    if (result.words.length < 5 && lang !== 'auto') {
+      log('Player', `cloud-sync via ${provider}: only ${result.words.length} words, retrying auto-detect`);
+      const retry = await transcribe(audio.uri, 'audio/mpeg', apiKey, 'auto').catch(
+        (): TranscriptResult | null => null
+      );
+      if (retry && retry.words.length > result.words.length) {
+        log('Player', `cloud-sync via ${provider}: auto-detect heard ${retry.words.length} words`);
+        return shiftTimes(retry, offsetSec);
+      }
+    }
+    if (offsetSec <= 0) return result;
+    return shiftTimes(result, offsetSec);
   } finally {
     try {
       await audio.delete();
@@ -1641,6 +1798,9 @@ export default function MoviePlayerScreen({
   const [transcriber, setTranscriberChoice] =
     useState<TranscriberChoice>('deepgram');
   const [transLang, setTransLang] = useState<TranscribeLang>('auto');
+  const [subLang, setSubLangChoice] = useState<SubLang>('same');
+  const [fullProg, setFullProg] = useState<{ done: number; total: number } | null>(null);
+  const fullAbort = useRef<AbortController | null>(null);
   const [subDelay, setSubDelay] = useState(0);
   const [embedSel, setEmbedSel] = useState<NativeSubtitleTrack | null>(null);
   const seekTarget = useRef(0);
@@ -1679,6 +1839,9 @@ export default function MoviePlayerScreen({
       .catch(() => undefined);
     getTranscribeLang()
       .then(setTransLang)
+      .catch(() => undefined);
+    getSubLang()
+      .then(setSubLangChoice)
       .catch(() => undefined);
     void open(item.kind, item.id, item.season, item.episode);
   }, [visible, item, open]);
@@ -1844,24 +2007,9 @@ export default function MoviePlayerScreen({
       const headers = info?.downloadHeaders ?? {};
       const window = Math.min(600, Math.max(60, Math.floor(duration)));
       // temp dev: chosen cloud transcriber only, providers off. restore before ship
-      const choice = await getTranscriber().catch(
-        (): TranscriberChoice => 'deepgram'
-      );
-      const stored: Record<TranscriberChoice, string> = {
-        deepgram: await getDeepgramKey().catch(() => ''),
-        groq: await getGroqKey().catch(() => ''),
-      };
-      const provider: TranscriberChoice = choice;
-      const apiKey = stored[provider];
-      if (!apiKey) {
-        log('Player', `cc skipped (save your ${provider} key in settings)`);
-        return null;
-      }
-      const transcribe =
-        provider === 'groq' ? transcribeGroq : transcribeDeepgram;
-      const lang = await getTranscribeLang().catch(
-        (): TranscribeLang => 'auto'
-      );
+      const resolved = await resolveTranscriber();
+      if (!resolved) return null;
+      const { provider, apiKey, transcribe, lang } = resolved;
       onPhase?.('cloud');
       const cloudWindow = Math.min(300, window);
       if (cues.length > 0) {
@@ -1889,24 +2037,90 @@ export default function MoviePlayerScreen({
         log('Player', `cc generate via ${provider} failed`);
         return null;
       }
-      const base =
-        transcript.cues.length > 0 ? transcript.cues : wordsToCues(transcript.words);
       log('Player', `cc cues via ${provider}: utterances=${transcript.cues.length}`);
-      const generated = splitLongCues(base, transcript.words).map((cue) => {
-        // temp dev: show lines a beat early, whisper starts lag speech
-        const start = Math.max(0, Math.round((cue.start - 0.5) * 10) / 10);
-        return { ...cue, start, end: Math.max(cue.end - 0.5, start + 0.1) };
-      });
-      subs.setGeneratedCues(
-        generated,
-        provider === 'groq' ? 'AI subs (Groq)' : 'AI subs (Deepgram)'
-      );
+      const subLang = await getSubLang().catch((): SubLang => 'same');
+      const shaped = await shapeFinal(transcript, provider, subLang);
+      subs.setGeneratedCues(shaped.cues, shaped.label);
       setSubsOn(true);
-      log('Player', `cc generated via ${provider} cues=${generated.length}`);
+      log('Player', `cc generated via ${provider} cues=${shaped.cues.length}`);
       return 0;
     },
     [subs, info, currentId, duration]
   );
+  const transcribeFull = useCallback(
+    async (
+      onTick?: (done: number, total: number) => void,
+      signal?: AbortSignal
+    ): Promise<boolean> => {
+      const current = info?.formats.find(
+        (format) => format.formatId === currentId
+      );
+      const url = current?.url;
+      if (!url || duration <= 0) return false;
+      const resolved = await resolveTranscriber();
+      if (!resolved) return false;
+      const { provider, apiKey, transcribe, lang } = resolved;
+      const subLang = await getSubLang().catch((): SubLang => 'same');
+      const headers = info?.downloadHeaders ?? {};
+      const chunk = 300;
+      const total = Math.ceil(duration / chunk);
+      log(
+        'Player',
+        `full transcribe via ${provider}/${lang}: ${total} chunks ~${Math.round(duration / 60)}min audio`
+      );
+      let all: SubtitleCue[] = [];
+      for (let i = 0; i < total; i++) {
+        if (signal?.aborted) {
+          log('Player', `full transcribe cancelled at ${i}/${total}`);
+          return false;
+        }
+        const offset = i * chunk;
+        const transcript = await transcribeSample(
+          url,
+          headers,
+          chunk,
+          apiKey,
+          transcribe,
+          provider,
+          lang,
+          offset
+        ).catch(() => null);
+        if (transcript && (transcript.words.length > 0 || transcript.cues.length > 0)) {
+          const shaped = await shapeFinal(transcript, provider, subLang);
+          all = [...all, ...shaped.cues].sort(
+            (lhs, rhs) => lhs.start - rhs.start
+          );
+          subs.setGeneratedCues(all, shaped.label);
+          setSubsOn(true);
+        } else {
+          log('Player', `full transcribe chunk ${i + 1}/${total} failed`);
+        }
+        onTick?.(i + 1, total);
+      }
+      log('Player', `full transcribe done cues=${all.length}`);
+      return true;
+    },
+    [subs, info, currentId, duration]
+  );
+  const startFull = useCallback((): void => {
+    if (fullAbort.current) {
+      log('Player', 'full transcribe already running');
+      return;
+    }
+    const controller = new AbortController();
+    fullAbort.current = controller;
+    setFullProg({ done: 0, total: 0 });
+    void transcribeFull(
+      (done, total) => setFullProg({ done, total }),
+      controller.signal
+    ).then(() => {
+      setFullProg(null);
+      fullAbort.current = null;
+    });
+  }, [transcribeFull]);
+  const stopFull = useCallback((): void => {
+    fullAbort.current?.abort();
+  }, []);
   useEffect(() => {
     tickSubs(position - subDelay);
   }, [position, tickSubs, subDelay]);
@@ -2023,12 +2237,8 @@ export default function MoviePlayerScreen({
                 if (embedSel) setEmbedSel(null);
                 setSubsOn(true);
                 poke();
-                // temp dev: cc tap = chosen cloud transcriber. restore toggle before ship
-                void (async () => {
-                  const offset = await autoSyncSubs();
-                  if (offset === null) log('Player', 'cc transcribe failed');
-                  else setSubDelay(offset);
-                })();
+                // temp dev: cc tap = full cloud transcribe. restore toggle before ship
+                startFull();
               }}
             />
             <StallSpinner show={stalled && phase === 'ready'} />
@@ -2069,6 +2279,7 @@ export default function MoviePlayerScreen({
         subDelay={subDelay}
         transcriber={transcriber}
         transLang={transLang}
+        subLang={subLang}
         onPick={(format) => void switchQuality(format)}
         onPickSub={pickSub}
         onPickEmbed={setEmbedSel}
@@ -2085,6 +2296,13 @@ export default function MoviePlayerScreen({
           setTransLang(value);
           void setTranscribeLang(value).catch(() => undefined);
         }}
+        onSubLang={(value) => {
+          tapSelection();
+          setSubLangChoice(value);
+          void setSubLang(value).catch(() => undefined);
+        }}
+        full={fullProg}
+        onStopFull={stopFull}
         onClose={() => setQualityOpen(false)}
       />
     </View>

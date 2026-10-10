@@ -7,7 +7,7 @@ const DG_API = 'https://api.deepgram.com/v1/listen';
 
 export type DeepgramWord = { word: string; start: number; end: number };
 
-export type TranscriptResult = { words: DeepgramWord[]; cues: SubtitleCue[] };
+export type TranscriptResult = { words: DeepgramWord[]; cues: SubtitleCue[]; lang: string };
 
 function rec(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null
@@ -43,6 +43,18 @@ export function deepgramWords(payload: unknown): DeepgramWord[] {
   return out.sort((lhs, rhs) => lhs.start - rhs.start);
 }
 
+export function deepgramLang(payload: unknown): string {
+  const channels = rec(rec(payload)?.['results'])?.['channels'];
+  if (!Array.isArray(channels)) return '';
+  const first = rec(channels[0]);
+  const alternatives = first?.['alternatives'];
+  if (!Array.isArray(alternatives)) return '';
+  const languages = rec(alternatives[0])?.['languages'];
+  if (!Array.isArray(languages)) return '';
+  const lang = languages[0];
+  return typeof lang === 'string' ? lang.toLowerCase().slice(0, 2) : '';
+}
+
 export function deepgramUtterances(payload: unknown): SubtitleCue[] {
   const utterances = rec(rec(payload)?.['results'])?.['utterances'];
   const out: SubtitleCue[] = [];
@@ -66,7 +78,7 @@ export async function transcribeFile(
   lang: TranscribeLang
 ): Promise<TranscriptResult> {
   const started = Date.now();
-  const empty: TranscriptResult = { words: [], cues: [] };
+  const empty: TranscriptResult = { words: [], cues: [], lang: '' };
   try {
     const data = (new File(fsPath) as unknown as { bytesSync(): Uint8Array }).bytesSync();
     if (data.length === 0) {
@@ -96,11 +108,12 @@ export async function transcribeFile(
     const payload = (await res.json()) as unknown;
     const words = deepgramWords(payload);
     const cues = deepgramUtterances(payload);
+    const detected = deepgramLang(payload);
     log(
       'Deepgram',
-      `transcribed words=${words.length} utterances=${cues.length} ms=${Date.now() - started}`
+      `transcribed words=${words.length} utterances=${cues.length} lang=${detected} ms=${Date.now() - started}`
     );
-    return { words, cues };
+    return { words, cues, lang: detected };
   } catch (err) {
     log('Deepgram', `transcribe threw ms=${Date.now() - started}: ${String(err)}`);
     return empty;
