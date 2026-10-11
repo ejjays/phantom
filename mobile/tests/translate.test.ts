@@ -28,6 +28,13 @@ describe('parseNumberedLines', () => {
     expect(parseNumberedLines('no numbers here', 1)).toBeNull();
     expect(parseNumberedLines('', 0)).toEqual([]);
   });
+
+  it('matches plain unnumbered lines when count > 1', () => {
+    expect(parseNumberedLines('Hello\nWorld', 2)).toEqual(['Hello', 'World']);
+    expect(parseNumberedLines('- Hello\n- World', 2)).toEqual(['Hello', 'World']);
+    expect(parseNumberedLines('"Hello"\n\'World\'', 2)).toEqual(['Hello', 'World']);
+    expect(parseNumberedLines('```\nHello\nWorld\n```', 2)).toEqual(['Hello', 'World']);
+  });
 });
 
 describe('translateLines', () => {

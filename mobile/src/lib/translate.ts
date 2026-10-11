@@ -62,6 +62,19 @@ export function parseNumberedLines(
     }
     return out;
   }
+  if (count > 1 && byNumber.size === 0) {
+    const plain = text
+      .split('\n')
+      .map((raw) =>
+        raw
+          .trim()
+          .replace(/^[-*•]\s+/, '')
+          .replace(/^["']|["']$/g, '')
+          .trim()
+      )
+      .filter((raw) => raw.length > 0 && !raw.startsWith('```'));
+    if (plain.length === count) return plain;
+  }
   return null;
 }
 
