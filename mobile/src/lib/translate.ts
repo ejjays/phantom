@@ -84,7 +84,28 @@ function rec(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-let translateQueue: Promise<void> = Promise.resolve();
+let inflight = 0;
+const MAX_INFLIGHT = 2;
+const waiters: Array<() => void> = [];
+
+function acquireSemaphore(): Promise<void> {
+  if (inflight < MAX_INFLIGHT) {
+    inflight += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    waiters.push(() => {
+      inflight += 1;
+      resolve();
+    });
+  });
+}
+
+function releaseSemaphore(): void {
+  inflight -= 1;
+  const next = waiters.shift();
+  next?.();
+}
 
 export function translateLines(
   texts: string[],
@@ -94,20 +115,20 @@ export function translateLines(
   fallbackKey?: string
 ): Promise<string[] | null> {
   if (texts.length === 0) return Promise.resolve([]);
-  const task = translateQueue.then(async () => {
-    const primary = await translateAttempt(texts, fromCode, toCode, apiKey);
-    if (primary) return primary;
-    if (fallbackKey && fallbackKey !== apiKey) {
-      log('Translate', 'primary failed, trying fallback provider');
-      return translateAttempt(texts, fromCode, toCode, fallbackKey);
+  return (async () => {
+    await acquireSemaphore();
+    try {
+      const primary = await translateAttempt(texts, fromCode, toCode, apiKey);
+      if (primary) return primary;
+      if (fallbackKey && fallbackKey !== apiKey) {
+        log('Translate', 'primary failed, trying fallback provider');
+        return translateAttempt(texts, fromCode, toCode, fallbackKey);
+      }
+      return null;
+    } finally {
+      releaseSemaphore();
     }
-    return null;
-  });
-  translateQueue = task.then(
-    () => undefined,
-    () => undefined
-  );
-  return task;
+  })();
 }
 
 async function translateAttempt(
@@ -135,13 +156,12 @@ async function translateBatch(
   apiKey: string
 ): Promise<string[] | null> {
   const started = Date.now();
-  const backoffs = [5000, 15000];
   const isCerebras = apiKey.startsWith('csk-');
   const endpoint = isCerebras ? CEREBRAS_CHAT_API : GROQ_CHAT_API;
   const model = isCerebras ? CEREBRAS_MODEL : GROQ_MODEL;
-  const maxAbortMs = isCerebras ? 60000 : 20000;
-  let mismatchRetried = false;
-  for (let attempt = 0; ; attempt++) {
+  // abort quickly on Groq (10s) so fallback can take over; Cerebras gets 60s
+  const maxAbortMs = isCerebras ? 60000 : 10000;
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const numbered = texts.map((text, i) => `${i + 1}. ${text}`).join('\n');
       const res = await fetch(endpoint, {
@@ -163,14 +183,14 @@ async function translateBatch(
           ],
         }),
       });
-      if (res.status === 429 && attempt < backoffs.length) {
+      if (res.status === 429) {
         const header = res.headers.get('retry-after');
         const hinted = header ? Math.round(Number(header) * 1000) : 0;
-        if (hinted > maxAbortMs) {
+        if (hinted > maxAbortMs || attempt >= 1) {
           log('Translate', `rate limited (${Math.round(hinted / 1000)}s), aborting`);
           return null;
         }
-        const wait = Math.min(hinted > 0 ? hinted : (backoffs[attempt] ?? 15000), maxAbortMs);
+        const wait = Math.min(hinted > 0 ? hinted : 5000, maxAbortMs);
         log('Translate', `rate limited, retrying in ${Math.round(wait / 1000)}s`);
         await new Promise((done) => setTimeout(done, wait));
         continue;
@@ -191,17 +211,12 @@ async function translateBatch(
       const content = rec(first?.['message'])?.['content'];
       const parsed = parseNumberedLines(String(content ?? ''), texts.length);
       if (!parsed) {
-        if (!mismatchRetried) {
-          mismatchRetried = true;
-          log('Translate', `line mismatch, retrying once (${texts.length} lines)`);
-          continue;
-        }
         const salvaged = parseNumberedLines(String(content ?? ''), texts.length, texts);
         if (salvaged) {
           log('Translate', `line mismatch salvaged with source (${texts.length} lines)`);
           return salvaged;
         }
-        log('Translate', `line mismatch, keeping source (${texts.length} lines)`);
+        log('Translate', `line mismatch (${texts.length} lines)`);
         return null;
       }
       log('Translate', `lines=${parsed.length} ms=${Date.now() - started}`);
@@ -211,4 +226,6 @@ async function translateBatch(
       return null;
     }
   }
+  return null;
 }
+
