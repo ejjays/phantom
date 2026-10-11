@@ -2,8 +2,8 @@ import { log } from './log';
 
 const GROQ_CHAT_API = 'https://api.groq.com/openai/v1/chat/completions';
 const CEREBRAS_CHAT_API = 'https://api.cerebras.ai/v1/chat/completions';
-const GROQ_MODEL = 'openai/gpt-oss-120b';
-const CEREBRAS_MODEL = 'gpt-oss-120b';
+const GROQ_MODEL = 'qwen/qwen3.8-27b';
+const CEREBRAS_MODEL = 'qwen-3.8-27b';
 
 const LANG_NAMES: Record<string, string> = {
   en: 'English',

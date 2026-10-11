@@ -101,7 +101,8 @@ describe('translateLines', () => {
     const res = await translateLines(['input'], 'ko', 'en', 'csk-test', 'gsk-test');
     expect(res).toEqual(['Fallback']);
     expect(urls[0]).toContain('api.cerebras.ai');
-    expect(models[0]).toBe('gpt-oss-120b');
+    expect(models[0]).toBe('qwen-3.8-27b');
     expect(urls[1]).toContain('api.groq.com');
+    expect(models[1]).toBe('qwen/qwen3.8-27b');
   });
 });
