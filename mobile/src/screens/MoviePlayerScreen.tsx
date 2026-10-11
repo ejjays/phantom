@@ -1380,6 +1380,78 @@ async function transcribeSample(
   }
 }
 
+// parallel race: all URLs start at once, first good transcript wins & cancels the rest.
+// dead servers (5XX) fail in <5s so the live one wins quickly.
+function raceTranscribeSample(
+  urls: string[],
+  headers: Record<string, string>,
+  windowSec: number,
+  apiKey: string,
+  transcribe: TranscribeFn,
+  provider: TranscriberChoice,
+  lang: TranscribeLang,
+  offsetSec: number,
+  signal?: AbortSignal
+): Promise<TranscriptResult | null> {
+  const [firstUrl] = urls;
+  if (!firstUrl) return Promise.resolve(null);
+  if (urls.length === 1) {
+    return transcribeSample(
+      firstUrl,
+      headers,
+      windowSec,
+      apiKey,
+      transcribe,
+      provider,
+      lang,
+      offsetSec,
+      signal
+    ).catch(() => null);
+  }
+  const controllers = urls.map(() => new AbortController());
+  signal?.addEventListener(
+    'abort',
+    () => {
+      controllers.forEach((ctrl) => ctrl.abort());
+    },
+    { once: true }
+  );
+  return new Promise<TranscriptResult | null>((resolve) => {
+    let settled = false;
+    let remaining = urls.length;
+    urls.forEach((candidate, idx) => {
+      const controller = controllers[idx];
+      void transcribeSample(
+        candidate,
+        headers,
+        windowSec,
+        apiKey,
+        transcribe,
+        provider,
+        lang,
+        offsetSec,
+        controller?.signal
+      )
+        .catch(() => null)
+        .then((result) => {
+          remaining -= 1;
+          if (settled) return;
+          const hasContent =
+            result && (result.words.length > 0 || result.cues.length > 0);
+          if (hasContent) {
+            settled = true;
+            controllers.forEach((ctrl, targetIdx) => {
+              if (targetIdx !== idx) ctrl.abort();
+            });
+            resolve(result);
+          } else if (remaining === 0) {
+            resolve(null);
+          }
+        });
+    });
+  });
+}
+
 function captionState(
   subsOn: boolean,
   embedOn: boolean,
@@ -1932,11 +2004,19 @@ export default function MoviePlayerScreen({
       let done = 0;
       let next = 0;
       const key = itemKey;
-      // alternate CDN servers — same content, different workers
-      const seen = new Set([url]);
-      const fallbackUrls = (info?.formats ?? [])
+      // sorted: 1080p muxed first, then by height desc, dedupe by URL
+      const seenUrls = new Set<string>();
+      const candidateUrls = [current, ...(info?.formats ?? [])]
+        .filter((f): f is NonNullable<typeof f> => !!f?.url)
+        .sort((lhs, rhs) => {
+          const hDiff = (rhs.height ?? 0) - (lhs.height ?? 0);
+          if (hDiff !== 0) return hDiff;
+          // muxed (video+audio) beats video-only beats audio-only
+          const score = (f: typeof lhs): number => (f.isMuxed ? 2 : f.isVideo ? 1 : 0);
+          return score(rhs) - score(lhs);
+        })
         .map((f) => f.url)
-        .filter((fu): fu is string => !!fu && !seen.has(fu) && !!seen.add(fu));
+        .filter((fu): fu is string => !!fu && !seenUrls.has(fu) && !!seenUrls.add(fu));
       const runOne = async (): Promise<void> => {
         while (true) {
           if (signal?.aborted || liveKey.current !== key) return;
@@ -1944,8 +2024,8 @@ export default function MoviePlayerScreen({
           next += 1;
           const job = plan[index];
           if (!job) return;
-          let transcript = await transcribeSample(
-            url,
+          const transcript = await raceTranscribeSample(
+            candidateUrls,
             headers,
             job.window,
             apiKey,
@@ -1954,26 +2034,7 @@ export default function MoviePlayerScreen({
             lang,
             job.offset,
             signal
-          ).catch(() => null);
-          if (!transcript && fallbackUrls.length > 0) {
-            for (const alt of fallbackUrls) {
-              if (signal?.aborted || liveKey.current !== key) break;
-              log('Player', `chunk ${index + 1} primary failed, trying alt server`);
-              transcript = await transcribeSample(
-                alt,
-                headers,
-                job.window,
-                apiKey,
-                transcribe,
-                provider,
-                lang,
-                job.offset,
-                signal
-              ).catch(() => null);
-              if (transcript && (transcript.words.length > 0 || transcript.cues.length > 0)) break;
-              transcript = null;
-            }
-          }
+          );
           if (liveKey.current !== key) {
             log('Player', `full transcribe abandoned, content changed (${key})`);
             return;
