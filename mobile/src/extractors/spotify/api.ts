@@ -41,7 +41,7 @@ let tokenCache: { token: string; expiresAt: number } | null = null;
 
 async function getToken(): Promise<string | null> {
   if (tokenCache && Date.now() < tokenCache.expiresAt) return tokenCache.token;
-  const { supabase } = await import('../../lib/social/supabase');
+  const { supabase } = await import('../../lib/supabase');
   if (!supabase) return null;
   try {
     const { data, error } = await supabase.functions.invoke<{

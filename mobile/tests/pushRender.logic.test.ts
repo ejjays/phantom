@@ -3,7 +3,7 @@ import {
   SOCIAL_CHANNEL,
   socialFcmConfig,
   hasRenderablePayload,
-} from '../src/lib/social/pushRender.logic';
+} from '../src/lib/push/pushRender.logic';
 
 describe('hasRenderablePayload', () => {
   it('renders when a notifee_options blob is present', () => {

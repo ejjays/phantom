@@ -29,34 +29,34 @@ import {
 import LottieView from 'lottie-react-native';
 import tw from '../lib/tw';
 import ufo from '../../assets/UFO.json';
-import SearchOverlay, { SearchHighlight } from '../components/SearchOverlay';
+import SearchOverlay, { SearchHighlight } from '../components/ui/SearchOverlay';
 import {
   useDownloadHistory,
   removeHistory,
   restoreHistory,
   clearHistory,
   type HistoryItem,
-} from '../lib/downloadHistory';
+} from '../lib/download/downloadHistory';
 import {
   resumeInflight,
   discardInflight,
 } from '../lib/download/downloadPipeline';
-import { useInflight, type InflightItem } from '../lib/inflight';
-import { openSavedTarget, fileStillExists } from '../lib/download/gallery';
+import { useInflight, type InflightItem } from '../lib/download/inflight';
+import { openSavedTarget, fileStillExists } from '../lib/gallery';
 import {
   setDownloadCancelHandler,
   startDownloadService,
   stopDownloadService,
   updateDownloadProgress,
-} from '../lib/fgservice';
-import { notifyDownloadComplete } from '../lib/notify';
+} from '../lib/download/fgservice';
+import { notifyDownloadComplete } from '../lib/download/notify';
 import { getNotify, getHistoryView, setHistoryView } from '../lib/settings';
 import { tapSelection, tapImpact } from '../lib/haptics';
-import { useAppDialog } from '../components/AppDialog';
+import { useAppDialog } from '../components/ui/AppDialog';
 import { PlatformLogo, type PlatformName } from '../components/logos';
 import TwinkleStars from '../components/backgrounds/TwinkleStars';
 import ShootingStars from '../components/backgrounds/ShootingStars';
-import SwipeToDelete from '../components/SwipeToDelete';
+import SwipeToDelete from '../components/ui/SwipeToDelete';
 import {
   Host,
   SnackbarHost,

@@ -4,7 +4,7 @@ vi.mock('react-native-blob-util', () => ({
   default: { fetch: vi.fn(), wrap: vi.fn((path: string) => path) },
 }));
 
-import { deepgramWords, deepgramUtterances, deepgramLang, deepgramConfidence } from '../src/lib/deepgram';
+import { deepgramWords, deepgramUtterances, deepgramLang, deepgramConfidence } from '../src/lib/transcribe/deepgram';
 
 const payload = {
   results: {

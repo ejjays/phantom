@@ -14,7 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import tw from '../../lib/tw';
 import { Format } from '@phantom/extractors';
-import { type DownloadState, formatSize, extLabel } from '../../lib/format';
+import { type DownloadState, formatSize, extLabel } from '../../lib/download/format';
 
 const SHIMMER_BAND = 64;
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { withRetry } from '../src/lib/retry';
+import { withRetry } from '../src/lib/download/retry';
 
 describe('withRetry', () => {
   it('returns on first success without retrying', async () => {

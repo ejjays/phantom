@@ -1,6 +1,6 @@
 import { File, FileMode } from 'expo-file-system';
 import ReactNativeBlobUtil from 'react-native-blob-util';
-import { ABORT_MESSAGE, withRetry } from '../retry';
+import { ABORT_MESSAGE, withRetry } from './retry';
 
 interface WriteHandle {
   writeBytes: (bytes: Uint8Array) => void;

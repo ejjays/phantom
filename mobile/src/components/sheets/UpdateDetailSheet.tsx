@@ -32,7 +32,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Download, Heart, X } from 'lucide-react-native';
 import { CommentIcon } from '../icons';
-import PostMarkdown from '../PostMarkdown';
+import PostMarkdown from '../social/PostMarkdown';
 import ReactionEmoji from '../social/ReactionEmoji';
 import AnimatedCount from '../social/AnimatedCount';
 import tw from '../../lib/tw';

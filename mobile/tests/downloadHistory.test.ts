@@ -21,7 +21,7 @@ import {
   restoreHistory,
   clearHistory,
   dedupeByUri,
-} from '../src/lib/downloadHistory';
+} from '../src/lib/download/downloadHistory';
 
 const item = (id: string) => ({
   id,

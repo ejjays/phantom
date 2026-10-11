@@ -1,6 +1,6 @@
 import { fetchWithTimeout } from '../../lib/net';
 import { DESKTOP_UA } from '../../lib/userAgents';
-import { oshash } from '../../lib/oshash';
+import { oshash } from './oshash';
 import type { SubtitleTrack } from '../../lib/subtitles';
 import type { MovieRef } from './parse';
 import { log } from '../../lib/log';

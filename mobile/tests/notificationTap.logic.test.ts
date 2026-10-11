@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSocialTap } from '../src/lib/social/notificationTap.logic';
+import { parseSocialTap } from '../src/lib/push/notificationTap.logic';
 
 describe('parseSocialTap', () => {
   it('maps a comment tap to updateId + commentId', () => {

@@ -2,7 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 import LottieView from 'lottie-react-native';
 import tw from '../../lib/tw';
 import VisualSheet from './VisualSheet';
-import CyanButton from '../CyanButton';
+import CyanButton from '../ui/CyanButton';
 import notification from '../../../assets/notification.json';
 import { tapImpact, tapSelection } from '../../lib/haptics';
 

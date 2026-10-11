@@ -268,10 +268,9 @@ export async function extractAudioSample(
       return false;
     }
   };
-  for (const wait of [0, 10000, 30000]) {
+  for (const wait of [0, 1000]) {
     if (signal?.aborted) return null;
     if (wait > 0) {
-      log('mux', `[sample] retrying in ${wait / 1000}s`);
       await new Promise((done) => setTimeout(done, wait));
       if (signal?.aborted) return null;
     }

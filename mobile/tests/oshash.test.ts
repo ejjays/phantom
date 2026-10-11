@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { oshash } from '../src/lib/oshash';
+import { oshash } from '../src/extractors/movies/oshash';
 
 const zeros = (count: number): Uint8Array => new Uint8Array(count);
 

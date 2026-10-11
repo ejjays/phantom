@@ -4,8 +4,8 @@ import {
   presetMarker,
   isPresetMarker,
   presetIdOf,
-} from '../src/lib/avatars.logic';
-import { randomPresetMarker, AVATAR_CATEGORIES } from '../src/lib/avatars';
+} from '../src/lib/social/avatars.logic';
+import { randomPresetMarker, AVATAR_CATEGORIES } from '../src/lib/social/avatars';
 
 describe('avatar preset markers', () => {
   it('round-trips an id through marker and back', () => {

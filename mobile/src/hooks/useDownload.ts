@@ -5,15 +5,15 @@ import {
   formatLabel,
   type DownloadMeta,
   type DownloadState,
-} from '../lib/format';
+} from '../lib/download/format';
 import { getFilenameFormat, getNotify, formatName } from '../lib/settings';
-import { notifyDownloadComplete } from '../lib/notify';
+import { notifyDownloadComplete } from '../lib/download/notify';
 import {
   startDownloadService,
   stopDownloadService,
   updateDownloadProgress,
   setDownloadCancelHandler,
-} from '../lib/fgservice';
+} from '../lib/download/fgservice';
 import { tapSuccess } from '../lib/haptics';
 import { runDownload } from '../lib/download/downloadPipeline';
 import { error as logError, log } from '../lib/log';

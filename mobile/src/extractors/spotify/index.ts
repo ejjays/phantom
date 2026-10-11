@@ -24,7 +24,7 @@ import {
   type SpotifyEmbed,
   type OdesliResult,
 } from './api';
-import { lookupSpotifyMapping } from '../../lib/social/registry';
+import { lookupSpotifyMapping } from './registry';
 import { log } from '../../lib/log';
 
 type Meta = SpotifyMeta;

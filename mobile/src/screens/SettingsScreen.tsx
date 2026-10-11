@@ -34,17 +34,17 @@ import { cacheSize, clearCache, formatBytes } from '../lib/storageUsage';
 import tw from '../lib/tw';
 import BottomSheet from '../components/sheets/BottomSheet';
 import ShareAppSheet from '../components/sheets/ShareAppSheet';
-import AvatarPicker from '../components/AvatarPicker';
-import Avatar from '../components/Avatar';
-import CookieEditorPanel from '../components/CookieEditorPanel';
-import CookieListPanel from '../components/CookieListPanel';
-import ThemeSwitch from '../components/ThemeSwitch';
+import AvatarPicker from '../components/settings/AvatarPicker';
+import Avatar from '../components/ui/Avatar';
+import CookieEditorPanel from '../components/settings/CookieEditorPanel';
+import CookieListPanel from '../components/settings/CookieListPanel';
+import ThemeSwitch from '../components/settings/ThemeSwitch';
 import switchTheme from 'react-native-theme-switch-animation';
-import SupportPanel, { type SupportMethod } from '../components/SupportPanel';
-import SupportCarousel from '../components/SupportCarousel';
-import SupportedPlatformsPanel from '../components/SupportedPlatformsPanel';
-import Card from '../components/Card';
-import AccountPanel, { AccountSkeleton } from '../components/AccountPanel';
+import SupportPanel, { type SupportMethod } from '../components/support/SupportPanel';
+import SupportCarousel from '../components/support/SupportCarousel';
+import SupportedPlatformsPanel from '../components/settings/SupportedPlatformsPanel';
+import Card from '../components/ui/Card';
+import AccountPanel, { AccountSkeleton } from '../components/settings/AccountPanel';
 import {
   FolderIcon,
   PasteIcon,
@@ -86,11 +86,11 @@ import {
   formatName,
   type FilenameFormat,
 } from '../lib/settings';
-import { enableNotifications } from '../lib/notify';
+import { enableNotifications } from '../lib/download/notify';
 import {
   isBatteryRestricted,
   requestIgnoreBatteryOptimization,
-} from '../lib/fgservice';
+} from '../lib/download/fgservice';
 import { checkYoutubeCookie, checkBilibiliCookie } from '../lib/cookieCheck';
 import {
   isSupabaseConfigured,
@@ -108,10 +108,10 @@ import {
   messageOf,
   type Account,
 } from '../lib/social/updates';
-import { signInWithGoogle, signOutGoogle } from '../lib/social/googleAuth';
-import { AVATAR_CATEGORIES, presetMarker } from '../lib/avatars';
+import { signInWithGoogle, signOutGoogle } from '../lib/googleAuth';
+import { AVATAR_CATEGORIES, presetMarker } from '../lib/social/avatars';
 import { useSubScreen } from '../hooks/useSubScreen';
-import { useAppDialog } from '../components/AppDialog';
+import { useAppDialog } from '../components/ui/AppDialog';
 import {
   AlertDialog,
   Host,

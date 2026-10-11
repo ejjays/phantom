@@ -26,9 +26,9 @@ import { compareVersions } from '../lib/updater/manifest';
 import BottomSheet from '../components/sheets/BottomSheet';
 import UpdateDetailSheet from '../components/sheets/UpdateDetailSheet';
 import PostDetailPanel from '../components/social/PostDetailPanel';
-import PostMarkdown from '../components/PostMarkdown';
+import PostMarkdown from '../components/social/PostMarkdown';
 import NotificationsPanel from '../components/social/NotificationsPanel';
-import Avatar from '../components/Avatar';
+import Avatar from '../components/ui/Avatar';
 import { CommentIcon, GoogleIcon } from '../components/icons';
 import AnimatedCount from '../components/social/AnimatedCount';
 import ReactionBar, {
@@ -61,10 +61,10 @@ import {
   type ReactionRow,
   type ReactionTally,
 } from '../lib/social/updates';
-import { signInWithGoogle } from '../lib/social/googleAuth';
+import { signInWithGoogle } from '../lib/googleAuth';
 import finnAvatar from '../../assets/avatars/finn.webp';
 import { useSubScreen } from '../hooks/useSubScreen';
-import { type SocialDeepLink } from '../lib/social/notificationTap.logic';
+import { type SocialDeepLink } from '../lib/push/notificationTap.logic';
 import {
   unreadCount,
   subscribeToNotifications,

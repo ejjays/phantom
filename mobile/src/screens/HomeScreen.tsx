@@ -28,11 +28,11 @@ import { useGenericKeyboardHandler } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import tw from '../lib/tw';
 import { useScreenSize } from '../hooks/useScreenSize';
-import PhantomHero, { PHANTOM_ASPECT } from '../components/PhantomHero';
-import SpeechBubble from '../components/SpeechBubble';
-import LinkPing from '../components/LinkPing';
-import Button3D from '../components/Button3D';
-import FormatBar, { type DownloadMode } from '../components/FormatBar';
+import PhantomHero, { PHANTOM_ASPECT } from '../components/home/PhantomHero';
+import SpeechBubble from '../components/home/SpeechBubble';
+import LinkPing from '../components/home/LinkPing';
+import Button3D from '../components/ui/Button3D';
+import FormatBar, { type DownloadMode } from '../components/picker/FormatBar';
 import { useBlurOnKeyboardHide } from '../hooks/useKeyboard';
 import {
   nextQuipIndex,

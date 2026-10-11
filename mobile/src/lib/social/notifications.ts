@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, isSupabaseConfigured } from '../supabase';
 import type { InboxItem, InboxType } from './notifications.logic';
 
 export type { InboxItem } from './notifications.logic';

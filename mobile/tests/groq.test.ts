@@ -20,7 +20,7 @@ import {
   base64ToBytes,
   bytesToBase64,
   buildMultipartBody,
-} from '../src/lib/groq';
+} from '../src/lib/transcribe/groq';
 
 describe('groqWords', () => {
   it('collects whisper words, sorted', () => {

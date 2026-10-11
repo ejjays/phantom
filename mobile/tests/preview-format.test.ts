@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { previewableFormat } from '../src/lib/format';
+import { previewableFormat } from '../src/lib/download/format';
 import type { Format } from '@phantom/extractors';
 
 const makeFormat = (over: Partial<Format>): Format => ({

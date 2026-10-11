@@ -14,8 +14,8 @@ import { Image } from 'expo-image';
 import tw from '../../lib/tw';
 import CommentsPanel from './CommentsPanel';
 import ReactionBar from './ReactionBar';
-import PostMarkdown from '../PostMarkdown';
-import ImageFocusOverlay, { type FocusOrigin } from '../ImageFocusOverlay';
+import PostMarkdown from './PostMarkdown';
+import ImageFocusOverlay, { type FocusOrigin } from './ImageFocusOverlay';
 import {
   relativeTime,
   type Update,

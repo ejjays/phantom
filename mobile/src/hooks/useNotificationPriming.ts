@@ -5,7 +5,7 @@ import {
   getNotifyPrimed,
   setNotifyPrimed,
 } from '../lib/settings';
-import { enableNotifications } from '../lib/notify';
+import { enableNotifications } from '../lib/download/notify';
 
 export function useNotificationPriming(enabled: boolean) {
   const [visible, setVisible] = useState(false);

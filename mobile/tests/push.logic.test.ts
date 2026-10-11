@@ -3,7 +3,7 @@ import {
   TOPIC_UPDATES,
   deviceTokenRow,
   shouldRegisterToken,
-} from '../src/lib/social/push.logic';
+} from '../src/lib/push/push.logic';
 
 describe('deviceTokenRow', () => {
   it('builds a row with android platform and an ISO timestamp', () => {

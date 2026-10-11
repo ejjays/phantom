@@ -24,7 +24,7 @@ import {
   titleFor,
   subtitleFor,
   badgeFor,
-} from '../../lib/format';
+} from '../../lib/download/format';
 
 export function SkeletonBar({ style }: { style: StyleProp<ViewStyle> }) {
   const [barWidth, setBarWidth] = useState(0);

@@ -2,7 +2,7 @@ import { File, Paths } from 'expo-file-system';
 import { deleteAsync, moveAsync } from 'expo-file-system/legacy';
 import { DESKTOP_UA } from '../userAgents';
 import type { Format, VideoInfo } from '@phantom/extractors';
-import { refererFor, type DownloadState } from '../format';
+import { refererFor, type DownloadState } from './format';
 import { chunkedDownload } from './download';
 import {
   muxVideoAudio,
@@ -23,8 +23,8 @@ import {
 import { saveSidecarText, saveToDevice } from './save';
 import { checkStorageBeforeDownload } from './storagePreflight';
 import { log } from '../log';
-import { ABORT_MESSAGE } from '../retry';
-import { upsertInflight, removeInflight, type InflightItem } from '../inflight';
+import { ABORT_MESSAGE } from './retry';
+import { upsertInflight, removeInflight, type InflightItem } from './inflight';
 import { parseMovieUrl } from '../../extractors/movies/parse';
 import {
   fetchVidloveSubtitles,
@@ -37,7 +37,7 @@ import {
   parseVtt,
   pickTrack,
 } from '../subtitles';
-import { addHistory } from '../downloadHistory';
+import { addHistory } from './downloadHistory';
 import { resolve } from '../../extractors';
 import {
   acquireCpuLock,

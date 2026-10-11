@@ -14,7 +14,7 @@ import {
   subtitleFor,
   badgeFor,
   buildAudioOptions,
-} from '../src/lib/format';
+} from '../src/lib/download/format';
 import { formatName } from '../src/lib/settings';
 import type { Format, VideoInfo } from '@phantom/extractors';
 

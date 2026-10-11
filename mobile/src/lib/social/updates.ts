@@ -1,7 +1,7 @@
 import type { User } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured } from './supabase';
-import { isPresetMarker, presetMarker } from '../avatars.logic';
-import { randomPresetMarker } from '../avatars';
+import { supabase, isSupabaseConfigured } from '../supabase';
+import { isPresetMarker, presetMarker } from './avatars.logic';
+import { randomPresetMarker } from './avatars';
 import {
   planReactionToggle,
   generateGuestName,
@@ -27,7 +27,7 @@ export {
   type ReactionRow,
   type ReactionTally,
 } from './updates.logic';
-export { isSupabaseConfigured } from './supabase';
+export { isSupabaseConfigured } from '../supabase';
 
 type ProfileRow = {
   username: string;

@@ -1,4 +1,4 @@
-import type { SabrConfig } from '../../lib/download/youtubeSabr';
+import type { SabrConfig } from './youtubeSabr';
 import { YT_INTERNAL_UA } from '../../lib/userAgents';
 import {
   ExtractorError,
@@ -251,7 +251,7 @@ export function onWebViewMessage(raw: string): void {
   }
   if (msg.sabrConfig) {
     const cfg = msg.sabrConfig as unknown as SabrConfig;
-    void import('../../lib/download/youtubeSabr').then(({ sabrSelfTest }) =>
+    void import('./youtubeSabr').then(({ sabrSelfTest }) =>
       sabrSelfTest(cfg)
     );
     return;

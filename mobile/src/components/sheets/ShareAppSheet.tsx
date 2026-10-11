@@ -13,7 +13,7 @@ import QRCodeStyled from 'react-native-qrcode-styled';
 import * as Clipboard from 'expo-clipboard';
 import { Link, Mail, MoreHorizontal, Check } from 'lucide-react-native';
 import { PlatformLogo } from '../logos';
-import PhantomHero, { PHANTOM_ASPECT } from '../PhantomHero';
+import PhantomHero, { PHANTOM_ASPECT } from '../home/PhantomHero';
 import { tapSuccess } from '../../lib/haptics';
 import tw from '../../lib/tw';
 

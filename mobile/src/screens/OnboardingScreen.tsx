@@ -26,7 +26,7 @@ import HeroSave from '../../assets/onboarding/hero-save.json';
 import HeroPrivate from '../../assets/onboarding/hero-private.json';
 import ArrowIcon from '../../assets/onboarding/ArrowIcon.png';
 import TwinkleStars from '../components/backgrounds/TwinkleStars';
-import SocialIconsBurst from '../components/SocialIconsBurst';
+import SocialIconsBurst from '../components/ui/SocialIconsBurst';
 
 type OnboardingData = {
   id: number;

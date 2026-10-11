@@ -64,10 +64,10 @@ import {
   GifIcon,
   type IconProps,
 } from '../icons';
-import Avatar from '../Avatar';
+import Avatar from '../ui/Avatar';
 import BottomSheet from '../sheets/BottomSheet';
-import ImageFocusOverlay, { type FocusOrigin } from '../ImageFocusOverlay';
-import Collapsible from '../Collapsible';
+import ImageFocusOverlay, { type FocusOrigin } from './ImageFocusOverlay';
+import Collapsible from '../ui/Collapsible';
 import GifPicker from './GifPicker';
 import { isGiphyConfigured } from '../../lib/social/giphy';
 import {

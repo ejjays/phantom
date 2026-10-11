@@ -7,7 +7,7 @@ import {
   requestPermissionsAsync,
   saveToLibraryAsync,
 } from 'expo-media-library/legacy';
-import { supabase } from './supabase';
+import { supabase } from '../supabase';
 import { warn as logWarn } from '../log';
 
 function fsPath(uri: string): string {

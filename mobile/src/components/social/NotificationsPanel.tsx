@@ -9,7 +9,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Bell } from 'lucide-react-native';
 import tw from '../../lib/tw';
-import Avatar from '../Avatar';
+import Avatar from '../ui/Avatar';
 import { tapSelection } from '../../lib/haptics';
 import { relativeTime } from '../../lib/social/updates';
 import {
