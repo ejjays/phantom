@@ -75,12 +75,82 @@ async function rescueFormats(
   return { formats: alive, headers: luna?.headers ?? VIDROCK_HEADERS };
 }
 
+type ReResolveResult = {
+  best: Format;
+  rest: Format[];
+  info: VideoInfo;
+};
+
+async function handleReResolve(
+  goal: TitleRef,
+  dead: string[],
+  info: VideoInfo | null,
+  at: number,
+  play: (
+    format: Format,
+    title: string,
+    artwork: string | undefined,
+    headers: Record<string, string>,
+    at?: number
+  ) => Promise<void>
+): Promise<ReResolveResult | null> {
+  const full = await loadInfo(
+    goal.kind,
+    goal.id,
+    goal.season,
+    goal.episode,
+    true
+  );
+  const fresh = (full?.formats ?? []).filter(
+    (format) => !dead.includes(format.url)
+  );
+  if (full && fresh.length > 0) {
+    const [best, ...rest] = fresh;
+    await play(
+      best,
+      full.title,
+      full.thumbnail ?? undefined,
+      full.downloadHeaders ?? VIDROCK_HEADERS,
+      at
+    );
+    log('Player', `resumed ${best.formatId} at ${Math.round(at)}s`);
+    return { best, rest, info: full };
+  }
+  if (!info) return null;
+  const picked = await rescueFormats(goal, info.title, dead).catch(() => null);
+  if (!picked || picked.formats.length === 0) return null;
+  const [best, ...rest] = picked.formats;
+  const updatedInfo: VideoInfo = {
+    ...info,
+    formats: picked.formats,
+    downloadHeaders: picked.headers,
+  };
+  await play(
+    best,
+    info.title,
+    info.thumbnail ?? undefined,
+    picked.headers,
+    at
+  );
+  log('Player', `resumed ${best.formatId} at ${Math.round(at)}s`);
+  return { best, rest, info: updatedInfo };
+}
+
 type TitleRef = {
   kind: MovieItem['kind'];
   id: string;
   season: string;
   episode: string;
 };
+
+function isTimeoutError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('timeout') ||
+    lower.includes('connection abort') ||
+    lower.includes('socket')
+  );
+}
 
 const PROBE_MS = 6_000;
 
@@ -98,8 +168,8 @@ async function sourceAlive(
     );
     return res.status < 400;
   } catch {
-    // inconclusive: replay once before walking the quality queue
-    return true;
+    // network timeout / failed probe: host is broken or stalling, do not replay
+    return false;
   }
 }
 
@@ -283,8 +353,10 @@ export function useMoviePlayer() {
       info?.formats.find((format) => format.formatId === currentId) ?? null;
     const headers = info?.downloadHeaders ?? VIDROCK_HEADERS;
     noteDeadUrl(deadUrls.current, info, currentId);
+    const isTimeout = isTimeoutError(detail);
     void (async () => {
-      const alive = current ? await sourceAlive(current.url, headers) : false;
+      const alive =
+        !isTimeout && current ? await sourceAlive(current.url, headers) : false;
       if (target.current !== goal) return;
       if (alive && current && !sameRetried.current) {
         sameRetried.current = true;
@@ -306,6 +378,9 @@ export function useMoviePlayer() {
         });
         return;
       }
+      queue.current = queue.current.filter(
+        (fmt) => !deadUrls.current.includes(fmt.url)
+      );
       const trying = queue.current[0];
       if (trying) {
         queue.current = queue.current.slice(1);
@@ -343,61 +418,18 @@ export function useMoviePlayer() {
         'Player',
         `${goal.kind}/${goal.id} ${detail} at ${Math.round(at)}s, re-resolving`
       );
-      const full = await loadInfo(
-        goal.kind,
-        goal.id,
-        goal.season,
-        goal.episode,
-        true
+      const resumed = await handleReResolve(
+        goal,
+        deadUrls.current,
+        info,
+        at,
+        playSource
       );
-      if (target.current !== goal) return;
-      const fresh = (full?.formats ?? []).filter(
-        (format) => !deadUrls.current.includes(format.url)
-      );
-      if (full && fresh.length > 0) {
-        const [best, ...rest] = fresh;
-        queue.current = rest;
+      if (resumed) {
+        queue.current = resumed.rest;
         sameRetried.current = false;
-        setInfo(full);
-        setCurrentId(best.formatId);
-        await playSource(
-          best,
-          full.title,
-          full.thumbnail ?? undefined,
-          full.downloadHeaders ?? VIDROCK_HEADERS,
-          at
-        );
-        log('Player', `resumed ${best.formatId} at ${Math.round(at)}s`);
-        return;
-      }
-      if (!info) throw new Error('no sources on retry');
-      try {
-        const picked = await rescueFormats(goal, info.title, deadUrls.current);
-        if (target.current !== goal) return;
-        if (!picked) throw new Error('no sources on retry');
-        const [best, ...rest] = picked.formats;
-        queue.current = rest;
-        sameRetried.current = false;
-        setInfo({
-          ...info,
-          formats: picked.formats,
-          downloadHeaders: picked.headers,
-        });
-        setCurrentId(best.formatId);
-        await playSource(
-          best,
-          info.title,
-          info.thumbnail ?? undefined,
-          picked.headers,
-          at
-        );
-        log('Player', `resumed ${best.formatId} at ${Math.round(at)}s`);
-      } catch (err) {
-        if (target.current !== goal) return;
-        const message = err instanceof Error ? err.message : String(err);
-        setFault(message);
-        setPhase('error');
-        logError('Player', `retry failed: ${message}`);
+        setInfo(resumed.info);
+        setCurrentId(resumed.best.formatId);
       }
     })().catch((err: unknown) => {
       if (target.current !== goal) return;
