@@ -1,4 +1,5 @@
 import { log } from './log';
+import { timeoutSignal } from './net';
 
 const GROQ_CHAT_API = 'https://api.groq.com/openai/v1/chat/completions';
 const CEREBRAS_CHAT_API = 'https://api.cerebras.ai/v1/chat/completions';
@@ -107,22 +108,26 @@ function releaseSemaphore(): void {
   next?.();
 }
 
+let roundRobinIndex = 0;
+
 export function translateLines(
   texts: string[],
   fromCode: string,
   toCode: string,
-  apiKey: string,
-  fallbackKey?: string
+  apiKey: string | string[],
+  fallbackKey?: string | string[]
 ): Promise<string[] | null> {
   if (texts.length === 0) return Promise.resolve([]);
+  const primaryKeys = (Array.isArray(apiKey) ? apiKey : [apiKey]).filter(Boolean);
+  const fallbackKeys = (Array.isArray(fallbackKey) ? fallbackKey : fallbackKey ? [fallbackKey] : []).filter(Boolean);
   return (async () => {
     await acquireSemaphore();
     try {
-      const primary = await translateAttempt(texts, fromCode, toCode, apiKey);
+      const primary = await translateAttempt(texts, fromCode, toCode, primaryKeys);
       if (primary) return primary;
-      if (fallbackKey && fallbackKey !== apiKey) {
+      if (fallbackKeys.length > 0) {
         log('Translate', 'primary failed, trying fallback provider');
-        return translateAttempt(texts, fromCode, toCode, fallbackKey);
+        return translateAttempt(texts, fromCode, toCode, fallbackKeys);
       }
       return null;
     } finally {
@@ -135,41 +140,83 @@ async function translateAttempt(
   texts: string[],
   fromCode: string,
   toCode: string,
-  apiKey: string
+  keys: string[]
 ): Promise<string[] | null> {
+  if (keys.length === 0) return null;
   const out: string[] = [];
   for (let at = 0; at < texts.length; at += 25) {
     if (at > 0) {
       await new Promise((done) => setTimeout(done, 300));
     }
-    const part = await translateBatch(texts.slice(at, at + 25), fromCode, toCode, apiKey);
+    const part = await translateBatch(texts.slice(at, at + 25), fromCode, toCode, keys);
     if (!part) return null;
     out.push(...part);
   }
   return out;
 }
 
+async function handleRateLimit(
+  res: Response,
+  attempt: number,
+  maxAbortMs: number
+): Promise<boolean> {
+  const header = res.headers.get('retry-after');
+  const hinted = header ? Math.round(Number(header) * 1000) : 0;
+  if (hinted > maxAbortMs || attempt >= 1) {
+    log('Translate', `rate limited (${Math.round(hinted / 1000)}s), aborting`);
+    return false;
+  }
+  const wait = Math.min(hinted > 0 ? hinted : 5000, maxAbortMs);
+  log('Translate', `rate limited, retrying in ${Math.round(wait / 1000)}s`);
+  await new Promise((done) => setTimeout(done, wait));
+  return true;
+}
+
+function parseChatCompletion(
+  payload: unknown,
+  count: number,
+  fallbackTexts: string[]
+): string[] | null {
+  const choices = rec(payload)?.['choices'];
+  const first = Array.isArray(choices) ? rec(choices[0]) : null;
+  const content = rec(first?.['message'])?.['content'];
+  const raw = String(content ?? '');
+  const parsed = parseNumberedLines(raw, count);
+  if (parsed) return parsed;
+  const salvaged = parseNumberedLines(raw, count, fallbackTexts);
+  if (salvaged) {
+    log('Translate', `line mismatch salvaged with source (${count} lines)`);
+    return salvaged;
+  }
+  log('Translate', `line mismatch (${count} lines)`);
+  return null;
+}
+
 async function translateBatch(
   texts: string[],
   fromCode: string,
   toCode: string,
-  apiKey: string
+  keys: string[]
 ): Promise<string[] | null> {
   const started = Date.now();
-  const isCerebras = apiKey.startsWith('csk-');
-  const endpoint = isCerebras ? CEREBRAS_CHAT_API : GROQ_CHAT_API;
-  const model = isCerebras ? CEREBRAS_MODEL : GROQ_MODEL;
-  // abort quickly on Groq (10s) so fallback can take over; Cerebras gets 60s
-  const maxAbortMs = isCerebras ? 60000 : 10000;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  const maxAttempts = Math.max(2, keys.length);
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const key = keys[(roundRobinIndex + attempt) % keys.length] ?? '';
+    if (!key) return null;
+    const isCerebras = key.startsWith('csk-');
+    const endpoint = isCerebras ? CEREBRAS_CHAT_API : GROQ_CHAT_API;
+    const model = isCerebras ? CEREBRAS_MODEL : GROQ_MODEL;
+    // abort quickly on Groq (10s) so fallback can take over; Cerebras gets 60s
+    const maxAbortMs = isCerebras ? 60000 : 10000;
     try {
       const numbered = texts.map((text, i) => `${i + 1}. ${text}`).join('\n');
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${key}`,
           'Content-Type': 'application/json',
         },
+        signal: timeoutSignal(maxAbortMs),
         body: JSON.stringify({
           model,
           temperature: 0.2,
@@ -184,45 +231,31 @@ async function translateBatch(
         }),
       });
       if (res.status === 429) {
-        const header = res.headers.get('retry-after');
-        const hinted = header ? Math.round(Number(header) * 1000) : 0;
-        if (hinted > maxAbortMs || attempt >= 1) {
-          log('Translate', `rate limited (${Math.round(hinted / 1000)}s), aborting`);
-          return null;
+        if (keys.length > 1 && attempt < keys.length - 1) {
+          log('Translate', 'pool key rate limited, switching to next key');
+          continue;
         }
-        const wait = Math.min(hinted > 0 ? hinted : 5000, maxAbortMs);
-        log('Translate', `rate limited, retrying in ${Math.round(wait / 1000)}s`);
-        await new Promise((done) => setTimeout(done, wait));
+        const ok = await handleRateLimit(res, attempt, maxAbortMs);
+        if (!ok) return null;
         continue;
       }
-      if (res.status < 200 || res.status >= 300) {
-        let snippet = '';
-        try {
-          snippet = String(await res.text()).slice(0, 160);
-        } catch {
-          snippet = '';
-        }
+      if (!res.ok) {
+        const snippet = await res.text().catch(() => '').then((t) => t.slice(0, 160));
         log('Translate', `http=${res.status} ms=${Date.now() - started} body=${snippet}`);
+        if (keys.length > 1 && attempt < keys.length - 1) continue;
         return null;
       }
-      const payload = (await res.json()) as unknown;
-      const choices = rec(payload)?.['choices'];
-      const first = Array.isArray(choices) ? rec(choices[0]) : null;
-      const content = rec(first?.['message'])?.['content'];
-      const parsed = parseNumberedLines(String(content ?? ''), texts.length);
+      const parsed = parseChatCompletion(await res.json(), texts.length, texts);
       if (!parsed) {
-        const salvaged = parseNumberedLines(String(content ?? ''), texts.length, texts);
-        if (salvaged) {
-          log('Translate', `line mismatch salvaged with source (${texts.length} lines)`);
-          return salvaged;
-        }
-        log('Translate', `line mismatch (${texts.length} lines)`);
+        if (keys.length > 1 && attempt < keys.length - 1) continue;
         return null;
       }
+      roundRobinIndex = (roundRobinIndex + attempt + 1) % keys.length;
       log('Translate', `lines=${parsed.length} ms=${Date.now() - started}`);
       return parsed;
     } catch (err) {
       log('Translate', `threw ms=${Date.now() - started}: ${String(err)}`);
+      if (keys.length > 1 && attempt < keys.length - 1) continue;
       return null;
     }
   }

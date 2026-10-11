@@ -65,8 +65,8 @@ import {
 } from '../../lib/transcribe/deepgram';
 import { transcribeFile as transcribeGroq } from '../../lib/transcribe/groq';
 import {
-  getDeepgramKey,
-  getGroqKey,
+  getEffectiveDeepgramKey,
+  getGroqPool,
   getCerebrasKey,
   getTranscriber,
   setTranscriber,
@@ -1255,9 +1255,13 @@ async function resolveTranscriber(): Promise<{
   const choice = await getTranscriber().catch(
     (): TranscriberChoice => 'deepgram'
   );
+  const [deepgramKey, groqPool] = await Promise.all([
+    getEffectiveDeepgramKey().catch(() => ''),
+    getGroqPool().catch(() => []),
+  ]);
   const stored: Record<TranscriberChoice, string> = {
-    deepgram: await getDeepgramKey().catch(() => ''),
-    groq: await getGroqKey().catch(() => ''),
+    deepgram: deepgramKey,
+    groq: groqPool[0] ?? '',
   };
   const apiKey = stored[choice];
   if (!apiKey) {
@@ -1299,14 +1303,14 @@ async function shapeFinal(
   const base =
     transcript.cues.length > 0 ? transcript.cues : wordsToCues(transcript.words);
   if (subLang !== 'same' && transcript.lang !== subLang) {
-    const [groqKey, cerebrasKey] = await Promise.all([
-      getGroqKey().catch(() => ''),
+    const [groqPool, cerebrasKey] = await Promise.all([
+      getGroqPool().catch(() => []),
       getCerebrasKey().catch(() => ''),
     ]);
-    const primaryKey = cerebrasKey || groqKey;
-    const fallbackKey = cerebrasKey && groqKey ? groqKey : undefined;
-    if (!primaryKey) {
-      log('Player', 'cc translate skipped (no cerebras or groq key)');
+    const primaryKey = groqPool.length > 0 ? groqPool : cerebrasKey;
+    const fallbackKey = groqPool.length > 0 && cerebrasKey ? cerebrasKey : undefined;
+    if (!primaryKey || (Array.isArray(primaryKey) && primaryKey.length === 0)) {
+      log('Player', 'cc translate skipped (no groq or cerebras key)');
     } else {
       const lines = await translateLines(
         base.map((cue) => cue.text),

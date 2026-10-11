@@ -112,4 +112,42 @@ describe('translateLines', () => {
     expect(urls[1]).toContain('api.groq.com');
     expect(models[1]).toBe('qwen/qwen3.8-27b');
   });
+
+  it('rotates across pool keys and switches on 429', async () => {
+    const authHeaders: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: RequestInit) => {
+        const headers = init?.headers as Record<string, string> | undefined;
+        const auth = headers?.Authorization ?? '';
+        authHeaders.push(auth);
+        if (auth === 'Bearer key-a') {
+          return Promise.resolve(new Response('rate limited', { status: 429, headers: { 'retry-after': '60' } }));
+        }
+        return Promise.resolve(Response.json({ choices: [{ message: { content: '1. Hello' } }] }));
+      })
+    );
+    const res = await translateLines(['line1'], 'ko', 'en', ['key-a', 'key-b']);
+    expect(res).toEqual(['Hello']);
+    expect(authHeaders).toEqual(['Bearer key-a', 'Bearer key-b']);
+  });
+
+  it('falls back from pool to fallback keys when all pool keys fail', async () => {
+    const authHeaders: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: RequestInit) => {
+        const headers = init?.headers as Record<string, string> | undefined;
+        const auth = headers?.Authorization ?? '';
+        authHeaders.push(auth);
+        if (auth.startsWith('Bearer pool-')) {
+          return Promise.resolve(new Response('server error', { status: 500 }));
+        }
+        return Promise.resolve(Response.json({ choices: [{ message: { content: '1. Rescued' } }] }));
+      })
+    );
+    const res = await translateLines(['test'], 'ko', 'en', ['pool-1', 'pool-2'], 'csk-fallback');
+    expect(res).toEqual(['Rescued']);
+    expect(authHeaders).toEqual(['Bearer pool-1', 'Bearer pool-2', 'Bearer csk-fallback']);
+  });
 });

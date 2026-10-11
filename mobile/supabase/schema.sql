@@ -299,3 +299,28 @@ alter table public.donations enable row level security;
 drop policy if exists donations_read_own on public.donations;
 create policy donations_read_own on public.donations
   for select using (auth.uid() = donor_id);
+
+alter table public.profiles
+  add column if not exists can_access_ai boolean not null default false;
+
+create table if not exists public.ai_service_keys (
+  id serial primary key,
+  provider text not null default 'groq',
+  api_key text not null,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+alter table public.ai_service_keys enable row level security;
+
+drop policy if exists authorized_profiles_can_read_ai_keys on public.ai_service_keys;
+create policy authorized_profiles_can_read_ai_keys on public.ai_service_keys
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1 from public.profiles
+      where profiles.id = auth.uid()
+        and (profiles.can_access_ai = true or profiles.is_creator = true)
+    )
+  );

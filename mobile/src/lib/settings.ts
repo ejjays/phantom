@@ -1,11 +1,90 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 
 const YT_COOKIE_KEY = 'phantom.cookie.youtube';
 const BILI_COOKIE_KEY = 'phantom.cookie.bilibili';
 const DEEPGRAM_KEY = 'phantom.deepgram.apikey';
 const GROQ_KEY = 'phantom.groq.apikey';
+const REMOTE_GROQ_KEYS = 'phantom.remote.groq.keys';
+const REMOTE_DEEPGRAM_KEY = 'phantom.remote.deepgram.key';
 const CEREBRAS_KEY = 'phantom.cerebras.apikey';
 const TRANSCRIBER_KEY = 'phantom.transcriber.choice';
+
+let groqPoolMem: string[] | null = null;
+let lastGroqFetch = 0;
+let deepgramKeyMem: string | null = null;
+let lastDeepgramFetch = 0;
+const POOL_TTL_MS = 1800_000;
+
+async function fetchRemoteKeys(provider: string): Promise<string[]> {
+  if (!supabase) return [];
+  try {
+    const { data } = await supabase
+      .from('ai_service_keys')
+      .select('api_key')
+      .eq('provider', provider)
+      .eq('is_active', true);
+    return (data as Array<{ api_key: string }> | null ?? [])
+      .map((row) => row.api_key.trim())
+      .filter((item) => item.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+export async function getGroqPool(): Promise<string[]> {
+  const personal = await getGroqKey();
+  if (personal) return [personal];
+  if (groqPoolMem && Date.now() - lastGroqFetch < POOL_TTL_MS) {
+    return groqPoolMem;
+  }
+  const list = await fetchRemoteKeys('groq');
+  if (list.length > 0) {
+    groqPoolMem = list;
+    lastGroqFetch = Date.now();
+    void AsyncStorage.setItem(REMOTE_GROQ_KEYS, JSON.stringify(list)).catch(() => undefined);
+    return list;
+  }
+  if (!groqPoolMem) {
+    try {
+      const disk = await AsyncStorage.getItem(REMOTE_GROQ_KEYS);
+      if (disk) {
+        const parsed = JSON.parse(disk) as unknown;
+        if (Array.isArray(parsed)) {
+          groqPoolMem = parsed.filter((item): item is string => typeof item === 'string');
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return groqPoolMem ?? [];
+}
+
+export async function getEffectiveDeepgramKey(): Promise<string> {
+  const personal = await getDeepgramKey();
+  if (personal) return personal;
+  if (deepgramKeyMem && Date.now() - lastDeepgramFetch < POOL_TTL_MS) {
+    return deepgramKeyMem;
+  }
+  const list = await fetchRemoteKeys('deepgram');
+  const first = list[0];
+  if (first) {
+    deepgramKeyMem = first;
+    lastDeepgramFetch = Date.now();
+    void AsyncStorage.setItem(REMOTE_DEEPGRAM_KEY, first).catch(() => undefined);
+    return first;
+  }
+  if (!deepgramKeyMem) {
+    try {
+      const disk = await AsyncStorage.getItem(REMOTE_DEEPGRAM_KEY);
+      if (disk) deepgramKeyMem = disk.trim();
+    } catch {
+      /* ignore */
+    }
+  }
+  return deepgramKeyMem ?? '';
+}
 
 export type TranscriberChoice = 'deepgram' | 'groq';
 
