@@ -63,7 +63,7 @@ import {
   transcribeFile as transcribeDeepgram,
   type TranscriptResult,
 } from '../../lib/transcribe/deepgram';
-import { transcribeFile as transcribeGroq } from '../../lib/transcribe/groq';
+import { transcribeFile as transcribeGroq, translateFile as groqTranslateFile } from '../../lib/transcribe/groq';
 import {
   getEffectiveDeepgramKey,
   getGroqPool,
@@ -1246,7 +1246,7 @@ function shiftTimes(result: TranscriptResult, offsetSec: number): TranscriptResu
   return { words: result.words.map(shift), cues: result.cues.map(shift), lang: result.lang };
 }
 
-async function resolveTranscriber(): Promise<{
+async function resolveTranscriber(subLang: SubLang): Promise<{
   provider: TranscriberChoice;
   apiKey: string;
   transcribe: TranscribeFn;
@@ -1268,11 +1268,12 @@ async function resolveTranscriber(): Promise<{
     log('Player', `cc skipped (save your ${choice} key in settings)`);
     return null;
   }
+  // groq + english target: whisper-large-v3 /translations gives english cues directly
+  const useGroqTranslate = choice === 'groq' && subLang === 'en';
   return {
     provider: choice,
     apiKey,
-    transcribe: choice === 'groq' ? transcribeGroq : transcribeDeepgram,
-    // source always auto-detected; user picks the subtitle target instead
+    transcribe: useGroqTranslate ? groqTranslateFile : choice === 'groq' ? transcribeGroq : transcribeDeepgram,
     lang: 'auto' as TranscribeLang,
   };
 }
@@ -1981,10 +1982,10 @@ export default function MoviePlayerScreen({
       );
       const url = current?.url;
       if (!url || duration <= 0) return false;
-      const resolved = await resolveTranscriber();
+      const subLang = await getSubLang().catch((): SubLang => 'en');
+      const resolved = await resolveTranscriber(subLang);
       if (!resolved) return false;
       const { provider, apiKey, transcribe, lang } = resolved;
-      const subLang = await getSubLang().catch((): SubLang => 'en');
       const headers = info?.downloadHeaders ?? {};
       const firstWindow = 90;
       const restWindow = 300;
@@ -2002,7 +2003,7 @@ export default function MoviePlayerScreen({
       const elapsed = (): string => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
       log(
         'Player',
-        `full transcribe via ${provider}/${lang}: ${total} chunks ~${Math.round(duration / 60)}min audio x3 workers`
+        `full transcribe via ${provider}/${resolved.transcribe === groqTranslateFile ? 'translate' : lang}: ${total} chunks ~${Math.round(duration / 60)}min audio x3 workers`
       );
       let all: SubtitleCue[] = [];
       let done = 0;

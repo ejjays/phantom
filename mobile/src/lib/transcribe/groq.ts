@@ -4,6 +4,7 @@ import type { DeepgramWord, TranscriptResult, UtteranceCue } from './deepgram';
 import type { TranscribeLang } from '../settings';
 
 const GROQ_API = 'https://api.groq.com/openai/v1/audio/transcriptions';
+const GROQ_TRANSLATE_API = 'https://api.groq.com/openai/v1/audio/translations';
 
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
@@ -212,6 +213,53 @@ export async function transcribeFile(
     return { words, cues, lang: heard };
   } catch (err) {
     log('Groq', `transcribe threw ms=${Date.now() - started}: ${String(err)}`);
+    return empty;
+  }
+}
+
+// whisper-large-v3 /translations: audio → english directly, no separate llm step.
+// turbo doesn't support this endpoint — must use large-v3.
+export async function translateFile(
+  fsPath: string,
+  mime: string,
+  apiKey: string,
+  _lang: TranscribeLang
+): Promise<TranscriptResult> {
+  const started = Date.now();
+  const empty: TranscriptResult = { words: [], cues: [], lang: 'en' };
+  try {
+    const audio = new File(fsPath);
+    const fileBytes = (audio as unknown as { bytesSync(): Uint8Array }).bytesSync();
+    if (fileBytes.length === 0) {
+      log('Groq', 'translate sample unreadable');
+      return empty;
+    }
+    const boundary = `phantom${Date.now().toString(36)}`;
+    const body = buildMultipartBody(
+      boundary,
+      { model: 'whisper-large-v3', response_format: 'verbose_json' },
+      'sample.mp3',
+      mime,
+      fileBytes
+    );
+    const res = await fetch(GROQ_TRANSLATE_API, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+      },
+      body: body as unknown as BodyInit,
+    });
+    if (!res.ok) {
+      log('Groq', `translate http=${res.status} ms=${Date.now() - started}`);
+      return empty;
+    }
+    const payload = (await res.json()) as unknown;
+    const cues = groqSegments(payload);
+    log('Groq', `translated segments=${cues.length} ms=${Date.now() - started}`);
+    return { words: [], cues, lang: 'en' };
+  } catch (err) {
+    log('Groq', `translate threw ms=${Date.now() - started}: ${String(err)}`);
     return empty;
   }
 }
