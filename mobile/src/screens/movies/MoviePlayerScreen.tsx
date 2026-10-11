@@ -1385,9 +1385,7 @@ async function transcribeSample(
   }
 }
 
-// parallel race: all URLs start at once, first good transcript wins & cancels the rest.
-// dead servers (5XX) fail in <5s so the live one wins quickly.
-function raceTranscribeSample(
+async function fetchTranscribeSample(
   urls: string[],
   headers: Record<string, string>,
   windowSec: number,
@@ -1397,12 +1395,11 @@ function raceTranscribeSample(
   lang: TranscribeLang,
   offsetSec: number,
   signal?: AbortSignal
-): Promise<TranscriptResult | null> {
-  const [firstUrl] = urls;
-  if (!firstUrl) return Promise.resolve(null);
-  if (urls.length === 1) {
-    return transcribeSample(
-      firstUrl,
+): Promise<{ result: TranscriptResult; url: string } | null> {
+  for (const candidate of urls) {
+    if (signal?.aborted) return null;
+    const result = await transcribeSample(
+      candidate,
       headers,
       windowSec,
       apiKey,
@@ -1412,49 +1409,11 @@ function raceTranscribeSample(
       offsetSec,
       signal
     ).catch(() => null);
+    if (result && (result.words.length > 0 || result.cues.length > 0)) {
+      return { result, url: candidate };
+    }
   }
-  const controllers = urls.map(() => new AbortController());
-  signal?.addEventListener(
-    'abort',
-    () => {
-      controllers.forEach((ctrl) => ctrl.abort());
-    },
-    { once: true }
-  );
-  return new Promise<TranscriptResult | null>((resolve) => {
-    let settled = false;
-    let remaining = urls.length;
-    urls.forEach((candidate, idx) => {
-      const controller = controllers[idx];
-      void transcribeSample(
-        candidate,
-        headers,
-        windowSec,
-        apiKey,
-        transcribe,
-        provider,
-        lang,
-        offsetSec,
-        controller?.signal
-      )
-        .catch(() => null)
-        .then((result) => {
-          remaining -= 1;
-          if (settled) return;
-          const hasContent =
-            result && (result.words.length > 0 || result.cues.length > 0);
-          if (hasContent) {
-            settled = true;
-            controllers.forEach((ctrl, targetIdx) => {
-              if (targetIdx !== idx) ctrl.abort();
-            });
-            resolve(result);
-          } else if (remaining === 0) {
-            resolve(null);
-          }
-        });
-    });
-  });
+  return null;
 }
 
 function captionState(
@@ -2003,13 +1962,12 @@ export default function MoviePlayerScreen({
       const elapsed = (): string => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
       log(
         'Player',
-        `full transcribe via ${provider}/${resolved.transcribe === groqTranslateFile ? 'translate' : lang}: ${total} chunks ~${Math.round(duration / 60)}min audio x3 workers`
+        `full transcribe via ${provider}/${resolved.transcribe === groqTranslateFile ? 'translate' : lang}: ${total} chunks ~${Math.round(duration / 60)}min audio`
       );
       let all: SubtitleCue[] = [];
       let done = 0;
       let next = 0;
       const key = itemKey;
-      // pick best format per unique server/host (1080p muxed first), max 3 servers to race
       const seenHosts = new Set<string>();
       const candidateUrls = [current, ...(info?.formats ?? [])]
         .filter((f): f is NonNullable<typeof f> => !!f?.url)
@@ -2033,6 +1991,7 @@ export default function MoviePlayerScreen({
         })
         .map((f) => f.url)
         .slice(0, 3);
+      let preferredUrl = candidateUrls[0] ?? '';
       const runOne = async (): Promise<void> => {
         while (true) {
           if (signal?.aborted || liveKey.current !== key) return;
@@ -2040,8 +1999,11 @@ export default function MoviePlayerScreen({
           next += 1;
           const job = plan[index];
           if (!job) return;
-          const transcript = await raceTranscribeSample(
-            candidateUrls,
+          const orderedUrls = preferredUrl
+            ? [preferredUrl, ...candidateUrls.filter((candidate) => candidate !== preferredUrl)]
+            : candidateUrls;
+          const outcome = await fetchTranscribeSample(
+            orderedUrls,
             headers,
             job.window,
             apiKey,
@@ -2051,6 +2013,10 @@ export default function MoviePlayerScreen({
             job.offset,
             signal
           );
+          if (outcome) {
+            preferredUrl = outcome.url;
+          }
+          const transcript = outcome?.result ?? null;
           if (liveKey.current !== key) {
             log('Player', `full transcribe abandoned, content changed (${key})`);
             return;
@@ -2074,7 +2040,7 @@ export default function MoviePlayerScreen({
           onTick?.(done, total);
         }
       };
-      await Promise.all([runOne(), runOne(), runOne()]);
+      await runOne();
       if (signal?.aborted || liveKey.current !== key) {
         log('Player', `full transcribe cancelled +${elapsed()}`);
         return false;
