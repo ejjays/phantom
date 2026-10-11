@@ -31,23 +31,38 @@ export function langName(code: string): string {
 
 // numbered-lines protocol: input and output are matched by number so a
 // rephrasing model can never silently merge, split, or drop lines.
-export function parseNumberedLines(text: string, count: number): string[] | null {
+export function parseNumberedLines(
+  text: string,
+  count: number,
+  fallback?: string[]
+): string[] | null {
   const byNumber = new Map<number, string>();
   for (const raw of text.split('\n')) {
-    const match = /^(\d+)[.)]\s?([\s\S]*)$/.exec(raw.trim());
+    const match = /^[[(]?(?:\*{1,2})?(\d+)(?:\*{1,2})?\s*[\]):.-](?:\*{1,2})?\s*([\s\S]*)$/.exec(
+      raw.trim()
+    );
     if (!match) continue;
-    const line = (match[2] ?? '').trim();
+    const line = (match[2] ?? '').trim().replace(/^["']|["']$/g, '').trim();
     if (line.length === 0) continue;
     byNumber.set(Number(match[1]), line);
   }
-  if (byNumber.size !== count) return null;
-  const out: string[] = [];
-  for (let i = 1; i <= count; i++) {
-    const line = byNumber.get(i);
-    if (!line) return null;
-    out.push(line);
+  if (byNumber.size === count) {
+    const out: string[] = [];
+    for (let i = 1; i <= count; i++) {
+      const line = byNumber.get(i);
+      if (!line) return null;
+      out.push(line);
+    }
+    return out;
   }
-  return out;
+  if (fallback && fallback.length === count && byNumber.size >= Math.max(1, Math.ceil(count * 0.6))) {
+    const out: string[] = [];
+    for (let i = 1; i <= count; i++) {
+      out.push(byNumber.get(i) ?? fallback[i - 1] ?? '');
+    }
+    return out;
+  }
+  return null;
 }
 
 function rec(value: unknown): Record<string, unknown> | null {
@@ -167,6 +182,11 @@ async function translateBatch(
           mismatchRetried = true;
           log('Translate', `line mismatch, retrying once (${texts.length} lines)`);
           continue;
+        }
+        const salvaged = parseNumberedLines(String(content ?? ''), texts.length, texts);
+        if (salvaged) {
+          log('Translate', `line mismatch salvaged with source (${texts.length} lines)`);
+          return salvaged;
         }
         log('Translate', `line mismatch, keeping source (${texts.length} lines)`);
         return null;

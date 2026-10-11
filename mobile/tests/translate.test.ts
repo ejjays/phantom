@@ -8,7 +8,21 @@ describe('parseNumberedLines', () => {
     expect(parseNumberedLines('2. World\n1. Hello', 2)).toEqual(['Hello', 'World']);
   });
 
-  it('rejects merges, drops, and junk', () => {
+  it('matches flexible numbering formats', () => {
+    expect(parseNumberedLines('**1.** Hello\n**2**. World', 2)).toEqual(['Hello', 'World']);
+    expect(parseNumberedLines('1: Hello\n2 - World', 2)).toEqual(['Hello', 'World']);
+    expect(parseNumberedLines('(1) Hello\n[2] World', 2)).toEqual(['Hello', 'World']);
+  });
+
+  it('salvages dropped lines with fallback', () => {
+    expect(parseNumberedLines('1. Hello\n3. Bye', 3, ['orig1', 'grunt', 'orig3'])).toEqual([
+      'Hello',
+      'grunt',
+      'Bye',
+    ]);
+  });
+
+  it('rejects merges, drops, and junk when no fallback is provided', () => {
     expect(parseNumberedLines('1. Hello', 2)).toBeNull();
     expect(parseNumberedLines('1. Hello\n1. Again', 2)).toBeNull();
     expect(parseNumberedLines('no numbers here', 1)).toBeNull();
