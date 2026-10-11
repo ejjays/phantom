@@ -1932,6 +1932,11 @@ export default function MoviePlayerScreen({
       let done = 0;
       let next = 0;
       const key = itemKey;
+      // alternate CDN servers — same content, different workers
+      const seen = new Set([url]);
+      const fallbackUrls = (info?.formats ?? [])
+        .map((f) => f.url)
+        .filter((fu): fu is string => !!fu && !seen.has(fu) && !!seen.add(fu));
       const runOne = async (): Promise<void> => {
         while (true) {
           if (signal?.aborted || liveKey.current !== key) return;
@@ -1939,7 +1944,7 @@ export default function MoviePlayerScreen({
           next += 1;
           const job = plan[index];
           if (!job) return;
-          const transcript = await transcribeSample(
+          let transcript = await transcribeSample(
             url,
             headers,
             job.window,
@@ -1950,6 +1955,25 @@ export default function MoviePlayerScreen({
             job.offset,
             signal
           ).catch(() => null);
+          if (!transcript && fallbackUrls.length > 0) {
+            for (const alt of fallbackUrls) {
+              if (signal?.aborted || liveKey.current !== key) break;
+              log('Player', `chunk ${index + 1} primary failed, trying alt server`);
+              transcript = await transcribeSample(
+                alt,
+                headers,
+                job.window,
+                apiKey,
+                transcribe,
+                provider,
+                lang,
+                job.offset,
+                signal
+              ).catch(() => null);
+              if (transcript && (transcript.words.length > 0 || transcript.cues.length > 0)) break;
+              transcript = null;
+            }
+          }
           if (liveKey.current !== key) {
             log('Player', `full transcribe abandoned, content changed (${key})`);
             return;
