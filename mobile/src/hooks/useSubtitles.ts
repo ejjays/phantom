@@ -128,10 +128,10 @@ export function useSubtitles(
   }, [ref, hashUrl, tracks.length, key]);
 
   useEffect(() => {
+    if (generatedFor.current === key) return undefined;
     cues.current = [];
     setLine(null);
     if (!ref || !showCaptions || tracks.length === 0) return undefined;
-    if (generatedFor.current === key) return undefined;
     let cancelled = false;
     void (async () => {
       const chosen = pickTrack(tracks, 'en') ?? tracks[0];

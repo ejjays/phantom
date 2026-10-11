@@ -482,7 +482,13 @@ export function mergeCues(
       continue;
     }
     if (cue.start < prev.end) {
-      prev.end = Math.max(prev.start + 0.5, cue.start);
+      if (cue.start <= prev.start + 0.3) {
+        if (cue.text.length >= prev.text.length) {
+          out[out.length - 1] = cue;
+        }
+        continue;
+      }
+      prev.end = cue.start;
     }
     out.push(cue);
   }

@@ -244,10 +244,9 @@ export async function extractAudioSample(
     ];
     if (block) args.push('-headers', block);
     if (ua) args.push('-user_agent', ua);
+    args.push('-i', url);
     if (offsetSec > 0) args.push('-ss', String(Math.floor(offsetSec)));
     args.push(
-      '-i',
-      url,
       '-t',
       window,
       '-vn',

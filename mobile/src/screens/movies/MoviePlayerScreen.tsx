@@ -1978,7 +1978,7 @@ export default function MoviePlayerScreen({
         'Player',
         `full transcribe via ${provider}/${resolved.transcribe === groqTranslateFile ? 'translate' : lang}: ${total} chunks ~${Math.round(duration / 60)}min audio`
       );
-      let all: SubtitleCue[] = [];
+      let all: SubtitleCue[] = subs.getCues();
       const doneSet = new Set<number>();
       let done = 0;
       const key = itemKey;
@@ -1986,6 +1986,10 @@ export default function MoviePlayerScreen({
       const candidateUrls = [current, ...(info?.formats ?? [])]
         .filter((f): f is NonNullable<typeof f> => !!f?.url)
         .sort((lhs, rhs) => {
+          const currentNote = current?.note ?? '';
+          const sL = lhs.note === currentNote;
+          const sR = rhs.note === currentNote;
+          if (sL !== sR) return sL ? -1 : 1;
           const aL = isAudioOnly(lhs);
           const aR = isAudioOnly(rhs);
           if (aL !== aR) return aL ? -1 : 1;
