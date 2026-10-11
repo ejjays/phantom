@@ -452,3 +452,73 @@ export async function fetchVttText(
     return null;
   }
 }
+
+export function mergeCues(
+  existing: SubtitleCue[],
+  incoming: SubtitleCue[]
+): SubtitleCue[] {
+  const combined = [...existing, ...incoming]
+    .map((cue) => ({ ...cue }))
+    .sort((lhs, rhs) => lhs.start - rhs.start);
+  const out: SubtitleCue[] = [];
+  for (const cue of combined) {
+    if (out.length === 0) {
+      out.push(cue);
+      continue;
+    }
+    const prev = out[out.length - 1];
+    if (!prev) continue;
+    const sameText = prev.text.trim().toLowerCase() === cue.text.trim().toLowerCase();
+    const overlaps = cue.start < prev.end + 0.5;
+    if (overlaps && sameText) {
+      prev.end = Math.max(prev.end, cue.end);
+      continue;
+    }
+    if (overlaps && prev.text.toLowerCase().includes(cue.text.toLowerCase())) {
+      continue;
+    }
+    if (overlaps && cue.text.toLowerCase().includes(prev.text.toLowerCase())) {
+      out[out.length - 1] = cue;
+      continue;
+    }
+    if (cue.start < prev.end) {
+      prev.end = Math.max(prev.start + 0.5, cue.start);
+    }
+    out.push(cue);
+  }
+  return out;
+}
+
+export type PlanJob = { offset: number; window: number };
+
+export function pickNextJob(
+  plan: PlanJob[],
+  done: Set<number>,
+  currentPos: number,
+  lookaheadSec = 600
+): { index: number } | 'wait' | 'done' {
+  if (done.size >= plan.length) return 'done';
+  for (let i = 0; i < plan.length; i += 1) {
+    if (done.has(i)) continue;
+    const job = plan[i];
+    if (job && currentPos >= job.offset && currentPos < job.offset + job.window) {
+      return { index: i };
+    }
+  }
+  for (let i = 0; i < plan.length; i += 1) {
+    if (done.has(i)) continue;
+    const job = plan[i];
+    if (job && job.offset >= currentPos) {
+      if (job.offset <= currentPos + lookaheadSec) {
+        return { index: i };
+      }
+      return 'wait';
+    }
+  }
+  for (let i = 0; i < plan.length; i += 1) {
+    if (!done.has(i)) {
+      return { index: i };
+    }
+  }
+  return 'done';
+}

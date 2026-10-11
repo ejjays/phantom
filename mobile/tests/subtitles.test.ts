@@ -22,6 +22,8 @@ import {
   splitLongCues,
   splitLongText,
   wordsToCues,
+  mergeCues,
+  pickNextJob,
   type SpeechSeg,
   type SubtitleCue,
   type SubtitleTrack,
@@ -350,5 +352,86 @@ describe('fetchVttText', () => {
     await expect(fetchVttText('https://x/en.vtt', {})).resolves.toContain(
       'WEBVTT'
     );
+  });
+});
+
+describe('mergeCues', () => {
+  it('combines and sorts non-overlapping cues', () => {
+    const first: SubtitleCue[] = [{ start: 1, end: 3, text: 'Hello' }];
+    const second: SubtitleCue[] = [{ start: 5, end: 7, text: 'World' }];
+    expect(mergeCues(first, second)).toEqual([
+      { start: 1, end: 3, text: 'Hello' },
+      { start: 5, end: 7, text: 'World' },
+    ]);
+  });
+
+  it('deduplicates identical overlapping cues across chunk seams', () => {
+    const first: SubtitleCue[] = [{ start: 88, end: 92, text: 'I am here' }];
+    const second: SubtitleCue[] = [{ start: 90, end: 93, text: 'I am here' }];
+    expect(mergeCues(first, second)).toEqual([{ start: 88, end: 93, text: 'I am here' }]);
+  });
+
+  it('prefers fuller cue when one is substring of overlapping cue', () => {
+    const first: SubtitleCue[] = [{ start: 88, end: 91, text: 'Shadow' }];
+    const second: SubtitleCue[] = [{ start: 89, end: 93, text: 'Shadow Monarch' }];
+    expect(mergeCues(first, second)).toEqual([
+      { start: 89, end: 93, text: 'Shadow Monarch' },
+    ]);
+  });
+
+  it('trims end time of preceding cue if distinct text overlaps', () => {
+    const first: SubtitleCue[] = [{ start: 10, end: 15, text: 'Line A' }];
+    const second: SubtitleCue[] = [{ start: 13, end: 18, text: 'Line B' }];
+    const res = mergeCues(first, second);
+    expect(res[0]?.end).toBe(13);
+    expect(res[1]?.start).toBe(13);
+  });
+
+  it('does not mutate input cue objects', () => {
+    const first: SubtitleCue[] = [{ start: 10, end: 15, text: 'Line A' }];
+    const second: SubtitleCue[] = [{ start: 13, end: 18, text: 'Line B' }];
+    mergeCues(first, second);
+    expect(first[0]?.end).toBe(15);
+  });
+});
+
+describe('pickNextJob', () => {
+  const plan = [
+    { offset: 0, window: 95 },
+    { offset: 90, window: 95 },
+    { offset: 180, window: 305 },
+    { offset: 480, window: 305 },
+    { offset: 780, window: 305 },
+  ];
+
+  it('prioritizes job covering current playback position', () => {
+    const done = new Set<number>();
+    expect(pickNextJob(plan, done, 0)).toEqual({ index: 0 });
+    expect(pickNextJob(plan, done, 200)).toEqual({ index: 2 });
+  });
+
+  it('prioritizes target chunk immediately when user seeks far ahead', () => {
+    const done = new Set([0]);
+    expect(pickNextJob(plan, done, 790)).toEqual({ index: 4 });
+  });
+
+  it('picks next job within lookahead window', () => {
+    const done = new Set([0, 1]);
+    expect(pickNextJob(plan, done, 50)).toEqual({ index: 2 });
+  });
+
+  it('returns wait when remaining jobs exceed lookahead window', () => {
+    const done = new Set([0, 1, 2, 3]);
+    expect(pickNextJob(plan, done, 0, 600)).toBe('wait');
+  });
+
+  it('backfills skipped earlier jobs when future jobs are done', () => {
+    const done = new Set([0, 4]);
+    expect(pickNextJob(plan, done, 800, 600)).toEqual({ index: 1 });
+  });
+
+  it('returns done when all jobs are complete', () => {
+    const done = new Set([0, 1, 2, 3, 4]);
+    expect(pickNextJob(plan, done, 0)).toBe('done');
   });
 });

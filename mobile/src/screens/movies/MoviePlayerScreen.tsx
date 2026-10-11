@@ -48,12 +48,19 @@ import { useBrightnessSwipe } from '../../hooks/useBrightnessSwipe';
 import { useSeekPreview, type SeekMedia } from '../../hooks/useSeekPreview';
 import { useSubtitles } from '../../hooks/useSubtitles';
 import { useDownload } from '../../hooks/useDownload';
-import { formatLabel, formatClock, formatSize } from '../../lib/download/format';
+import {
+  formatLabel,
+  formatClock,
+  formatSize,
+  isAudioOnly,
+} from '../../lib/download/format';
 import {
   pickTrack,
   splitLongCues,
   splitLongText,
   wordsToCues,
+  mergeCues,
+  pickNextJob,
   type SubtitleTrack,
   type SubtitleCue,
 } from '../../lib/subtitles';
@@ -1948,14 +1955,21 @@ export default function MoviePlayerScreen({
       const headers = info?.downloadHeaders ?? {};
       const firstWindow = 90;
       const restWindow = 300;
+      const OVERLAP_SEC = 5;
       const plan: Array<{ offset: number; window: number }> = [
-        { offset: 0, window: Math.min(firstWindow, duration) },
+        { offset: 0, window: Math.min(firstWindow + OVERLAP_SEC, duration) },
       ];
       if (duration > firstWindow) {
-        plan.push({ offset: firstWindow, window: Math.min(firstWindow, duration - firstWindow) });
+        plan.push({
+          offset: firstWindow,
+          window: Math.min(firstWindow + OVERLAP_SEC, duration - firstWindow),
+        });
       }
       for (let at = firstWindow * 2; at < duration; at += restWindow) {
-        plan.push({ offset: at, window: Math.min(restWindow, duration - at) });
+        plan.push({
+          offset: at,
+          window: Math.min(restWindow + OVERLAP_SEC, duration - at),
+        });
       }
       const total = plan.length;
       const startedAt = Date.now();
@@ -1965,17 +1979,20 @@ export default function MoviePlayerScreen({
         `full transcribe via ${provider}/${resolved.transcribe === groqTranslateFile ? 'translate' : lang}: ${total} chunks ~${Math.round(duration / 60)}min audio`
       );
       let all: SubtitleCue[] = [];
+      const doneSet = new Set<number>();
       let done = 0;
-      let next = 0;
       const key = itemKey;
       const seenHosts = new Set<string>();
       const candidateUrls = [current, ...(info?.formats ?? [])]
         .filter((f): f is NonNullable<typeof f> => !!f?.url)
         .sort((lhs, rhs) => {
-          const hDiff = (rhs.height ?? 0) - (lhs.height ?? 0);
-          if (hDiff !== 0) return hDiff;
-          const score = (f: typeof lhs): number => (f.isMuxed ? 2 : f.isVideo ? 1 : 0);
-          return score(rhs) - score(lhs);
+          const aL = isAudioOnly(lhs);
+          const aR = isAudioOnly(rhs);
+          if (aL !== aR) return aL ? -1 : 1;
+          const hL = lhs.height ?? 0;
+          const hR = rhs.height ?? 0;
+          if (hL > 0 && hR > 0 && hL !== hR) return hL - hR;
+          return 0;
         })
         .filter((f) => {
           let host = '';
@@ -1991,17 +2008,36 @@ export default function MoviePlayerScreen({
         })
         .map((f) => f.url)
         .slice(0, 3);
-      let preferredUrl = candidateUrls[0] ?? '';
+      const candidates = candidateUrls.includes(current.url)
+        ? candidateUrls
+        : [...candidateUrls, current.url];
+      let preferredUrl = candidates[0] ?? '';
       const runOne = async (): Promise<void> => {
         while (true) {
           if (signal?.aborted || liveKey.current !== key) return;
-          const index = next;
-          next += 1;
+          const next = pickNextJob(plan, doneSet, live.current?.pos ?? 0, 600);
+          if (next === 'done') break;
+          if (next === 'wait') {
+            if (signal?.aborted) return;
+            await new Promise<void>((resolve) => {
+              const timer = setTimeout(resolve, 2500);
+              signal?.addEventListener(
+                'abort',
+                () => {
+                  clearTimeout(timer);
+                  resolve();
+                },
+                { once: true }
+              );
+            });
+            continue;
+          }
+          const index = next.index;
           const job = plan[index];
-          if (!job) return;
+          if (!job) break;
           const orderedUrls = preferredUrl
-            ? [preferredUrl, ...candidateUrls.filter((candidate) => candidate !== preferredUrl)]
-            : candidateUrls;
+            ? [preferredUrl, ...candidates.filter((candidate) => candidate !== preferredUrl)]
+            : candidates;
           const outcome = await fetchTranscribeSample(
             orderedUrls,
             headers,
@@ -2027,16 +2063,15 @@ export default function MoviePlayerScreen({
               log('Player', `full transcribe abandoned, content changed (${key})`);
               return;
             }
-            all = [...all, ...shaped.cues].sort(
-              (lhs, rhs) => lhs.start - rhs.start
-            );
+            all = mergeCues(all, shaped.cues);
             subs.setGeneratedCues(all, shaped.label);
             setSubsOn(true);
             log('Player', `full transcribe chunk ${index + 1}/${total} +${elapsed()}`);
           } else {
             log('Player', `full transcribe chunk ${index + 1}/${total} failed +${elapsed()}`);
           }
-          done += 1;
+          doneSet.add(index);
+          done = doneSet.size;
           onTick?.(done, total);
         }
       };
