@@ -277,27 +277,37 @@ export function splitLongCues(
   return out;
 }
 
-// splits an over-long cue by sentences, dividing its span proportionally.
-// for translated cues whose word timings belong to another language. pure.
-export function splitLongText(cue: SubtitleCue, maxChars = 90): SubtitleCue[] {
-  if (cue.text.length <= maxChars) return [cue];
-  const sentences = cue.text.match(/[^.!?…]+[.!?…]+["”']?|\S[^.!?…]*$/gu) ?? [cue.text];
+// splits multi-sentence cues or over-long text, dividing span proportionally.
+export function splitLongText(cue: SubtitleCue, maxChars = 50): SubtitleCue[] {
+  const sentences = (cue.text.match(/[^.!?…]+[.!?…]+["”']?|\S[^.!?…]*$/gu) ?? [cue.text])
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  if (sentences.length <= 1) return [cue];
+
+  const span = cue.end - cue.start;
+  const canSplitSentences = span / sentences.length >= 1.2;
+  const mustSplitLength = cue.text.length > maxChars;
+
+  if (!canSplitSentences && !mustSplitLength) return [cue];
+
   const chunks: string[] = [];
-  let current = '';
-  for (const sentence of sentences) {
-    const piece = sentence.trim();
-    if (piece.length === 0) continue;
-    if (current.length > 0 && `${current} ${piece}`.length > maxChars) {
-      chunks.push(current);
-      current = piece;
-    } else {
-      current = current.length > 0 ? `${current} ${piece}` : piece;
+  if (canSplitSentences) {
+    chunks.push(...sentences);
+  } else {
+    let current = '';
+    for (const piece of sentences) {
+      if (current.length > 0 && `${current} ${piece}`.length > maxChars) {
+        chunks.push(current);
+        current = piece;
+      } else {
+        current = current.length > 0 ? `${current} ${piece}` : piece;
+      }
     }
+    if (current.length > 0) chunks.push(current);
   }
-  if (current.length > 0) chunks.push(current);
+
   if (chunks.length < 2) return [cue];
   const total = chunks.join(' ').length;
-  const span = cue.end - cue.start;
   let at = cue.start;
   return chunks.map((text, i) => {
     const last = i === chunks.length - 1;
@@ -305,6 +315,21 @@ export function splitLongText(cue: SubtitleCue, maxChars = 90): SubtitleCue[] {
     const start = at;
     at = end;
     return { start, end, text };
+  });
+}
+
+export type SpeechTurn = { start: number; end: number; speaker: number };
+
+// dashes multi-speaker dialogue: finds each cue's turn by overlap and
+// prefixes turns after the first speaker change. single-speaker audio is
+// returned untouched. pure, tested.
+export function dashTurns(cues: SubtitleCue[], turns: SpeechTurn[]): SubtitleCue[] {
+  const speakers = new Set(turns.map((turn) => turn.speaker));
+  if (speakers.size < 2) return cues;
+  return cues.map((cue) => {
+    const turn = turns.find((entry) => cue.start >= entry.start && cue.start < entry.end);
+    if (!turn) return cue;
+    return { ...cue, text: `- ${cue.text.replace(/^- /, '')}` };
   });
 }
 // ±60s by overlapped cue seconds minus half the silence overlap, and only

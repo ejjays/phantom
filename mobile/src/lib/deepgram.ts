@@ -94,6 +94,60 @@ export function deepgramConfidence(payload: unknown): number {
   return count === 0 ? -1 : total / count;
 }
 
+function splitUtteranceWords(
+  words: unknown[],
+  fallbackSpeaker: number
+): UtteranceCue[] {
+  const groups: Array<{ speaker: number; items: Array<Record<string, unknown>> }> = [];
+  let current: Array<Record<string, unknown>> = [];
+  let currentSpk = -2;
+
+  for (const entry of words) {
+    const item = rec(entry);
+    if (!item) continue;
+    const spk = speakerOf(item);
+    if (currentSpk !== -2 && spk !== currentSpk && current.length > 0) {
+      groups.push({ speaker: currentSpk, items: current });
+      current = [item];
+      currentSpk = spk;
+    } else {
+      current.push(item);
+      if (currentSpk === -2) currentSpk = spk;
+    }
+  }
+  if (current.length > 0) {
+    groups.push({ speaker: currentSpk, items: current });
+  }
+
+  if (groups.length <= 1) return [];
+
+  const out: UtteranceCue[] = [];
+  for (const group of groups) {
+    const first = group.items[0];
+    const last = group.items[group.items.length - 1];
+    const gStart = num(first?.['start']);
+    const gEnd = num(last?.['end']);
+    const gText = group.items
+      .map((entry) => {
+        const punc = entry['punctuated_word'];
+        const rawWord = entry['word'];
+        return typeof punc === 'string' ? punc : typeof rawWord === 'string' ? rawWord : '';
+      })
+      .filter((token) => token.length > 0)
+      .join(' ')
+      .trim();
+    if (gText.length > 0 && gStart !== null && gEnd !== null && gEnd > gStart) {
+      out.push({
+        start: gStart,
+        end: gEnd,
+        text: gText,
+        speaker: group.speaker === -1 ? fallbackSpeaker : group.speaker,
+      });
+    }
+  }
+  return out;
+}
+
 export function deepgramUtterances(payload: unknown): UtteranceCue[] {
   const utterances = rec(rec(payload)?.['results'])?.['utterances'];
   const out: UtteranceCue[] = [];
@@ -105,6 +159,16 @@ export function deepgramUtterances(payload: unknown): UtteranceCue[] {
     const end = num(item?.['end']);
     if (typeof text !== 'string' || text.trim().length === 0) continue;
     if (start === null || end === null || end <= start) continue;
+
+    const words = item?.['words'];
+    if (Array.isArray(words) && words.length > 1) {
+      const split = splitUtteranceWords(words, speakerOf(item));
+      if (split.length > 1) {
+        out.push(...split);
+        continue;
+      }
+    }
+
     out.push({ start, end, text: text.trim(), speaker: speakerOf(item) });
   }
   return out.sort((lhs, rhs) => lhs.start - rhs.start);

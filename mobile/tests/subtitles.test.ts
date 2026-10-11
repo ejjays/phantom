@@ -18,7 +18,9 @@ import {
   pickTrack,
   speechOfSilence,
   speechOfWords,
+  dashTurns,
   splitLongCues,
+  splitLongText,
   wordsToCues,
   type SpeechSeg,
   type SubtitleCue,
@@ -178,6 +180,46 @@ describe('splitLongCues', () => {
       { start: 1.0, end: 2.0, text: `${first} ${second}` },
       { start: 2.1, end: 2.5, text: third },
     ]);
+  });
+});
+
+describe('splitLongText', () => {
+  const cue = (start: number, end: number, text: string): SubtitleCue => ({ start, end, text });
+  it('splits multi-sentence dialogue when duration allows', () => {
+    const input = cue(10.0, 14.0, 'Where are you going? To the dungeon.');
+    const result = splitLongText(input);
+    expect(result.length).toBe(2);
+    expect(result[0]?.text).toBe('Where are you going?');
+    expect(result[1]?.text).toBe('To the dungeon.');
+    expect(result[0]?.start).toBe(10.0);
+    expect(result[1]?.end).toBe(14.0);
+  });
+
+  it('leaves single short sentences untouched', () => {
+    const input = cue(1.0, 3.0, 'Hello world.');
+    expect(splitLongText(input)).toEqual([input]);
+  });
+});
+
+describe('dashTurns', () => {
+  const cue = (start: number, end: number, text: string): SubtitleCue => ({ start, end, text });
+  it('dashes multi-speaker dialogue', () => {
+    const cues = [cue(1, 2, 'Yeah.'), cue(3, 4, 'You try.')];
+    const turns = [
+      { start: 1, end: 2, speaker: 0 },
+      { start: 3, end: 4, speaker: 1 },
+    ];
+    expect(dashTurns(cues, turns)).toEqual([
+      { start: 1, end: 2, text: '- Yeah.' },
+      { start: 3, end: 4, text: '- You try.' },
+    ]);
+  });
+
+  it('leaves single-speaker and turnless cues alone', () => {
+    const cues = [cue(1, 2, 'Yeah.')];
+    expect(dashTurns(cues, [{ start: 1, end: 2, speaker: 0 }])).toEqual(cues);
+    expect(dashTurns(cues, [])).toEqual(cues);
+    expect(dashTurns(cues, [{ start: 9, end: 10, speaker: 1 }])).toEqual(cues);
   });
 });
 

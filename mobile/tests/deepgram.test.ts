@@ -86,6 +86,30 @@ describe('deepgramUtterances', () => {
     ]);
   });
 
+  it('splits utterances when word-level speaker changes', () => {
+    expect(
+      deepgramUtterances(
+        shaped([
+          {
+            start: 1.0,
+            end: 4.0,
+            transcript: 'Where are you going? To the dungeon.',
+            speaker: 0,
+            words: [
+              { word: 'Where', start: 1.0, end: 1.5, speaker: 0 },
+              { word: 'going?', start: 1.5, end: 2.0, speaker: 0 },
+              { word: 'To', start: 2.5, end: 3.0, speaker: 1 },
+              { word: 'dungeon.', start: 3.0, end: 4.0, speaker: 1 },
+            ],
+          },
+        ])
+      )
+    ).toEqual([
+      { start: 1.0, end: 2.0, text: 'Where going?', speaker: 0 },
+      { start: 2.5, end: 4.0, text: 'To dungeon.', speaker: 1 },
+    ]);
+  });
+
   it('returns empty on junk', () => {
     expect(deepgramUtterances(null)).toEqual([]);
     expect(deepgramUtterances({})).toEqual([]);

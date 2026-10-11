@@ -144,7 +144,7 @@ async function translateBatch(
           messages: [
             {
               role: 'system',
-              content: `You translate ${langName(fromCode)} TV subtitles to natural ${targetName(toCode)}. Return ONLY the translated lines, numbered exactly like the input, one per line. Never merge, split, drop, or explain lines.`,
+              content: `You translate ${langName(fromCode)} TV subtitles to natural ${targetName(toCode)}. Return ONLY the translated lines, numbered exactly like the input, one per line. Never merge, split, drop, or explain lines. No intro or commentary.\nExample input:\n1. 안녕하세요\n2. 네\nExample output:\n1. Hello\n2. Yes`,
             },
             { role: 'user', content: numbered },
           ],
