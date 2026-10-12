@@ -5,7 +5,7 @@ vi.mock('../src/lib/net', () => ({
 }));
 
 import { fetchWithTimeout } from '../src/lib/net';
-import { fetchParadiseFormats } from '../src/extractors/movies/animeparadise';
+import { fetchParadiseFormats } from '../src/extractors/movies/providers/animeparadise';
 
 const mockedFetch = vi.mocked(fetchWithTimeout);
 
@@ -38,7 +38,13 @@ function okMasterOnce() {
 describe('fetchParadiseFormats', () => {
   it('resolves variants through search, episodes and stream link', async () => {
     okOnce({
-      data: [{ _id: 'aMMQZ1PgTLwWeSjR', title: 'Dragon Ball Super', link: 'dragon-ball-super' }],
+      data: [
+        {
+          _id: 'aMMQZ1PgTLwWeSjR',
+          title: 'Dragon Ball Super',
+          link: 'dragon-ball-super',
+        },
+      ],
     });
     okOnce({ data: { type: 'TV' } });
     okOnce({ data: [{ uid: 'ep-uid-1', number: '1' }] });
@@ -59,7 +65,10 @@ describe('fetchParadiseFormats', () => {
   });
 
   it('skips non-tv titles without fetching', async () => {
-    const out = await fetchParadiseFormats({ kind: 'movie', tmdbId: '550' }, 'Fight Club');
+    const out = await fetchParadiseFormats(
+      { kind: 'movie', tmdbId: '550' },
+      'Fight Club'
+    );
     expect(out).toBeNull();
     expect(mockedFetch).not.toHaveBeenCalled();
   });
@@ -74,7 +83,15 @@ describe('fetchParadiseFormats', () => {
   });
 
   it('returns null when no title matches', async () => {
-    okOnce({ data: [{ _id: 'x', title: 'Dragon Ball Super: Broly', link: 'dragon-ball-super-broly' }] });
+    okOnce({
+      data: [
+        {
+          _id: 'x',
+          title: 'Dragon Ball Super: Broly',
+          link: 'dragon-ball-super-broly',
+        },
+      ],
+    });
     const out = await fetchParadiseFormats(
       { kind: 'tv', tmdbId: '62715', season: '1', episode: '1' },
       'Dragon Ball Super'
@@ -84,12 +101,21 @@ describe('fetchParadiseFormats', () => {
 
   it('returns null when the manifest is dead', async () => {
     okOnce({
-      data: [{ _id: 'aMMQZ1PgTLwWeSjR', title: 'Dragon Ball Super', link: 'dragon-ball-super' }],
+      data: [
+        {
+          _id: 'aMMQZ1PgTLwWeSjR',
+          title: 'Dragon Ball Super',
+          link: 'dragon-ball-super',
+        },
+      ],
     });
     okOnce({ data: { type: 'TV' } });
     okOnce({ data: [{ uid: 'ep-uid-1', number: '1' }] });
     okOnce({ data: { episode: { streamLink: 'tok123' } } });
-    mockedFetch.mockResolvedValueOnce({ ok: false, text: () => Promise.resolve('') } as Response);
+    mockedFetch.mockResolvedValueOnce({
+      ok: false,
+      text: () => Promise.resolve(''),
+    } as Response);
     const out = await fetchParadiseFormats(
       { kind: 'tv', tmdbId: '62715', season: '1', episode: '1' },
       'Dragon Ball Super'

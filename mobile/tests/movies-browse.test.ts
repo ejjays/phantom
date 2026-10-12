@@ -7,7 +7,7 @@ vi.mock('../src/lib/net', () => ({
 }));
 
 import { fetchWithTimeout, gatedFetch } from '../src/lib/net';
-import { vidrockToFormats } from '../src/extractors/movies/vidrock';
+import { vidrockToFormats } from '../src/extractors/movies/providers/vidrock';
 import {
   searchTitles,
   parseCards,
@@ -21,7 +21,11 @@ const mockTimeout = vi.mocked(fetchWithTimeout);
 mockTimeout.mockImplementation((url, init) => mockFetch(url, init));
 
 function textRes(body: string, ok = true): Response {
-  return { ok, status: ok ? 200 : 404, text: () => Promise.resolve(body) } as unknown as Response;
+  return {
+    ok,
+    status: ok ? 200 : 404,
+    text: () => Promise.resolve(body),
+  } as unknown as Response;
 }
 
 function jsonRes(body: unknown, ok = true): Response {
@@ -104,11 +108,14 @@ describe('searchTitles', () => {
     expect(items[1]).toMatchObject({ id: '2287', kind: 'tv', year: '1966' });
   });
 
-  it.each([[''], [' '], ['a']])('returns [] without fetching for %s', async (term) => {
-    const items = await searchTitles(term);
-    expect(items).toEqual([]);
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
+  it.each([[''], [' '], ['a']])(
+    'returns [] without fetching for %s',
+    async (term) => {
+      const items = await searchTitles(term);
+      expect(items).toEqual([]);
+      expect(mockFetch).not.toHaveBeenCalled();
+    }
+  );
 
   it('returns [] when the api shape is unexpected', async () => {
     mockFetch.mockResolvedValue(jsonRes({ results: null }));
@@ -116,7 +123,9 @@ describe('searchTitles', () => {
   });
 
   it('skips entries missing id or title', async () => {
-    mockFetch.mockResolvedValue(jsonRes({ results: [{ id: 1 }, { title: 'x' }] }));
+    mockFetch.mockResolvedValue(
+      jsonRes({ results: [{ id: 1 }, { title: 'x' }] })
+    );
     await expect(searchTitles('batman')).resolves.toEqual([]);
   });
 });
@@ -127,14 +136,16 @@ describe('parseCards', () => {
       {
         kind: 'movie',
         id: '969681',
-        poster: 'https://image.tmdb.org/t/p/w342/bjiS5ipwxb9JFy3XRRN4OAilSeX.jpg',
+        poster:
+          'https://image.tmdb.org/t/p/w342/bjiS5ipwxb9JFy3XRRN4OAilSeX.jpg',
         title: 'Spider-Man: Brand New Day',
         year: '2026',
       },
       {
         kind: 'tv',
         id: '2287',
-        poster: 'https://image.tmdb.org/t/p/w342/1ZEJuuDh0Zpi5ELM3Zev0GBhQ3R.jpg',
+        poster:
+          'https://image.tmdb.org/t/p/w342/1ZEJuuDh0Zpi5ELM3Zev0GBhQ3R.jpg',
         title: 'Batman',
         year: '1966',
       },
@@ -182,12 +193,21 @@ describe('listTrending', () => {
     mockFetch.mockResolvedValue(textRes(TRENDING_HTML));
     const items = await listTrending();
     expect(items).toHaveLength(2);
-    expect(items?.[0]).toMatchObject({ kind: 'movie', id: '1248832', title: 'Digger' });
-    expect(items?.[1]).toMatchObject({ kind: 'tv', id: '2287', title: 'Batman' });
+    expect(items?.[0]).toMatchObject({
+      kind: 'movie',
+      id: '1248832',
+      title: 'Digger',
+    });
+    expect(items?.[1]).toMatchObject({
+      kind: 'tv',
+      id: '2287',
+      title: 'Batman',
+    });
   });
 });
 
-describe('getTitleDetails', () => {  beforeEach(() => {
+describe('getTitleDetails', () => {
+  beforeEach(() => {
     mockFetch.mockReset();
   });
 
@@ -204,7 +224,8 @@ describe('getTitleDetails', () => {  beforeEach(() => {
       genres: ['Crime', 'Mystery', 'Thriller'],
       contentRating: 'PG-13',
       director: 'Matt Reeves',
-      backdrop: 'https://image.tmdb.org/t/p/w1280/rvtdN5XkWAfGX6xDuPL6yYS2seK.jpg',
+      backdrop:
+        'https://image.tmdb.org/t/p/w1280/rvtdN5XkWAfGX6xDuPL6yYS2seK.jpg',
     });
     expect(details?.cast).toEqual(['Robert Pattinson', 'Zoë Kravitz']);
     expect(details?.durationSec).toBe(10620);
@@ -233,11 +254,18 @@ describe('vidrockToFormats quick mode', () => {
   it('lists variants without touching segments', async () => {
     mockFetch.mockImplementation((reqUrl: unknown) => {
       const target = String(reqUrl);
-      if (target.includes('roguefrequency.live')) return Promise.resolve(playlistRes(QUICK_MASTER));
+      if (target.includes('roguefrequency.live'))
+        return Promise.resolve(playlistRes(QUICK_MASTER));
       return Promise.resolve(textRes('', false));
     });
     const formats = await vidrockToFormats(
-      [{ name: 'Orion', url: 'https://roguefrequency.live/master.m3u8', streamType: 'hls' }],
+      [
+        {
+          name: 'Orion',
+          url: 'https://roguefrequency.live/master.m3u8',
+          streamType: 'hls',
+        },
+      ],
       7380,
       { quick: true }
     );
@@ -246,8 +274,10 @@ describe('vidrockToFormats quick mode', () => {
     expect(formats[0].quality).toBe('Auto');
     expect(formats[1].formatId).toContain('orion-1080p');
     expect(formats[1].filesize).toBeGreaterThan(0);
-    const touchedSegments = mockFetch.mock.calls.filter((call) =>
-      String(call[0]).includes('cdn.example') || String(call[0]).includes('seg.example')
+    const touchedSegments = mockFetch.mock.calls.filter(
+      (call) =>
+        String(call[0]).includes('cdn.example') ||
+        String(call[0]).includes('seg.example')
     );
     expect(touchedSegments).toHaveLength(0);
   });

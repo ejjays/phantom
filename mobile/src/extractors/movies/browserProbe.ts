@@ -1,6 +1,6 @@
 import type { Format } from '@phantom/extractors';
 import type { PageScan } from '../../lib/webviewExtraction/sniffer';
-import { mp4Format, singleHls, VIDROCK_HEADERS } from './vidrock';
+import { mp4Format, singleHls, VIDROCK_HEADERS } from './providers/vidrock';
 import { log, error as logError } from '../../lib/log';
 
 const BROWSER_TIMEOUT = 40_000;

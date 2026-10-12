@@ -3,10 +3,10 @@ import {
   parseHlsMaster,
   type Format,
 } from '@phantom/extractors';
-import { fetchWithTimeout } from '../../lib/net';
-import { DESKTOP_UA } from '../../lib/userAgents';
-import type { MovieRef } from './parse';
-import { log } from '../../lib/log';
+import { fetchWithTimeout } from '../../../lib/net';
+import { DESKTOP_UA } from '../../../lib/userAgents';
+import type { MovieRef } from '../parse';
+import { log } from '../../../lib/log';
 
 const PARADISE_API = 'https://api.animeparadise.moe';
 const PARADISE_STREAM = 'https://stream.animeparadise.moe';
@@ -52,7 +52,9 @@ async function getJson(path: string): Promise<unknown> {
 type ParadiseShow = { id: string; link: string };
 
 async function findShow(title: string): Promise<ParadiseShow | null> {
-  const data = rec(await getJson(`/search?q=${encodeURIComponent(title)}&limit=20`));
+  const data = rec(
+    await getJson(`/search?q=${encodeURIComponent(title)}&limit=20`)
+  );
   const raw = data?.['data'];
   if (!Array.isArray(raw)) return null;
   const want = normTitle(title);
@@ -72,7 +74,10 @@ async function findShow(title: string): Promise<ParadiseShow | null> {
 
 type ParadiseEpisode = { uid: string };
 
-async function findEpisode(showId: string, episode: string): Promise<ParadiseEpisode | null> {
+async function findEpisode(
+  showId: string,
+  episode: string
+): Promise<ParadiseEpisode | null> {
   const data = rec(await getJson(`/anime/${showId}/episode`));
   const raw = data?.['data'];
   if (!Array.isArray(raw)) return null;
@@ -86,7 +91,10 @@ async function findEpisode(showId: string, episode: string): Promise<ParadiseEpi
   return null;
 }
 
-async function resolveStreamLink(showId: string, uid: string): Promise<string | null> {
+async function resolveStreamLink(
+  showId: string,
+  uid: string
+): Promise<string | null> {
   const data = rec(await getJson(`/ep/${uid}?origin=${showId}`));
   const link = str(rec(rec(data?.['data'])?.['episode'])?.['streamLink']);
   return link;

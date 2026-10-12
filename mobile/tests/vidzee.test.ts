@@ -9,7 +9,7 @@ import {
   vidzeeStreamUrl,
   vidzeeHeaders,
   fetchVidzeeFormats,
-} from '../src/extractors/movies/vidzee';
+} from '../src/extractors/movies/providers/vidzee';
 
 const mockedFetch = vi.mocked(fetchWithTimeout);
 
@@ -37,7 +37,10 @@ describe('vidzeeStreamUrl', () => {
 
   it('builds tv urls with season and episode', () => {
     expect(
-      vidzeeStreamUrl({ kind: 'tv', tmdbId: '62715', season: '2', episode: '5' }, 'tik')
+      vidzeeStreamUrl(
+        { kind: 'tv', tmdbId: '62715', season: '2', episode: '5' },
+        'tik'
+      )
     ).toBe('https://core.vidzee.wtf/streams/tv/62715/2/5?s=tik&e=0');
   });
 });
@@ -52,8 +55,16 @@ describe('vidzeeHeaders', () => {
 
 describe('fetchVidzeeFormats', () => {
   it('collects one auto rung per answering server', async () => {
-    okOnce({ url: 'https://cdn2.x/hls/a/index.m3u8', language: 'Auto', headers: {} });
-    okOnce({ url: 'https://cdn.x/hls/b/index.m3u8', language: 'Auto', headers: {} });
+    okOnce({
+      url: 'https://cdn2.x/hls/a/index.m3u8',
+      language: 'Auto',
+      headers: {},
+    });
+    okOnce({
+      url: 'https://cdn.x/hls/b/index.m3u8',
+      language: 'Auto',
+      headers: {},
+    });
     failOnce();
     const out = await fetchVidzeeFormats({
       kind: 'tv',
@@ -71,7 +82,11 @@ describe('fetchVidzeeFormats', () => {
   });
 
   it('dedupes identical urls across servers', async () => {
-    const same = { url: 'https://cdn.x/hls/a/index.m3u8', language: 'Auto', headers: {} };
+    const same = {
+      url: 'https://cdn.x/hls/a/index.m3u8',
+      language: 'Auto',
+      headers: {},
+    };
     okOnce(same);
     okOnce(same);
     okOnce(same);

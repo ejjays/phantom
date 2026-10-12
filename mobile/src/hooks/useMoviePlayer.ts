@@ -3,15 +3,16 @@ import { useEvent } from 'expo';
 import { useVideoPlayer } from 'expo-video';
 import type { AudioTrack } from 'expo-video';
 import { resolve } from '../extractors';
-import { VIDROCK_HEADERS } from '../extractors/movies/vidrock';
-import { fetchVidzeeFormats } from '../extractors/movies/vidzee';
-import { fetchParadiseFormats } from '../extractors/movies/animeparadise';
+import { VIDROCK_HEADERS } from '../extractors/movies/providers/vidrock';
+import { fetchVidzeeFormats } from '../extractors/movies/providers/vidzee';
+import { fetchParadiseFormats } from '../extractors/movies/providers/animeparadise';
 import { resolveLunaWatchPage } from '../extractors/movies/browserProbe';
 import type { MovieRef } from '../extractors/movies/parse';
 import type { Format, VideoInfo } from '@phantom/extractors';
 import type { MovieItem } from '../extractors/movies/browse';
 import { log, error as logError } from '../lib/log';
 import { fetchWithTimeout } from '../lib/net';
+import { legOfFormatId, markLegDown } from '../lib/providerHealth';
 
 export type PlayerPhase = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -125,13 +126,7 @@ async function handleReResolve(
     formats: picked.formats,
     downloadHeaders: picked.headers,
   };
-  await play(
-    best,
-    info.title,
-    info.thumbnail ?? undefined,
-    picked.headers,
-    at
-  );
+  await play(best, info.title, info.thumbnail ?? undefined, picked.headers, at);
   log('Player', `resumed ${best.formatId} at ${Math.round(at)}s`);
   return { best, rest, info: updatedInfo };
 }
@@ -202,6 +197,7 @@ export function useMoviePlayer() {
   const target = useRef<TitleRef | null>(null);
   const retried = useRef(false);
   const sameRetried = useRef(false);
+  const recovering = useRef(false);
   const queue = useRef<Format[]>([]);
   const deadUrls = useRef<string[]>([]);
 
@@ -280,6 +276,7 @@ export function useMoviePlayer() {
       target.current = goal;
       retried.current = false;
       sameRetried.current = false;
+      recovering.current = false;
       queue.current = [];
       deadUrls.current = [];
       setPhase('loading');
@@ -324,25 +321,84 @@ export function useMoviePlayer() {
   );
 
   const switchQuality = useCallback(
-    async (format: Format) => {
+    async (
+      format: Format,
+      headers?: Record<string, string>,
+      rest?: Format[]
+    ) => {
       if (!info) return;
       const at = player.currentTime;
       setCurrentId(format.formatId);
       sameRetried.current = false;
-      queue.current = info.formats.filter(
+      queue.current = (rest ?? info.formats).filter(
         (entry) => entry.formatId !== format.formatId
       );
       await playSource(
         format,
         info.title,
         info.thumbnail ?? undefined,
-        info.downloadHeaders ?? VIDROCK_HEADERS,
+        headers ?? info.downloadHeaders ?? VIDROCK_HEADERS,
         at
       );
       log('Player', `quality ${format.formatId} resumed at ${Math.round(at)}s`);
     },
     [info, playSource, player]
   );
+
+  const recoverFromStall = useCallback(async (): Promise<boolean> => {
+    const goal = target.current;
+    if (!goal || recovering.current) return false;
+    recovering.current = true;
+    try {
+      const at = player.currentTime;
+      noteDeadUrl(deadUrls.current, info, currentId);
+      queue.current = queue.current.filter(
+        (fmt) => !deadUrls.current.includes(fmt.url)
+      );
+      const failed =
+        info?.formats.find((format) => format.formatId === currentId) ?? null;
+      const dead = failed ? legOfFormatId(failed.formatId) : null;
+      if (dead) markLegDown(dead);
+      const headers = info?.downloadHeaders ?? VIDROCK_HEADERS;
+      const title = info?.title ?? goal.id;
+      const artwork = info?.thumbnail ?? undefined;
+      const trying = queue.current[0];
+      if (trying) {
+        queue.current = queue.current.slice(1);
+        sameRetried.current = false;
+        setCurrentId(trying.formatId);
+        log('Player', `stall at ${Math.round(at)}s, trying ${trying.formatId}`);
+        await playSource(trying, title, artwork, headers, at);
+        if (target.current !== goal) return false;
+        log('Player', `resumed ${trying.formatId} at ${Math.round(at)}s`);
+        return true;
+      }
+      if (retried.current) return false;
+      retried.current = true;
+      log('Player', `stall at ${Math.round(at)}s, re-resolving`);
+      const resumed = await handleReResolve(
+        goal,
+        deadUrls.current,
+        info,
+        at,
+        playSource
+      );
+      if (target.current !== goal || !resumed) return false;
+      queue.current = resumed.rest;
+      sameRetried.current = false;
+      setInfo(resumed.info);
+      setCurrentId(resumed.best.formatId);
+      return true;
+    } catch (err) {
+      logError(
+        'Player',
+        `stall fallback failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+      return false;
+    } finally {
+      recovering.current = false;
+    }
+  }, [info, currentId, playSource, player]);
 
   useEffect(() => {
     if (statusEvent?.status !== 'error' || !target.current) return;
@@ -385,6 +441,8 @@ export function useMoviePlayer() {
       if (trying) {
         queue.current = queue.current.slice(1);
         sameRetried.current = false;
+        const dead = current ? legOfFormatId(current.formatId) : null;
+        if (dead) markLegDown(dead);
         log(
           'Player',
           `${goal.kind}/${goal.id} ${detail} at ${Math.round(at)}s, trying ${trying.formatId}`
@@ -414,6 +472,8 @@ export function useMoviePlayer() {
         return;
       }
       retried.current = true;
+      const gone = current ? legOfFormatId(current.formatId) : null;
+      if (gone) markLegDown(gone);
       log(
         'Player',
         `${goal.kind}/${goal.id} ${detail} at ${Math.round(at)}s, re-resolving`
@@ -444,6 +504,7 @@ export function useMoviePlayer() {
     player.pause();
     target.current = null;
     queue.current = [];
+    recovering.current = false;
     setPhase('idle');
     setInfo(null);
     setFault(null);
@@ -462,5 +523,6 @@ export function useMoviePlayer() {
     open,
     close,
     switchQuality,
+    recoverFromStall,
   };
 }

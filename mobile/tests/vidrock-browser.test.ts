@@ -6,7 +6,10 @@ vi.mock('../src/lib/net', () => ({
 }));
 
 import { fetchWithTimeout, gatedFetch } from '../src/lib/net';
-import { vidrockToFormats, hasBlockedHosts } from '../src/extractors/movies/vidrock';
+import {
+  vidrockToFormats,
+  hasBlockedHosts,
+} from '../src/extractors/movies/providers/vidrock';
 import { resolveWatchPageViaBrowser } from '../src/extractors/movies/browserProbe';
 
 const mockedFetch = vi.mocked(gatedFetch);
@@ -26,7 +29,13 @@ describe('vidrock bot-block detection', () => {
   it('marks challenge hosts when probing fails', async () => {
     mockedFetch.mockResolvedValue(blockedResponse());
     const formats = await vidrockToFormats(
-      [{ name: 'Orion', url: 'https://staticreverie.site/file1/abc', streamType: 'hls' }],
+      [
+        {
+          name: 'Orion',
+          url: 'https://staticreverie.site/file1/abc',
+          streamType: 'hls',
+        },
+      ],
       0,
       { quick: true }
     );
@@ -38,17 +47,19 @@ describe('vidrock bot-block detection', () => {
 describe('resolveWatchPageViaBrowser', () => {
   it('maps scanned videos to formats, hls first', async () => {
     const pageUrl = 'https://watchluna.gd/watch/movie/1';
-    const found = await resolveWatchPageViaBrowser(pageUrl, () => Promise.resolve({
-      url: pageUrl,
-      title: 'Test',
-      videos: [
-        { url: pageUrl },
-        { url: 'https://cdn.example/vid.mp4' },
-        { url: 'https://cdn.example/master.m3u8' },
-      ],
-      images: [],
-      cookies: 'session=abc',
-    }));
+    const found = await resolveWatchPageViaBrowser(pageUrl, () =>
+      Promise.resolve({
+        url: pageUrl,
+        title: 'Test',
+        videos: [
+          { url: pageUrl },
+          { url: 'https://cdn.example/vid.mp4' },
+          { url: 'https://cdn.example/master.m3u8' },
+        ],
+        images: [],
+        cookies: 'session=abc',
+      })
+    );
     expect(found?.formats.map((format) => format.url)).toEqual([
       'https://cdn.example/master.m3u8',
       'https://cdn.example/vid.mp4',
@@ -57,7 +68,10 @@ describe('resolveWatchPageViaBrowser', () => {
   });
 
   it('returns null when the scan is empty', async () => {
-    const found = await resolveWatchPageViaBrowser('https://watchluna.gd/watch/movie/1', () => Promise.resolve(null));
+    const found = await resolveWatchPageViaBrowser(
+      'https://watchluna.gd/watch/movie/1',
+      () => Promise.resolve(null)
+    );
     expect(found).toBeNull();
   });
 
@@ -84,6 +98,8 @@ describe('resolveWatchPageViaBrowser', () => {
       });
     });
     expect(calls).toEqual([pageUrl, embedUrl]);
-    expect(found?.formats.map((format) => format.url)).toEqual(['https://cdn.example/stream.m3u8']);
+    expect(found?.formats.map((format) => format.url)).toEqual([
+      'https://cdn.example/stream.m3u8',
+    ]);
   });
 });

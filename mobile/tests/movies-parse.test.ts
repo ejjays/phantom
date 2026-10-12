@@ -9,7 +9,7 @@ vi.mock('../src/lib/net', () => ({
 import { fetchWithTimeout, gatedFetch } from '../src/lib/net';
 import { getInfo } from '../src/extractors/movies';
 import { parseMovieUrl } from '../src/extractors/movies/parse';
-import { decryptVidrockPayload } from '../src/extractors/movies/aesgcm';
+import { decryptVidrockPayload } from '../src/extractors/movies/providers/aesgcm';
 
 const mockFetch = vi.mocked(gatedFetch);
 const mockTimeout = vi.mocked(fetchWithTimeout);
@@ -21,7 +21,8 @@ const NOVA_ENC =
 const ORION_ENC =
   'Q0lqMnz1a1PjlCYOfIwhPBuDmgeXdwlAlQo5DuKb7-gpEJjWmnsROLHy5OpqAPKkkdCGVITTnp_1-hizyR0seRxc6GHxHOIWYj3muoJFfUts94CxHiK2n-spdvSyRWG8EoGGgHNeqlRbW5WjApCAYPKciaG4IuSrZEQHnKWboRWMEO8M5fCAWtfq';
 
-const NOVA_URL = 'https://cdn.ngcorp.dad/movie/dXzi-QzFxXuGNkuKPWHpYpV7zLX_w5hK2_oVxM3q4D4.I7EGXjzO/bigtits.m3u8';
+const NOVA_URL =
+  'https://cdn.ngcorp.dad/movie/dXzi-QzFxXuGNkuKPWHpYpV7zLX_w5hK2_oVxM3q4D4.I7EGXjzO/bigtits.m3u8';
 const ORION_URL =
   'https://roguefrequency.live/file1/ZGEzZjlmZjQxNGJmMmExNWUxYzNhZDg5Yjc2OTI3OTYxNzg5NjQyNDk0MjExMTcy/master.m3u8';
 
@@ -30,7 +31,12 @@ const MOVIE_HTML = `<!doctype html><html><head><title>Watch Your Fault: London |
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Movie","name":"Your Fault: London","description":"Nick and Noah","image":"https://image.tmdb.org/t/p/w500/nLxu237EJAisFCYKK48hN9Plobx.jpg","duration":"PT123M"}</script>
 </head><body></body></html>`;
 
-const MEDIA_PLAYLIST = ['#EXTM3U', '#EXT-X-VERSION:6', '#EXTINF:10.0,', 'https://seg.example/1.ts'].join('\n');
+const MEDIA_PLAYLIST = [
+  '#EXTM3U',
+  '#EXT-X-VERSION:6',
+  '#EXTINF:10.0,',
+  'https://seg.example/1.ts',
+].join('\n');
 
 const MASTER_PLAYLIST = [
   '#EXTM3U',
@@ -53,7 +59,11 @@ const VARIANT_MEDIA = [
 ].join('\n');
 
 function textRes(body: string, ok = true): Response {
-  return { ok, status: ok ? 200 : 404, text: () => Promise.resolve(body) } as unknown as Response;
+  return {
+    ok,
+    status: ok ? 200 : 404,
+    text: () => Promise.resolve(body),
+  } as unknown as Response;
 }
 
 function jsonRes(body: unknown, ok = true): Response {
@@ -76,13 +86,34 @@ function playlistRes(body: string): Response {
 
 describe('parseMovieUrl', () => {
   it.each([
-    ['https://watchluna.gd/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
-    ['https://watchluna.gd/watch/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
-    ['https://www.watchluna.gd/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
-    ['https://watchluna.to/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
-    ['https://watchluna.to/watch/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
-    ['https://watchluna.io/movie/1477317', { kind: 'movie', tmdbId: '1477317' }],
-    ['https://watchluna.io/tv/1399/2/3', { kind: 'tv', tmdbId: '1399', season: '2', episode: '3' }],
+    [
+      'https://watchluna.gd/movie/1477317',
+      { kind: 'movie', tmdbId: '1477317' },
+    ],
+    [
+      'https://watchluna.gd/watch/movie/1477317',
+      { kind: 'movie', tmdbId: '1477317' },
+    ],
+    [
+      'https://www.watchluna.gd/movie/1477317',
+      { kind: 'movie', tmdbId: '1477317' },
+    ],
+    [
+      'https://watchluna.to/movie/1477317',
+      { kind: 'movie', tmdbId: '1477317' },
+    ],
+    [
+      'https://watchluna.to/watch/movie/1477317',
+      { kind: 'movie', tmdbId: '1477317' },
+    ],
+    [
+      'https://watchluna.io/movie/1477317',
+      { kind: 'movie', tmdbId: '1477317' },
+    ],
+    [
+      'https://watchluna.io/tv/1399/2/3',
+      { kind: 'tv', tmdbId: '1399', season: '2', episode: '3' },
+    ],
     [
       'https://watchluna.com/movies/watch-your-fault-london-online-free-1477317',
       { kind: 'movie', tmdbId: '1477317' },
@@ -92,8 +123,14 @@ describe('parseMovieUrl', () => {
   });
 
   it.each([
-    ['https://watchluna.gd/tv/1399/1/2', { kind: 'tv', tmdbId: '1399', season: '1', episode: '2' }],
-    ['https://watchluna.gd/watch/tv/1399/1/2', { kind: 'tv', tmdbId: '1399', season: '1', episode: '2' }],
+    [
+      'https://watchluna.gd/tv/1399/1/2',
+      { kind: 'tv', tmdbId: '1399', season: '1', episode: '2' },
+    ],
+    [
+      'https://watchluna.gd/watch/tv/1399/1/2',
+      { kind: 'tv', tmdbId: '1399', season: '1', episode: '2' },
+    ],
   ])('parses tv %s', (url, expected) => {
     expect(parseMovieUrl(url)).toEqual(expected);
   });
@@ -114,7 +151,9 @@ describe('decryptVidrockPayload', () => {
   });
 
   it('rejects tampered payloads', () => {
-    expect(() => decryptVidrockPayload(`${NOVA_ENC.slice(0, -2)}AB`, KEY)).toThrow();
+    expect(() =>
+      decryptVidrockPayload(`${NOVA_ENC.slice(0, -2)}AB`, KEY)
+    ).toThrow();
   });
 });
 
@@ -157,7 +196,8 @@ describe('movies getInfo', () => {
           })
         );
       }
-      if (target.includes('watchluna.gd/movie/')) return Promise.resolve(textRes(MOVIE_HTML));
+      if (target.includes('watchluna.gd/movie/'))
+        return Promise.resolve(textRes(MOVIE_HTML));
       if (target.includes('vidrock.net/api/movie/')) {
         return Promise.resolve(
           jsonRes({
@@ -167,9 +207,12 @@ describe('movies getInfo', () => {
           })
         );
       }
-      if (target.includes('cdn.ngcorp.dad')) return Promise.resolve(playlistRes(MEDIA_PLAYLIST));
-      if (target.includes('roguefrequency.live')) return Promise.resolve(playlistRes(MASTER_PLAYLIST));
-      if (target.includes('cdn.example/')) return Promise.resolve(playlistRes(VARIANT_MEDIA));
+      if (target.includes('cdn.ngcorp.dad'))
+        return Promise.resolve(playlistRes(MEDIA_PLAYLIST));
+      if (target.includes('roguefrequency.live'))
+        return Promise.resolve(playlistRes(MASTER_PLAYLIST));
+      if (target.includes('cdn.example/'))
+        return Promise.resolve(playlistRes(VARIANT_MEDIA));
       if (target.includes('seg.example') && init?.method === 'HEAD') {
         return Promise.resolve(headRes('video/mp2t', 300000));
       }
@@ -195,7 +238,9 @@ describe('movies getInfo', () => {
   it('uses playlist claims for variant sizes instead of probing segments', async () => {
     mockHappy();
     const info = await getInfo('https://watchluna.gd/watch/movie/1477317');
-    const orion1080 = info?.formats.find((f) => f.formatId.includes('orion-1080p'));
+    const orion1080 = info?.formats.find((f) =>
+      f.formatId.includes('orion-1080p')
+    );
     expect(orion1080?.filesize).toBeGreaterThan(1000000000);
   });
 
@@ -203,7 +248,8 @@ describe('movies getInfo', () => {
     mockHappy();
     mockFetch.mockImplementation((reqUrl: unknown, init?: RequestInit) => {
       const target = String(reqUrl);
-      if (target.includes('watchluna.gd/movie/')) return Promise.resolve(textRes(MOVIE_HTML));
+      if (target.includes('watchluna.gd/movie/'))
+        return Promise.resolve(textRes(MOVIE_HTML));
       if (target.includes('vidrock.net/api/movie/')) {
         return Promise.resolve(
           jsonRes({
@@ -212,8 +258,10 @@ describe('movies getInfo', () => {
           })
         );
       }
-      if (target.includes('cdn.ngcorp.dad')) return Promise.resolve(playlistRes(MEDIA_PLAYLIST));
-      if (target.includes('roguefrequency.live')) return Promise.resolve(playlistRes(MASTER_PLAYLIST));
+      if (target.includes('cdn.ngcorp.dad'))
+        return Promise.resolve(playlistRes(MEDIA_PLAYLIST));
+      if (target.includes('roguefrequency.live'))
+        return Promise.resolve(playlistRes(MASTER_PLAYLIST));
       if (target.includes('seg.example') && init?.method === 'HEAD') {
         return Promise.resolve(headRes('image/png', 618214));
       }
@@ -246,13 +294,16 @@ describe('movies getInfo', () => {
   it('throws a typed error when vidrock has no sources', async () => {
     mockFetch.mockImplementation((reqUrl: unknown) => {
       const target = String(reqUrl);
-      if (target.includes('watchluna.gd/movie/')) return Promise.resolve(textRes(MOVIE_HTML));
+      if (target.includes('watchluna.gd/movie/'))
+        return Promise.resolve(textRes(MOVIE_HTML));
       if (target.includes('vidrock.net/api/')) {
         return Promise.resolve(jsonRes({ Atlas: { url: null, type: null } }));
       }
       return Promise.resolve(textRes('', false));
     });
-    await expect(getInfo('https://watchluna.gd/movie/1477317')).rejects.toThrow(/downloadable/iu);
+    await expect(getInfo('https://watchluna.gd/movie/1477317')).rejects.toThrow(
+      /downloadable/iu
+    );
   });
 
   it('falls back to the canonical host when the pasted domain fails meta', async () => {
@@ -264,8 +315,12 @@ describe('movies getInfo', () => {
 
   it('decodes entities in titles exactly once', async () => {
     const { parseMovieMeta } = await import('../src/extractors/movies/parse');
-    expect(parseMovieMeta('<title>A &amp; B | Watchluna</title>', '1').title).toBe('A & B');
-    expect(parseMovieMeta('<title>A &amp;lt; B | Watchluna</title>', '1').title).toBe('A &lt; B');
+    expect(
+      parseMovieMeta('<title>A &amp; B | Watchluna</title>', '1').title
+    ).toBe('A & B');
+    expect(
+      parseMovieMeta('<title>A &amp;lt; B | Watchluna</title>', '1').title
+    ).toBe('A &lt; B');
   });
 
   it('returns null for non-luna urls', async () => {

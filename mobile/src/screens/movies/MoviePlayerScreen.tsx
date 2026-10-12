@@ -38,9 +38,16 @@ import {
   Gauge,
   Minus,
   Plus,
+  Server,
 } from 'lucide-react-native';
 import tw from '../../lib/tw';
-import { Play3Icon, CcOutlineIcon, CcFilledIcon, ArrowLeft2Icon, ArrowDown5Icon } from '../../components/icons';
+import {
+  Play3Icon,
+  CcOutlineIcon,
+  CcFilledIcon,
+  ArrowLeft2Icon,
+  ArrowDown5Icon,
+} from '../../components/icons';
 import { useBackHandler } from '../../lib/back';
 import { useMoviePlayer } from '../../hooks/useMoviePlayer';
 import { useFullscreenLock } from '../../hooks/useFullscreenLock';
@@ -54,6 +61,12 @@ import {
   formatSize,
   isAudioOnly,
 } from '../../lib/download/format';
+import {
+  matchHeight,
+  providerGroups,
+  scopedFormats,
+  visibleFormats,
+} from '../../lib/providers';
 import {
   pickTrack,
   splitLongCues,
@@ -70,7 +83,10 @@ import {
   transcribeFile as transcribeDeepgram,
   type TranscriptResult,
 } from '../../lib/transcribe/deepgram';
-import { transcribeFile as transcribeGroq, translateFile as groqTranslateFile } from '../../lib/transcribe/groq';
+import {
+  transcribeFile as transcribeGroq,
+  translateFile as groqTranslateFile,
+} from '../../lib/transcribe/groq';
 import {
   getEffectiveDeepgramKey,
   getGroqPool,
@@ -87,7 +103,7 @@ import { File, Paths } from 'expo-file-system';
 import { tapImpact, tapSelection } from '../../lib/haptics';
 import { usePressScale } from '../../hooks/usePressScale';
 import { log } from '../../lib/log';
-import type { Format, VideoInfo } from '@phantom/extractors';
+import type { Format, ProviderStreams, VideoInfo } from '@phantom/extractors';
 import type { MovieItem } from '../../extractors/movies/browse';
 import type { MovieRef } from '../../extractors/movies/parse';
 
@@ -444,6 +460,8 @@ function QualityMenu({
   open,
   formats,
   currentId,
+  providers,
+  providerKey,
   subsOn,
   subsLabel,
   subTracks,
@@ -453,6 +471,7 @@ function QualityMenu({
   subDelay,
   transcriber,
   onPick,
+  onPickProvider,
   onPickSub,
   onPickEmbed,
   onPickRate,
@@ -467,6 +486,8 @@ function QualityMenu({
   open: boolean;
   formats: Format[];
   currentId: string | null;
+  providers: ProviderStreams[];
+  providerKey: string | null;
   subsOn: boolean;
   subsLabel: string | null;
   subTracks: SubtitleTrack[];
@@ -478,6 +499,7 @@ function QualityMenu({
   subLang: SubLang;
   full: { done: number; total: number } | null;
   onPick: (format: Format) => void;
+  onPickProvider: (key: string | null) => void;
   onPickSub: (track: SubtitleTrack | null) => void;
   onPickEmbed: (track: NativeSubtitleTrack) => void;
   onPickRate: (rate: number) => void;
@@ -489,12 +511,15 @@ function QualityMenu({
 }) {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const [view, setView] = useState<'main' | 'quality' | 'subs' | 'speed'>(
-    'main'
-  );
+  const [view, setView] = useState<
+    'main' | 'quality' | 'provider' | 'subs' | 'speed'
+  >('main');
   const [preview, setPreview] = useState<number | null>(null);
   const current = formats.find((format) => format.formatId === currentId);
   const qualityLabel = current ? formatLabel(current) : '';
+  const activeProvider =
+    providers.find((group) => group.key === providerKey) ?? null;
+  const providerLabel = activeProvider ? activeProvider.label : 'Auto';
   const activeSubLabel = subsOn
     ? (subsLabel ??
       pickTrack(subTracks, 'en')?.label ??
@@ -589,6 +614,17 @@ function QualityMenu({
                       setView('quality');
                     }}
                   />
+                  {providers.length > 1 && (
+                    <MenuRow
+                      icon={<Server size={20} color="#ffffff" />}
+                      label="Provider"
+                      value={providerLabel}
+                      onPress={() => {
+                        tapSelection();
+                        setView('provider');
+                      }}
+                    />
+                  )}
                   <MenuRow
                     icon={<Captions size={20} color="#ffffff" />}
                     label="Subtitles"
@@ -639,6 +675,50 @@ function QualityMenu({
                     );
                   })}
                 </>
+              ) : view === 'provider' ? (
+                <>
+                  <MenuBack title="Provider" onBack={() => setView('main')} />
+                  <Pressable
+                    onPress={() => {
+                      tapSelection();
+                      onPickProvider(null);
+                      closeSheet();
+                    }}
+                    style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${!activeProvider ? 'bg-white/10' : ''}`}
+                  >
+                    <Text
+                      style={tw`font-mono-semibold text-[14px] ${!activeProvider ? 'text-white' : 'text-slate-300'}`}
+                    >
+                      Auto
+                    </Text>
+                    {!activeProvider && <Check size={18} color="#22d3ee" />}
+                  </Pressable>
+                  {providers.map((group) => {
+                    const selected = group.key === providerKey;
+                    const best = group.formats[0];
+                    return (
+                      <Pressable
+                        key={group.key}
+                        onPress={() => {
+                          tapSelection();
+                          onPickProvider(group.key);
+                          closeSheet();
+                        }}
+                        style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${selected ? 'bg-white/10' : ''}`}
+                      >
+                        <Text
+                          style={tw`flex-1 font-mono-semibold text-[14px] ${selected ? 'text-white' : 'text-slate-300'}`}
+                        >
+                          {group.label}
+                        </Text>
+                        <Text style={tw`font-mono text-[13px] text-slate-400`}>
+                          {best ? formatLabel(best) : ''}
+                        </Text>
+                        {selected && <Check size={18} color="#22d3ee" />}
+                      </Pressable>
+                    );
+                  })}
+                </>
               ) : view === 'subs' ? (
                 <>
                   <MenuBack title="Subtitles" onBack={() => setView('main')} />
@@ -647,204 +727,211 @@ function QualityMenu({
                     contentContainerStyle={tw`pb-2`}
                     showsVerticalScrollIndicator={false}
                   >
-                  {embedTracks.length > 0 && (
-                    <Text
-                      style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
-                    >
-                      On this video
-                    </Text>
-                  )}
-                  {embedTracks.map((track) => {
-                    const active =
-                      embedSel !== null &&
-                      (embedSel.id ?? embedSel.label) ===
-                        (track.id ?? track.label);
-                    return (
-                      <Pressable
-                        key={track.id ?? track.label}
-                        onPress={() => {
-                          tapSelection();
-                          onPickEmbed(track);
-                          closeSheet();
-                        }}
-                        style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
-                      >
-                        <Text
-                          style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
-                        >
-                          {track.label}
-                        </Text>
-                        {active && <Check size={18} color="#22d3ee" />}
-                      </Pressable>
-                    );
-                  })}
-                  {embedTracks.length > 0 && (
-                    <Text
-                      style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
-                    >
-                      More subtitles
-                    </Text>
-                  )}
-                  <Pressable
-                    onPress={() => {
-                      tapSelection();
-                      onPickSub(null);
-                      closeSheet();
-                    }}
-                    style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${!subsOn ? 'bg-white/10' : ''}`}
-                  >
-                    <Text
-                      style={tw`font-mono-semibold text-[14px] ${!subsOn ? 'text-white' : 'text-slate-300'}`}
-                    >
-                      Off
-                    </Text>
-                    {!subsOn && <Check size={18} color="#22d3ee" />}
-                  </Pressable>
-                  {subTracks.map((track) => {
-                    const active = subsOn && track.label === activeSubLabel;
-                    return (
-                      <Pressable
-                        key={track.url}
-                        onPress={() => {
-                          tapSelection();
-                          onPickSub(track);
-                          closeSheet();
-                        }}
-                        style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
-                      >
-                        <Text
-                          style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
-                        >
-                          {track.label}
-                        </Text>
-                        {active && <Check size={18} color="#22d3ee" />}
-                      </Pressable>
-                    );
-                  })}
-                  <Text
-                    style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
-                  >
-                    Transcribe with
-                  </Text>
-                  {(['deepgram', 'groq'] as const).map((choice) => {
-                    const active = transcriber === choice;
-                    return (
-                      <Pressable
-                        key={choice}
-                        onPress={() => {
-                          tapSelection();
-                          onTranscriber(choice);
-                        }}
-                        style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
-                      >
-                        <Text
-                          style={tw`font-mono-semibold text-[14px] capitalize ${active ? 'text-white' : 'text-slate-300'}`}
-                        >
-                          {choice}
-                        </Text>
-                        {active && <Check size={18} color="#22d3ee" />}
-                      </Pressable>
-                    );
-                  })}
-                  <Text
-                    style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
-                  >
-                    Subtitles in
-                  </Text>
-                  {(
-                    [
-                      ['same', 'Same as audio'],
-                      ['en', 'English'],
-                      ['ko', 'Korean'],
-                      ['ja', 'Japanese'],
-                      ['es', 'Spanish'],
-                      ['fr', 'French'],
-                    ] as const
-                  ).map(([choice, title]) => {
-                    const active = subLang === choice;
-                    return (
-                      <Pressable
-                        key={choice}
-                        onPress={() => {
-                          tapSelection();
-                          onSubLang(choice);
-                        }}
-                        style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
-                      >
-                        <Text
-                          style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
-                        >
-                          {title}
-                        </Text>
-                        {active && <Check size={18} color="#22d3ee" />}
-                      </Pressable>
-                    );
-                  })}
-                  <View
-                    style={tw`flex-row items-center justify-between px-3 py-2`}
-                  >
-                    <Text
-                      style={tw`font-mono-semibold text-[14px] text-slate-300`}
-                    >
-                      Sync
-                    </Text>
-                    <View style={tw`flex-row items-center gap-2`}>
-                      <Pressable
-                        onPress={() => {
-                          tapSelection();
-                          onDelay(
-                            Math.max(
-                              -10,
-                              Math.round((subDelay - 0.5) * 10) / 10
-                            )
-                          );
-                        }}
-                        style={tw`h-9 w-9 items-center justify-center rounded-full bg-white/10`}
-                        accessibilityLabel="Delay subtitles"
-                      >
-                        <Minus size={16} color="#ffffff" />
-                      </Pressable>
+                    {embedTracks.length > 0 && (
                       <Text
-                        style={tw`w-12 text-center font-mono text-[13px] text-white`}
+                        style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
                       >
-                        {formatDelay(subDelay)}
+                        On this video
                       </Text>
-                      <Pressable
-                        onPress={() => {
-                          tapSelection();
-                          onDelay(
-                            Math.min(10, Math.round((subDelay + 0.5) * 10) / 10)
-                          );
-                        }}
-                        style={tw`h-9 w-9 items-center justify-center rounded-full bg-white/10`}
-                        accessibilityLabel="Advance subtitles"
+                    )}
+                    {embedTracks.map((track) => {
+                      const active =
+                        embedSel !== null &&
+                        (embedSel.id ?? embedSel.label) ===
+                          (track.id ?? track.label);
+                      return (
+                        <Pressable
+                          key={track.id ?? track.label}
+                          onPress={() => {
+                            tapSelection();
+                            onPickEmbed(track);
+                            closeSheet();
+                          }}
+                          style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                        >
+                          <Text
+                            style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
+                          >
+                            {track.label}
+                          </Text>
+                          {active && <Check size={18} color="#22d3ee" />}
+                        </Pressable>
+                      );
+                    })}
+                    {embedTracks.length > 0 && (
+                      <Text
+                        style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
                       >
-                        <Plus size={16} color="#ffffff" />
-                      </Pressable>
-                    </View>
-                  </View>
-                  {full && (
-                    <View
-                      style={tw`mt-1 flex-row items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-3`}
+                        More subtitles
+                      </Text>
+                    )}
+                    <Pressable
+                      onPress={() => {
+                        tapSelection();
+                        onPickSub(null);
+                        closeSheet();
+                      }}
+                      style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${!subsOn ? 'bg-white/10' : ''}`}
                     >
-                      <ActivityIndicator size="small" color="#ffffff" />
-                      <Text style={tw`font-sans-medium text-[14px] text-white`}>
-                        {`Transcribing ${full.done}/${full.total}…`}
-                      </Text>
-                      <Pressable
-                        onPress={() => {
-                          tapSelection();
-                          onStopFull();
-                        }}
-                        style={tw`ml-2 rounded-full bg-white/10 px-3 py-1.5`}
-                        accessibilityLabel="Cancel full transcription"
+                      <Text
+                        style={tw`font-mono-semibold text-[14px] ${!subsOn ? 'text-white' : 'text-slate-300'}`}
                       >
-                        <Text style={tw`font-sans-semibold text-[13px] text-white`}>
-                          Stop
+                        Off
+                      </Text>
+                      {!subsOn && <Check size={18} color="#22d3ee" />}
+                    </Pressable>
+                    {subTracks.map((track) => {
+                      const active = subsOn && track.label === activeSubLabel;
+                      return (
+                        <Pressable
+                          key={track.url}
+                          onPress={() => {
+                            tapSelection();
+                            onPickSub(track);
+                            closeSheet();
+                          }}
+                          style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                        >
+                          <Text
+                            style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
+                          >
+                            {track.label}
+                          </Text>
+                          {active && <Check size={18} color="#22d3ee" />}
+                        </Pressable>
+                      );
+                    })}
+                    <Text
+                      style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
+                    >
+                      Transcribe with
+                    </Text>
+                    {(['deepgram', 'groq'] as const).map((choice) => {
+                      const active = transcriber === choice;
+                      return (
+                        <Pressable
+                          key={choice}
+                          onPress={() => {
+                            tapSelection();
+                            onTranscriber(choice);
+                          }}
+                          style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                        >
+                          <Text
+                            style={tw`font-mono-semibold text-[14px] capitalize ${active ? 'text-white' : 'text-slate-300'}`}
+                          >
+                            {choice}
+                          </Text>
+                          {active && <Check size={18} color="#22d3ee" />}
+                        </Pressable>
+                      );
+                    })}
+                    <Text
+                      style={tw`px-3 pb-1 pt-2 font-mono text-[11px] text-slate-500`}
+                    >
+                      Subtitles in
+                    </Text>
+                    {(
+                      [
+                        ['same', 'Same as audio'],
+                        ['en', 'English'],
+                        ['ko', 'Korean'],
+                        ['ja', 'Japanese'],
+                        ['es', 'Spanish'],
+                        ['fr', 'French'],
+                      ] as const
+                    ).map(([choice, title]) => {
+                      const active = subLang === choice;
+                      return (
+                        <Pressable
+                          key={choice}
+                          onPress={() => {
+                            tapSelection();
+                            onSubLang(choice);
+                          }}
+                          style={tw`flex-row items-center justify-between rounded-xl px-3 py-3 ${active ? 'bg-white/10' : ''}`}
+                        >
+                          <Text
+                            style={tw`font-mono-semibold text-[14px] ${active ? 'text-white' : 'text-slate-300'}`}
+                          >
+                            {title}
+                          </Text>
+                          {active && <Check size={18} color="#22d3ee" />}
+                        </Pressable>
+                      );
+                    })}
+                    <View
+                      style={tw`flex-row items-center justify-between px-3 py-2`}
+                    >
+                      <Text
+                        style={tw`font-mono-semibold text-[14px] text-slate-300`}
+                      >
+                        Sync
+                      </Text>
+                      <View style={tw`flex-row items-center gap-2`}>
+                        <Pressable
+                          onPress={() => {
+                            tapSelection();
+                            onDelay(
+                              Math.max(
+                                -10,
+                                Math.round((subDelay - 0.5) * 10) / 10
+                              )
+                            );
+                          }}
+                          style={tw`h-9 w-9 items-center justify-center rounded-full bg-white/10`}
+                          accessibilityLabel="Delay subtitles"
+                        >
+                          <Minus size={16} color="#ffffff" />
+                        </Pressable>
+                        <Text
+                          style={tw`w-12 text-center font-mono text-[13px] text-white`}
+                        >
+                          {formatDelay(subDelay)}
                         </Text>
-                      </Pressable>
+                        <Pressable
+                          onPress={() => {
+                            tapSelection();
+                            onDelay(
+                              Math.min(
+                                10,
+                                Math.round((subDelay + 0.5) * 10) / 10
+                              )
+                            );
+                          }}
+                          style={tw`h-9 w-9 items-center justify-center rounded-full bg-white/10`}
+                          accessibilityLabel="Advance subtitles"
+                        >
+                          <Plus size={16} color="#ffffff" />
+                        </Pressable>
+                      </View>
                     </View>
-                  )}
+                    {full && (
+                      <View
+                        style={tw`mt-1 flex-row items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-3`}
+                      >
+                        <ActivityIndicator size="small" color="#ffffff" />
+                        <Text
+                          style={tw`font-sans-medium text-[14px] text-white`}
+                        >
+                          {`Transcribing ${full.done}/${full.total}…`}
+                        </Text>
+                        <Pressable
+                          onPress={() => {
+                            tapSelection();
+                            onStopFull();
+                          }}
+                          style={tw`ml-2 rounded-full bg-white/10 px-3 py-1.5`}
+                          accessibilityLabel="Cancel full transcription"
+                        >
+                          <Text
+                            style={tw`font-sans-semibold text-[13px] text-white`}
+                          >
+                            Stop
+                          </Text>
+                        </Pressable>
+                      </View>
+                    )}
                   </ScrollView>
                 </>
               ) : (
@@ -1200,6 +1287,9 @@ type TapSide = 'left' | 'center' | 'right';
 
 const TAP_SIDES: TapSide[] = ['left', 'center', 'right'];
 
+const STALL_FALLBACK_MS = 8000;
+const STALL_EXHAUSTED_COOLDOWN_MS = 60000;
+
 function useTapToPlay(
   visible: boolean,
   isPlaying: boolean,
@@ -1243,14 +1333,21 @@ type TranscribeFn = (
   lang: TranscribeLang
 ) => Promise<TranscriptResult>;
 
-function shiftTimes(result: TranscriptResult, offsetSec: number): TranscriptResult {
+function shiftTimes(
+  result: TranscriptResult,
+  offsetSec: number
+): TranscriptResult {
   if (offsetSec <= 0) return result;
   const shift = <T extends { start: number; end: number }>(entry: T): T => ({
     ...entry,
     start: entry.start + offsetSec,
     end: entry.end + offsetSec,
   });
-  return { words: result.words.map(shift), cues: result.cues.map(shift), lang: result.lang };
+  return {
+    words: result.words.map(shift),
+    cues: result.cues.map(shift),
+    lang: result.lang,
+  };
 }
 
 async function resolveTranscriber(subLang: SubLang): Promise<{
@@ -1280,7 +1377,11 @@ async function resolveTranscriber(subLang: SubLang): Promise<{
   return {
     provider: choice,
     apiKey,
-    transcribe: useGroqTranslate ? groqTranslateFile : choice === 'groq' ? transcribeGroq : transcribeDeepgram,
+    transcribe: useGroqTranslate
+      ? groqTranslateFile
+      : choice === 'groq'
+        ? transcribeGroq
+        : transcribeDeepgram,
     lang: 'auto' as TranscribeLang,
   };
 }
@@ -1291,7 +1392,9 @@ function generatedLabel(provider: TranscriberChoice): string {
 
 function shapeTranscript(transcript: TranscriptResult): SubtitleCue[] {
   const base =
-    transcript.cues.length > 0 ? transcript.cues : wordsToCues(transcript.words);
+    transcript.cues.length > 0
+      ? transcript.cues
+      : wordsToCues(transcript.words);
   return shiftEarly(splitLongCues(base, transcript.words));
 }
 
@@ -1309,14 +1412,17 @@ async function shapeFinal(
   subLang: SubLang
 ): Promise<{ cues: SubtitleCue[]; label: string }> {
   const base =
-    transcript.cues.length > 0 ? transcript.cues : wordsToCues(transcript.words);
+    transcript.cues.length > 0
+      ? transcript.cues
+      : wordsToCues(transcript.words);
   if (subLang !== 'same' && transcript.lang !== subLang) {
     const [groqPool, cerebrasKey] = await Promise.all([
       getGroqPool().catch(() => []),
       getCerebrasKey().catch(() => ''),
     ]);
     const primaryKey = groqPool.length > 0 ? groqPool : cerebrasKey;
-    const fallbackKey = groqPool.length > 0 && cerebrasKey ? cerebrasKey : undefined;
+    const fallbackKey =
+      groqPool.length > 0 && cerebrasKey ? cerebrasKey : undefined;
     if (!primaryKey || (Array.isArray(primaryKey) && primaryKey.length === 0)) {
       log('Player', 'cc translate skipped (no groq or cerebras key)');
     } else {
@@ -1325,10 +1431,13 @@ async function shapeFinal(
         transcript.lang || 'auto',
         subLang,
         primaryKey,
-        fallbackKey,
+        fallbackKey
       );
       if (lines) {
-        const translated = base.map((cue, i) => ({ ...cue, text: lines[i] ?? cue.text }));
+        const translated = base.map((cue, i) => ({
+          ...cue,
+          text: lines[i] ?? cue.text,
+        }));
         log('Player', `cc translated to ${subLang} lines=${lines.length}`);
         return {
           cues: shiftEarly(translated.flatMap((cue) => splitLongText(cue))),
@@ -1354,15 +1463,27 @@ async function transcribeSample(
 ): Promise<TranscriptResult | null> {
   const audio = new File(Paths.cache, `sync-${Date.now()}.mp3`);
   try {
-    const path = await extractAudioSample(url, headers, audio, windowSec, offsetSec, signal);
+    const path = await extractAudioSample(
+      url,
+      headers,
+      audio,
+      windowSec,
+      offsetSec,
+      signal
+    );
     const bytes = audio.size ?? 0;
-    log('Player', `cloud-sync via ${provider}: sample bytes=${bytes} offset=${offsetSec}s`);
+    log(
+      'Player',
+      `cloud-sync via ${provider}: sample bytes=${bytes} offset=${offsetSec}s`
+    );
     if (!path || bytes < 50_000) {
       log('Player', `cloud-sync via ${provider}: extract failed`);
       return null;
     }
     try {
-      const head = (audio as unknown as { bytesSync(): Uint8Array }).bytesSync().slice(0, 16);
+      const head = (audio as unknown as { bytesSync(): Uint8Array })
+        .bytesSync()
+        .slice(0, 16);
       log(
         'Player',
         `cloud-sync head=${Array.from(head, (byte) => byte.toString(16).padStart(2, '0')).join('')}`
@@ -1372,12 +1493,21 @@ async function transcribeSample(
     }
     const result = await transcribe(audio.uri, 'audio/mpeg', apiKey, lang);
     if (result.words.length < 5 && lang !== 'auto') {
-      log('Player', `cloud-sync via ${provider}: only ${result.words.length} words, retrying auto-detect`);
-      const retry = await transcribe(audio.uri, 'audio/mpeg', apiKey, 'auto').catch(
-        (): TranscriptResult | null => null
+      log(
+        'Player',
+        `cloud-sync via ${provider}: only ${result.words.length} words, retrying auto-detect`
       );
+      const retry = await transcribe(
+        audio.uri,
+        'audio/mpeg',
+        apiKey,
+        'auto'
+      ).catch((): TranscriptResult | null => null);
       if (retry && retry.words.length > result.words.length) {
-        log('Player', `cloud-sync via ${provider}: auto-detect heard ${retry.words.length} words`);
+        log(
+          'Player',
+          `cloud-sync via ${provider}: auto-detect heard ${retry.words.length} words`
+        );
         return shiftTimes(retry, offsetSec);
       }
     }
@@ -1721,6 +1851,7 @@ export default function MoviePlayerScreen({
     open,
     close,
     switchQuality,
+    recoverFromStall,
   } = useMoviePlayer();
   const subsAvailEvent = useEvent(
     player,
@@ -1732,6 +1863,7 @@ export default function MoviePlayerScreen({
   const { downloads, startDownload } = useDownload(info);
   const [controls, setControls] = useState(true);
   const [qualityOpen, setQualityOpen] = useState(false);
+  const [providerKey, setProviderKey] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [seekMark, setSeekMark] = useState<{
     side: 'left' | 'right';
@@ -1743,7 +1875,10 @@ export default function MoviePlayerScreen({
   const [transcriber, setTranscriberChoice] =
     useState<TranscriberChoice>('deepgram');
   const [subLang, setSubLangChoice] = useState<SubLang>('en');
-  const [fullProg, setFullProg] = useState<{ done: number; total: number } | null>(null);
+  const [fullProg, setFullProg] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const fullAbort = useRef<AbortController | null>(null);
   const fullKey = useRef<string>('');
   const liveKey = useRef(itemKey);
@@ -1755,7 +1890,13 @@ export default function MoviePlayerScreen({
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAdvance = useRef(Date.now());
-  const live = useRef({ pos: 0, buf: 0, playing: false });
+  const live = useRef({ pos: 0, buf: 0, playing: false, stalled: false });
+  const stallSince = useRef(0);
+  const stallCooldownUntil = useRef(0);
+  const recoverRef = useRef<() => Promise<boolean>>(() =>
+    Promise.resolve(false)
+  );
+  recoverRef.current = recoverFromStall;
   const { fullscreen, enter, exit } = useFullscreenLock();
 
   const handleClose = useCallback(() => {
@@ -1781,6 +1922,7 @@ export default function MoviePlayerScreen({
     if (!visible || !item) return;
     setSubDelay(0);
     setEmbedSel(null);
+    setProviderKey(null);
     getTranscriber()
       .then(setTranscriberChoice)
       .catch(() => undefined);
@@ -1908,6 +2050,34 @@ export default function MoviePlayerScreen({
     [poke]
   );
 
+  const groups = useMemo(() => providerGroups(info), [info]);
+  const menuFormats = useMemo(
+    () => visibleFormats(info, providerKey, currentId),
+    [info, providerKey, currentId]
+  );
+
+  const pickProvider = useCallback(
+    (key: string | null) => {
+      tapSelection();
+      setProviderKey(key);
+      const scope = scopedFormats(info, key);
+      const current =
+        scope.find((format) => format.formatId === currentId) ??
+        info?.formats.find((format) => format.formatId === currentId);
+      const next = matchHeight(scope, current?.height);
+      if (!next || next.url === current?.url) {
+        poke();
+        return;
+      }
+      const group = key
+        ? providerGroups(info).find((entry) => entry.key === key)
+        : undefined;
+      void switchQuality(next, group?.headers, group?.formats);
+      poke();
+    },
+    [info, currentId, poke, switchQuality]
+  );
+
   const duration = player.duration || info?.duration || 0;
   const buffered = player.bufferedPosition || 0;
   const thumbMedia = seekMedia(info, currentId);
@@ -1973,7 +2143,8 @@ export default function MoviePlayerScreen({
       }
       const total = plan.length;
       const startedAt = Date.now();
-      const elapsed = (): string => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
+      const elapsed = (): string =>
+        `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
       log(
         'Player',
         `full transcribe via ${provider}/${resolved.transcribe === groqTranslateFile ? 'translate' : lang}: ${total} chunks ~${Math.round(duration / 60)}min audio`
@@ -2019,6 +2190,21 @@ export default function MoviePlayerScreen({
       const runOne = async (): Promise<void> => {
         while (true) {
           if (signal?.aborted || liveKey.current !== key) return;
+          if (live.current.stalled) {
+            if (signal?.aborted) return;
+            await new Promise<void>((resolve) => {
+              const timer = setTimeout(resolve, 2500);
+              signal?.addEventListener(
+                'abort',
+                () => {
+                  clearTimeout(timer);
+                  resolve();
+                },
+                { once: true }
+              );
+            });
+            continue;
+          }
           const next = pickNextJob(plan, doneSet, live.current?.pos ?? 0, 600);
           if (next === 'done') break;
           if (next === 'wait') {
@@ -2040,7 +2226,10 @@ export default function MoviePlayerScreen({
           const job = plan[index];
           if (!job) break;
           const orderedUrls = preferredUrl
-            ? [preferredUrl, ...candidates.filter((candidate) => candidate !== preferredUrl)]
+            ? [
+                preferredUrl,
+                ...candidates.filter((candidate) => candidate !== preferredUrl),
+              ]
             : candidates;
           const outcome = await fetchTranscribeSample(
             orderedUrls,
@@ -2058,21 +2247,36 @@ export default function MoviePlayerScreen({
           }
           const transcript = outcome?.result ?? null;
           if (liveKey.current !== key) {
-            log('Player', `full transcribe abandoned, content changed (${key})`);
+            log(
+              'Player',
+              `full transcribe abandoned, content changed (${key})`
+            );
             return;
           }
-          if (transcript && (transcript.words.length > 0 || transcript.cues.length > 0)) {
+          if (
+            transcript &&
+            (transcript.words.length > 0 || transcript.cues.length > 0)
+          ) {
             const shaped = await shapeFinal(transcript, provider, subLang);
             if (liveKey.current !== key) {
-              log('Player', `full transcribe abandoned, content changed (${key})`);
+              log(
+                'Player',
+                `full transcribe abandoned, content changed (${key})`
+              );
               return;
             }
             all = mergeCues(all, shaped.cues);
             subs.setGeneratedCues(all, shaped.label);
             setSubsOn(true);
-            log('Player', `full transcribe chunk ${index + 1}/${total} +${elapsed()}`);
+            log(
+              'Player',
+              `full transcribe chunk ${index + 1}/${total} +${elapsed()}`
+            );
           } else {
-            log('Player', `full transcribe chunk ${index + 1}/${total} failed +${elapsed()}`);
+            log(
+              'Player',
+              `full transcribe chunk ${index + 1}/${total} failed +${elapsed()}`
+            );
           }
           doneSet.add(index);
           done = doneSet.size;
@@ -2116,7 +2320,9 @@ export default function MoviePlayerScreen({
   useEffect(() => {
     tickSubs(position - subDelay);
   }, [position, tickSubs, subDelay]);
-  live.current = { pos: position, buf: buffered, playing: isPlaying };
+  live.current.pos = position;
+  live.current.buf = buffered;
+  live.current.playing = isPlaying;
 
   useEffect(() => {
     lastAdvance.current = Date.now();
@@ -2138,11 +2344,14 @@ export default function MoviePlayerScreen({
 
   useEffect(() => {
     if (!visible) return;
+    stallSince.current = 0;
+    stallCooldownUntil.current = 0;
     const timer = setInterval(() => {
       const snap = live.current;
       const hungry = snap.buf - snap.pos < 3;
       const stuck =
         snap.playing && Date.now() - lastAdvance.current > 1500 && hungry;
+      live.current.stalled = stuck;
       setStalled((prev) => {
         if (prev !== stuck) {
           if (stuck)
@@ -2154,9 +2363,27 @@ export default function MoviePlayerScreen({
         }
         return stuck;
       });
+      const now = Date.now();
+      if (!stuck) {
+        stallSince.current = 0;
+        return;
+      }
+      if (stallSince.current === 0) stallSince.current = now;
+      if (
+        now - stallSince.current >= STALL_FALLBACK_MS &&
+        now >= stallCooldownUntil.current
+      ) {
+        stallSince.current = now;
+        void recoverRef.current().then((ok) => {
+          if (ok) lastAdvance.current = Date.now();
+          else
+            stallCooldownUntil.current =
+              Date.now() + STALL_EXHAUSTED_COOLDOWN_MS;
+        });
+      }
     }, 500);
     return () => clearInterval(timer);
-  }, [visible]);
+  }, [visible, itemKey]);
   const expanded = fullscreen;
   const portraitH = (Math.min(width, height) * 9) / 16;
   const portraitTop = portraitTopPad(insets.top);
@@ -2182,10 +2409,10 @@ export default function MoviePlayerScreen({
               fault={fault}
               title={info?.title ?? item?.title ?? ''}
               quality={
-                info?.formats.find((format) => format.formatId === currentId)
+                menuFormats.find((format) => format.formatId === currentId)
                   ?.quality ?? ''
               }
-              canQuality={(info?.formats.length ?? 0) > 1}
+              canQuality={menuFormats.length > 1}
               fullscreen={fullscreen}
               isPlaying={isPlaying}
               position={position}
@@ -2260,8 +2487,10 @@ export default function MoviePlayerScreen({
 
       <QualityMenu
         open={qualityOpen}
-        formats={info?.formats ?? []}
+        formats={menuFormats}
         currentId={currentId}
+        providers={groups}
+        providerKey={providerKey}
         subsOn={subsOn}
         subsLabel={subs.label}
         subTracks={subs.tracks}
@@ -2271,7 +2500,13 @@ export default function MoviePlayerScreen({
         subDelay={subDelay}
         transcriber={transcriber}
         subLang={subLang}
-        onPick={(format) => void switchQuality(format)}
+        onPick={(format) => {
+          const group = providerKey
+            ? groups.find((entry) => entry.key === providerKey)
+            : undefined;
+          void switchQuality(format, group?.headers, group?.formats);
+        }}
+        onPickProvider={pickProvider}
         onPickSub={pickSub}
         onPickEmbed={setEmbedSel}
         onPickRate={setRate}

@@ -1,9 +1,9 @@
 import type { Format } from '@phantom/extractors';
-import { fetchWithTimeout } from '../../lib/net';
-import { DESKTOP_UA } from '../../lib/userAgents';
-import { VIDZEE_API, VIDZEE_ORIGIN, VIDZEE_PLAYER } from './constants';
-import type { MovieRef } from './parse';
-import { log } from '../../lib/log';
+import { fetchWithTimeout } from '../../../lib/net';
+import { DESKTOP_UA } from '../../../lib/userAgents';
+import { VIDZEE_API, VIDZEE_ORIGIN, VIDZEE_PLAYER } from '../constants';
+import type { MovieRef } from '../parse';
+import { log } from '../../../lib/log';
 
 const FETCH_TIMEOUT_MS = 8000;
 
@@ -24,7 +24,9 @@ export function vidzeeEmbedUrl(ref: MovieRef): string {
     : `${VIDZEE_PLAYER}/embed/tv/${ref.tmdbId}/${ref.season}/${ref.episode}`;
 }
 
-export function vidzeeHeaders(extra?: Record<string, string>): Record<string, string> {
+export function vidzeeHeaders(
+  extra?: Record<string, string>
+): Record<string, string> {
   return {
     'User-Agent': DESKTOP_UA,
     Referer: `${VIDZEE_ORIGIN}/`,
@@ -54,7 +56,10 @@ function extraHeaders(value: unknown): Record<string, string> {
   return out;
 }
 
-async function fetchServer(ref: MovieRef, sr: string): Promise<ServerHit | null> {
+async function fetchServer(
+  ref: MovieRef,
+  sr: string
+): Promise<ServerHit | null> {
   let res: Response | null = null;
   try {
     res = await fetchWithTimeout(

@@ -3,15 +3,15 @@ import {
   parseHlsMaster,
   type Format,
 } from '@phantom/extractors';
-import { fetchWithTimeout } from '../../lib/net';
+import { fetchWithTimeout } from '../../../lib/net';
 
 // vidlove backends flap; never let one stall the title
 const FETCH_TIMEOUT_MS = 8000;
-import { log } from '../../lib/log';
-import { langOfLabel, type SubtitleTrack } from '../../lib/subtitles';
-import { DESKTOP_UA } from '../../lib/userAgents';
-import { VIDLOVE_API, VIDLOVE_ORIGIN, VIDLOVE_PLAYER } from './constants';
-import type { MovieRef } from './parse';
+import { log } from '../../../lib/log';
+import { langOfLabel, type SubtitleTrack } from '../../../lib/subtitles';
+import { DESKTOP_UA } from '../../../lib/userAgents';
+import { VIDLOVE_API, VIDLOVE_ORIGIN, VIDLOVE_PLAYER } from '../constants';
+import type { MovieRef } from '../parse';
 
 type VidloveQuality = { quality?: string; codec?: string; url?: string };
 
@@ -93,7 +93,9 @@ function qualityFormats(source: VidloveSource): Format[] {
       formatId: `vidlove-moviebox-${label.toLowerCase()}`,
       url: entry.url,
       extension: 'mp4',
-      resolution: height ? `${Math.round((height * 16) / 9)}x${height}` : undefined,
+      resolution: height
+        ? `${Math.round((height * 16) / 9)}x${height}`
+        : undefined,
       quality: label,
       width: height ? Math.round((height * 16) / 9) : undefined,
       height,
@@ -132,12 +134,14 @@ function manifestFormats(source: VidloveSource, durationSec: number): Format[] {
     ];
   }
   const master = parseHlsMaster(manifest, source.url);
-  const variants = hlsVariantsToFormats(master, { durationSec }).map((variant) => ({
-    ...variant,
-    formatId: `vidlove-vidapi-${variant.formatId}`,
-    hlsKeepAlive: true,
-    note: `vidlove ${source.label ?? 'VidAPI'}`,
-  }));
+  const variants = hlsVariantsToFormats(master, { durationSec }).map(
+    (variant) => ({
+      ...variant,
+      formatId: `vidlove-vidapi-${variant.formatId}`,
+      hlsKeepAlive: true,
+      note: `vidlove ${source.label ?? 'VidAPI'}`,
+    })
+  );
   const top = variants[0];
   const auto: Format[] =
     top && source.url
@@ -183,9 +187,7 @@ export async function fetchVidloveSubtitles(
       }
     }
   };
-  collect(
-    await Promise.all(apiUrls(ref).map((url) => fetchApi(url, headers)))
-  );
+  collect(await Promise.all(apiUrls(ref).map((url) => fetchApi(url, headers))));
   // subtitle lists flap between backends just like streams do: one retry
   // before concluding the title genuinely has none
   if (out.length === 0) {
@@ -194,7 +196,10 @@ export async function fetchVidloveSubtitles(
       await Promise.all(apiUrls(ref).map((url) => fetchApi(url, headers)))
     );
     if (out.length > 0) {
-      log('Movies', `vidlove retry found subtitles for ${ref.kind}/${ref.tmdbId}`);
+      log(
+        'Movies',
+        `vidlove retry found subtitles for ${ref.kind}/${ref.tmdbId}`
+      );
     }
   }
   return out;
@@ -218,7 +223,7 @@ export async function fetchVidloveFormats(
     for (const source of responses) {
       if (!source) continue;
       const candidates =
-        source.manifest?.includes('#EXTM3U') ?? false
+        (source.manifest?.includes('#EXTM3U') ?? false)
           ? manifestFormats(source, durationSec)
           : qualityFormats(source);
       for (const format of candidates) {

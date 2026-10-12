@@ -3,15 +3,15 @@ import {
   parseHlsMaster,
   type Format,
 } from '@phantom/extractors';
-import { fetchWithTimeout } from '../../lib/net';
-import { DESKTOP_UA } from '../../lib/userAgents';
-import { log } from '../../lib/log';
+import { fetchWithTimeout } from '../../../lib/net';
+import { DESKTOP_UA } from '../../../lib/userAgents';
+import { log } from '../../../lib/log';
 
 // one wedged cdn host must not stall the whole title
 const FETCH_TIMEOUT_MS = 8000;
-import { VIDROCK_API, VIDROCK_KEY_HEX, VIDROCK_REFERER } from './constants';
+import { VIDROCK_API, VIDROCK_KEY_HEX, VIDROCK_REFERER } from '../constants';
 import { decryptVidrockPayload } from './aesgcm';
-import type { MovieRef } from './parse';
+import type { MovieRef } from '../parse';
 
 export const VIDROCK_HEADERS: Record<string, string> = {
   'User-Agent': DESKTOP_UA,

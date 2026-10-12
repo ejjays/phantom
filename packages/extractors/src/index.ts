@@ -1,5 +1,6 @@
 export type {
   Format,
+  ProviderStreams,
   VideoInfo,
   Extractor,
   ExtractorOptions,

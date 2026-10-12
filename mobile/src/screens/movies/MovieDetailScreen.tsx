@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+  ScrollView,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -10,13 +16,23 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Download, Check, Star, ArrowLeft, RotateCcw, ChevronRight } from 'lucide-react-native';
+import {
+  Download,
+  Check,
+  Star,
+  ArrowLeft,
+  RotateCcw,
+  ChevronRight,
+} from 'lucide-react-native';
 import tw from '../../lib/tw';
 import { useBackHandler } from '../../lib/back';
 import { usePressScale } from '../../hooks/usePressScale';
 import { Play3Icon, Play3FilledIcon } from '../../components/icons';
 import { resolve } from '../../extractors';
-import { type MovieItem, type MovieTitle } from '../../extractors/movies/browse';
+import {
+  type MovieItem,
+  type MovieTitle,
+} from '../../extractors/movies/browse';
 import {
   fetchCredits,
   fetchTmdbTitle,
@@ -25,7 +41,10 @@ import {
   type TmdbSeason,
   type TmdbEpisode,
 } from '../../extractors/movies/tmdb';
-import { hasBlockedHosts, VIDROCK_HEADERS } from '../../extractors/movies/vidrock';
+import {
+  hasBlockedHosts,
+  VIDROCK_HEADERS,
+} from '../../extractors/movies/providers/vidrock';
 import { LUNA_HOSTS } from '../../extractors/movies/constants';
 import { useDownload } from '../../hooks/useDownload';
 import MovieEpisodesScreen from './MovieEpisodesScreen';
@@ -48,7 +67,9 @@ function Meta({ label, value }: { label: string; value: string }) {
   return (
     <View style={tw`flex-1`}>
       <Text style={tw`font-mono text-[11px] text-slate-500`}>{label}</Text>
-      <Text style={tw`mt-0.5 font-sans-semibold text-[15px] text-slate-100`}>{value}</Text>
+      <Text style={tw`mt-0.5 font-sans-semibold text-[15px] text-slate-100`}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -59,7 +80,10 @@ function DetailMeta({ details }: { details: MovieTitle }) {
     cells.push({ label: 'Rating', value: details.rating.toFixed(1) });
   }
   if (typeof details.durationSec === 'number') {
-    cells.push({ label: 'Runtime', value: `${Math.round(details.durationSec / 60)} min` });
+    cells.push({
+      label: 'Runtime',
+      value: `${Math.round(details.durationSec / 60)} min`,
+    });
   }
   if (details.year) cells.push({ label: 'Released', value: details.year });
   if (cells.length === 0) return null;
@@ -72,7 +96,11 @@ function DetailMeta({ details }: { details: MovieTitle }) {
   );
 }
 
-function detailsFromVideo(kind: MovieItem['kind'], id: string, full: VideoInfo): MovieTitle {
+function detailsFromVideo(
+  kind: MovieItem['kind'],
+  id: string,
+  full: VideoInfo
+): MovieTitle {
   return {
     id,
     kind,
@@ -117,18 +145,25 @@ function TitleBlock({
         />
       )}
       <View style={tw`flex-1 pb-1`}>
-        <Text style={tw`font-sans-bold text-[20px] leading-7 text-white`} numberOfLines={3}>
+        <Text
+          style={tw`font-sans-bold text-[20px] leading-7 text-white`}
+          numberOfLines={3}
+        >
           {title}
         </Text>
         <View style={tw`mt-1 flex-row items-center gap-2`}>
           {year && (
             <Text style={tw`font-mono text-[12px] text-slate-400`}>{year}</Text>
           )}
-          <Text style={tw`rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-slate-300`}>
+          <Text
+            style={tw`rounded bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-slate-300`}
+          >
             {kind === 'tv' ? 'TV Show' : 'Movie'}
           </Text>
           {contentRating && (
-            <Text style={tw`rounded border border-white/15 px-1.5 py-0.5 font-mono text-[10px] text-slate-400`}>
+            <Text
+              style={tw`rounded border border-white/15 px-1.5 py-0.5 font-mono text-[10px] text-slate-400`}
+            >
               {contentRating}
             </Text>
           )}
@@ -256,7 +291,8 @@ function WatchBar({
   const phase = dlPhase(status, Boolean(best), dlError);
   const idle = phase === 'ready' || phase === 'errored';
   const canRecheck = noSources && !checking;
-  const disabled = !idle && !canRecheck && phase !== 'busy' && phase !== 'saved';
+  const disabled =
+    !idle && !canRecheck && phase !== 'busy' && phase !== 'saved';
   const saved = phase === 'saved';
   const busy = phase === 'busy';
   const watchPress = usePressScale();
@@ -270,7 +306,12 @@ function WatchBar({
     transform: [{ scale: 0.5 + ready.value * 0.5 }],
   }));
   return (
-    <View style={[tw`absolute inset-x-0 bottom-0 px-4`, { paddingBottom: bottomPad }]}>
+    <View
+      style={[
+        tw`absolute inset-x-0 bottom-0 px-4`,
+        { paddingBottom: bottomPad },
+      ]}
+    >
       <View
         style={[
           tw`rounded-full border border-white/10 bg-[#1E1E1E] p-3`,
@@ -284,9 +325,13 @@ function WatchBar({
         ]}
       >
         {dlError ? (
-          <Text style={tw`mb-2 text-center font-mono text-[11px] text-red-400`}>{dlError}</Text>
+          <Text style={tw`mb-2 text-center font-mono text-[11px] text-red-400`}>
+            {dlError}
+          </Text>
         ) : noSources && !best ? (
-          <Text style={tw`mb-2 text-center font-mono text-[11px] text-slate-500`}>
+          <Text
+            style={tw`mb-2 text-center font-mono text-[11px] text-slate-500`}
+          >
             This title has no streams right now — check back after release.
           </Text>
         ) : null}
@@ -301,18 +346,30 @@ function WatchBar({
             disabled={!best}
             testID="movie-play-btn"
             accessibilityLabel="Watch now"
-            style={[tw`h-14 flex-1 items-center justify-center overflow-hidden rounded-full bg-[#EB2F3D]`, !best && tw`opacity-50`]}
+            style={[
+              tw`h-14 flex-1 items-center justify-center overflow-hidden rounded-full bg-[#EB2F3D]`,
+              !best && tw`opacity-50`,
+            ]}
           >
-            <Animated.View style={[tw`flex-row items-center gap-2`, watchPress.pressScaleStyle]}>
+            <Animated.View
+              style={[
+                tw`flex-row items-center gap-2`,
+                watchPress.pressScaleStyle,
+              ]}
+            >
               <View style={tw`h-5 w-5 items-center justify-center`}>
-              {!best && checking && <ActivityIndicator size="small" color="#FFFFFF" />}
-              {best && (
-                <Animated.View style={playStyle}>
-                  <Play3FilledIcon size={20} color="#FFFFFF" />
-                </Animated.View>
-              )}
-            </View>
-              <Text style={tw`font-sans-semibold text-[15px] text-white`}>Watch Now</Text>
+                {!best && checking && (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                )}
+                {best && (
+                  <Animated.View style={playStyle}>
+                    <Play3FilledIcon size={20} color="#FFFFFF" />
+                  </Animated.View>
+                )}
+              </View>
+              <Text style={tw`font-sans-semibold text-[15px] text-white`}>
+                Watch Now
+              </Text>
             </Animated.View>
           </Pressable>
           <Pressable
@@ -333,7 +390,10 @@ function WatchBar({
                     ? 'Check for sources again'
                     : 'Download this title'
             }
-            style={[tw`h-14 w-14 items-center justify-center overflow-hidden rounded-full`, saved ? tw`bg-emerald-400` : tw`bg-white/10`]}
+            style={[
+              tw`h-14 w-14 items-center justify-center overflow-hidden rounded-full`,
+              saved ? tw`bg-emerald-400` : tw`bg-white/10`,
+            ]}
           >
             <Animated.View style={dlPress.pressScaleStyle}>
               {busy || (checking && canRecheck) ? (
@@ -362,8 +422,12 @@ async function tryBrowserFallback(
   cancelled: () => boolean
 ): Promise<VideoInfo | null> {
   try {
-    const { resolveWatchPageViaBrowser } = await import('../../extractors/movies/browserProbe');
-    const order = [...LUNA_HOSTS.filter((host) => host !== 'watchluna.gd'), 'watchluna.gd'];
+    const { resolveWatchPageViaBrowser } =
+      await import('../../extractors/movies/browserProbe');
+    const order = [
+      ...LUNA_HOSTS.filter((host) => host !== 'watchluna.gd'),
+      'watchluna.gd',
+    ];
     for (const host of order) {
       const watchUrl =
         kind === 'movie'
@@ -397,14 +461,30 @@ async function tryBrowserFallback(
     }
     return null;
   } catch (err) {
-    logError('Movies', `detail ${kind}/${id} browser failed: ${err instanceof Error ? err.message : String(err)}`);
+    logError(
+      'Movies',
+      `detail ${kind}/${id} browser failed: ${err instanceof Error ? err.message : String(err)}`
+    );
     return null;
   }
 }
 
-function DetailHero({ backdrop, poster }: { backdrop?: string; poster?: string }) {
+function DetailHero({
+  backdrop,
+  poster,
+}: {
+  backdrop?: string;
+  poster?: string;
+}) {
   if (!backdrop && !poster) {
-    return <View style={[tw`w-full overflow-hidden rounded-b-[40px] bg-white/5`, { height: 120 }]} />;
+    return (
+      <View
+        style={[
+          tw`w-full overflow-hidden rounded-b-[40px] bg-white/5`,
+          { height: 120 },
+        ]}
+      />
+    );
   }
   return (
     <View style={tw`overflow-hidden rounded-b-[55px] bg-[#121011]`}>
@@ -549,7 +629,8 @@ function TvEpisodes({
     void fetchTvSeasons(tmdbId).then((found) => {
       if (cancelled) return;
       setSeasons(found);
-      if (found.length > 0) setSeason((found.find((s) => s.number > 0) ?? found[0]).number);
+      if (found.length > 0)
+        setSeason((found.find((s) => s.number > 0) ?? found[0]).number);
     });
     return () => {
       cancelled = true;
@@ -557,11 +638,15 @@ function TvEpisodes({
   }, [tmdbId]);
   if (seasons.length === 0) return null;
   const ordered = [...seasons].sort(
-    (first, second) => (first.number === 0 ? 1 : 0) - (second.number === 0 ? 1 : 0) || first.number - second.number
+    (first, second) =>
+      (first.number === 0 ? 1 : 0) - (second.number === 0 ? 1 : 0) ||
+      first.number - second.number
   );
   return (
     <View style={tw`mt-5`}>
-      <Text style={tw`font-sans-semibold text-[16px] text-white`}>Episodes</Text>
+      <Text style={tw`font-sans-semibold text-[16px] text-white`}>
+        Episodes
+      </Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -589,7 +674,13 @@ function TvEpisodes({
         })}
       </ScrollView>
       {season !== null && (
-        <SeasonEpisodes tmdbId={tmdbId} season={season} limit={3} onPlay={onPlay} onViewAll={onViewAll} />
+        <SeasonEpisodes
+          tmdbId={tmdbId}
+          season={season}
+          limit={3}
+          onPlay={onPlay}
+          onViewAll={onViewAll}
+        />
       )}
     </View>
   );
@@ -626,20 +717,30 @@ function DetailBody({
 
       {details.description && (
         <View style={tw`mt-5`}>
-          <Text style={tw`font-sans-semibold text-[16px] text-white`}>Story Plot</Text>
-          <Text style={tw`mt-1.5 font-sans text-[14px] leading-6 text-slate-300`}>
+          <Text style={tw`font-sans-semibold text-[16px] text-white`}>
+            Story Plot
+          </Text>
+          <Text
+            style={tw`mt-1.5 font-sans text-[14px] leading-6 text-slate-300`}
+          >
             {details.description}
           </Text>
         </View>
       )}
 
       {item?.kind === 'tv' && item && (
-        <TvEpisodes tmdbId={item.id} onPlay={onPlayEpisode} onViewAll={onViewAll} />
+        <TvEpisodes
+          tmdbId={item.id}
+          onPlay={onPlayEpisode}
+          onViewAll={onViewAll}
+        />
       )}
 
       {details.director && (
         <View style={tw`mt-5`}>
-          <Text style={tw`font-sans-semibold text-[16px] text-white`}>Director</Text>
+          <Text style={tw`font-sans-semibold text-[16px] text-white`}>
+            Director
+          </Text>
           <View style={tw`mt-2 flex-row items-center gap-2.5`}>
             {details.directorPhoto ? (
               <Image
@@ -649,20 +750,26 @@ function DetailBody({
                 cachePolicy="memory-disk"
               />
             ) : (
-              <View style={tw`h-11 w-11 items-center justify-center rounded-full bg-white/10`}>
+              <View
+                style={tw`h-11 w-11 items-center justify-center rounded-full bg-white/10`}
+              >
                 <Text style={tw`font-sans-semibold text-[14px] text-slate-200`}>
                   {initialsOf(details.director)}
                 </Text>
               </View>
             )}
-            <Text style={tw`font-sans text-[14px] text-slate-300`}>{details.director}</Text>
+            <Text style={tw`font-sans text-[14px] text-slate-300`}>
+              {details.director}
+            </Text>
           </View>
         </View>
       )}
 
       {details.cast.length > 0 && (
         <View style={tw`mt-5`}>
-          <Text style={tw`font-sans-semibold text-[16px] text-white`}>Cast</Text>
+          <Text style={tw`font-sans-semibold text-[16px] text-white`}>
+            Cast
+          </Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -680,8 +787,12 @@ function DetailBody({
                       cachePolicy="memory-disk"
                     />
                   ) : (
-                    <View style={tw`h-14 w-14 items-center justify-center rounded-full bg-white/10`}>
-                      <Text style={tw`font-sans-semibold text-[16px] text-slate-200`}>
+                    <View
+                      style={tw`h-14 w-14 items-center justify-center rounded-full bg-white/10`}
+                    >
+                      <Text
+                        style={tw`font-sans-semibold text-[16px] text-slate-200`}
+                      >
                         {initialsOf(name)}
                       </Text>
                     </View>
@@ -702,7 +813,13 @@ function DetailBody({
   );
 }
 
-export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPlayEpisode }: Props) {
+export default function MovieDetailScreen({
+  visible,
+  item,
+  onClose,
+  onPlay,
+  onPlayEpisode,
+}: Props) {
   const insets = useSafeAreaInsets();
   const [details, setDetails] = useState<MovieTitle | null>(null);
   const [video, setVideo] = useState<VideoInfo | null>(null);
@@ -757,7 +874,10 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
           );
         } else if (found) {
           setNoSources(true);
-          log('Movies', `detail ${kind}/${id} meta-only title="${found.title}" sources failed: ${sourceErr} ms=${Date.now() - started}`);
+          log(
+            'Movies',
+            `detail ${kind}/${id} meta-only title="${found.title}" sources failed: ${sourceErr} ms=${Date.now() - started}`
+          );
         }
       }
     };
@@ -779,7 +899,10 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
               names.push(person.name);
               if (person.photo) photos[person.name] = person.photo;
             }
-            log('Movies', `detail ${kind}/${id} credits cast=${credits.cast.length}`);
+            log(
+              'Movies',
+              `detail ${kind}/${id} credits cast=${credits.cast.length}`
+            );
           }
           found = {
             id,
@@ -804,7 +927,10 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
           logError('Movies', `detail ${kind}/${id} meta failed`);
         }
       } catch (err) {
-        logError('Movies', `detail ${kind}/${id} meta failed: ${err instanceof Error ? err.message : String(err)}`);
+        logError(
+          'Movies',
+          `detail ${kind}/${id} meta failed: ${err instanceof Error ? err.message : String(err)}`
+        );
       } finally {
         metaSettled = true;
         if (!cancelled) maybeFinish();
@@ -812,7 +938,9 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
     })();
     void (async () => {
       const usable = (candidate: VideoInfo | null) =>
-        candidate !== null && !candidate.isPartial && candidate.formats.length > 0;
+        candidate !== null &&
+        !candidate.isPartial &&
+        candidate.formats.length > 0;
       try {
         const cached = await resolve(target, undefined);
         if (cancelled) return;
@@ -820,7 +948,10 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
           full = cached;
           setVideo(cached);
           setNoSources(false);
-          log('Movies', `detail ${kind}/${id} cached formats=${cached?.formats.length ?? 0}`);
+          log(
+            'Movies',
+            `detail ${kind}/${id} cached formats=${cached?.formats.length ?? 0}`
+          );
         }
       } catch {
         log('Movies', `detail ${kind}/${id} cache dry, resolving fresh`);
@@ -833,13 +964,19 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
             if (usable(resolved)) {
               full = resolved;
             } else if (round < 3) {
-              log('Movies', `detail ${kind}/${id} round ${round} dry, retrying`);
+              log(
+                'Movies',
+                `detail ${kind}/${id} round ${round} dry, retrying`
+              );
               await new Promise((done) => setTimeout(done, 1200));
             }
           } catch (err) {
             sourceErr = err instanceof Error ? err.message : String(err);
             if (round < 3) {
-              log('Movies', `detail ${kind}/${id} round ${round} failed, retrying`);
+              log(
+                'Movies',
+                `detail ${kind}/${id} round ${round} failed, retrying`
+              );
               await new Promise((done) => setTimeout(done, 1200));
             }
           }
@@ -851,12 +988,22 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
         }
       }
       if (!cancelled && !full && hasBlockedHosts()) {
-        full = await tryBrowserFallback(kind, id, item.title, item.poster, found, () => cancelled);
+        full = await tryBrowserFallback(
+          kind,
+          id,
+          item.title,
+          item.poster,
+          found,
+          () => cancelled
+        );
         if (cancelled) return;
         if (full) {
           setVideo(full);
           setNoSources(false);
-          log('Movies', `detail ${kind}/${id} browser formats=${full.formats.length}`);
+          log(
+            'Movies',
+            `detail ${kind}/${id} browser formats=${full.formats.length}`
+          );
         }
       }
       videoSettled = true;
@@ -889,10 +1036,16 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
     log('Movies', `download tap ${best.formatId} ${formatLabel(best)}`);
     void startDownload(best).then((result) => {
       if (result.status === 'saved') {
-        log('Movies', `download saved ${best.formatId} uri=${result.uri ?? 'gallery'}`);
+        log(
+          'Movies',
+          `download saved ${best.formatId} uri=${result.uri ?? 'gallery'}`
+        );
       } else if (result.status === 'error') {
         setDlError(result.message);
-        logError('Movies', `download error ${best.formatId}: ${result.message}`);
+        logError(
+          'Movies',
+          `download error ${best.formatId}: ${result.message}`
+        );
       } else {
         log('Movies', `download cancelled ${best.formatId}`);
       }
@@ -913,13 +1066,21 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
             tapSelection();
             onClose();
           }}
-          style={[tw`absolute left-4 rounded-full bg-black/60 p-2.5`, { top: insets.top + 8 }]}
+          style={[
+            tw`absolute left-4 rounded-full bg-black/60 p-2.5`,
+            { top: insets.top + 8 },
+          ]}
           accessibilityLabel="Back to movies"
         >
           <ArrowLeft size={22} color="#ffffff" />
         </Pressable>
         {item && (
-          <View style={[tw`absolute right-4 rounded bg-white/10 px-2 py-1`, { top: insets.top + 12 }]}>
+          <View
+            style={[
+              tw`absolute right-4 rounded bg-white/10 px-2 py-1`,
+              { top: insets.top + 12 },
+            ]}
+          >
             <Text style={tw`font-mono text-[11px] text-slate-200`}>
               {item.kind === 'tv' ? 'TV SHOW' : 'MOVIE'}
             </Text>
@@ -928,14 +1089,22 @@ export default function MovieDetailScreen({ visible, item, onClose, onPlay, onPl
 
         {!details && failed ? (
           <View style={tw`items-center px-6 py-10`}>
-            <Text style={tw`font-mono-semibold text-[15px] text-slate-100`}>Title unavailable</Text>
-            <Text style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}>
+            <Text style={tw`font-mono-semibold text-[15px] text-slate-100`}>
+              Title unavailable
+            </Text>
+            <Text
+              style={tw`mt-1 text-center font-mono text-[12px] text-slate-400`}
+            >
               Phantom could not load this one — go back and try another.
             </Text>
           </View>
         ) : (
           <View style={tw`mx-4 -mt-[120px] rounded-[32px] bg-[#1E1E1E] p-5`}>
-            <TitleBlock details={details} item={item} kind={item?.kind ?? 'movie'} />
+            <TitleBlock
+              details={details}
+              item={item}
+              kind={item?.kind ?? 'movie'}
+            />
 
             <DetailBody
               details={details}

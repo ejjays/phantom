@@ -29,7 +29,7 @@ import { parseMovieUrl } from '../../extractors/movies/parse';
 import {
   fetchVidloveSubtitles,
   vidloveHeaders,
-} from '../../extractors/movies/vidlove';
+} from '../../extractors/movies/providers/vidlove';
 import {
   fetchVttText,
   fitCuesToDuration,
@@ -170,8 +170,11 @@ async function pinMasterVariant(
   try {
     const text = await (await fetch(url, { headers })).text();
     if (text.includes('#EXTM3U') && text.includes('#EXT-X-STREAM-INF')) {
-      const { parseHlsMaster, hlsVariantsToFormats } = await import('@phantom/extractors');
-      const best = hlsVariantsToFormats(parseHlsMaster(text, url), { durationSec })[0];
+      const { parseHlsMaster, hlsVariantsToFormats } =
+        await import('@phantom/extractors');
+      const best = hlsVariantsToFormats(parseHlsMaster(text, url), {
+        durationSec,
+      })[0];
       if (best?.url) {
         log('downloadPipeline', `[Download] master pinned to ${best.quality}`);
         return best.url;
@@ -348,7 +351,11 @@ async function fetchMedia({
     }
     // adaptive "auto" urls point at the master: pin the best variant so
     // the segment downloader never mistakes variant urls for segments
-    const playlistUrl = await pinMasterVariant(format.url, headers, durationSec);
+    const playlistUrl = await pinMasterVariant(
+      format.url,
+      headers,
+      durationSec
+    );
     onState({ status: 'downloading', progress: 0 });
     const hStart = Date.now();
     const onHls = (pct: number): void =>

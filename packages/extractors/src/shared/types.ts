@@ -35,6 +35,13 @@ export interface PlaylistEntry {
   thumb?: string;
 }
 
+export interface ProviderStreams {
+  key: string;
+  label: string;
+  formats: Format[];
+  headers: Record<string, string>;
+}
+
 export interface VideoInfo {
   type: 'video';
   id: string;
@@ -55,6 +62,7 @@ export interface VideoInfo {
   isIsrcMatch: boolean;
   isFullData: boolean;
   downloadHeaders?: Record<string, string>;
+  providers?: ProviderStreams[];
   album?: string;
   source?: 'webview';
   previewUrl?: string | null;

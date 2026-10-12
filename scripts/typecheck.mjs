@@ -9,6 +9,7 @@ import process from 'node:process';
 const WORKSPACES = [
   'web/api',
   'web/app',
+  'web/resolve',
   'mobile',
   'packages/extractors',
   'packages/web-mux',

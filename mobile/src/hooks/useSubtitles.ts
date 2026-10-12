@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchVidloveSubtitles,
   vidloveHeaders,
-} from '../extractors/movies/vidlove';
+} from '../extractors/movies/providers/vidlove';
 import { fetchKitsunekkoSubtitles } from '../extractors/movies/kitsunekko';
 import {
   fetchOpenSubtitles,

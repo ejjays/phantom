@@ -3,25 +3,107 @@ import {
   classifyThrown,
   noVideo,
   type Format,
+  type ProviderStreams,
   type VideoInfo,
 } from '@phantom/extractors';
 import { parseMovieUrl } from './parse';
+import type { MovieRef } from './parse';
 import { fetchTmdbTitle } from './tmdb';
 import { log } from '../../lib/log';
+import {
+  isTransportDown,
+  localDown,
+  markLegDown,
+  markLegUp,
+} from '../../lib/providerHealth';
 import {
   VIDROCK_HEADERS,
   fetchVidrockSources,
   vidrockToFormats,
-} from './vidrock';
-import { fetchVidloveFormats } from './vidlove';
-import { fetchVidzeeFormats } from './vidzee';
-import { fetchParadiseFormats } from './animeparadise';
+} from './providers/vidrock';
+import { fetchVidloveFormats } from './providers/vidlove';
+import { fetchVixsrcFormats } from './providers/vixsrc';
+import { fetchVidzeeFormats } from './providers/vidzee';
+import { fetchParadiseFormats } from './providers/animeparadise';
 
 export { parseMovieUrl } from './parse';
-export { decryptVidrockPayload } from './aesgcm';
+export { decryptVidrockPayload } from './providers/aesgcm';
 
 function bestHeight(formats: Format[]): number {
   return formats.reduce((top, format) => Math.max(top, format.height ?? 0), 0);
+}
+
+type Leg = { formats: Format[]; headers: Record<string, string> } | null;
+
+function groupOf(key: string, label: string, leg: Leg): ProviderStreams | null {
+  if (!leg || leg.formats.length === 0) return null;
+  return { key, label, formats: leg.formats, headers: leg.headers };
+}
+
+function takeover(
+  pool: NonNullable<Leg>,
+  spare: Leg,
+  name: string,
+  ref: MovieRef
+): NonNullable<Leg> {
+  if (spare === null || spare.formats.length === 0) return pool;
+  if (bestHeight(spare.formats) <= bestHeight(pool.formats)) return pool;
+  log(
+    'Movies',
+    `${name} upgrade for ${ref.kind}/${ref.tmdbId} formats=${spare.formats.length}`
+  );
+  return { formats: spare.formats, headers: spare.headers };
+}
+
+// all legs fire together: one dead provider costs a single wait, not a sum.
+// legs the health check saw down are skipped outright instead of burning a timeout.
+async function trackLeg(name: string, task: Promise<Leg>): Promise<Leg> {
+  try {
+    const out = await task;
+    if (out && out.formats.length > 0) markLegUp(name);
+    return out;
+  } catch (err) {
+    if (isTransportDown(err)) markLegDown(name);
+    return null;
+  }
+}
+
+async function trackRock(task: Promise<Format[]>): Promise<Format[]> {
+  try {
+    const out = await task;
+    if (out.length > 0) markLegUp('vidrock');
+    return out;
+  } catch (err) {
+    if (isTransportDown(err)) markLegDown('vidrock');
+    return [];
+  }
+}
+
+function fetchLegs(
+  ref: MovieRef,
+  title: string,
+  durationSec: number,
+  down: Set<string>
+): Promise<[Format[], Leg, Leg, Leg, Leg]> {
+  return Promise.all([
+    down.has('vidrock')
+      ? Promise.resolve([] as Format[])
+      : trackRock(
+          fetchVidrockSources(ref).then((sources) =>
+            sources.length > 0
+              ? vidrockToFormats(sources, durationSec, { quick: true })
+              : []
+          )
+        ),
+    down.has('vidlove')
+      ? null
+      : trackLeg('vidlove', fetchVidloveFormats(ref, durationSec)),
+    down.has('vixsrc') ? null : trackLeg('vixsrc', fetchVixsrcFormats(ref)),
+    down.has('vidzee') ? null : trackLeg('vidzee', fetchVidzeeFormats(ref)),
+    down.has('paradise')
+      ? null
+      : trackLeg('paradise', fetchParadiseFormats(ref, title)),
+  ]);
 }
 
 export async function getInfo(
@@ -49,24 +131,24 @@ export async function getInfo(
     );
 
     const duration = meta?.durationSec ?? 0;
-    // all legs fire together: one dead provider costs a single wait, not a sum
-    const [rockFormats, love, zee, para] = await Promise.all([
-      fetchVidrockSources(ref)
-        .then((sources) =>
-          sources.length > 0
-            ? vidrockToFormats(sources, duration, { quick: true })
-            : []
-        )
-        .catch(() => [] as Format[]),
-      fetchVidloveFormats(ref, duration).catch(() => null),
-      fetchVidzeeFormats(ref).catch(() => null),
-      fetchParadiseFormats(ref, title).catch(() => null),
-    ]);
+    const down = localDown();
+    if (down.size > 0) {
+      log(
+        'Movies',
+        `skip ${[...down].join(',')} for ${ref.kind}/${ref.tmdbId}`
+      );
+    }
+    const [rockFormats, love, vix, zee, para] = await fetchLegs(
+      ref,
+      title,
+      duration,
+      down
+    );
 
     let formats = rockFormats;
     let headers: Record<string, string> = { ...VIDROCK_HEADERS };
-    const rockBest = bestHeight(formats);
-    if (rockBest <= 1080) {
+    const best = bestHeight(formats);
+    if (best <= 1080) {
       if (formats.length === 0) {
         log(
           'Movies',
@@ -75,20 +157,23 @@ export async function getInfo(
       } else {
         log(
           'Movies',
-          `vidrock capped at ${rockBest}p for ${ref.kind}/${ref.tmdbId}, trying vidlove`
+          `capped at ${best}p for ${ref.kind}/${ref.tmdbId}, trying vidlove`
         );
       }
       // strict upgrade only: equal labels lie (a "1080p" cam is worse than a
-      // clean 720p), so vidlove must genuinely clear the bar to take over
-      const loveBest = love ? bestHeight(love.formats) : 0;
-      if (love && loveBest > rockBest) {
-        formats = love.formats;
-        headers = love.headers;
-        log(
-          'Movies',
-          `vidlove upgrade for ${ref.kind}/${ref.tmdbId} formats=${formats.length}`
-        );
-      }
+      // clean 720p), so a spare must genuinely clear the bar to take over
+      ({ formats, headers } = takeover(
+        { formats, headers },
+        love,
+        'vidlove',
+        ref
+      ));
+      ({ formats, headers } = takeover(
+        { formats, headers },
+        vix,
+        'vixsrc',
+        ref
+      ));
     }
     if (formats.length === 0) {
       const spare =
@@ -108,6 +193,21 @@ export async function getInfo(
     }
     if (formats.length === 0) throw noVideo('Phantom');
 
+    const providers = [
+      rockFormats.length > 0
+        ? {
+            key: 'vidrock',
+            label: 'VidRock',
+            formats: rockFormats,
+            headers: { ...VIDROCK_HEADERS },
+          }
+        : null,
+      groupOf('vidlove', 'VidLove', love),
+      groupOf('vixsrc', 'VixSrc', vix),
+      groupOf('vidzee', 'VidZee', zee),
+      groupOf('paradise', 'Paradise', para),
+    ].filter((entry): entry is ProviderStreams => entry !== null);
+
     return {
       type: 'video',
       id: ref.tmdbId,
@@ -125,6 +225,7 @@ export async function getInfo(
       isIsrcMatch: false,
       isFullData: true,
       downloadHeaders: headers,
+      providers,
     };
   } catch (error) {
     throw classifyThrown(error, 'Phantom');
