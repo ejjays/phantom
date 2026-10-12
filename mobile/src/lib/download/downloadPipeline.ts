@@ -3,7 +3,7 @@ import { deleteAsync, moveAsync } from 'expo-file-system/legacy';
 import { DESKTOP_UA } from '../userAgents';
 import type { Format, VideoInfo } from '@phantom/extractors';
 import { refererFor, type DownloadState } from './format';
-import { chunkedDownload } from './download';
+import { nativeDownload } from './nativeDownload';
 import {
   muxVideoAudio,
   transcodeToMp3,
@@ -231,7 +231,7 @@ async function fetchMedia({
     };
     const attempt = async (targetUrl: string): Promise<void> => {
       try {
-        await chunkedDownload(targetUrl, headers, dest, onProg, signal);
+        await nativeDownload(targetUrl, headers, dest, onProg, signal);
       } catch (error) {
         if (!(error instanceof Error && /unknown size/iu.test(error.message))) {
           throw error;
