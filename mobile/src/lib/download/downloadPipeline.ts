@@ -31,13 +31,14 @@ import {
   vidloveHeaders,
 } from '../../extractors/movies/providers/vidlove';
 import {
-  fetchVttText,
   fitCuesToDuration,
   formatVtt,
   parseVtt,
   pickTrack,
+  type SubtitleTrack,
 } from '../subtitles';
 import { addHistory } from './downloadHistory';
+import { handoffOf, handoffSubdir } from '../watchHandoff';
 import { resolve } from '../../extractors';
 import {
   acquireCpuLock,
@@ -92,6 +93,7 @@ function buildInflight(
       duration: pick(seed?.info.duration, info.duration),
       extractorKey: pick(seed?.info.extractorKey, info.extractorKey),
       downloadHeaders: pick(seed?.info.downloadHeaders, info.downloadHeaders),
+      handoff: pick(seed?.info.handoff, handoffOf(info)),
     },
     format: pick(seed?.format, format),
     tag: pick(seed?.tag, tag),
@@ -140,6 +142,7 @@ async function refreshStreamUrl(
   format: Format,
   url: string
 ): Promise<string | null> {
+  if (handoffOf(info)) return null;
   const fresh = await resolve(info.webpageUrl, undefined, { fresh: true });
   if (!fresh || fresh.formats.length === 0) return null;
   const match =
@@ -458,21 +461,124 @@ async function fetchMedia({
   return destination;
 }
 
-// movies carry provider subtitles; drop an english sidecar next to the video
-// so external players pick it up. fire-and-forget: never affects the download.
-async function saveMovieSidecar(info: VideoInfo, stem: string): Promise<void> {
+async function fetchText(
+  url: string,
+  headers: Record<string, string>
+): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
   try {
-    if (info.extractorKey !== 'phantom') return;
-    const ref = parseMovieUrl(info.webpageUrl);
-    if (!ref) return;
-    const tracks = await fetchVidloveSubtitles(ref);
-    const chosen = pickTrack(tracks, 'en');
-    if (!chosen) return;
-    const text = await fetchVttText(chosen.url, vidloveHeaders(ref));
+    const res = await fetch(url, { headers, signal: controller.signal });
+    return res.ok ? await res.text() : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function stripVttHeader(text: string): string {
+  return text.replace(/^\uFEFF?WEBVTT[^\n]*\n?/iu, '').trim();
+}
+
+async function fetchSubtitleVtt(
+  url: string,
+  headers: Record<string, string>
+): Promise<string | null> {
+  const body = await fetchText(url, headers);
+  if (!body) return null;
+  if (body.includes('-->')) return body;
+  if (!body.includes('#EXTM3U')) return null;
+  const segments = body
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith('#'))
+    .slice(0, 128);
+  const parts: string[] = [];
+  const deadline = Date.now() + 20_000;
+  for (const segment of segments) {
+    if (Date.now() > deadline) break;
+    let target: string;
+    try {
+      target = new URL(segment, url).toString();
+    } catch {
+      continue;
+    }
+    const text = await fetchText(target, headers);
+    if (text?.includes('-->')) parts.push(stripVttHeader(text));
+  }
+  return parts.length > 0 ? parts.join('\n') : null;
+}
+
+async function hlsEnglishVtt(
+  masterUrl: string,
+  headers: Record<string, string>
+): Promise<string | null> {
+  const master = await fetchText(masterUrl, headers);
+  if (!master?.includes('#EXTM3U')) return null;
+  for (const line of master.split(/\r?\n/u)) {
+    if (!line.startsWith('#EXT-X-MEDIA:')) continue;
+    if (!/TYPE=SUBTITLES/iu.test(line)) continue;
+    if (!/(?:LANGUAGE="?(?:en|eng)|NAME="?English)/iu.test(line)) continue;
+    const uri = /URI="([^"]+)"/iu.exec(line)?.[1];
+    if (!uri) continue;
+    let subUrl: string;
+    try {
+      subUrl = new URL(uri, masterUrl).toString();
+    } catch {
+      continue;
+    }
+    const text = await fetchSubtitleVtt(subUrl, headers);
+    if (text) return text;
+  }
+  return null;
+}
+
+// movies carry provider subtitles; drop an english sidecar next to the video
+// so external players pick it up. failures never affect the download.
+async function saveMovieSidecar(
+  info: VideoInfo,
+  stem: string,
+  format: Format
+): Promise<void> {
+  try {
+    const handoff = handoffOf(info);
+    const headers = info.downloadHeaders ?? {};
+    let text: string | null = null;
+
+    if (handoff?.subtitles.length) {
+      const tracks: SubtitleTrack[] = handoff.subtitles.map((sub) => ({
+        url: sub.url,
+        lang: sub.lang.toLowerCase().split('-')[0] || 'en',
+        label: sub.label,
+      }));
+      const chosen = pickTrack(tracks, 'en') ?? tracks[0];
+      if (chosen) text = await fetchSubtitleVtt(chosen.url, headers);
+    }
+
+    if (!text && info.extractorKey === 'phantom') {
+      const ref = parseMovieUrl(info.webpageUrl);
+      if (ref) {
+        const tracks = await fetchVidloveSubtitles(ref);
+        const chosen = pickTrack(tracks, 'en');
+        if (chosen) {
+          text = await fetchSubtitleVtt(chosen.url, vidloveHeaders(ref));
+        }
+      }
+    }
+
+    if (!text && format.isHls) {
+      text = await hlsEnglishVtt(format.url, headers);
+    }
+
     if (!text) return;
     const cues = fitCuesToDuration(parseVtt(text), info.duration ?? 0);
     if (cues.length === 0) return;
-    await saveSidecarText(`${stem}.en.vtt`, formatVtt(cues));
+    await saveSidecarText(
+      `${stem}.en.vtt`,
+      formatVtt(cues),
+      handoff?.saveSubdir
+    );
   } catch {
     /* subtitles are a bonus, never a download failure */
   }
@@ -580,8 +686,11 @@ export async function runDownload({
     }
 
     await probeFile(saveTarget);
-    const saved = await saveToDevice(saveTarget, (pct) =>
-      onState({ status: 'saving', progress: pct })
+    const saveSubdir = handoffSubdir(info);
+    const saved = await saveToDevice(
+      saveTarget,
+      (pct) => onState({ status: 'saving', progress: pct }),
+      saveSubdir
     );
     // paste-target media has no page art; grab a still before the temp dies
     let frameUri: string | undefined;
@@ -606,7 +715,7 @@ export async function runDownload({
         uri: saved.uri,
         savedAt: Date.now(),
       });
-      void saveMovieSidecar(info, stem);
+      await saveMovieSidecar(info, stem, format);
     }
     return saved.ok
       ? { status: 'saved', uri: saved.uri }

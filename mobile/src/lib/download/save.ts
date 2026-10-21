@@ -11,6 +11,7 @@ import {
 } from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ReactNativeBlobUtil, { type Mediatype } from 'react-native-blob-util';
+import { saveTextToMovies } from '../../../modules/watch-handoff';
 import { error as logError, log, warn as logWarn } from '../log';
 
 const DIR_KEY = 'phantom.saf.dir';
@@ -108,7 +109,10 @@ async function saveToFolder(
 }
 
 // native mediastore copy; no base64, no bridge -> gallery speed
-async function saveViaMediaStore(source: File): Promise<string> {
+async function saveViaMediaStore(
+  source: File,
+  parentFolder = MEDIA_SUBFOLDER
+): Promise<string> {
   const ext = source.name.split('.').pop()?.toLowerCase() ?? '';
   const collection: Mediatype = AUDIO_EXT.has(ext)
     ? 'Audio'
@@ -118,7 +122,7 @@ async function saveViaMediaStore(source: File): Promise<string> {
   // blob-util .d.ts says path but native reads name
   const fd = {
     name: source.name,
-    parentFolder: MEDIA_SUBFOLDER,
+    parentFolder,
     mimeType: mimeFor(source.name),
   } as unknown as Parameters<
     typeof ReactNativeBlobUtil.MediaCollection.copyToMediaStore
@@ -142,8 +146,21 @@ type SaveResult = { ok: boolean; uri?: string };
 // so it no-ops when the user has none granted.
 export async function saveSidecarText(
   fileName: string,
-  text: string
+  text: string,
+  moviesSubdir?: string
 ): Promise<boolean> {
+  if (moviesSubdir) {
+    const saved = await saveTextToMovies(
+      fileName,
+      'text/vtt',
+      text,
+      moviesSubdir
+    ).catch(() => false);
+    if (saved) {
+      log('save', `[save] sidecar: Movies/${moviesSubdir}/${fileName}`);
+      return true;
+    }
+  }
   const dir = await getSaveDir();
   if (!dir) return false;
   try {
@@ -156,7 +173,10 @@ export async function saveSidecarText(
     log('save', `[save] sidecar: ${fileName}`);
     return true;
   } catch (err: unknown) {
-    logWarn('save', `[save] sidecar failed: ${err instanceof Error ? err.message : String(err)}`);
+    logWarn(
+      'save',
+      `[save] sidecar failed: ${err instanceof Error ? err.message : String(err)}`
+    );
     return false;
   }
 }
@@ -187,10 +207,11 @@ export async function saveApkToFolder(
 
 export async function saveToDevice(
   source: File,
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
+  parentFolder = MEDIA_SUBFOLDER
 ): Promise<SaveResult> {
   try {
-    const uri = await saveViaMediaStore(source);
+    const uri = await saveViaMediaStore(source, parentFolder);
     onProgress?.(100);
     log('save', `[save] mediastore: ${source.name}`);
     return { ok: true, uri };

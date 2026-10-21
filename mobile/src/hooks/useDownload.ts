@@ -34,16 +34,16 @@ export function useDownload(info: VideoInfo | null) {
 
   const clearDownloads = (): void => setDownloads({});
 
-  const startDownload = async (
+  const startDownloadFor = async (
+    target: VideoInfo,
     format: Format,
     meta?: DownloadMeta
   ): Promise<StartDownloadResult> => {
-    if (!info) return { status: 'cancelled' };
     const id = format.formatId;
     setOne(id, { status: 'downloading', progress: 0 });
     log(
       'useDownload',
-      `[Download] ${info.extractorKey} ${formatLabel(format)}`
+      `[Download] ${target.extractorKey} ${formatLabel(format)}`
     );
 
     const controller = new AbortController();
@@ -52,14 +52,14 @@ export function useDownload(info: VideoInfo | null) {
     try {
       await startDownloadService();
       const fmt = await getFilenameFormat();
-      const rawTitle = meta?.title?.trim() || info.title;
-      const rawAuthor = meta?.author?.trim() || info.uploader;
+      const rawTitle = meta?.title?.trim() || target.title;
+      const rawAuthor = meta?.author?.trim() || target.uploader;
       const stem = prettyName(
-        formatName(fmt, rawTitle, rawAuthor, info.extractorKey ?? '')
+        formatName(fmt, rawTitle, rawAuthor, target.extractorKey ?? '')
       );
 
       const outcome = await runDownload({
-        info,
+        info: target,
         format,
         stem,
         tag: { title: rawTitle, artist: rawAuthor },
@@ -83,8 +83,8 @@ export function useDownload(info: VideoInfo | null) {
       if (await getNotify()) {
         await notifyDownloadComplete(
           stem,
-          info.thumbnail,
-          info.extractorKey,
+          target.thumbnail,
+          target.extractorKey,
           format.extension || 'mp4',
           outcome.uri
         ).catch(() => undefined);
@@ -112,5 +112,13 @@ export function useDownload(info: VideoInfo | null) {
     }
   };
 
-  return { downloads, startDownload, clearDownloads };
+  const startDownload = (
+    format: Format,
+    meta?: DownloadMeta
+  ): Promise<StartDownloadResult> =>
+    info
+      ? startDownloadFor(info, format, meta)
+      : Promise.resolve({ status: 'cancelled' });
+
+  return { downloads, startDownload, startDownloadFor, clearDownloads };
 }
