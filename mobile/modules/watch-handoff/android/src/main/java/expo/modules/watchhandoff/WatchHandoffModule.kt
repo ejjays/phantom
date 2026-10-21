@@ -47,7 +47,8 @@ class WatchHandoffModule : Module() {
             val safeFolder = folder.trim().trim('/')
                 .replace(Regex("[^A-Za-z0-9._-]"), "")
                 .take(48)
-                .ifBlank { "PhantomWatch" }
+                .takeUnless { it.isEmpty() || it.startsWith('.') }
+                ?: "PhantomWatch"
             val safeMime = mime.takeIf { it.startsWith("text/") } ?: "text/vtt"
             val resolver = context.contentResolver
             val values = ContentValues().apply {

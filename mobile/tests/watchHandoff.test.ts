@@ -52,6 +52,9 @@ describe('parseWatchJob', () => {
     expect(job?.headers.OK).toBe('yes');
     expect(job?.headers['Bad Header']).toBeUndefined();
     expect(job?.subtitles).toEqual([]);
+    expect(
+      parseWatchJob(JSON.stringify({ ...valid, saveSubdir: '..' }))?.saveSubdir
+    ).toBe('PhantomWatch');
   });
 
   it('builds a direct download format', () => {

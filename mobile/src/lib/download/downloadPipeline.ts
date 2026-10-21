@@ -584,6 +584,16 @@ async function saveMovieSidecar(
   }
 }
 
+async function finishSidecar(
+  info: VideoInfo,
+  stem: string,
+  format: Format
+): Promise<void> {
+  const task = saveMovieSidecar(info, stem, format);
+  // handoff reports saved only once its sidecar exists
+  if (handoffOf(info)) await task;
+}
+
 export async function runDownload({
   info,
   format,
@@ -715,7 +725,7 @@ export async function runDownload({
         uri: saved.uri,
         savedAt: Date.now(),
       });
-      await saveMovieSidecar(info, stem, format);
+      await finishSidecar(info, stem, format);
     }
     return saved.ok
       ? { status: 'saved', uri: saved.uri }

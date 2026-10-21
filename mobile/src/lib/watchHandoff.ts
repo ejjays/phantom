@@ -110,6 +110,10 @@ export function parseWatchJob(raw: string): WatchDownloadJob | null {
   const title = text(job.title, 200);
   if (!id || !url || !title) return null;
   const subdir = text(job.saveSubdir, 48);
+  const safeSubdir =
+    subdir && !subdir.startsWith('.') && SUBDIR.test(subdir)
+      ? subdir
+      : DEFAULT_SUBDIR;
   return {
     v: 1,
     id,
@@ -123,7 +127,7 @@ export function parseWatchJob(raw: string): WatchDownloadJob | null {
     durationSec: integer(job.durationSec, 86_400),
     poster: httpUrl(job.poster, 2048),
     subtitles: subtitlesOf(job.subtitles),
-    saveSubdir: subdir && SUBDIR.test(subdir) ? subdir : DEFAULT_SUBDIR,
+    saveSubdir: safeSubdir,
     isHls: job.isHls === true || /\.m3u8(?:$|\?)/iu.test(url),
     webpageUrl: httpUrl(job.webpageUrl, 2048) ?? undefined,
   };
