@@ -1,0 +1,12 @@
+{
+  "name": "watch-handoff",
+  "version": "1.0.0",
+  "description": "Receive Phantom Watch download jobs and save VTT sidecars to Movies",
+  "main": "index.ts",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "expo-modules-core": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

@@ -22,7 +22,7 @@ import {
 } from './mux';
 import { saveSidecarText, saveToDevice } from './save';
 import { checkStorageBeforeDownload } from './storagePreflight';
-import { log } from '../log';
+import { log, warn as logWarn } from '../log';
 import { ABORT_MESSAGE } from './retry';
 import { upsertInflight, removeInflight, type InflightItem } from './inflight';
 import { parseMovieUrl } from '../../extractors/movies/parse';
@@ -31,13 +31,14 @@ import {
   vidloveHeaders,
 } from '../../extractors/movies/providers/vidlove';
 import {
-  fetchVttText,
   fitCuesToDuration,
   formatVtt,
   parseVtt,
   pickTrack,
+  type SubtitleTrack,
 } from '../subtitles';
 import { addHistory } from './downloadHistory';
+import { handoffOf, handoffSubdir } from '../watchHandoff';
 import { resolve } from '../../extractors';
 import {
   acquireCpuLock,
@@ -92,6 +93,7 @@ function buildInflight(
       duration: pick(seed?.info.duration, info.duration),
       extractorKey: pick(seed?.info.extractorKey, info.extractorKey),
       downloadHeaders: pick(seed?.info.downloadHeaders, info.downloadHeaders),
+      handoff: pick(seed?.info.handoff, handoffOf(info)),
     },
     format: pick(seed?.format, format),
     tag: pick(seed?.tag, tag),
@@ -140,6 +142,7 @@ async function refreshStreamUrl(
   format: Format,
   url: string
 ): Promise<string | null> {
+  if (handoffOf(info)) return null;
   const fresh = await resolve(info.webpageUrl, undefined, { fresh: true });
   if (!fresh || fresh.formats.length === 0) return null;
   const match =
@@ -168,8 +171,8 @@ async function pinMasterVariant(
   durationSec: number
 ): Promise<string> {
   try {
-    const text = await (await fetch(url, { headers })).text();
-    if (text.includes('#EXTM3U') && text.includes('#EXT-X-STREAM-INF')) {
+    const text = await fetchText(url, headers);
+    if (text?.includes('#EXTM3U') && text.includes('#EXT-X-STREAM-INF')) {
       const { parseHlsMaster, hlsVariantsToFormats } =
         await import('@phantom/extractors');
       const best = hlsVariantsToFormats(parseHlsMaster(text, url), {
@@ -360,9 +363,7 @@ async function fetchMedia({
     const hStart = Date.now();
     const onHls = (pct: number): void =>
       onState({ status: 'downloading', progress: Math.min(98, pct) });
-    // ffmpeg-direct first: js segment fetching storms devtools inspection
-    // into oom on dev builds, and native ffmpeg http is invisible to it.
-    // parallel stays as fallback for throttled single connections.
+    // parallel js segments beat single-connection http when the cdn throttles
     // signed hls urls expire mid-queue — one fresh-resolve retry before failing
     let path = 'direct';
     const runHls = async (playlistUrl: string): Promise<boolean> => {
@@ -388,6 +389,17 @@ async function fetchMedia({
           format.hlsKeepAlive
         );
       }
+      const okMuxed = await parallelHlsMuxedToMp4(
+        playlistUrl,
+        outFile,
+        headers,
+        onHls,
+        signal
+      );
+      if (okMuxed) {
+        path = 'parallel-muxed';
+        return true;
+      }
       const okNative = await nativeHlsMuxedToMp4(
         playlistUrl,
         outFile,
@@ -408,17 +420,6 @@ async function fetchMedia({
         format.hlsKeepAlive
       );
       if (okDirect) return true;
-      const okMuxed = await parallelHlsMuxedToMp4(
-        playlistUrl,
-        outFile,
-        headers,
-        onHls,
-        signal
-      );
-      if (okMuxed) {
-        path = 'parallel-muxed';
-        return true;
-      }
       return hlsToMp4(
         playlistUrl,
         outFile,
@@ -458,24 +459,249 @@ async function fetchMedia({
   return destination;
 }
 
-// movies carry provider subtitles; drop an english sidecar next to the video
-// so external players pick it up. fire-and-forget: never affects the download.
-async function saveMovieSidecar(info: VideoInfo, stem: string): Promise<void> {
+let fetchTextSeq = 0;
+
+const hostOf = (url: string): string => {
   try {
-    if (info.extractorKey !== 'phantom') return;
-    const ref = parseMovieUrl(info.webpageUrl);
-    if (!ref) return;
-    const tracks = await fetchVidloveSubtitles(ref);
-    const chosen = pickTrack(tracks, 'en');
-    if (!chosen) return;
-    const text = await fetchVttText(chosen.url, vidloveHeaders(ref));
-    if (!text) return;
-    const cues = fitCuesToDuration(parseVtt(text), info.duration ?? 0);
-    if (cues.length === 0) return;
-    await saveSidecarText(`${stem}.en.vtt`, formatVtt(cues));
+    return new URL(url).host;
   } catch {
-    /* subtitles are a bonus, never a download failure */
+    return '?';
   }
+};
+
+async function fetchTextNative(
+  url: string,
+  headers: Record<string, string>
+): Promise<string | null> {
+  fetchTextSeq += 1;
+  const dest = new File(Paths.cache, `.sidecar-${fetchTextSeq}.txt`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  try {
+    await File.downloadFileAsync(url, dest, {
+      headers,
+      idempotent: true,
+      signal: controller.signal,
+    });
+    const text = await dest.text();
+    log(
+      'sidecar',
+      `[sidecar] native ${text.length} ${hostOf(url)}`
+    );
+    return text;
+  } catch (error) {
+    logWarn(
+      'sidecar',
+      `[sidecar] native failed ${error instanceof Error ? error.message : String(error)} ${hostOf(url)}`
+    );
+    return null;
+  } finally {
+    clearTimeout(timer);
+    try {
+      dest.delete();
+    } catch {
+      /* best effort */
+    }
+  }
+}
+
+async function fetchText(
+  url: string,
+  headers: Record<string, string>
+): Promise<string | null> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const res = await fetch(url, { headers, signal: controller.signal });
+      const body = res.ok ? await res.text() : null;
+      log(
+        'sidecar',
+        `[sidecar] fetch ${res.status} ${body?.length ?? 0} ${hostOf(url)}`
+      );
+      if (body) return body;
+    } catch (error) {
+      logWarn(
+        'sidecar',
+        `[sidecar] fetch failed ${error instanceof Error ? error.message : String(error)} ${hostOf(url)}`
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+    if (attempt === 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 500));
+    }
+  }
+  return fetchTextNative(url, headers);
+}
+
+function stripVttHeader(text: string): string {
+  return text.replace(/^\uFEFF?WEBVTT[^\n]*\n?/iu, '').trim();
+}
+
+async function fetchSubtitleVtt(
+  url: string,
+  headers: Record<string, string>
+): Promise<string | null> {
+  const body = await fetchText(url, headers);
+  log('sidecar', `[sidecar] sub body=${body?.length ?? 0}`);
+  if (!body) return null;
+  if (body.includes('-->')) return body;
+  if (!body.includes('#EXTM3U')) return null;
+  const segments = body
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith('#'))
+    .slice(0, 128);
+  const parts: string[] = [];
+  const deadline = Date.now() + 20_000;
+  for (const segment of segments) {
+    if (Date.now() > deadline) break;
+    let target: string;
+    try {
+      target = new URL(segment, url).toString();
+    } catch {
+      continue;
+    }
+    const text = await fetchText(target, headers);
+    if (text?.includes('-->')) parts.push(stripVttHeader(text));
+  }
+  return parts.length > 0 ? parts.join('\n') : null;
+}
+
+async function hlsEnglishVtt(
+  masterUrl: string,
+  headers: Record<string, string>
+): Promise<string | null> {
+  const master = await fetchText(masterUrl, headers);
+  log('sidecar', `[sidecar] master body=${master?.length ?? 0}`);
+  if (!master?.includes('#EXTM3U')) return null;
+  for (const line of master.split(/\r?\n/u)) {
+    if (!line.startsWith('#EXT-X-MEDIA:')) continue;
+    if (!/TYPE=SUBTITLES/iu.test(line)) continue;
+    if (!/(?:LANGUAGE="?(?:en|eng)|NAME="?English)/iu.test(line)) continue;
+    const uri = /URI="([^"]+)"/iu.exec(line)?.[1];
+    if (!uri) continue;
+    let subUrl: string;
+    try {
+      subUrl = new URL(uri, masterUrl).toString();
+    } catch {
+      continue;
+    }
+    const text = await fetchSubtitleVtt(subUrl, headers);
+    log('sidecar', `[sidecar] track text=${text?.length ?? 0}`);
+    if (text) return text;
+  }
+  return null;
+}
+
+// movies carry provider subtitles; drop an english sidecar next to the video
+// so external players pick it up. failures never affect the download.
+const handoffVttCache = new Map<string, string>();
+
+async function saveMovieSidecar(
+  info: VideoInfo,
+  stem: string,
+  format: Format
+): Promise<void> {
+  try {
+    const handoff = handoffOf(info);
+    const headers = info.downloadHeaders ?? {};
+    log(
+      'sidecar',
+      `[sidecar] start subs=${handoff?.subtitles.length ?? 0} hls=${format.isHls}`
+    );
+    let text: string | null = handoff
+      ? (handoffVttCache.get(info.id) ?? null)
+      : null;
+    if (text) handoffVttCache.delete(info.id);
+
+    if (!text && handoff?.subtitles.length) {
+      const tracks: SubtitleTrack[] = handoff.subtitles.map((sub) => ({
+        url: sub.url,
+        lang: sub.lang.toLowerCase().split('-')[0] || 'en',
+        label: sub.label,
+      }));
+      const chosen = pickTrack(tracks, 'en') ?? tracks[0];
+      if (chosen) text = await fetchSubtitleVtt(chosen.url, headers);
+    }
+
+    if (!text && info.extractorKey === 'phantom') {
+      const ref = parseMovieUrl(info.webpageUrl);
+      if (ref) {
+        const tracks = await fetchVidloveSubtitles(ref);
+        const chosen = pickTrack(tracks, 'en');
+        if (chosen) {
+          text = await fetchSubtitleVtt(chosen.url, vidloveHeaders(ref));
+        }
+      }
+    }
+
+    if (!text && format.isHls) {
+      text = await hlsEnglishVtt(format.url, headers);
+    }
+
+    if (!text) {
+      log('sidecar', '[sidecar] no subtitle text');
+      return;
+    }
+    const cues = fitCuesToDuration(parseVtt(text), info.duration ?? 0);
+    if (cues.length === 0) {
+      log('sidecar', '[sidecar] no cues');
+      return;
+    }
+    const saved = await saveSidecarText(
+      `${stem}.en.vtt`,
+      formatVtt(cues),
+      handoff?.saveSubdir
+    );
+    log('sidecar', `[sidecar] cues=${cues.length} saved=${saved}`);
+  } catch (error) {
+    logWarn(
+      'sidecar',
+      `[sidecar] ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function attachVideoCover(
+  info: VideoInfo,
+  format: Format,
+  saveTarget: File,
+  track: (file: File) => File
+): Promise<void> {
+  if (
+    !format.isVideo ||
+    handoffOf(info) ||
+    !info.thumbnail?.startsWith('http')
+  ) {
+    return;
+  }
+  try {
+    const cover = track(new File(Paths.cache, `${saveTarget.name}.cover.jpg`));
+    await File.downloadFileAsync(info.thumbnail, cover, {
+      idempotent: true,
+    });
+    const covered = track(
+      new File(Paths.cache, `${saveTarget.name}.covered.mp4`)
+    );
+    if (await attachCover(saveTarget, cover, covered)) {
+      await moveAsync({ from: covered.uri, to: saveTarget.uri });
+      log('Download', `[Download] cover attached for ${saveTarget.name}`);
+    }
+  } catch {
+    /* original file stands; cover art is a bonus */
+  }
+}
+
+async function finishSidecar(
+  info: VideoInfo,
+  stem: string,
+  format: Format
+): Promise<void> {
+  const task = saveMovieSidecar(info, stem, format);
+  // handoff reports saved only once its sidecar exists
+  if (handoffOf(info)) await task;
 }
 
 export async function runDownload({
@@ -530,6 +756,15 @@ export async function runDownload({
     throw new Error(gate.message);
   }
 
+  const handoff = handoffOf(info);
+  if (handoff && format.isHls && handoff.subtitles.length === 0) {
+    const prefetched = await hlsEnglishVtt(
+      format.url,
+      info.downloadHeaders ?? {}
+    );
+    if (prefetched) handoffVttCache.set(info.id, prefetched);
+  }
+
   let threw: unknown;
   try {
     let saveTarget = await fetchMedia({
@@ -563,25 +798,19 @@ export async function runDownload({
       await tagAudioInPlace(saveTarget, stem, info, tag, track);
     }
 
-    if (format.isVideo && info.thumbnail?.startsWith('http')) {
-      try {
-        const cover = track(new File(Paths.cache, `${stem}.cover.jpg`));
-        await File.downloadFileAsync(info.thumbnail, cover, {
-          idempotent: true,
-        });
-        const covered = track(new File(Paths.cache, `${stem}.covered.mp4`));
-        if (await attachCover(saveTarget, cover, covered)) {
-          await moveAsync({ from: covered.uri, to: saveTarget.uri });
-          log('Download', `[Download] cover attached for ${stem}`);
-        }
-      } catch {
-        /* original file stands; cover art is a bonus */
-      }
-    }
+    await attachVideoCover(info, format, saveTarget, track);
 
     await probeFile(saveTarget);
-    const saved = await saveToDevice(saveTarget, (pct) =>
-      onState({ status: 'saving', progress: pct })
+    const saveSubdir = handoffSubdir(info);
+    const saveStarted = Date.now();
+    const saved = await saveToDevice(
+      saveTarget,
+      (pct) => onState({ status: 'saving', progress: pct }),
+      saveSubdir
+    );
+    log(
+      'Download',
+      `[Download] saved in ${((Date.now() - saveStarted) / 1000).toFixed(1)}s`
     );
     // paste-target media has no page art; grab a still before the temp dies
     let frameUri: string | undefined;
@@ -606,7 +835,7 @@ export async function runDownload({
         uri: saved.uri,
         savedAt: Date.now(),
       });
-      void saveMovieSidecar(info, stem);
+      await finishSidecar(info, stem, format);
     }
     return saved.ok
       ? { status: 'saved', uri: saved.uri }

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, StatusBar, AppState, LogBox } from 'react-native';
 import { useBackHandler } from './src/lib/back';
 import {
@@ -23,15 +23,12 @@ import PlaylistPanel from './src/components/picker/PlaylistPanel';
 import { type DownloadMode } from './src/components/picker/FormatBar';
 import { resolve } from './src/extractors';
 import { prewarmClientId } from './src/extractors/soundcloud';
-import {
-  Format,
-  VideoInfo,
-  ExtractorError,
-} from '@phantom/extractors';
+import { Format, VideoInfo, ExtractorError } from '@phantom/extractors';
 import PickerModal from './src/components/picker/PickerModal';
 import SpotifyPickerModal from './src/components/picker/SpotifyPickerModal';
 import NotificationPermissionSheet from './src/components/sheets/NotificationPermissionSheet';
 import ErrorSheet from './src/components/sheets/ErrorSheet';
+import WatchDownloadSheet from './src/components/sheets/WatchDownloadSheet';
 import { AppDialogProvider } from './src/components/ui/AppDialog';
 import YouTubeExtractorWebView from './src/components/webviews/YouTubeExtractorWebView';
 import InstagramExtractorWebView from './src/components/webviews/InstagramExtractorWebView';
@@ -47,6 +44,12 @@ import { addSocialTapListener } from './src/lib/push/pushRender';
 import { type SocialDeepLink } from './src/lib/push/notificationTap.logic';
 import { openSavedTarget } from './src/lib/gallery';
 import { useDownload } from './src/hooks/useDownload';
+import {
+  buildWatchMedia,
+  parseWatchJob,
+  type WatchDownloadJob,
+} from './src/lib/watchHandoff';
+import { addWatchJobListener, takePendingJob } from './modules/watch-handoff';
 import { useClipboardPaste } from './src/hooks/useClipboardPaste';
 import { useNotificationPriming } from './src/hooks/useNotificationPriming';
 import { tapImpact, loadHaptics } from './src/lib/haptics';
@@ -122,9 +125,18 @@ function AppRoot() {
   const [invalidLink, setInvalidLink] = useState(false);
   const [vpnWarning, setVpnWarning] = useState(false);
   const [info, setInfo] = useState<VideoInfo | null>(null);
+  const [watchJob, setWatchJob] = useState<WatchDownloadJob | null>(null);
   const [playlistInfo, setPlaylistInfo] = useState<VideoInfo | null>(null);
   const [playlistOpen, setPlaylistOpen] = useState(false);
-  const { downloads, startDownload, clearDownloads } = useDownload(info);
+  const { downloads, startDownload, startDownloadFor, clearDownloads } =
+    useDownload(info);
+  const watchMedia = useMemo(
+    () => (watchJob ? buildWatchMedia(watchJob) : null),
+    [watchJob]
+  );
+  const watchState = watchMedia
+    ? (downloads[watchMedia.format.formatId] ?? null)
+    : null;
   const [mode, setMode] = useState<DownloadMode>('mp4');
   const dismissedRef = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -136,11 +148,54 @@ function AppRoot() {
   const [successSignal, setSuccessSignal] = useState(0);
   const { paste, readClipboard } = useClipboardPaste(setLink);
   const notifPriming = useNotificationPriming(onboarded === true);
+  const lastWatchJob = useRef<string | null>(null);
   useEffect(() => {
     void getOnboarded().then((value) => {
       setOnboardedState(value);
       if (value === false) setFirstVisit(true);
     });
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    const accept = (raw: string): void => {
+      const job = parseWatchJob(raw);
+      if (!job) {
+        logError('watchHandoff', 'ignored malformed job');
+        return;
+      }
+      if (!alive || lastWatchJob.current === job.id) return;
+      lastWatchJob.current = job.id;
+      setTab('home');
+      setMoviesOpen(false);
+      setNavHidden(false);
+      setPlaylistOpen(false);
+      setPlaylistInfo(null);
+      setInfo(null);
+      setError(null);
+      setWatchJob(job);
+    };
+    const pull = (): void => {
+      void takePendingJob()
+        .then((raw) => {
+          if (raw) accept(raw);
+        })
+        .catch((e: unknown) => {
+          logError(
+            'watchHandoff',
+            `pending job failed: ${e instanceof Error ? e.message : String(e)}`
+          );
+        });
+    };
+    pull();
+    const sub = addWatchJobListener(accept);
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') pull();
+    });
+    return () => {
+      alive = false;
+      sub.remove();
+      appState.remove();
+    };
   }, []);
   useEffect(() => {
     if (!greetPending) return undefined;
@@ -300,6 +355,13 @@ function AppRoot() {
       setSuccessSignal((count) => count + 1);
     }
   };
+  const onWatchDownload = async () => {
+    if (!watchMedia) return;
+    await startDownloadFor(watchMedia.info, watchMedia.format, {
+      title: watchMedia.info.title,
+      author: 'Phantom Watch',
+    });
+  };
   const tabHistory = useRef<Tab[]>([]);
   const goTab = (next: Tab, opts: { fromBack?: boolean } = {}) => {
     if (!opts.fromBack && next !== tab) {
@@ -406,7 +468,10 @@ function AppRoot() {
                 <Animated.View
                   entering={FadeInDown.duration(280)}
                   exiting={FadeOut.duration(180)}
-                  style={[tw`absolute inset-0 bg-[#121011]`, { zIndex: 50, elevation: 50 }]}
+                  style={[
+                    tw`absolute inset-0 bg-[#121011]`,
+                    { zIndex: 50, elevation: 50 },
+                  ]}
                 >
                   <MoviesScreen
                     visible={moviesOpen}
@@ -460,6 +525,14 @@ function AppRoot() {
                   onDownload={(format, meta) => void onDownload(format, meta)}
                 />
               )}
+              {onboarded === true ? (
+                <WatchDownloadSheet
+                  job={watchJob}
+                  state={watchState}
+                  onClose={() => setWatchJob(null)}
+                  onDownload={() => void onWatchDownload()}
+                />
+              ) : null}
               <ErrorSheet
                 open={!!error}
                 message={error?.message ?? ''}

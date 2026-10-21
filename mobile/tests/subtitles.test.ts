@@ -67,6 +67,11 @@ describe('parseVtt', () => {
     expect(cues).toHaveLength(1);
     expect(cues[0]?.text).toBe('Top line\nsecond line');
   });
+
+  it('accepts MM:SS timestamps', () => {
+    const cues = parseVtt('WEBVTT\n\n00:02.798 --> 00:04.798\nShort stamp\n');
+    expect(cues).toEqual([{ start: 2.798, end: 4.798, text: 'Short stamp' }]);
+  });
 });
 
 describe('alignCuesToSpeech', () => {

@@ -11,6 +11,7 @@ import {
   nativeSegmentsToFiles,
   parseMediaPlaylist,
 } from './hls';
+import { ABORT_MESSAGE, withRetry } from './retry';
 import { DESKTOP_UA } from '../userAgents';
 import { log, warn as logWarn } from '../log';
 import { speechOfSilence } from '../subtitles';
@@ -30,10 +31,10 @@ function fsPath(uri: string): string {
 
 // hls concurrency: fetch().arrayBuffer() parks each segment on the java
 // heap (okhttp buffers whole responses), so keep in-flight low — 16-way
-// bursts of 720p chunks oom 512mb heaps alongside webviews. 6 splits the
-// difference: matches per-connection-throttled cdns without the heap risk.
+// bursts of 720p chunks oom 512mb heaps alongside webviews. muxed pulls
+// advertise video so devtools skips bodies, allowing 12.
 const HLS_CONCURRENCY = 4;
-const MUXED_HLS_CONCURRENCY = 6;
+const MUXED_HLS_CONCURRENCY = 12;
 // native pulls bypass js heap + devtools inspection entirely, so this can
 // run wider than the js fetch path without the same oom surface
 const NATIVE_SEG_CONCURRENCY = 6;
@@ -634,6 +635,54 @@ export async function nativeHlsMuxedToMp4(
   }
 }
 
+type LocalHlsPart = { line: number; url: string; file: File };
+
+function writeLocal(file: File, body: string | Uint8Array): void {
+  if (file.exists) file.delete();
+  file.create({ overwrite: true });
+  file.write(body);
+}
+
+function hlsKeyLine(lines: string[]): string | null {
+  const keys = lines.filter((line) => line.startsWith('#EXT-X-KEY:'));
+  if (keys.length > 1) throw new Error('hls key rotation');
+  const line = keys[0];
+  if (!line) return null;
+  const method = /METHOD=([^,]+)/u.exec(line)?.[1]?.toUpperCase();
+  if (!method || method === 'NONE') return null;
+  if (method !== 'AES-128') throw new Error(`hls key ${method}`);
+  return line;
+}
+
+function hlsUri(line: string): string | null {
+  return /URI="([^"]+)"/u.exec(line)?.[1] ?? null;
+}
+
+function fetchHlsBytes(
+  url: string,
+  headers: Record<string, string>,
+  signal: AbortSignal | undefined,
+  segment: boolean
+): Promise<Uint8Array> {
+  return withRetry(
+    async () => {
+      const res = await fetch(url, {
+        // devtools captures segment bodies up to 1mb unless the request
+        // advertises media; vix serves ts as text/html, so without this a
+        // 500-segment pull fills the dev client's heap and kills the app
+        headers: segment ? { ...headers, Accept: 'video/mp2t' } : headers,
+        signal,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return new Uint8Array(await res.arrayBuffer());
+    },
+    { retries: 2, delayMs: 400, signal }
+  );
+}
+
+// vix hls is aes-128 encrypted: js fetch cannot hand ffmpeg a plain
+// concatenated stream. download segments in parallel, then let ffmpeg
+// decrypt/remux through a local playlist + local key instead.
 export async function parallelHlsMuxedToMp4(
   playlist: string,
   out: File,
@@ -641,32 +690,145 @@ export async function parallelHlsMuxedToMp4(
   onProgress: (pct: number) => void,
   signal?: AbortSignal
 ): Promise<boolean> {
-  const seg = new File(Paths.cache, `${out.name}.seg`);
+  const tag = out.name.replace(/[^a-z0-9]+/giu, '_');
+  const made: File[] = [];
+  const started = Date.now();
   try {
-    const started = Date.now();
-    const { segments, bytes } = await downloadPlaylistToFile(
-      playlist,
-      headers,
-      seg,
-      (done, total) => onProgress(Math.round((done / total) * 92)),
-      MUXED_HLS_CONCURRENCY,
-      signal
+    const text = await withRetry(
+      async () => {
+        const res = await fetch(playlist, { headers, signal });
+        if (!res.ok) throw new Error(`playlist HTTP ${res.status}`);
+        return res.text();
+      },
+      { retries: 2, delayMs: 400, signal }
     );
-    const ok = await remuxToMp4(seg, out);
+    const lines = text.split(/\r?\n/u);
+    if (lines.some((line) => line.startsWith('#EXT-X-BYTERANGE:'))) {
+      throw new Error('hls byterange unsupported');
+    }
+
+    const keyLine = hlsKeyLine(lines);
+    let keyFile: File | null = null;
+    if (keyLine) {
+      const keyUri = hlsUri(keyLine);
+      if (!keyUri) throw new Error('hls key uri missing');
+      const keyBytes = await fetchHlsBytes(
+        new URL(keyUri, playlist).toString(),
+        headers,
+        signal,
+        false
+      );
+      if (keyBytes.byteLength !== 16) {
+        throw new Error(`hls key ${keyBytes.byteLength}b`);
+      }
+      keyFile = new File(Paths.cache, `${tag}.key`);
+      writeLocal(keyFile, keyBytes);
+      made.push(keyFile);
+    }
+
+    const hasMap = lines.some((line) => line.startsWith('#EXT-X-MAP:'));
+    const parts: LocalHlsPart[] = [];
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = (lines[i] ?? '').trim();
+      if (line.startsWith('#EXT-X-MAP:')) {
+        const uri = hlsUri(line);
+        if (!uri) throw new Error('hls map uri missing');
+        const file = new File(Paths.cache, `${tag}-map-${parts.length}.mp4`);
+        parts.push({ line: i, url: new URL(uri, playlist).toString(), file });
+        made.push(file);
+      } else if (line && !line.startsWith('#')) {
+        const file = new File(
+          Paths.cache,
+          `${tag}-${String(parts.length).padStart(5, '0')}.${hasMap ? 'm4s' : 'ts'}`
+        );
+        parts.push({ line: i, url: new URL(line, playlist).toString(), file });
+        made.push(file);
+      }
+    }
+    if (parts.length === 0) throw new Error('hls empty');
+
+    let next = 0;
+    let done = 0;
+    let stop = false;
+    let failure: unknown = null;
+    const worker = async (): Promise<void> => {
+      for (;;) {
+        if (stop || signal?.aborted) return;
+        const part = parts[next];
+        next += 1;
+        if (!part) return;
+        try {
+          const bytes = await fetchHlsBytes(part.url, headers, signal, true);
+          writeLocal(part.file, bytes);
+          done += 1;
+          onProgress(Math.round((done / parts.length) * 90));
+        } catch (err: unknown) {
+          if (!failure) failure = err;
+          stop = true;
+          return;
+        }
+      }
+    };
+    await Promise.all(
+      Array.from(
+        { length: Math.min(MUXED_HLS_CONCURRENCY, parts.length) },
+        () => worker()
+      )
+    );
+    if (failure) throw failure;
+    if (signal?.aborted) throw new Error(ABORT_MESSAGE);
+
+    const localLines = [...lines];
+    if (keyLine && keyFile) {
+      const keyIndex = lines.indexOf(keyLine);
+      localLines[keyIndex] = keyLine.replace(
+        /URI="[^"]*"/u,
+        `URI="${keyFile.uri}"`
+      );
+    }
+    for (const part of parts) {
+      const line = localLines[part.line] ?? '';
+      localLines[part.line] = line.startsWith('#EXT-X-MAP:')
+        ? line.replace(/URI="[^"]*"/u, `URI="${part.file.uri}"`)
+        : part.file.uri;
+    }
+    const local = new File(Paths.cache, `${tag}-local.m3u8`);
+    writeLocal(local, localLines.join('\n'));
+    made.push(local);
+
+    onProgress(92);
+    const cmd = `-hide_banner -loglevel error -y -protocol_whitelist file,crypto -allowed_extensions ALL -i "${fsPath(local.uri)}" -c copy -avoid_negative_ts make_zero -movflags +faststart "${fsPath(out.uri)}"`;
+    const session = await FFmpegKit.execute(cmd);
+    if (!ReturnCode.isSuccess(await session.getReturnCode())) {
+      const output = await session.getOutput();
+      logWarn('mux', `[hls-local] ffmpeg failed: ${String(output).slice(-600)}`);
+      return false;
+    }
+    onProgress(95);
+
     const secs = (Date.now() - started) / 1000;
+    const bytes = made
+      .filter((file) => file !== local)
+      .reduce((sum, file) => sum + file.size, 0);
     const mbps = secs > 0 ? ((bytes * 8) / 1e6 / secs).toFixed(1) : '0';
     log(
       'mux',
-      `[hls-parallel] ${segments} chunks, ${(bytes / 1e6).toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
+      `[hls-local] ${parts.length} chunks, ${(bytes / 1e6).toFixed(1)}MB in ${secs.toFixed(1)}s = ${mbps} Mbps`
     );
-    return ok;
+    return true;
   } catch (err: unknown) {
     logWarn(
       'mux',
-      `[hls-parallel-muxed] ${err instanceof Error ? err.message : String(err)}`
+      `[hls-local] ${err instanceof Error ? err.message : String(err)}`
     );
     return false;
   } finally {
-    if (seg.exists) seg.delete();
+    for (const file of made) {
+      try {
+        if (file.exists) file.delete();
+      } catch {
+        /* best effort */
+      }
+    }
   }
 }

@@ -141,7 +141,10 @@ export async function downloadPlaylistToFile(
       (idx) =>
         withRetry(
           async () => {
-            const seg = await fetch(urls[idx], { headers, signal });
+            const seg = await fetch(urls[idx], {
+              headers: { ...headers, Accept: 'video/mp2t' },
+              signal,
+            });
             if (seg.status >= 400) {
               throw new Error(`segment HTTP ${seg.status}`);
             }

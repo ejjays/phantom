@@ -5,14 +5,18 @@ export type SubtitleCue = { start: number; end: number; text: string };
 export type SubtitleTrack = { label: string; lang: string; url: string };
 
 const CUE =
-  /(\d{1,2}:\d{2}:\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,2}:\d{2}:\d{2})[,.](\d{1,3})/u;
+  /(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[,.](\d{1,3})/u;
 
-function toSeconds(hms: string, ms: string): number {
-  const [hours, minutes, seconds] = hms.split(':').map(Number);
+function toSeconds(
+  hours: string | undefined,
+  minutes: string,
+  seconds: string,
+  ms: string
+): number {
   return (
-    (hours ?? 0) * 3600 +
-    (minutes ?? 0) * 60 +
-    (seconds ?? 0) +
+    Number(hours ?? 0) * 3600 +
+    Number(minutes) * 60 +
+    Number(seconds) +
     Number(ms.padEnd(3, '0')) / 1000
   );
 }
@@ -40,8 +44,18 @@ export function parseVtt(text: string): SubtitleCue[] {
       .trim();
     if (!body) continue;
     cues.push({
-      start: toSeconds(match[1] ?? '0:0:0', match[2] ?? '0'),
-      end: toSeconds(match[3] ?? '0:0:0', match[4] ?? '0'),
+      start: toSeconds(
+        match[1],
+        match[2] ?? '0',
+        match[3] ?? '0',
+        match[4] ?? '0'
+      ),
+      end: toSeconds(
+        match[5],
+        match[6] ?? '0',
+        match[7] ?? '0',
+        match[8] ?? '0'
+      ),
       text: body,
     });
   }

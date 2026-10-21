@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import type { Format, VideoInfo } from '@phantom/extractors';
+import type { HandoffMeta } from '../watchHandoff';
 
 const INFLIGHT_KEY = 'phantom.download.inflight';
 
@@ -13,7 +14,7 @@ type DownloadInfoSubset = Pick<
   | 'duration'
   | 'extractorKey'
   | 'downloadHeaders'
->;
+> & { handoff?: HandoffMeta };
 
 export type InflightItem = {
   id: string;
