@@ -5,14 +5,18 @@ export type SubtitleCue = { start: number; end: number; text: string };
 export type SubtitleTrack = { label: string; lang: string; url: string };
 
 const CUE =
-  /(\d{1,2}:\d{2}:\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,2}:\d{2}:\d{2})[,.](\d{1,3})/u;
+  /(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[,.](\d{1,3})/u;
 
-function toSeconds(hms: string, ms: string): number {
-  const [hours, minutes, seconds] = hms.split(':').map(Number);
+function toSeconds(
+  hours: string | undefined,
+  minutes: string,
+  seconds: string,
+  ms: string
+): number {
   return (
-    (hours ?? 0) * 3600 +
-    (minutes ?? 0) * 60 +
-    (seconds ?? 0) +
+    Number(hours ?? 0) * 3600 +
+    Number(minutes) * 60 +
+    Number(seconds) +
     Number(ms.padEnd(3, '0')) / 1000
   );
 }
@@ -40,8 +44,18 @@ export function parseVtt(text: string): SubtitleCue[] {
       .trim();
     if (!body) continue;
     cues.push({
-      start: toSeconds(match[1] ?? '0:0:0', match[2] ?? '0'),
-      end: toSeconds(match[3] ?? '0:0:0', match[4] ?? '0'),
+      start: toSeconds(
+        match[1],
+        match[2] ?? '0',
+        match[3] ?? '0',
+        match[4] ?? '0'
+      ),
+      end: toSeconds(
+        match[5],
+        match[6] ?? '0',
+        match[7] ?? '0',
+        match[8] ?? '0'
+      ),
       text: body,
     });
   }
@@ -91,6 +105,15 @@ export function fitCuesToDuration(
     start: Math.min(videoSec, cue.start * clamped),
     end: Math.min(videoSec, cue.end * clamped),
     text: cue.text,
+  }));
+}
+
+export function shiftCues(cues: SubtitleCue[], offset: number): SubtitleCue[] {
+  if (offset === 0) return cues.map((cue) => ({ ...cue }));
+  return cues.map((cue) => ({
+    ...cue,
+    start: Math.max(0, cue.start + offset),
+    end: Math.max(0, cue.end + offset),
   }));
 }
 
@@ -244,7 +267,12 @@ export function splitLongCues(
       continue;
     }
     const inside = words
-      .filter((word) => word.end > cue.start && word.start < cue.end && word.word.trim().length > 0)
+      .filter(
+        (word) =>
+          word.end > cue.start &&
+          word.start < cue.end &&
+          word.word.trim().length > 0
+      )
       .sort((lhs, rhs) => lhs.start - rhs.start);
     if (inside.length === 0) {
       out.push(cue);
@@ -262,7 +290,8 @@ export function splitLongCues(
     };
     for (const word of inside) {
       const token = word.word.trim();
-      if (chunk.length > 0 && `${text} ${token}`.length > maxChars) flushChunk();
+      if (chunk.length > 0 && `${text} ${token}`.length > maxChars)
+        flushChunk();
       if (chunk.length === 0) {
         chunk = [word];
         text = token;
@@ -279,7 +308,9 @@ export function splitLongCues(
 
 // splits multi-sentence cues or over-long text, dividing span proportionally.
 export function splitLongText(cue: SubtitleCue, maxChars = 50): SubtitleCue[] {
-  const sentences = (cue.text.match(/[^.!?…]+[.!?…]+["”']?|\S[^.!?…]*$/gu) ?? [cue.text])
+  const sentences = (
+    cue.text.match(/[^.!?…]+[.!?…]+["”']?|\S[^.!?…]*$/gu) ?? [cue.text]
+  )
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
   if (sentences.length <= 1) return [cue];
@@ -323,11 +354,16 @@ export type SpeechTurn = { start: number; end: number; speaker: number };
 // dashes multi-speaker dialogue: finds each cue's turn by overlap and
 // prefixes turns after the first speaker change. single-speaker audio is
 // returned untouched. pure, tested.
-export function dashTurns(cues: SubtitleCue[], turns: SpeechTurn[]): SubtitleCue[] {
+export function dashTurns(
+  cues: SubtitleCue[],
+  turns: SpeechTurn[]
+): SubtitleCue[] {
   const speakers = new Set(turns.map((turn) => turn.speaker));
   if (speakers.size < 2) return cues;
   return cues.map((cue) => {
-    const turn = turns.find((entry) => cue.start >= entry.start && cue.start < entry.end);
+    const turn = turns.find(
+      (entry) => cue.start >= entry.start && cue.start < entry.end
+    );
     if (!turn) return cue;
     return { ...cue, text: `- ${cue.text.replace(/^- /, '')}` };
   });
@@ -468,7 +504,8 @@ export function mergeCues(
     }
     const prev = out[out.length - 1];
     if (!prev) continue;
-    const sameText = prev.text.trim().toLowerCase() === cue.text.trim().toLowerCase();
+    const sameText =
+      prev.text.trim().toLowerCase() === cue.text.trim().toLowerCase();
     const overlaps = cue.start < prev.end + 0.5;
     if (overlaps && sameText) {
       prev.end = Math.max(prev.end, cue.end);
@@ -507,7 +544,11 @@ export function pickNextJob(
   for (let i = 0; i < plan.length; i += 1) {
     if (done.has(i)) continue;
     const job = plan[i];
-    if (job && currentPos >= job.offset && currentPos < job.offset + job.window) {
+    if (
+      job &&
+      currentPos >= job.offset &&
+      currentPos < job.offset + job.window
+    ) {
       return { index: i };
     }
   }
