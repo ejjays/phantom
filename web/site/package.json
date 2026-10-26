@@ -12,7 +12,7 @@
     "typecheck": "node ../../node_modules/astro/bin/astro.mjs sync && node ../../node_modules/astro/bin/astro.mjs check"
   },
   "dependencies": {
-    "@astrojs/react": "^6.0.4",
+    "@astrojs/react": "^7.0.0",
     "@astrojs/sitemap": "^3.7.3",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/rubik": "^5.3.0",
