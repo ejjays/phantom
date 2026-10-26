@@ -68,7 +68,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^26.1.2",
     "@types/supertest": "^7.2.0",
-    "@vitest/coverage-v8": "^4.1.7",
+    "@vitest/coverage-v8": "^5.0.0",
     "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-sonarjs": "^4.0.3",
@@ -80,7 +80,7 @@
     "supertest": "^7.2.2",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.59.4",
-    "vitest": "^4.1.5",
+    "vitest": "^5.0.0",
     "typescript7": "npm:typescript@7.0.2"
   },
   "optionalDependencies": {
