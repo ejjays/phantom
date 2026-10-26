@@ -55,7 +55,7 @@ jobs:
         shard: ${{ fromJSON(inputs.test_url != '' && '[1]' || '[1,2,3]') }}
     services:
       redis:
-        image: redis:7
+        image: redis:8
         ports:
           - 6379:6379
         options: >-
@@ -207,7 +207,7 @@ jobs:
     timeout-minutes: 15
     services:
       redis:
-        image: redis:7
+        image: redis:8
         ports:
           - 6379:6379
         options: >-
