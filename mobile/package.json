@@ -72,10 +72,10 @@
     "web-streams-polyfill": "^4.2.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
+    "@eslint/js": "^10.0.0",
     "@react-native/codegen": "0.86.2",
     "@types/react": "~19.2.14",
-    "eslint": "^9.39.1",
+    "eslint": "^10.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import-x": "^4.17.1",
