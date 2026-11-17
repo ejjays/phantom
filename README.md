@@ -69,7 +69,6 @@ Phantom is hand-built pure-JS extractors that download 4K+ video and audio. It p
 | <img src="web/site/public/logos/pinterest.svg" alt="Pinterest logo" width="26"> | [Pinterest](https://www.pinterest.com) | ✅ | ✅ | ✅ | ✅ | ✅ | video pins + photos |
 | <img src="web/site/public/logos/twitch.svg" alt="Twitch logo" width="24"> | [Twitch](https://www.twitch.tv) | ✅ | ✅ | ✅ | ❌ | ➖ | clips, hls only |
 | <img src="web/site/public/logos/snapchat.svg" alt="Snapchat logo" width="26"> | [Snapchat](https://www.snapchat.com) | ✅ | ✅ | ✅ | ✅ | ➖ | spotlight videos + t.snapchat.com shorts |
-| <img src="web/site/public/logos/watchluna.svg" alt="Watchluna logo" width="26"> | [Watchluna](https://lunagate.org) | ❌ | ✅ | ✅ | ❌ | ➖ | movies & shows, 1080p hls |
 
 ---
 

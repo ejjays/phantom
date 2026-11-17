@@ -209,7 +209,9 @@ if (fs.existsSync(appPkg) && !fs.existsSync(path.join(appPkg, 'package.json'))) 
 
 if (!fs.existsSync(appPkg)) {
   fs.mkdirSync(path.dirname(appPkg), { recursive: true });
-  fs.symlinkSync(realPkgDir, appPkg, 'dir');
+  // A 'dir' symlink needs admin/Developer Mode on Windows; a junction does
+  // not and is still transparent to Node/Gradle module resolution.
+  fs.symlinkSync(realPkgDir, appPkg, process.platform === 'win32' ? 'junction' : 'dir');
   console.log(`[ensure-ffmpeg-aar] linked ${realPkgDir} -> ${appPkg}`);
 }
 

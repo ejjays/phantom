@@ -89,7 +89,6 @@ const ROWS: readonly {
     audio: 'yes',
     image: 'na',
   },
-  { name: 'Watchluna', logo: 'watchluna', video: 'yes', audio: 'no', image: 'na' },
 ];
 
 const MIN_COL_W = 46;

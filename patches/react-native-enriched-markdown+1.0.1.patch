@@ -48,3 +48,14 @@ index 736a0e8..b09f465 100644
        }
      val horizontalPadding = tableStyle.cellPaddingHorizontal
      val verticalPadding = tableStyle.cellPaddingVertical
+
+diff --git a/node_modules/react-native-enriched-markdown/android/build.gradle b/node_modules/react-native-enriched-markdown/android/build.gradle
+--- a/node_modules/react-native-enriched-markdown/android/build.gradle
++++ b/node_modules/react-native-enriched-markdown/android/build.gradle
+@@ -139,5 +139,5 @@
+ set(ENRICHED_MARKDOWN_CODE_HIGHLIGHT ON)
+ set(ENRICHED_MARKDOWN_HIGHLIGHT_LANGUAGES "${codeHighlightLanguages.join(';')}")
+-set(ENRICHED_MARKDOWN_HIGHLIGHT_GENERATED_DIR "${generatedDir.canonicalPath}")
++set(ENRICHED_MARKDOWN_HIGHLIGHT_GENERATED_DIR "${generatedDir.canonicalPath.replace('\\', '/')}")
+ """
+ } else {

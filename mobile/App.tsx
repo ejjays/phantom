@@ -46,6 +46,8 @@ import { addSocialTapListener } from './src/lib/social/pushRender';
 import { type SocialDeepLink } from './src/lib/social/notificationTap.logic';
 import { openSavedTarget } from './src/lib/download/gallery';
 import { useDownload } from './src/hooks/useDownload';
+import { buildWatchMedia, parseWatchJob } from './src/lib/watchHandoff';
+import { addWatchJobListener, takePendingJob } from './modules/watch-handoff';
 import { useClipboardPaste } from './src/hooks/useClipboardPaste';
 import { useNotificationPriming } from './src/hooks/useNotificationPriming';
 import { tapImpact, loadHaptics } from './src/lib/haptics';
@@ -139,6 +141,47 @@ function AppRoot() {
       setOnboardedState(value);
       if (value === false) setFirstVisit(true);
     });
+  }, []);
+  const lastWatchJob = useRef<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const accept = (raw: string): void => {
+      const job = parseWatchJob(raw);
+      if (!job) {
+        logError('watchHandoff', 'ignored malformed job');
+        return;
+      }
+      if (!alive || lastWatchJob.current === job.id) return;
+      lastWatchJob.current = job.id;
+      setTab('home');
+      setNavHidden(false);
+      setPlaylistOpen(false);
+      setPlaylistInfo(null);
+      setError(null);
+      setInfo(buildWatchMedia(job).info);
+    };
+    const pull = (): void => {
+      void takePendingJob()
+        .then((raw) => {
+          if (raw) accept(raw);
+        })
+        .catch((e: unknown) => {
+          logError(
+            'watchHandoff',
+            `pending job failed: ${e instanceof Error ? e.message : String(e)}`
+          );
+        });
+    };
+    pull();
+    const sub = addWatchJobListener(accept);
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') pull();
+    });
+    return () => {
+      alive = false;
+      sub.remove();
+      appState.remove();
+    };
   }, []);
   useEffect(() => {
     if (!greetPending) return undefined;
