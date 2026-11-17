@@ -2,9 +2,19 @@ import { requireNativeModule } from 'expo-modules-core';
 
 type WatchJobEvent = { job: string };
 
+type WatchDownloadDone = {
+  id: string;
+  title: string;
+  season: number;
+  episode: number;
+  poster: string;
+  uri: string;
+};
+
 type WatchHandoffNative = {
   takePendingJob(): Promise<string | null>;
   consumeJob(job: string): Promise<void>;
+  notifyDownloadDone(p: WatchDownloadDone): Promise<void>;
   saveTextToMovies(
     fileName: string,
     mime: string,
@@ -26,6 +36,14 @@ try {
 
 export function takePendingJob(): Promise<string | null> {
   return native?.takePendingJob() ?? Promise.resolve(null);
+}
+
+export function notifyWatchDownloadDone(
+  payload: WatchDownloadDone
+): Promise<void> {
+  return (native?.notifyDownloadDone(payload) ?? Promise.resolve()).catch(
+    () => undefined
+  );
 }
 
 export function saveTextToMovies(

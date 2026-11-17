@@ -16,6 +16,8 @@ import {
 } from '../lib/fgservice';
 import { tapSuccess } from '../lib/haptics';
 import { runDownload } from '../lib/download/downloadPipeline';
+import { handoffOf } from '../lib/watchHandoff';
+import { notifyWatchDownloadDone } from '../../modules/watch-handoff';
 import { error as logError, log } from '../lib/log';
 
 export type StartDownloadResult =
@@ -80,6 +82,19 @@ export function useDownload(info: VideoInfo | null) {
 
       setOne(id, { status: 'saved', progress: 100 });
       tapSuccess();
+      // tell Phantom Watch about watch-originated saves so it can list them
+      // as Downloaded and play the local file; regular downloads stay local
+      const handoff = handoffOf(info);
+      if (handoff) {
+        void notifyWatchDownloadDone({
+          id: handoff.jobId,
+          title: handoff.title,
+          season: handoff.season ?? -1,
+          episode: handoff.episode ?? -1,
+          poster: handoff.poster ?? '',
+          uri: outcome.uri ?? '',
+        });
+      }
       if (await getNotify()) {
         await notifyDownloadComplete(
           stem,

@@ -17,7 +17,7 @@ class WatchDownloadActivity : Activity() {
             finish()
             return
         }
-        WatchHandoffStore.put(job)
+        WatchHandoffStore.put(applicationContext, job)
 
         val launch = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             addFlags(

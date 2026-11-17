@@ -33,6 +33,11 @@ export type HandoffMeta = {
   jobId: string;
   subtitles: WatchSubtitle[];
   saveSubdir: string;
+  // kept so a completed download can be reported back to Phantom Watch
+  title: string;
+  season: number | null;
+  episode: number | null;
+  poster: string | null;
 };
 
 export type HandoffInfo = VideoInfo & { handoff?: HandoffMeta };
@@ -224,6 +229,10 @@ export function buildWatchMedia(job: WatchDownloadJob): {
       jobId: job.id,
       subtitles: job.subtitles,
       saveSubdir: job.saveSubdir,
+      title: job.title,
+      season: job.season,
+      episode: job.episode,
+      poster: job.poster,
     },
   };
   return { info, format };
