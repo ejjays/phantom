@@ -2,11 +2,20 @@ import type { Format, VideoInfo } from '@phantom/extractors';
 
 export type WatchSubtitle = { url: string; lang: string; label: string };
 
+export type WatchFormat = {
+  url: string;
+  headers: Record<string, string>;
+  height: number | null;
+  label: string | null;
+  isHls: boolean;
+};
+
 export type WatchDownloadJob = {
   v: 1;
   id: string;
   url: string;
   headers: Record<string, string>;
+  formats: WatchFormat[];
   title: string;
   season: number | null;
   episode: number | null;
@@ -95,6 +104,32 @@ function subtitlesOf(value: unknown): WatchSubtitle[] {
   return out;
 }
 
+function formatsOf(value: unknown, fallbackUrl: string, fallbackHeaders: Record<string, string>): WatchFormat[] {
+  const fallback: WatchFormat[] = [{
+    url: fallbackUrl,
+    headers: fallbackHeaders,
+    height: null,
+    label: null,
+    isHls: /\.m3u8(?:$|\?)/iu.test(fallbackUrl),
+  }];
+  if (!Array.isArray(value)) return fallback;
+  const out: WatchFormat[] = [];
+  for (const item of value.slice(0, 24)) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const raw = item as Record<string, unknown>;
+    const url = httpUrl(raw.url);
+    if (!url) continue;
+    out.push({
+      url,
+      headers: Object.keys(raw.headers ?? {}).length ? headersOf(raw.headers) : fallbackHeaders,
+      height: integer(raw.height, 4320),
+      label: text(raw.label, 40),
+      isHls: raw.isHls === true || /\.m3u8(?:$|\?)/iu.test(url),
+    });
+  }
+  return out.length > 0 ? out : fallback;
+}
+
 export function parseWatchJob(raw: string): WatchDownloadJob | null {
   let value: unknown;
   try {
@@ -114,11 +149,13 @@ export function parseWatchJob(raw: string): WatchDownloadJob | null {
     subdir && !subdir.startsWith('.') && SUBDIR.test(subdir)
       ? subdir
       : DEFAULT_SUBDIR;
+  const headers = headersOf(job.headers);
   return {
     v: 1,
     id,
     url,
-    headers: headersOf(job.headers),
+    headers,
+    formats: formatsOf(job.formats, url, headers),
     title,
     season: integer(job.season, 999),
     episode: integer(job.episode, 9999),
@@ -144,18 +181,27 @@ export function buildWatchMedia(job: WatchDownloadJob): {
   info: HandoffInfo;
   format: Format;
 } {
-  const quality = job.quality ?? (job.height ? `${job.height}p` : 'Auto');
-  const format: Format = {
-    formatId: `watch-${job.id}`,
-    url: job.url,
-    extension: 'mp4',
-    quality,
-    height: job.height ?? undefined,
-    isMuxed: true,
-    isVideo: true,
-    isAudio: false,
-    isHls: job.isHls,
-  };
+  const formats: Format[] = job.formats.map((f, i) => {
+    const height = f.height ?? (i === 0 ? job.height : null);
+    return {
+      formatId: `watch-${job.id}-${i}`,
+      url: f.url,
+      extension: 'mp4',
+      // match other extractors: show only the resolution, not the provider
+      // label ("vidlink-1080p") that phantom-watch sends
+      quality: height ? `${height}p` : 'Auto',
+      height: height ?? undefined,
+      isMuxed: true,
+      isVideo: true,
+      isAudio: false,
+      isHls: f.isHls,
+      // keep the source name available for the note/subtitle without using
+      // it as the displayed quality
+      note: f.label ?? undefined,
+      downloadHeaders: f.headers,
+    };
+  });
+  const format = formats[0];
   const info: HandoffInfo = {
     type: 'video',
     id: job.id,
@@ -164,7 +210,7 @@ export function buildWatchMedia(job: WatchDownloadJob): {
     webpageUrl: job.webpageUrl ?? 'https://phantomwatch.local',
     thumbnail: job.poster ?? undefined,
     duration: job.durationSec ?? undefined,
-    formats: [format],
+    formats,
     extractorKey: 'phantomwatch',
     isJsInfo: false,
     fromBrain: false,

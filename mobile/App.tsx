@@ -152,7 +152,9 @@ function AppRoot() {
         return;
       }
       if (!alive || lastWatchJob.current === job.id) return;
+      log('watchHandoff', `accepted ${job.id}`);
       lastWatchJob.current = job.id;
+
       setTab('home');
       setNavHidden(false);
       setPlaylistOpen(false);
@@ -177,10 +179,19 @@ function AppRoot() {
     const appState = AppState.addEventListener('change', (state) => {
       if (state === 'active') pull();
     });
+    // The native sendEvent can be lost when phantom is brought to the front
+    // from phantom-watch's new task, and AppState may never leave 'active',
+    // so neither the event nor the resume pull fires. Poll the durable queue
+    // as a fallback so a queued job is always picked up. Dedup above keeps
+    // this idempotent with the event path.
+    const poll = setInterval(() => {
+      if (AppState.currentState === 'active') pull();
+    }, 1000);
     return () => {
       alive = false;
       sub.remove();
       appState.remove();
+      clearInterval(poll);
     };
   }, []);
   useEffect(() => {
