@@ -157,8 +157,8 @@ export function parseWatchJob(raw: string): WatchDownloadJob | null {
     headers,
     formats: formatsOf(job.formats, url, headers),
     title,
-    season: integer(job.season, 999),
-    episode: integer(job.episode, 9999),
+    season: integer(job.season, 999) || null,
+    episode: integer(job.episode, 9999) || null,
     quality: text(job.quality, 40),
     height: integer(job.height, 4320),
     durationSec: integer(job.durationSec, 86_400),
@@ -171,7 +171,9 @@ export function parseWatchJob(raw: string): WatchDownloadJob | null {
 }
 
 export function watchTitle(job: WatchDownloadJob): string {
-  if (job.season === null || job.episode === null) return job.title;
+  // a job with 0/0 (e.g. a movie sent with placeholder season/episode) should
+  // not render a bogus "S00E00" suffix
+  if (!job.season || !job.episode) return job.title;
   return `${job.title} S${String(job.season).padStart(2, '0')}E${String(
     job.episode
   ).padStart(2, '0')}`;
