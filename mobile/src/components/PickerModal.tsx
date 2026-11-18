@@ -116,10 +116,15 @@ function PickerContent({
   onDownload,
   onPreview,
 }: ContentProps) {
-  const displayFormats = useMemo(
-    () => (preferAudio ? buildAudioOptions(info) : info.formats),
-    [preferAudio, info]
-  );
+  const displayFormats = useMemo(() => {
+    const all = preferAudio ? buildAudioOptions(info) : info.formats;
+    // "Auto" is a source hint, not a resolution — it reads as a vague choice
+    // next to explicit heights. Keep it only if it is the only option.
+    const explicit = all.filter(
+      (format) => String(titleFor(format) ?? '').trim().toLowerCase() !== 'auto'
+    );
+    return explicit.length > 0 ? explicit : all;
+  }, [preferAudio, info]);
   const [selectedId, setSelectedId] = useState(
     () => displayFormats[0]?.formatId ?? ''
   );
