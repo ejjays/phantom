@@ -1,8 +1,10 @@
 package expo.modules.watchhandoff
 
+import android.content.ClipData
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
@@ -31,6 +33,10 @@ class WatchHandoffModule : Module() {
 
         AsyncFunction("takePendingJob") {
             WatchHandoffStore.take(context)
+        }
+
+        AsyncFunction("peekPendingJob") {
+            WatchHandoffStore.peek(context)
         }
 
         AsyncFunction("consumeJob") { job: String ->
@@ -83,8 +89,6 @@ class WatchHandoffModule : Module() {
             }
         }
 
-        // A watch-originated download finished: tell Phantom Watch where the
-        // saved file lives so it can offer offline playback in the Library.
         AsyncFunction("notifyDownloadDone") { p: Map<String, Any?> ->
             val id = p["id"] as? String ?: ""
             val title = p["title"] as? String ?: ""
@@ -92,9 +96,10 @@ class WatchHandoffModule : Module() {
             val episode = (p["episode"] as? Number)?.toInt() ?: -1
             val poster = p["poster"] as? String ?: ""
             val uri = p["uri"] as? String ?: ""
-            val flags = Intent.FLAG_RECEIVER_FOREGROUND or
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            // both release and debug ids; only the installed one receives it
+            // read grant: uri permissions travel in data/ClipData, not extras; mediaStore grants not reliably persistable, phantom watch holds READ_MEDIA_VIDEO to play files
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
+                Intent.FLAG_RECEIVER_FOREGROUND
             for (pkg in arrayOf("dev.phantomwatch", "dev.phantomwatch.debug")) {
                 val intent = Intent("dev.phantomwatch.action.DOWNLOAD_DONE")
                     .setPackage(pkg)
@@ -105,10 +110,15 @@ class WatchHandoffModule : Module() {
                     .putExtra("poster", poster)
                     .putExtra("uri", uri)
                     .addFlags(flags)
+                if (uri.startsWith("content://")) {
+                    val parsed = Uri.parse(uri)
+                    intent.data = parsed
+                    intent.clipData = ClipData.newRawUri("download", parsed)
+                }
                 try {
                     context.sendBroadcast(intent)
                 } catch (_: Exception) {
-                    // receiver not installed / not reachable — harmless
+                    // receiver not installed, harmless
                 }
             }
             Unit

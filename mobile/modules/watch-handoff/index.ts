@@ -13,6 +13,7 @@ type WatchDownloadDone = {
 
 type WatchHandoffNative = {
   takePendingJob(): Promise<string | null>;
+  peekPendingJob(): Promise<string | null>;
   consumeJob(job: string): Promise<void>;
   notifyDownloadDone(p: WatchDownloadDone): Promise<void>;
   saveTextToMovies(
@@ -31,11 +32,26 @@ let native: WatchHandoffNative | null = null;
 try {
   native = requireNativeModule<WatchHandoffNative>('WatchHandoff');
 } catch {
-  // old native binary without the handoff receiver; JS still boots
+  // old binary without handoff receiver, js still boots
 }
 
 export function takePendingJob(): Promise<string | null> {
   return native?.takePendingJob() ?? Promise.resolve(null);
+}
+
+// job stays in durable queue until picker shown, so reload/lost event cant drop handoff between "phantom opened" and "picker visible"
+export function peekPendingJob(): Promise<string | null> {
+  try {
+    const peek = native?.peekPendingJob;
+    if (peek) return peek();
+  } catch {
+    // old binary without peek, fallback to destructive read
+  }
+  return takePendingJob();
+}
+
+export function consumeWatchJob(job: string): Promise<void> {
+  return (native?.consumeJob(job) ?? Promise.resolve()).catch(() => undefined);
 }
 
 export function notifyWatchDownloadDone(
@@ -61,9 +77,9 @@ export function saveTextToMovies(
 export function addWatchJobListener(listener: (raw: string) => void): {
   remove(): void;
 } {
+  // do not consume: event can fire before react mounted or context about to be torn down; keeping it in queue lets poll recover it; removed once picker dismissed
   return (
     native?.addListener('onDownloadJob', (event) => {
-      void native?.consumeJob(event.job);
       listener(event.job);
     }) ?? { remove: () => undefined }
   );

@@ -23,9 +23,7 @@ internal object WatchHandoffStore {
         (0 until arr.length()).mapNotNull { arr.optString(it, null) }
     }.getOrDefault(emptyList())
 
-    // Persist the job: phantom-watch can send it while Phantom is still cold
-    // starting, before the JS listener (and its 1s poll) is alive. An in-memory
-    // queue lost that job on process death.
+    // phantom-watch can send job while phantom is still cold starting, before js listener (and 1s poll) is alive; in-memory queue loses it on process death
     @Synchronized
     fun put(ctx: Context, job: String) {
         val p = prefs(ctx)
@@ -34,6 +32,11 @@ internal object WatchHandoffStore {
         p.edit().putString(KEY, encode(list)).apply()
         listeners.forEach { listener -> runCatching { listener(job) } }
     }
+
+    // queue must survive until picker is on screen: job consumed while js context is torn down (cold start / metro reload) is lost forever with take()
+    @Synchronized
+    fun peek(ctx: Context): String? =
+        decode(prefs(ctx).getString(KEY, null)).firstOrNull()
 
     @Synchronized
     fun take(ctx: Context): String? {

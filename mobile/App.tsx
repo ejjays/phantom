@@ -47,7 +47,11 @@ import { type SocialDeepLink } from './src/lib/social/notificationTap.logic';
 import { openSavedTarget } from './src/lib/download/gallery';
 import { useDownload } from './src/hooks/useDownload';
 import { buildWatchMedia, parseWatchJob } from './src/lib/watchHandoff';
-import { addWatchJobListener, takePendingJob } from './modules/watch-handoff';
+import {
+  addWatchJobListener,
+  consumeWatchJob,
+  peekPendingJob,
+} from './modules/watch-handoff';
 import { useClipboardPaste } from './src/hooks/useClipboardPaste';
 import { useNotificationPriming } from './src/hooks/useNotificationPriming';
 import { tapImpact, loadHaptics } from './src/lib/haptics';
@@ -143,17 +147,26 @@ function AppRoot() {
     });
   }, []);
   const lastWatchJob = useRef<string | null>(null);
+  // raw job kept behind picker; native queue cleared only when picker dismissed, so reload cant drop handoff
+  const activeWatchJob = useRef<string | null>(null);
+  const consumeActiveWatchJob = (): void => {
+    const raw = activeWatchJob.current;
+    activeWatchJob.current = null;
+    if (raw) void consumeWatchJob(raw);
+  };
   useEffect(() => {
     let alive = true;
     const accept = (raw: string): void => {
       const job = parseWatchJob(raw);
       if (!job) {
         logError('watchHandoff', 'ignored malformed job');
+        void consumeWatchJob(raw);
         return;
       }
       if (!alive || lastWatchJob.current === job.id) return;
       log('watchHandoff', `accepted ${job.id}`);
       lastWatchJob.current = job.id;
+      activeWatchJob.current = raw;
 
       setTab('home');
       setNavHidden(false);
@@ -163,7 +176,7 @@ function AppRoot() {
       setInfo(buildWatchMedia(job).info);
     };
     const pull = (): void => {
-      void takePendingJob()
+      void peekPendingJob()
         .then((raw) => {
           if (raw) accept(raw);
         })
@@ -179,11 +192,7 @@ function AppRoot() {
     const appState = AppState.addEventListener('change', (state) => {
       if (state === 'active') pull();
     });
-    // The native sendEvent can be lost when phantom is brought to the front
-    // from phantom-watch's new task, and AppState may never leave 'active',
-    // so neither the event nor the resume pull fires. Poll the durable queue
-    // as a fallback so a queued job is always picked up. Dedup above keeps
-    // this idempotent with the event path.
+    // native sendEvent lost when phantom-watch opens new task, AppState may stay 'active', so poll durable queue as fallback so queued job always picked up, dedup keeps it idempotent
     const poll = setInterval(() => {
       if (AppState.currentState === 'active') pull();
     }, 1000);
@@ -230,6 +239,7 @@ function AppRoot() {
     setRefreshing(true);
     setError(null);
     setInvalidLink(false);
+    consumeActiveWatchJob();
     setInfo(null);
     setLink('');
     setLoading(false);
@@ -280,6 +290,7 @@ function AppRoot() {
     setLoading(true);
     setError(null);
     setInvalidLink(false);
+    consumeActiveWatchJob();
     setInfo(null);
     clearDownloads();
     log('Resolve', url);
@@ -335,6 +346,7 @@ function AppRoot() {
   }, []);
   const closePicker = () => {
     dismissedRef.current = true;
+    consumeActiveWatchJob();
     setInfo(null);
   };
   const onDownload = async (format: Format, meta?: DownloadMeta) => {

@@ -584,21 +584,20 @@ export default function PickerModal({
   if (info && info !== shownInfo) setShownInfo(info);
 
   const [mounted, setMounted] = useState(Boolean(info));
-  const dim = useSharedValue(0);
-  const fade = useSharedValue(0);
+  // Start visible when a handoff job is already present on first render.
+  // Relying on a withTiming() here can leave the card at opacity 0 when the
+  // job arrives during a cold start (backdrop dims, but nothing shows).
+  const dim = useSharedValue(info ? 1 : 0);
+  const fade = useSharedValue(info ? 1 : 0);
 
   useEffect(() => {
     if (info) {
       // eslint-disable-next-line react-hooks/set-state-in-effect, react-you-might-not-need-an-effect/no-adjust-state-on-prop-change -- keep content mounted during fade-out
       setMounted(true);
-      dim.value = withTiming(1, {
-        duration: 120,
-        easing: Easing.out(Easing.quad),
-      });
-      fade.value = withTiming(1, {
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-      });
+      // Correctness before cosmetics: never gate visibility on an animation
+      // that may be cancelled while the modal mounts from a background handoff.
+      dim.value = 1;
+      fade.value = 1;
     } else {
       dim.value = withTiming(0, {
         duration: 200,

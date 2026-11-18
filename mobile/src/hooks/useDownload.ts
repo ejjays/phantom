@@ -82,8 +82,6 @@ export function useDownload(info: VideoInfo | null) {
 
       setOne(id, { status: 'saved', progress: 100 });
       tapSuccess();
-      // tell Phantom Watch about watch-originated saves so it can list them
-      // as Downloaded and play the local file; regular downloads stay local
       const handoff = handoffOf(info);
       if (handoff) {
         void notifyWatchDownloadDone({
