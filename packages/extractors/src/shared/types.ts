@@ -25,8 +25,7 @@ export interface Format {
   abr?: number;
   itag?: number | string;
   audioUrl?: string;
-  // per-format request headers (e.g. handoff streams each carry their own
-  // Referer/Origin); pipeline prefers these over VideoInfo.downloadHeaders
+  // per-format request headers; handoff streams carry own referer/origin; pipeline prefers these over VideoInfo.downloadHeaders
   downloadHeaders?: Record<string, string>;
 }
 

@@ -33,7 +33,6 @@ export type HandoffMeta = {
   jobId: string;
   subtitles: WatchSubtitle[];
   saveSubdir: string;
-  // kept so a completed download can be reported back to Phantom Watch
   title: string;
   season: number | null;
   episode: number | null;
@@ -176,8 +175,7 @@ export function parseWatchJob(raw: string): WatchDownloadJob | null {
 }
 
 export function watchTitle(job: WatchDownloadJob): string {
-  // a job with 0/0 (e.g. a movie sent with placeholder season/episode) should
-  // not render a bogus "S00E00" suffix
+  // 0/0 should not render bogus "S00E00" suffix
   if (!job.season || !job.episode) return job.title;
   return `${job.title} S${String(job.season).padStart(2, '0')}E${String(
     job.episode
@@ -194,16 +192,12 @@ export function buildWatchMedia(job: WatchDownloadJob): {
       formatId: `watch-${job.id}-${i}`,
       url: f.url,
       extension: 'mp4',
-      // match other extractors: show only the resolution, not the provider
-      // label ("vidlink-1080p") that phantom-watch sends
       quality: height ? `${height}p` : 'Auto',
       height: height ?? undefined,
       isMuxed: true,
       isVideo: true,
       isAudio: false,
       isHls: f.isHls,
-      // keep the source name available for the note/subtitle without using
-      // it as the displayed quality
       note: f.label ?? undefined,
       downloadHeaders: f.headers,
     };

@@ -13,8 +13,7 @@ import Animated, {
   FadeOut,
 } from 'react-native-reanimated';
 import tw from '../../lib/tw';
-import { Format } from '@phantom/extractors';
-import { type DownloadState, formatSize, extLabel } from '../../lib/format';
+import { type DownloadState } from '../../lib/format';
 
 const SHIMMER_BAND = 64;
 
@@ -113,12 +112,10 @@ function FooterProgress({ state }: { state: DownloadState }) {
 }
 
 export function PickerFooter({
-  selected,
   editing,
   state,
   vpnWarning = false,
 }: {
-  selected: Format;
   editing: boolean;
   state?: DownloadState;
   vpnWarning?: boolean;
@@ -157,9 +154,7 @@ export function PickerFooter({
               ? 'Download failed — tap retry'
               : editing
                 ? 'Changes will update file info when you download.'
-                : `${formatSize(selected.filesize)} · ${extLabel(selected)}${
-                    selected.isMuxed ? ' · video + audio in one file' : ''
-                  }`}
+                : 'Ready when you are'}
           </Text>
         </Animated.View>
       )}

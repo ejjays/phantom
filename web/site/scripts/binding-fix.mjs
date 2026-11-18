@@ -6,14 +6,6 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const tmp = join(root, '.binding-fix-tmp');
 
-// This is a Termux-only workaround: npm silently drops optional native
-// bindings there, so we restore the arm64 / wasm32-wasi copies by hand.
-// Everywhere else npm installs the right bindings for the host platform.
-// This script is wired up as a workspace postinstall, so it runs on Windows /
-// macOS / Linux desktop too. Do nothing there -- besides being unnecessary,
-// `execFileSync('npm', ...)` cannot work on Windows (npm is a .cmd shim:
-// spawning `npm` gives ENOENT and `npm.cmd` gives EINVAL), which used to abort
-// the entire install.
 const inTermux =
   process.platform === 'android' ||
   Boolean(process.env.TERMUX_VERSION) ||

@@ -755,7 +755,6 @@ function PickerContent({
 
       {selected ? (
         <PickerFooter
-          selected={selected}
           editing={editing}
           state={state}
           vpnWarning={vpnWarning}

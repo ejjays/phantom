@@ -9,7 +9,7 @@ const PKG = '@nikhil-cephei/ffmpeg-kit-react-native';
 const AAR = 'ffmpeg-kit-full-gpl.aar';
 
 // module keeps Java params boxed (Double/Integer/Boolean) but codegen emits
-// primitives (D/Z) — JNI can't resolve them at runtime, so derive real sigs
+// primitives (D/Z); JNI cant resolve them at runtime, so derive real sigs
 const JNI_TYPES = {
   Double: 'Ljava/lang/Double;',
   Integer: 'Ljava/lang/Integer;',
@@ -209,8 +209,7 @@ if (fs.existsSync(appPkg) && !fs.existsSync(path.join(appPkg, 'package.json'))) 
 
 if (!fs.existsSync(appPkg)) {
   fs.mkdirSync(path.dirname(appPkg), { recursive: true });
-  // A 'dir' symlink needs admin/Developer Mode on Windows; a junction does
-  // not and is still transparent to Node/Gradle module resolution.
+  // dir symlink needs admin mode on windows; junction is transparent to node/gradle module resolution
   fs.symlinkSync(realPkgDir, appPkg, process.platform === 'win32' ? 'junction' : 'dir');
   console.log(`[ensure-ffmpeg-aar] linked ${realPkgDir} -> ${appPkg}`);
 }

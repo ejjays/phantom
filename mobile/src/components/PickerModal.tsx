@@ -118,8 +118,7 @@ function PickerContent({
 }: ContentProps) {
   const displayFormats = useMemo(() => {
     const all = preferAudio ? buildAudioOptions(info) : info.formats;
-    // "Auto" is a source hint, not a resolution — it reads as a vague choice
-    // next to explicit heights. Keep it only if it is the only option.
+    // "Auto" is a source hint, not a resolution; it reads as vague choice next to explicit heights, keep it only if it is the only option
     const explicit = all.filter(
       (format) => String(titleFor(format) ?? '').trim().toLowerCase() !== 'auto'
     );
@@ -555,7 +554,6 @@ function PickerContent({
 
       {selected ? (
         <PickerFooter
-          selected={selected}
           editing={editing}
           state={state}
           vpnWarning={vpnWarning}
@@ -584,7 +582,6 @@ export default function PickerModal({
   if (info && info !== shownInfo) setShownInfo(info);
 
   const [mounted, setMounted] = useState(Boolean(info));
-  // Start visible when a handoff job is already present on first render.
   // Relying on a withTiming() here can leave the card at opacity 0 when the
   // job arrives during a cold start (backdrop dims, but nothing shows).
   const dim = useSharedValue(info ? 1 : 0);
