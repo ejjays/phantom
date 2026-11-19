@@ -154,7 +154,7 @@ async function fetchMedia({
   track,
 }: FetchMediaInput): Promise<File> {
   const ext = format.extension || 'mp4';
-  const headers = info.downloadHeaders ?? {
+  const headers = format.downloadHeaders ?? info.downloadHeaders ?? {
     'User-Agent': DESKTOP_UA,
     Referer: refererFor(info.extractorKey ?? ''),
   };

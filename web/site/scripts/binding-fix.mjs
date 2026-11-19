@@ -6,6 +6,11 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const tmp = join(root, '.binding-fix-tmp');
 
+const inTermux =
+  process.platform === 'android' ||
+  Boolean(process.env.TERMUX_VERSION) ||
+  Boolean(process.env.PREFIX && process.env.PREFIX.includes('com.termux'));
+
 // npm drops android optional deps silently; walk node_modules trees (scoped +
 // nested) and place each binding beside every real copy of its consumer
 function findPackageDirs(name) {
@@ -242,18 +247,22 @@ const JOBS = [
   },
 ];
 
-let missing = false;
-try {
-  for (const job of JOBS) {
-    if (job.done()) continue;
-    missing = true;
-    console.log(`[binding-fix] restoring ${job.label}`);
-    job.install();
+if (!inTermux) {
+  console.log('[binding-fix] skipped (not a Termux environment)');
+} else {
+  let missing = false;
+  try {
+    for (const job of JOBS) {
+      if (job.done()) continue;
+      missing = true;
+      console.log(`[binding-fix] restoring ${job.label}`);
+      job.install();
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
   }
-} finally {
-  rmSync(tmp, { recursive: true, force: true });
-}
 
-if (!missing) {
-  console.log('[binding-fix] all native bindings present');
+  if (!missing) {
+    console.log('[binding-fix] all native bindings present');
+  }
 }
